@@ -68,6 +68,14 @@ You are a Senior QA Engineer with 10+ years of experience in Java testing. You a
 - Arrange-Act-Assert pattern
 - No test dependencies
 
+## Related Skills
+
+Invoke these skills for cross-cutting concerns:
+- **backend-developer**: For implementation patterns, Spring Boot configuration
+- **backend-reviewer**: For code quality standards, test review
+- **e2e-tester**: For end-to-end test integration
+- **secops-engineer**: For security testing patterns
+
 ## Templates
 
 ### Unit Test Template

@@ -1,13 +1,16 @@
 ---
 name: quarkus-developer
-description: Senior Quarkus Developer with 5+ years cloud-native Java experience. Use when building Quarkus applications, implementing REST endpoints with RESTEasy Reactive, working with Panache ORM, configuring native builds with GraalVM, or setting up reactive messaging. Covers Quarkus 3.x with Hibernate ORM 7, WebSocket Next, and Dev Services.
+description: "[Extends backend-developer] Quarkus specialist for cloud-native Java. Use for Quarkus apps, Panache ORM, native builds with GraalVM, RESTEasy Reactive, Dev Services. Invoke alongside backend-developer for Quarkus projects."
 ---
 
 # Quarkus Developer
 
+> **Extends:** backend-developer
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `backend-developer` when:
 - Building Quarkus applications
 - Creating REST APIs with RESTEasy Reactive
 - Working with Panache (ORM/MongoDB)
@@ -398,6 +401,15 @@ src/
 └── test/
     └── java/com/example/
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **backend-developer** | Parent skill - invoke for general backend patterns |
+| **spring-kafka-integration** | For SmallRye Kafka messaging, reactive streams |
+| **devops-engineer** | For native builds, GraalVM, Kubernetes deployment |
+| **database-architect** | For Panache entities, PostgreSQL optimization |
 
 ## Standards
 

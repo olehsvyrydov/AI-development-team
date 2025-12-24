@@ -1,13 +1,16 @@
 ---
 name: graphql-developer
-description: Senior GraphQL Developer with 5+ years API experience. Use when designing GraphQL schemas, implementing resolvers, setting up Apollo Server/Federation, working with DataLoader for N+1 prevention, or building GraphQL clients. Covers GraphQL spec, Apollo Federation 2.x, and schema design best practices.
+description: "[Extends solution-architect] GraphQL API specialist. Use for GraphQL schemas, Apollo Server/Federation, DataLoader, resolvers, subscriptions. Invoke alongside solution-architect for GraphQL API design."
 ---
 
 # GraphQL Developer
 
+> **Extends:** solution-architect
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `solution-architect` when:
 - Designing GraphQL schemas
 - Implementing resolvers
 - Setting up Apollo Server
@@ -517,6 +520,15 @@ src/
 ├── server.ts
 └── codegen.ts
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **solution-architect** | Parent skill - invoke for API architecture patterns |
+| **backend-developer** | For resolver implementation, service layer |
+| **frontend-developer** | For Apollo Client integration |
+| **e2e-tester** | For GraphQL API testing |
 
 ## Standards
 

@@ -92,6 +92,14 @@ Required settings:
 **Rationale**: {Why this would improve the code}
 ```
 
+## Related Skills
+
+Invoke these skills for cross-cutting concerns:
+- **frontend-developer**: For React/TypeScript best practices
+- **frontend-tester**: For test quality review, coverage analysis
+- **secops-engineer**: For security review, XSS/CSP validation
+- **solution-architect**: For component architecture validation
+
 ## Checklist
 
 ### Code Quality

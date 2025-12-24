@@ -1,13 +1,16 @@
 ---
 name: terraform-specialist
-description: Senior Terraform Specialist with 6+ years IaC experience. Use when writing Terraform configurations, creating reusable modules, managing state, implementing workspaces, or setting up CI/CD for infrastructure. Covers Terraform 1.x, OpenTofu, AWS/GCP/Azure providers, and module best practices.
+description: "[Extends devops-engineer] Terraform/OpenTofu specialist. Use for advanced Terraform modules, multi-cloud providers, state management, workspaces, CI/CD for IaC. Invoke alongside devops-engineer for complex IaC projects."
 ---
 
 # Terraform Specialist
 
+> **Extends:** devops-engineer
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `devops-engineer` when:
 - Writing Terraform configurations
 - Creating reusable Terraform modules
 - Managing Terraform state
@@ -476,6 +479,14 @@ jobs:
           script: |
             // Post plan output as PR comment
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **devops-engineer** | Parent skill - invoke for Kubernetes, CI/CD, Docker |
+| **secops-engineer** | For security policies, compliance requirements |
+| **solution-architect** | For infrastructure architecture decisions |
 
 ## Standards
 
