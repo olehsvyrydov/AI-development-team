@@ -69,26 +69,37 @@ cd AI-development-team
 # Copy all skills to user-level Claude directory
 cp -r .claude/skills/* ~/.claude/skills/
 
+# Copy the /agents command
+mkdir -p ~/.claude/commands
+cp .claude/commands/agents.md ~/.claude/commands/
+
 # Verify installation
 ls ~/.claude/skills/
+ls ~/.claude/commands/
 ```
 
 After installation, you can use `/agents` command in any project to see all available agents.
 
+> **Note:** Skills (in `.claude/skills/`) are model-invoked (Claude decides when to use them).
+> Commands (in `.claude/commands/`) are user-invoked (you type `/command` directly).
+
 #### What Gets Installed
 
 ```
-~/.claude/skills/
-├── agents/                    # /agents command - shows all agents
-├── backend-developer/         # Core agent
-├── frontend-developer/        # Core agent
-├── devops-engineer/           # Core agent
-├── solution-architect/        # Core agent
-├── ...                        # (15 core agents total)
-├── angular-developer/         # Extended skill
-├── vue-developer/             # Extended skill
-├── spring-kafka-integration/  # Extended skill
-├── ...                        # (9 extended skills total)
+~/.claude/
+├── commands/
+│   └── agents.md              # /agents command - shows all agents
+│
+└── skills/
+    ├── backend-developer/     # Core agent
+    ├── frontend-developer/    # Core agent
+    ├── devops-engineer/       # Core agent
+    ├── solution-architect/    # Core agent
+    ├── ...                    # (15 core agents total)
+    ├── angular-developer/     # Extended skill
+    ├── vue-developer/         # Extended skill
+    ├── spring-kafka-integration/  # Extended skill
+    └── ...                    # (9 extended skills total)
 ```
 
 #### Updating Skills
@@ -99,6 +110,7 @@ To update your global skills to the latest version:
 cd AI-development-team
 git pull origin main
 cp -r .claude/skills/* ~/.claude/skills/
+cp .claude/commands/agents.md ~/.claude/commands/
 ```
 
 ### Option 2: Project-Level Installation

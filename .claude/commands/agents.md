@@ -1,14 +1,8 @@
 ---
-name: agents
-description: List all available AI Development Team agents and their specializations. Use /agents to see core agents, extended skills, and their relationships.
-user_invocable: true
+description: List all available AI Development Team agents and their specializations
 ---
 
 # AI Development Team - Agent Directory
-
-## Usage
-
-Invoke with `/agents` to see all available agents and skills.
 
 ## Core Agents (15)
 
@@ -110,14 +104,6 @@ Task: "Build Angular dashboard with Kafka real-time updates"
 ```
 
 ---
-
-## Quick Reference
-
-```
-/agents              - Show this directory
-/JAVA_SPRING_BOOT    - Java/Spring patterns (alias)
-/DEVOPS_KUBERNETES   - K8s deployment patterns (alias)
-```
 
 ## Skill Locations
 
