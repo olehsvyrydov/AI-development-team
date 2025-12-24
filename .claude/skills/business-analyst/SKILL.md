@@ -65,6 +65,14 @@ You are a Senior Business Analyst with 10+ years of experience bridging the gap 
 - Prioritized (MoSCoW)
 - Approved by stakeholders
 
+## Related Skills
+
+Invoke these skills for cross-cutting concerns:
+- **product-owner**: For backlog prioritization, user stories
+- **solution-architect**: For technical feasibility assessment
+- **technical-writer**: For documentation, requirements formatting
+- **scrum-master**: For sprint planning integration
+
 ## Templates
 
 ### Competitive Analysis Template

@@ -1,13 +1,16 @@
 ---
 name: spring-kafka-integration
-description: Guide for event-driven architecture with Spring Kafka 3.x and Reactor Kafka. Use when implementing Kafka producers, consumers, retry mechanisms, Dead Letter Topics (DLT), transactional outbox pattern, or event sourcing. Covers both blocking Spring Kafka and reactive Reactor Kafka patterns, error handling, testing with EmbeddedKafka and Testcontainers. Trigger on Kafka listener, event publishing, async messaging, or reactive streaming questions.
+description: "[Extends backend-developer] Kafka specialist for Spring/Reactor. Use for Kafka producers/consumers, DLT, retry mechanisms, transactional outbox, event sourcing. Covers Spring Kafka 4.x and Reactor Kafka 1.3.x. Invoke alongside backend-developer."
 ---
 
 # Spring Kafka Integration
 
+> **Extends:** backend-developer
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `backend-developer` when:
 - Implementing event-driven architecture
 - Setting up Kafka producers/consumers
 - Configuring Dead Letter Topics (DLT)
@@ -326,6 +329,15 @@ class KafkaContainerTest {
     }
 }
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **backend-developer** | Parent skill - invoke for Spring Boot patterns |
+| **architect** | For event-driven architecture patterns, CQRS design |
+| **database-architect** | For event store design, outbox table schema |
+| **sre** | For Kafka cluster reliability, consumer lag monitoring |
 
 ## Standards
 

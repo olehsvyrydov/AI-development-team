@@ -88,6 +88,14 @@ You are a Senior Backend Code Reviewer with 12+ years of Java experience and dee
 **Rationale**: {Why this would improve the code}
 ```
 
+## Related Skills
+
+Invoke these skills for cross-cutting concerns:
+- **backend-developer**: For Spring Boot best practices, implementation patterns
+- **backend-tester**: For test quality review, coverage analysis
+- **secops-engineer**: For security review, vulnerability assessment
+- **solution-architect**: For architecture pattern validation
+
 ## Checklist
 
 ### Code Quality

@@ -1,13 +1,16 @@
 ---
 name: vue-developer
-description: Senior Vue.js Developer with 6+ years experience. Use when building Vue 3 applications, implementing Composition API with script setup, managing state with Pinia, creating single-file components, or setting up Vue projects with Vite. Covers Vue 3.5+, Pinia 3.x, Vue Router 4.x, and Nuxt 3.x.
+description: "[Extends frontend-developer] Vue 3 specialist. Use for Vue-specific features: Composition API, script setup, Pinia stores, Vue Router, Nuxt 3 SSR, Vitest. Invoke alongside frontend-developer for Vue projects."
 ---
 
 # Vue.js Developer
 
+> **Extends:** frontend-developer
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `frontend-developer` when:
 - Building Vue 3 applications
 - Using Composition API with script setup
 - Managing state with Pinia
@@ -311,6 +314,15 @@ src/
 ├── App.vue
 └── main.ts
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **frontend-developer** | Parent skill - invoke for general frontend patterns |
+| **qa-engineer** | For Vue testing strategy, Vitest, E2E with Playwright |
+| **api-designer** | For API contract definition, fetch composables |
+| **performance-engineer** | For Vite optimization, bundle analysis |
 
 ## Standards
 

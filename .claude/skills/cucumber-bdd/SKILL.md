@@ -1,13 +1,16 @@
 ---
 name: cucumber-bdd
-description: Senior BDD Specialist with 8+ years Cucumber experience. Use when writing Gherkin feature files, implementing step definitions in Java or JavaScript, integrating Cucumber with Playwright/Selenium/Spring, or setting up BDD testing pipelines. Covers Cucumber-JVM 7.x and Cucumber-JS with best practices for maintainable tests.
+description: "[Extends e2e-tester] BDD/Cucumber specialist. Use for Gherkin feature files, step definitions, Cucumber-JVM/JS, Spring/Playwright integration. Invoke alongside e2e-tester for BDD testing approach."
 ---
 
 # Cucumber BDD Testing
 
+> **Extends:** e2e-tester
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `e2e-tester` when:
 - Writing Gherkin feature files
 - Implementing step definitions (Java/JavaScript)
 - Setting up Cucumber with Spring Boot
@@ -444,6 +447,15 @@ src/test/
         └── common/
             └── navigation.feature
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **e2e-tester** | Parent skill - invoke for Playwright/Detox patterns |
+| **backend-tester** | For API-level step definitions |
+| **frontend-developer** | For understanding page objects |
+| **backend-developer** | For Spring Cucumber integration |
 
 ## Standards
 

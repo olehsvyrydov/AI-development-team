@@ -1,13 +1,16 @@
 ---
 name: angular-developer
-description: Senior Angular Developer with 8+ years experience. Use when building Angular applications, implementing components with Signals, configuring zoneless change detection, working with RxJS/NgRx, creating standalone components, or setting up Angular projects. Covers Angular 21 with Signal Forms, Angular Aria, and modern reactive patterns.
+description: "[Extends frontend-developer] Angular 21 specialist. Use for Angular-specific features: Signals, zoneless change detection, NgRx SignalStore, standalone components, Signal Forms, Angular Aria. Invoke alongside frontend-developer for Angular projects."
 ---
 
 # Angular Developer
 
+> **Extends:** frontend-developer
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `frontend-developer` when:
 - Building Angular applications
 - Creating components with Signals
 - Configuring zoneless change detection
@@ -297,6 +300,15 @@ src/
 ├── environments/
 └── main.ts
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **frontend-developer** | Parent skill - invoke for general frontend patterns |
+| **qa-engineer** | For Angular testing strategy, E2E with Playwright |
+| **api-designer** | For Angular HttpClient integration, API contracts |
+| **performance-engineer** | For bundle optimization, lazy loading strategy |
 
 ## Standards
 

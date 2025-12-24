@@ -1,13 +1,16 @@
 ---
 name: flutter-developer
-description: Senior Flutter Developer with 5+ years cross-platform mobile experience. Use when building Flutter applications, implementing widgets, managing state with Riverpod/Bloc, working with Dart 3.x features, or setting up platform-specific configurations. Covers Flutter 3.x, Dart 3.x with patterns, null safety, and Material 3.
+description: "[Extends frontend-developer] Flutter/Dart specialist for cross-platform mobile. Use for Flutter apps, Riverpod/Bloc state management, Dart 3.x patterns, Material 3. Invoke alongside frontend-developer for Flutter projects."
 ---
 
 # Flutter Developer
 
+> **Extends:** frontend-developer
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `frontend-developer` when:
 - Building Flutter mobile/web/desktop applications
 - Creating custom widgets
 - Managing state (Riverpod, Bloc, Provider)
@@ -422,6 +425,15 @@ lib/
 ├── theme/
 └── main.dart
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **frontend-developer** | Parent skill - invoke for general frontend patterns |
+| **backend-developer** | For API integration patterns |
+| **devops-engineer** | For CI/CD, app store deployment |
+| **e2e-tester** | For Flutter integration testing |
 
 ## Standards
 

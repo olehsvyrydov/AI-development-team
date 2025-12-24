@@ -1,13 +1,16 @@
 ---
 name: fastapi-developer
-description: Senior FastAPI Developer with 5+ years Python async experience. Use when building FastAPI applications, implementing async endpoints, working with Pydantic v2 models, configuring SQLAlchemy async, or setting up dependency injection. Covers FastAPI 0.115+, Pydantic 2.x, SQLAlchemy 2.x async, and modern Python patterns.
+description: "[Extends backend-developer] Python FastAPI specialist. Use for FastAPI apps, async endpoints, Pydantic v2, SQLAlchemy async, dependency injection. Invoke alongside backend-developer for Python API projects."
 ---
 
 # FastAPI Developer
 
+> **Extends:** backend-developer
+> **Type:** Specialized Skill
+
 ## Trigger
 
-Use this skill when:
+Use this skill alongside `backend-developer` when:
 - Building FastAPI applications
 - Creating async REST endpoints
 - Defining Pydantic v2 models
@@ -453,6 +456,15 @@ tests/
 ├── conftest.py
 └── test_users.py
 ```
+
+## Parent & Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| **backend-developer** | Parent skill - invoke for general backend patterns |
+| **database-architect** | For PostgreSQL schema design, SQLAlchemy models |
+| **api-designer** | For REST API design, OpenAPI specification |
+| **ml-engineer** | For ML model serving endpoints integration |
 
 ## Standards
 
