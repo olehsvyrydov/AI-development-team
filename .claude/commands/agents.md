@@ -4,7 +4,7 @@ description: List all available AI Development Team agents and their specializat
 
 # AI Development Team - Agent Directory
 
-## Core Agents (15)
+## Core Agents (16)
 
 These are your primary agents for software development:
 
@@ -34,6 +34,12 @@ These are your primary agents for software development:
 |-------|-----------|--------------|
 | **secops-engineer** | Spring Security, JWT, OAuth2, OWASP | Auth, security headers, compliance |
 | **technical-writer** | C4 diagrams, ADRs, API docs, Mermaid | Documentation, changelogs, README |
+
+### Design
+
+| Agent | Expertise | Trigger When |
+|-------|-----------|--------------|
+| **ui-designer** (Aura) | React, Tailwind, Framer Motion, Design Systems | Landing pages, dashboards, mobile UI, brand design |
 
 ### Product & Process
 

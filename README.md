@@ -40,12 +40,12 @@ A reusable repository of specialized Claude Code skills that work together like 
 └───────────────┘      └───────────────┘       └───────────────┘
 
                          SPECIALIZED LAYER
-      ┌─────────────────────┬─────────────────────┐
-      │                     │                     │
-┌─────▼─────┐        ┌──────▼──────┐       ┌─────▼─────┐
-│   MLOPS   │        │  TECHNICAL  │       │    ...    │
-│  ENGINEER │        │   WRITER    │       │  (more)   │
-└───────────┘        └─────────────┘       └───────────┘
+      ┌──────────────┬──────────────┬──────────────┐
+      │              │              │              │
+┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐
+│   MLOPS   │  │ TECHNICAL │  │    UI     │  │           │
+│  ENGINEER │  │   WRITER  │  │  DESIGNER │  │  (more)   │
+└───────────┘  └───────────┘  └───────────┘  └───────────┘
 ```
 
 ---
@@ -238,7 +238,7 @@ For complex tasks, chain multiple agents:
 → technical-writer (document)
 ```
 
-### Core Agents (15 Total)
+### Core Agents (16 Total)
 
 | # | Agent | Skill Name | When to Use |
 |---|-------|------------|-------------|
@@ -248,15 +248,16 @@ For complex tasks, chain multiple agents:
 | 4 | Solution Architect | `solution-architect` | System design, ADRs, technology decisions |
 | 5 | Backend Developer | `backend-developer` | Spring Boot, Java, APIs, business logic |
 | 6 | Frontend Developer | `frontend-developer` | React, Next.js, React Native, UI |
-| 7 | Backend Reviewer | `backend-reviewer` | Java code review, quality, style |
-| 8 | Frontend Reviewer | `frontend-reviewer` | TypeScript review, ESLint, a11y |
-| 9 | Backend Tester | `backend-tester` | JUnit, Testcontainers, integration tests |
-| 10 | Frontend Tester | `frontend-tester` | Jest, React Testing Library |
-| 11 | E2E Tester | `e2e-tester` | Playwright, Detox, user flows |
-| 12 | DevOps Engineer | `devops-engineer` | Terraform, Kubernetes, CI/CD |
-| 13 | SecOps Engineer | `secops-engineer` | Security, OWASP, GDPR, auth |
-| 14 | MLOps Engineer | `mlops-engineer` | AI/ML integration, LLM orchestration |
-| 15 | Technical Writer | `technical-writer` | Documentation, C4 diagrams, changelogs |
+| 7 | **UI/UX Designer (Aura)** | `ui-designer` | Landing pages, design systems, mobile UI, brand design |
+| 8 | Backend Reviewer | `backend-reviewer` | Java code review, quality, style |
+| 9 | Frontend Reviewer | `frontend-reviewer` | TypeScript review, ESLint, a11y |
+| 10 | Backend Tester | `backend-tester` | JUnit, Testcontainers, integration tests |
+| 11 | Frontend Tester | `frontend-tester` | Jest, React Testing Library |
+| 12 | E2E Tester | `e2e-tester` | Playwright, Detox, user flows |
+| 13 | DevOps Engineer | `devops-engineer` | Terraform, Kubernetes, CI/CD |
+| 14 | SecOps Engineer | `secops-engineer` | Security, OWASP, GDPR, auth |
+| 15 | MLOps Engineer | `mlops-engineer` | AI/ML integration, LLM orchestration |
+| 16 | Technical Writer | `technical-writer` | Documentation, C4 diagrams, changelogs |
 
 ### Extended Skills (9 Total)
 
@@ -347,6 +348,7 @@ Each core agent has a **Related Skills** section that references other agents fo
 |-------|------------------------------|
 | Backend Developer | Spring Boot 4, Java 25, WebFlux, R2DBC, TDD |
 | Frontend Developer | Next.js 15, React 19, React Native, Expo SDK 52, TypeScript 5 |
+| UI/UX Designer (Aura) | React, Tailwind CSS 4, Framer Motion, Atomic Design, WCAG 2.1 |
 
 ### Quality Layer
 | Agent | Key Technologies & Knowledge |
@@ -486,6 +488,7 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2.0 | 2025-12-24 | Added UI/UX Designer (Aura) as 16th agent |
 | 1.1.0 | 2025-12-24 | Added hierarchical skill structure, /agents command, global installation |
 | 1.0.0 | 2025-12-23 | Initial release with 15 agents |
 
