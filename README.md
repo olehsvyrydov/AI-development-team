@@ -57,13 +57,73 @@ A reusable repository of specialized Claude Code skills that work together like 
 - [Claude Code CLI](https://claude.ai/code) installed and configured
 - Git
 
-### Option 1: Clone as Submodule (Recommended)
+### Option 1: Global Installation (Recommended)
+
+Install all agents at the user level so they're available in **every project**:
+
+```bash
+# Clone the repository
+git clone https://github.com/olehsvyrydov/AI-development-team.git
+cd AI-development-team
+
+# Copy all skills to user-level Claude directory
+cp -r .claude/skills/* ~/.claude/skills/
+
+# Verify installation
+ls ~/.claude/skills/
+```
+
+After installation, you can use `/agents` command in any project to see all available agents.
+
+#### What Gets Installed
+
+```
+~/.claude/skills/
+├── agents/                    # /agents command - shows all agents
+├── backend-developer/         # Core agent
+├── frontend-developer/        # Core agent
+├── devops-engineer/           # Core agent
+├── solution-architect/        # Core agent
+├── ...                        # (15 core agents total)
+├── angular-developer/         # Extended skill
+├── vue-developer/             # Extended skill
+├── spring-kafka-integration/  # Extended skill
+├── ...                        # (9 extended skills total)
+```
+
+#### Updating Skills
+
+To update your global skills to the latest version:
+
+```bash
+cd AI-development-team
+git pull origin main
+cp -r .claude/skills/* ~/.claude/skills/
+```
+
+### Option 2: Project-Level Installation
+
+Install skills for a specific project only:
+
+```bash
+# In your project root
+git clone https://github.com/olehsvyrydov/AI-development-team.git .ai-team
+
+# Copy skills to project's Claude directory
+mkdir -p .claude/skills
+cp -r .ai-team/.claude/skills/* .claude/skills/
+
+# Optional: remove the cloned repo
+rm -rf .ai-team
+```
+
+### Option 3: Clone as Submodule
 
 Add this repository as a git submodule to your project:
 
 ```bash
 # In your project root
-git submodule add https://github.com/YOUR_USERNAME/ai-dev-team.git .ai-team
+git submodule add https://github.com/olehsvyrydov/AI-development-team.git .ai-team
 
 # Initialize submodule (for cloning existing repos)
 git submodule update --init --recursive
@@ -104,7 +164,7 @@ Add this to your project's `CLAUDE.md`:
 ## External Skills Repository
 
 For specialized agent skills, reference:
-https://github.com/YOUR_USERNAME/ai-dev-team
+https://github.com/olehsvyrydov/AI-development-team
 
 Clone locally and use skills as needed.
 ```
@@ -115,7 +175,17 @@ Clone locally and use skills as needed.
 
 ### How to Invoke Agents
 
-There are three ways to use the AI agents:
+There are four ways to use the AI agents:
+
+#### 0. List All Agents
+
+Use the `/agents` command to see all available agents and their specializations:
+
+```
+/agents
+```
+
+This displays the full agent directory with core agents, extended skills, and how they work together.
 
 #### 1. Explicit Skill Invocation
 
@@ -156,7 +226,7 @@ For complex tasks, chain multiple agents:
 → technical-writer (document)
 ```
 
-### Available Agents (15 Total)
+### Core Agents (15 Total)
 
 | # | Agent | Skill Name | When to Use |
 |---|-------|------------|-------------|
@@ -175,6 +245,43 @@ For complex tasks, chain multiple agents:
 | 13 | SecOps Engineer | `secops-engineer` | Security, OWASP, GDPR, auth |
 | 14 | MLOps Engineer | `mlops-engineer` | AI/ML integration, LLM orchestration |
 | 15 | Technical Writer | `technical-writer` | Documentation, C4 diagrams, changelogs |
+
+### Extended Skills (9 Total)
+
+Extended skills provide specialized expertise and are automatically invoked alongside their parent agent:
+
+| Extended Skill | Extends | Specialization |
+|----------------|---------|----------------|
+| `angular-developer` | frontend-developer | Angular 21, Signals, NgRx SignalStore |
+| `vue-developer` | frontend-developer | Vue 3, Composition API, Pinia, Nuxt 3 |
+| `flutter-developer` | frontend-developer | Flutter 3.27, Dart 3.6, Riverpod |
+| `spring-kafka-integration` | backend-developer | Kafka, Reactor Kafka, Event-driven |
+| `quarkus-developer` | backend-developer | Quarkus 3.17, GraalVM native builds |
+| `fastapi-developer` | backend-developer | FastAPI, Python async, Pydantic |
+| `terraform-specialist` | devops-engineer | Terraform 1.10, GCP, modules |
+| `cucumber-bdd` | e2e-tester | Cucumber 7, Gherkin, BDD |
+| `graphql-developer` | solution-architect | Apollo Federation, DataLoader |
+
+### How Skill Hierarchy Works
+
+```
+Task: "Build Angular dashboard with Kafka real-time updates"
+                    │
+    ┌───────────────┼───────────────┐
+    ▼               ▼               ▼
+┌──────────┐  ┌──────────┐  ┌──────────────┐
+│ frontend │  │ backend  │  │  solution    │
+│developer │  │developer │  │  architect   │
+└────┬─────┘  └────┬─────┘  └──────────────┘
+     │             │
+     ▼             ▼
+┌──────────┐  ┌───────────────────┐
+│ angular  │  │ spring-kafka      │
+│developer │  │ integration       │
+└──────────┘  └───────────────────┘
+```
+
+Each core agent has a **Related Skills** section that references other agents for cross-cutting concerns, enabling automatic skill chaining.
 
 ### Example Workflows
 
@@ -367,9 +474,10 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0 | 2025-12-24 | Added hierarchical skill structure, /agents command, global installation |
 | 1.0.0 | 2025-12-23 | Initial release with 15 agents |
 
 ---
 
 *Created by: AI Development Team Project*
-*Repository: https://github.com/YOUR_USERNAME/ai-dev-team*
+*Repository: https://github.com/olehsvyrydov/AI-development-team*
