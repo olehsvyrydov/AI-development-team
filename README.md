@@ -371,6 +371,31 @@ Each core agent has a **Related Skills** section that references other agents fo
 |-------|------------------------------|
 | Technical Writer | C4 model, Mermaid diagrams, Diátaxis, API documentation |
 
+### Visual Inspection Capability
+
+8 frontend-related agents have **MCP Browser/Playwright** integration for visual inspection and screenshot capabilities:
+
+| Agent | Visual Workflows |
+|-------|------------------|
+| Frontend Developer | Debug UI issues, responsive testing, component verification |
+| Frontend Tester | Screenshot baselines, multi-device testing, console error detection |
+| Frontend Reviewer | Accessibility audits, semantic HTML analysis, color contrast |
+| E2E Tester | Visual regression, cross-device validation |
+| UI/UX Designer (Aura) | Design verification, responsive breakpoint testing, animation preview |
+| Angular Developer | Zoneless verification, Angular Material testing |
+| Vue Developer | Pinia state verification, Nuxt SSR testing |
+| Flutter Developer | Flutter Web inspection, Material 3 theming |
+
+**Device Simulation**: 143+ device presets including iPhone, iPad, Android phones/tablets, and Desktop browsers.
+
+**Available Actions**:
+- `playwright_navigate` - Open URLs
+- `playwright_screenshot` - Capture full page or elements
+- `playwright_get_visible_html` - Inspect DOM structure
+- `playwright_console_logs` - Debug JavaScript errors
+- `playwright_resize` - Test responsive layouts
+- `playwright_click`, `playwright_fill` - Test interactions
+
 ---
 
 ## Quality Standards
@@ -488,6 +513,7 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.3.0 | 2025-12-26 | Added Visual Inspection (MCP Browser/Playwright) to 8 frontend agents |
 | 1.2.0 | 2025-12-24 | Added UI/UX Designer (Aura) as 16th agent |
 | 1.1.0 | 2025-12-24 | Added hierarchical skill structure, /agents command, global installation |
 | 1.0.0 | 2025-12-23 | Initial release with 15 agents |
