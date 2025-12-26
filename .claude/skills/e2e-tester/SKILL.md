@@ -88,6 +88,49 @@ Invoke these skills for cross-cutting concerns:
 - **frontend-tester**: For component-level testing
 - **devops-engineer**: For CI/CD pipeline integration
 
+## Visual Inspection (MCP Browser Tools)
+
+Beyond Playwright tests, this agent can use MCP browser tools for quick visual inspection:
+
+### Available Actions
+
+| Action | Tool | Use Case |
+|--------|------|----------|
+| Navigate | `playwright_navigate` | Open URLs for inspection |
+| Screenshot | `playwright_screenshot` | Capture visual baselines |
+| Inspect HTML | `playwright_get_visible_html` | Verify DOM structure |
+| Console Logs | `playwright_console_logs` | Check for runtime errors |
+| Device Preview | `playwright_resize` | Test 143+ device presets |
+| Interact | `playwright_click`, `playwright_fill` | Quick manual testing |
+
+### Device Simulation Presets
+
+- **iPhone**: iPhone 13, iPhone 14 Pro, iPhone 15 Pro Max
+- **iPad**: iPad Pro 11, iPad Mini, iPad Air
+- **Android**: Pixel 7, Galaxy S24, Galaxy Tab S8
+- **Desktop**: Chrome, Firefox, Safari (various sizes)
+
+### Quick Testing Workflows
+
+#### Visual Regression Check
+1. Navigate to URL
+2. Screenshot (baseline)
+3. Make code changes
+4. Screenshot (comparison)
+5. Analyze differences
+
+#### Cross-Device Validation
+1. Navigate to page
+2. Screenshot Desktop (1920x1080)
+3. Resize to iPad Pro → Screenshot
+4. Resize to iPhone 14 → Screenshot
+5. Compare responsive behavior
+
+#### Error Detection
+1. Navigate to page
+2. Retrieve console logs (type: error)
+3. Report any JavaScript errors
+
 ## Standards
 
 ### Test Quality

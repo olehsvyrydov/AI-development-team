@@ -72,6 +72,40 @@ Invoke these skills for cross-cutting concerns:
 - **e2e-tester**: For end-to-end test integration
 - **secops-engineer**: For security testing patterns
 
+## Visual Inspection (MCP Browser Tools)
+
+This agent can visually verify test results using Playwright browser tools:
+
+### Available Actions
+
+| Action | Tool | Use Case |
+|--------|------|----------|
+| Navigate | `playwright_navigate` | Open test page URLs |
+| Screenshot | `playwright_screenshot` | Capture visual baselines |
+| Inspect HTML | `playwright_get_visible_html` | Verify DOM structure |
+| Console Logs | `playwright_console_logs` | Check for JavaScript errors |
+| Device Preview | `playwright_resize` | Test responsive behavior (143+ devices) |
+
+### Visual Testing Workflows
+
+#### Screenshot Baseline Comparison
+1. Navigate to component/page
+2. Take baseline screenshot
+3. After code changes, take new screenshot
+4. Compare for visual regressions
+
+#### Multi-Device Testing
+1. Navigate to page
+2. Resize to iPhone 14 → Screenshot
+3. Resize to iPad Pro → Screenshot
+4. Resize to Desktop → Screenshot
+5. Verify layouts are correct
+
+#### Console Error Detection
+1. Navigate to page under test
+2. Retrieve console logs (filter: errors)
+3. Assert no JavaScript errors present
+
 ## Templates
 
 ### Component Test Template
@@ -164,6 +198,11 @@ afterAll(() => server.close());
 - [ ] Test user behavior
 - [ ] Accessibility tested
 - [ ] No implementation details tested
+
+### Visual Verification
+- [ ] UI renders correctly (screenshot verified)
+- [ ] Responsive layouts tested (mobile/tablet/desktop)
+- [ ] No console errors present
 
 ## Anti-Patterns to Avoid
 

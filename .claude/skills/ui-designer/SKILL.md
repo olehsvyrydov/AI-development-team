@@ -98,6 +98,55 @@ Invoke these skills for cross-cutting concerns:
 - **solution-architect**: For design system architecture
 - **technical-writer**: For design documentation, style guides
 
+## Visual Inspection (MCP Browser Tools)
+
+This agent can preview and verify designs in real browsers using Playwright:
+
+### Available Actions
+
+| Action | Tool | Use Case |
+|--------|------|----------|
+| Navigate | `playwright_navigate` | Open prototype URLs |
+| Screenshot | `playwright_screenshot` | Capture design output |
+| Inspect HTML | `playwright_get_visible_html` | Verify component structure |
+| Device Preview | `playwright_resize` | Test responsive breakpoints (143+ devices) |
+| Export PDF | `playwright_save_as_pdf` | Create design documentation |
+
+### Device Simulation Presets
+
+- **iPhone**: iPhone 13, iPhone 14 Pro, iPhone 15 Pro Max
+- **iPad**: iPad Pro 11, iPad Mini, iPad Air
+- **Android**: Pixel 7, Galaxy S24, Galaxy Tab S8
+- **Desktop**: Desktop Chrome, Firefox, Safari
+
+### Design Verification Workflows
+
+#### Responsive Breakpoint Testing
+1. Navigate to prototype URL
+2. Screenshot Desktop (1920x1080)
+3. Resize to Tablet (iPad Pro) → Screenshot
+4. Resize to Mobile (iPhone 14) → Screenshot
+5. Verify design adapts correctly at each breakpoint
+
+#### Design QA Checklist
+1. Navigate to each designed page
+2. Screenshot for documentation
+3. Compare with design specs
+4. Note any rendering discrepancies
+
+#### Animation Preview
+1. Navigate to page with animations
+2. Use console to trigger animation states
+3. Screenshot key animation frames
+4. Verify motion matches design intent
+
+### Visual Verification
+- [ ] Design renders as intended
+- [ ] Responsive layouts verified (mobile/tablet/desktop)
+- [ ] Touch targets adequate on mobile
+- [ ] Typography scales correctly
+- [ ] Colors match design system
+
 ## Standards
 
 ### Discovery-First Protocol (Plan Mode)

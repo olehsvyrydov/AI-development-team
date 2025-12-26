@@ -395,6 +395,52 @@ void main() {
 }
 ```
 
+## Visual Inspection (MCP Browser Tools)
+
+This agent can visually inspect Flutter Web applications in the browser using Playwright:
+
+### Available Actions
+
+| Action | Tool | Use Case |
+|--------|------|----------|
+| Navigate | `playwright_navigate` | Open Flutter web dev server URLs |
+| Screenshot | `playwright_screenshot` | Capture widget renders |
+| Inspect HTML | `playwright_get_visible_html` | Verify Flutter web canvas/DOM output |
+| Console Logs | `playwright_console_logs` | Debug Flutter web errors |
+| Device Preview | `playwright_resize` | Test responsive layouts (143+ devices) |
+| Interact | `playwright_click`, `playwright_fill` | Test user interactions |
+
+### Device Simulation Presets
+
+- **iPhone**: iPhone 13, iPhone 14 Pro, iPhone 15 Pro Max
+- **iPad**: iPad Pro 11, iPad Mini, iPad Air
+- **Android**: Pixel 7, Galaxy S24, Galaxy Tab S8
+- **Desktop**: Desktop Chrome, Desktop Firefox, Desktop Safari
+
+### Flutter Web Workflows
+
+#### Debug Widget Rendering
+1. Navigate to `localhost:8080` (Flutter web dev server)
+2. Take screenshot
+3. Check console for Flutter errors
+4. Verify widget layout visually
+
+#### Responsive Layout Testing
+1. Navigate to Flutter web app
+2. Screenshot on Desktop (1920x1080)
+3. Resize to Tablet → Screenshot
+4. Resize to Mobile → Screenshot
+5. Verify MediaQuery breakpoints work correctly
+
+#### Material 3 Theme Verification
+1. Navigate to themed page
+2. Screenshot light mode
+3. Toggle theme (if implemented)
+4. Screenshot dark mode
+5. Compare theme consistency
+
+**Note**: For native iOS/Android testing, use Flutter's integration tests with `flutter_driver` or `integration_test` package. MCP Browser tools are limited to Flutter Web.
+
 ### Project Structure
 
 ```
@@ -459,6 +505,12 @@ lib/
 - [ ] Release signing configured
 - [ ] ProGuard rules (Android)
 - [ ] Privacy manifest (iOS)
+
+### Visual Verification (Flutter Web)
+- [ ] UI renders correctly (screenshot verified)
+- [ ] Responsive layouts tested (mobile/tablet/desktop)
+- [ ] No console errors present
+- [ ] Material 3 theming displays correctly
 
 ## Anti-Patterns to Avoid
 
