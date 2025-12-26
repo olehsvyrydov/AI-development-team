@@ -99,7 +99,7 @@ After installation, you can use `/agents` command in any project to see all avai
     ├── angular-developer/     # Extended skill
     ├── vue-developer/         # Extended skill
     ├── spring-kafka-integration/  # Extended skill
-    └── ...                    # (9 extended skills total)
+    └── ...                    # (10 extended skills total)
 ```
 
 #### Updating Skills
@@ -259,12 +259,13 @@ For complex tasks, chain multiple agents:
 | 15 | MLOps Engineer | `mlops-engineer` | AI/ML integration, LLM orchestration |
 | 16 | Technical Writer | `technical-writer` | Documentation, C4 diagrams, changelogs |
 
-### Extended Skills (9 Total)
+### Extended Skills (10 Total)
 
 Extended skills provide specialized expertise and are automatically invoked alongside their parent agent:
 
 | Extended Skill | Extends | Specialization |
 |----------------|---------|----------------|
+| `kotlin-developer` | backend-developer | Kotlin 2.1, Coroutines, Ktor, KMP |
 | `angular-developer` | frontend-developer | Angular 21, Signals, NgRx SignalStore |
 | `vue-developer` | frontend-developer | Vue 3, Composition API, Pinia, Nuxt 3 |
 | `flutter-developer` | frontend-developer | Flutter 3.27, Dart 3.6, Riverpod |
@@ -513,6 +514,7 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.4.0 | 2025-12-26 | Added kotlin-developer extended skill with Coroutines, Ktor, KMP expertise |
 | 1.3.0 | 2025-12-26 | Added Visual Inspection (MCP Browser/Playwright) to 8 frontend agents |
 | 1.2.0 | 2025-12-24 | Added UI/UX Designer (Aura) as 16th agent |
 | 1.1.0 | 2025-12-24 | Added hierarchical skill structure, /agents command, global installation |

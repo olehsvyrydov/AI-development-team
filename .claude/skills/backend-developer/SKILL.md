@@ -73,6 +73,7 @@ Invoke these specialized skills for technology-specific tasks:
 
 | Skill | When to Use |
 |-------|-------------|
+| **kotlin-developer** | Kotlin 2.1, Coroutines, Ktor, KMP, kotlinx.serialization, high-performance concurrent systems |
 | **spring-kafka-integration** | Kafka producers/consumers, Reactor Kafka, event-driven architecture, DLT, outbox pattern |
 | **quarkus-developer** | Quarkus projects, native builds, Panache ORM, RESTEasy Reactive, GraalVM |
 | **fastapi-developer** | Python backend projects, async APIs, Pydantic, SQLAlchemy async |

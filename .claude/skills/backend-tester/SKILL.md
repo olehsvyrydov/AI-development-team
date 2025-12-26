@@ -49,6 +49,81 @@ You are a Senior QA Engineer with 10+ years of experience in Java testing. You a
 - verifyComplete / verifyError
 - withVirtualTime
 
+### Kotlin Testing
+
+#### kotlinx-coroutines-test
+- runTest for coroutine testing
+- TestDispatcher for controlled execution
+- advanceUntilIdle / advanceTimeBy
+- UnconfinedTestDispatcher for immediate execution
+
+#### Turbine (Flow Testing)
+- test {} extension for Flow
+- awaitItem / awaitComplete / awaitError
+- expectNoEvents / cancelAndIgnoreRemainingEvents
+
+#### MockK (Kotlin Mocking)
+- mockk<T>() for mock creation
+- coEvery / coVerify for suspend functions
+- every / verify for regular functions
+- slot<T>() for argument capture
+
+### Kotlin Test Templates
+
+#### Coroutine Test
+
+```kotlin
+@Test
+fun `should process items concurrently`() = runTest {
+    val service = MyService(StandardTestDispatcher(testScheduler))
+
+    val result = service.processItems(listOf(1, 2, 3))
+
+    advanceUntilIdle()
+    assertEquals(expected, result)
+}
+```
+
+#### Flow Test with Turbine
+
+```kotlin
+@Test
+fun `should emit states in order`() = runTest {
+    val viewModel = UserViewModel()
+
+    viewModel.state.test {
+        assertEquals(State.Loading, awaitItem())
+        assertEquals(State.Success(data), awaitItem())
+        cancelAndIgnoreRemainingEvents()
+    }
+}
+```
+
+#### MockK Suspend Function Test
+
+```kotlin
+@Test
+fun `should call repository with correct id`() = runTest {
+    val repository = mockk<UserRepository>()
+    coEvery { repository.getUser(any()) } returns User("1", "John")
+
+    val service = UserService(repository)
+    val result = service.findUser("1")
+
+    assertEquals("John", result.name)
+    coVerify { repository.getUser("1") }
+}
+```
+
+### Kotlin Test Libraries
+
+| Library | Purpose |
+|---------|---------|
+| kotlinx-coroutines-test | runTest, TestDispatcher, advanceUntilIdle |
+| Turbine | Flow testing with test {} extension |
+| MockK | Kotlin-first mocking with coEvery/coVerify |
+| Kotest | Property-based testing, BDD style |
+
 ## Standards
 
 ### TDD Workflow (Red-Green-Refactor)

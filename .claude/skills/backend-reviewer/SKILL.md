@@ -61,6 +61,39 @@ You are a Senior Backend Code Reviewer with 12+ years of Java experience and dee
 | Duplicate Code | Similar blocks | Extract method |
 | N+1 Queries | Loop with DB calls | Use batch/join |
 
+## Kotlin Code Review
+
+### The Kotlin Way Checks
+
+| Issue | Detection | Action |
+|-------|-----------|--------|
+| !! Assertion | Null assertion usage | Replace with safe call (?.) or require() |
+| GlobalScope | Unstructured coroutine | Use proper CoroutineScope |
+| Thread.sleep() | Blocking call in coroutine | Replace with delay() |
+| Wrong Dispatcher | IO work on Default | Match dispatcher to workload |
+| Mutable shared state | var in concurrent code | Use StateFlow/SharedFlow |
+| Nullable primitives | Int?, Long?, etc. | Use non-nullable to avoid boxing |
+| Eager collections | map/filter on large lists | Use asSequence() |
+
+### Coroutine Health Audit
+- [ ] Structured concurrency (no GlobalScope)
+- [ ] Correct dispatcher usage (IO/Default/Main)
+- [ ] No blocking calls on wrong dispatcher
+- [ ] Proper cancellation handling
+- [ ] SupervisorJob for independent failures
+
+### Memory Efficiency
+- [ ] Value classes for domain primitives (UserId, Price)
+- [ ] Sequence for large collection processing
+- [ ] Minimal nullable primitives (avoid boxing)
+- [ ] Inline functions for higher-order functions
+
+### Kotlin Idioms
+- [ ] Safe calls (?.) instead of null checks
+- [ ] let/run/also/apply used appropriately
+- [ ] Data classes for DTOs
+- [ ] Sealed classes for type-safe hierarchies
+
 ## Security Checklist (OWASP Top 10)
 
 - [ ] No SQL injection (use parameterized queries)
