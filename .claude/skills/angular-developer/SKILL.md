@@ -277,6 +277,49 @@ describe('CounterComponent', () => {
 });
 ```
 
+## Visual Inspection (MCP Browser Tools)
+
+This agent can visually inspect Angular applications in the browser using Playwright:
+
+### Available Actions
+
+| Action | Tool | Use Case |
+|--------|------|----------|
+| Navigate | `playwright_navigate` | Open Angular dev server URLs |
+| Screenshot | `playwright_screenshot` | Capture component renders |
+| Inspect HTML | `playwright_get_visible_html` | Verify Angular template output |
+| Console Logs | `playwright_console_logs` | Debug Angular errors, zone issues |
+| Device Preview | `playwright_resize` | Test responsive layouts (143+ devices) |
+| Interact | `playwright_click`, `playwright_fill` | Test user interactions |
+
+### Device Simulation Presets
+
+- **iPhone**: iPhone 13, iPhone 14 Pro, iPhone 15 Pro Max
+- **iPad**: iPad Pro 11, iPad Mini, iPad Air
+- **Android**: Pixel 7, Galaxy S24, Galaxy Tab S8
+- **Desktop**: Desktop Chrome, Desktop Firefox, Desktop Safari
+
+### Angular-Specific Workflows
+
+#### Debug Component Rendering
+1. Navigate to `localhost:4200/component`
+2. Take screenshot
+3. Check console for Angular errors
+4. Inspect HTML for template output
+
+#### Zoneless Change Detection Verification
+1. Navigate to page with signal-based components
+2. Interact with component (click buttons)
+3. Screenshot to verify UI updates without zone.js
+4. Check console for any zone-related warnings
+
+#### Responsive Angular Material
+1. Navigate to Angular Material component
+2. Screenshot on Desktop (1280x720)
+3. Resize to iPad → Screenshot
+4. Resize to iPhone → Screenshot
+5. Verify Material breakpoints work correctly
+
 ### Project Structure
 
 ```
@@ -333,6 +376,12 @@ src/
 - [ ] Bundle size analyzed
 - [ ] Lazy loading configured
 - [ ] Environment configs set
+
+### Visual Verification
+- [ ] UI renders correctly (screenshot verified)
+- [ ] Responsive layouts tested (mobile/tablet/desktop)
+- [ ] No console errors present
+- [ ] Angular Material components display correctly
 
 ## Anti-Patterns to Avoid
 

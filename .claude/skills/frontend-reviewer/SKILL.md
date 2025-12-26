@@ -100,6 +100,36 @@ Invoke these skills for cross-cutting concerns:
 - **secops-engineer**: For security review, XSS/CSP validation
 - **solution-architect**: For component architecture validation
 
+## Visual Inspection (MCP Browser Tools)
+
+This agent can visually verify accessibility and code quality using Playwright:
+
+### Available Actions
+
+| Action | Tool | Use Case |
+|--------|------|----------|
+| Navigate | `playwright_navigate` | Open pages for review |
+| Screenshot | `playwright_screenshot` | Capture UI for analysis |
+| Inspect HTML | `playwright_get_visible_html` | Analyze DOM structure, ARIA |
+| Read Text | `playwright_get_visible_text` | Verify content rendering |
+| Console Logs | `playwright_console_logs` | Check for JS errors/warnings |
+| Device Preview | `playwright_resize` | Test responsive layouts (143+ devices) |
+
+### Accessibility Audit Workflow
+
+1. Navigate to page
+2. Get HTML structure → Analyze semantic markup
+3. Screenshot → Check color contrast visually
+4. Resize to mobile → Verify touch targets
+5. Check console for accessibility warnings
+
+### Visual Review Checklist
+- [ ] Semantic HTML structure verified
+- [ ] ARIA labels present where needed
+- [ ] Color contrast appears sufficient
+- [ ] Focus states visible
+- [ ] Responsive layouts correct
+
 ## Checklist
 
 ### Code Quality

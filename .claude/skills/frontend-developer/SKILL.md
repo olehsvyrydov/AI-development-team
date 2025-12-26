@@ -118,6 +118,50 @@ Invoke these skills for cross-cutting concerns:
 - **security-specialist**: For XSS prevention, CSP configuration, auth flows
 - **mobile-developer**: For React Native specific mobile patterns
 
+## Visual Inspection (MCP Browser Tools)
+
+This agent can visually inspect and interact with browser interfaces using Playwright:
+
+### Available Actions
+
+| Action | Tool | Use Case |
+|--------|------|----------|
+| Navigate | `playwright_navigate` | Open URLs, set viewport size |
+| Screenshot | `playwright_screenshot` | Capture full page or elements |
+| Inspect HTML | `playwright_get_visible_html` | View rendered DOM structure |
+| Read Text | `playwright_get_visible_text` | Extract visible content |
+| Console Logs | `playwright_console_logs` | Debug JavaScript errors |
+| Device Preview | `playwright_resize` | Test responsive layouts (143+ devices) |
+| Interact | `playwright_click`, `playwright_fill` | Test user interactions |
+
+### Device Simulation
+
+Supports 143+ device presets including:
+- **iPhone**: iPhone 13, iPhone 14 Pro, iPhone 15 Pro Max
+- **iPad**: iPad Pro 11, iPad Mini, iPad Air
+- **Android**: Pixel 7, Galaxy S24, Galaxy Tab S8
+- **Desktop**: Desktop Chrome, Desktop Firefox, Desktop Safari
+
+### Common Workflows
+
+#### Debug UI Issue
+1. Navigate to `localhost:3000/page`
+2. Take screenshot
+3. Check console logs for React errors
+4. Inspect HTML structure
+
+#### Responsive Testing
+1. Navigate to page
+2. Screenshot on Desktop (1280x720)
+3. Resize to iPad → Screenshot
+4. Resize to iPhone → Screenshot
+5. Compare layouts
+
+#### Component Verification
+1. Navigate to component URL
+2. Screenshot specific element (CSS selector)
+3. Verify rendered output matches design
+
 ## Standards
 
 ### Code Quality
@@ -276,6 +320,12 @@ export function ResourceForm() {
 - [ ] Accessibility checked
 - [ ] Responsive design verified
 - [ ] Performance acceptable
+
+### Visual Verification
+- [ ] UI renders correctly (screenshot verified)
+- [ ] Responsive layouts tested (mobile/tablet/desktop)
+- [ ] No console errors present
+- [ ] Accessibility structure validated
 
 ## Anti-Patterns to Avoid
 

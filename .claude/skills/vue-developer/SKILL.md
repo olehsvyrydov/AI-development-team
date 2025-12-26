@@ -271,7 +271,7 @@ describe('UserCard', () => {
           createTestingPinia({
             initialState: {
               user: {
-                users: [{ id: '1', name: 'John Doe', email: 'john@example.com' }]
+                users: [{ id: '1', name: John Doe', email: 'john@example.com' }]
               }
             }
           })
@@ -296,6 +296,48 @@ describe('UserCard', () => {
   })
 })
 ```
+
+## Visual Inspection (MCP Browser Tools)
+
+This agent can visually inspect Vue applications in the browser using Playwright:
+
+### Available Actions
+
+| Action | Tool | Use Case |
+|--------|------|----------|
+| Navigate | `playwright_navigate` | Open Vue dev server URLs |
+| Screenshot | `playwright_screenshot` | Capture component renders |
+| Inspect HTML | `playwright_get_visible_html` | Verify Vue template output |
+| Console Logs | `playwright_console_logs` | Debug Vue warnings, reactivity issues |
+| Device Preview | `playwright_resize` | Test responsive layouts (143+ devices) |
+| Interact | `playwright_click`, `playwright_fill` | Test user interactions |
+
+### Device Simulation Presets
+
+- **iPhone**: iPhone 13, iPhone 14 Pro, iPhone 15 Pro Max
+- **iPad**: iPad Pro 11, iPad Mini, iPad Air
+- **Android**: Pixel 7, Galaxy S24, Galaxy Tab S8
+- **Desktop**: Desktop Chrome, Desktop Firefox, Desktop Safari
+
+### Vue-Specific Workflows
+
+#### Debug Component Rendering
+1. Navigate to `localhost:5173/component`
+2. Take screenshot
+3. Check console for Vue warnings
+4. Inspect HTML for template output
+
+#### Pinia State Verification
+1. Navigate to page with Pinia store
+2. Interact with state-changing actions
+3. Screenshot to verify UI updates
+4. Check console for any reactivity warnings
+
+#### Nuxt SSR Verification
+1. Navigate to Nuxt page
+2. Get HTML to verify server-rendered content
+3. Screenshot hydrated state
+4. Compare SSR output vs client hydration
 
 ### Project Structure
 
@@ -347,6 +389,12 @@ src/
 - [ ] Assets optimized
 - [ ] Environment variables set
 - [ ] TypeScript strict mode
+
+### Visual Verification
+- [ ] UI renders correctly (screenshot verified)
+- [ ] Responsive layouts tested (mobile/tablet/desktop)
+- [ ] No console errors or Vue warnings present
+- [ ] SSR hydration verified (if using Nuxt)
 
 ## Anti-Patterns to Avoid
 
