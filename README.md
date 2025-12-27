@@ -95,7 +95,7 @@ After installation, you can use `/agents` command in any project to see all avai
     ├── frontend-developer/    # Core agent
     ├── devops-engineer/       # Core agent
     ├── solution-architect/    # Core agent
-    ├── ...                    # (15 core agents total)
+    ├── ...                    # (17 core agents total)
     ├── angular-developer/     # Extended skill
     ├── vue-developer/         # Extended skill
     ├── spring-kafka-integration/  # Extended skill
@@ -238,7 +238,7 @@ For complex tasks, chain multiple agents:
 → technical-writer (document)
 ```
 
-### Core Agents (16 Total)
+### Core Agents (17 Total)
 
 | # | Agent | Skill Name | When to Use |
 |---|-------|------------|-------------|
@@ -258,6 +258,7 @@ For complex tasks, chain multiple agents:
 | 14 | SecOps Engineer | `secops-engineer` | Security, OWASP, GDPR, auth |
 | 15 | MLOps Engineer | `mlops-engineer` | AI/ML integration, LLM orchestration |
 | 16 | Technical Writer | `technical-writer` | Documentation, C4 diagrams, changelogs |
+| 17 | **UK Legal Counsel (Legis-AI)** | `uk-legal-counsel` | UK law, contracts, GDPR, employment, compliance, penalties |
 
 ### Extended Skills (10 Total)
 
@@ -371,6 +372,11 @@ Each core agent has a **Related Skills** section that references other agents fo
 | Agent | Key Technologies & Knowledge |
 |-------|------------------------------|
 | Technical Writer | C4 model, Mermaid diagrams, Diátaxis, API documentation |
+
+### Legal & Compliance Layer
+| Agent | Key Technologies & Knowledge |
+|-------|------------------------------|
+| UK Legal Counsel (Legis-AI) | English & Welsh Law, GDPR, Employment Rights Act, Companies Act, Contract Law |
 
 ### Visual Inspection Capability
 
@@ -514,6 +520,7 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.5.0 | 2025-12-27 | Added UK Legal Counsel (Legis-AI) as 17th core agent |
 | 1.4.0 | 2025-12-26 | Added kotlin-developer extended skill with Coroutines, Ktor, KMP expertise |
 | 1.3.0 | 2025-12-26 | Added Visual Inspection (MCP Browser/Playwright) to 8 frontend agents |
 | 1.2.0 | 2025-12-24 | Added UI/UX Designer (Aura) as 16th agent |
