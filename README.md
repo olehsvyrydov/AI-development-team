@@ -242,7 +242,7 @@ For complex tasks, chain multiple agents:
 
 | # | Agent | Skill Name | When to Use |
 |---|-------|------------|-------------|
-| 1 | Product Owner | `product-owner` | User stories, backlog, acceptance criteria |
+| 1 | **Product Owner (Max)** | `product-owner` | User stories, backlog, acceptance criteria |
 | 2 | Scrum Master | `scrum-master` | Sprint planning, retrospectives, velocity |
 | 3 | Business Analyst | `business-analyst` | Market research, requirements, SWOT analysis |
 | 4 | Solution Architect | `solution-architect` | System design, ADRs, technology decisions |
@@ -337,7 +337,7 @@ Each core agent has a **Related Skills** section that references other agents fo
 ### Management Layer
 | Agent | Key Technologies & Knowledge |
 |-------|------------------------------|
-| Product Owner | INVEST criteria, MoSCoW, user story mapping, OKRs |
+| Product Owner (Max) | INVEST criteria, MoSCoW, user story mapping, OKRs |
 | Scrum Master | Scrum framework, Kanban, velocity tracking, retrospectives |
 | Business Analyst | SWOT, Porter's Five Forces, BPMN, web research |
 

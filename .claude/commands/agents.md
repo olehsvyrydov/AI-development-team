@@ -46,8 +46,10 @@ These are your primary agents for software development:
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
 | **business-analyst** | SWOT, market research, requirements | Competitive analysis, BRDs |
-| **product-owner** | User stories, backlog, prioritization | Sprint planning, acceptance criteria |
+| **product-owner** (Max) | User stories, backlog, prioritization | Sprint planning, acceptance criteria |
 | **scrum-master** | Agile ceremonies, velocity, retrospectives | Sprint management, blockers |
+
+> **Quick Access**: Use `/max` to invoke the product owner directly.
 
 ### Legal & Compliance
 
