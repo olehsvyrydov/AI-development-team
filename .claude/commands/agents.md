@@ -4,7 +4,7 @@ description: List all available AI Development Team agents and their specializat
 
 # AI Development Team - Agent Directory
 
-## Core Agents (16)
+## Core Agents (17)
 
 These are your primary agents for software development:
 
@@ -49,9 +49,17 @@ These are your primary agents for software development:
 | **product-owner** | User stories, backlog, prioritization | Sprint planning, acceptance criteria |
 | **scrum-master** | Agile ceremonies, velocity, retrospectives | Sprint management, blockers |
 
+### Legal & Compliance
+
+| Agent | Expertise | Trigger When |
+|-------|-----------|--------------|
+| **uk-legal-counsel** (Alex) | UK Law, GDPR, Employment, Contracts, Penalties | Legal advice, contracts, compliance, risk |
+
+> **Quick Access**: Use `/alex` to invoke the legal counsel directly.
+
 ---
 
-## Extended Skills (9)
+## Extended Skills (10)
 
 Specialized skills that extend core agents:
 
@@ -67,6 +75,7 @@ Specialized skills that extend core agents:
 
 | Skill | Specialization |
 |-------|----------------|
+| **kotlin-developer** | Kotlin 2.1, Coroutines, Ktor, KMP |
 | **spring-kafka-integration** | Kafka producers/consumers, Reactor Kafka, DLT |
 | **quarkus-developer** | Quarkus 3.17, native builds, Panache, GraalVM |
 | **fastapi-developer** | FastAPI, Python async, Pydantic, SQLAlchemy |
