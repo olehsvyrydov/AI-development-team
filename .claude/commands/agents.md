@@ -4,7 +4,7 @@ description: List all available AI Development Team agents and their specializat
 
 # AI Development Team - Agent Directory
 
-## Core Agents (17)
+## Core Agents (18)
 
 These are your primary agents for software development:
 
@@ -56,6 +56,14 @@ These are your primary agents for software development:
 | **uk-legal-counsel** (Alex) | UK Law, GDPR, Employment, Contracts, Penalties | Legal advice, contracts, compliance, risk |
 
 > **Quick Access**: Use `/alex` to invoke the legal counsel directly.
+
+### Finance & Accounting
+
+| Agent | Expertise | Trigger When |
+|-------|-----------|--------------|
+| **uk-accountant** (Inga) | Corporation Tax, VAT, PAYE, R&D Credits, IR35, UK GAAP | Tax planning, financial forecasting, compliance, accounting logic |
+
+> **Quick Access**: Use `/inga` to invoke the accountant directly.
 
 ---
 
