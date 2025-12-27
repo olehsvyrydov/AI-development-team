@@ -63,7 +63,7 @@ These are your primary agents for software development:
 |-------|-----------|--------------|
 | **uk-accountant** (Inga) | Corporation Tax, VAT, PAYE, R&D Credits, IR35, UK GAAP | Tax planning, financial forecasting, compliance, accounting logic |
 
-> **Quick Access**: Use `/inga` to invoke the accountant directly.
+> **Quick Access**: Use `/inga` or `/accountant` to invoke the accountant directly.
 
 ---
 
