@@ -47,9 +47,9 @@ These are your primary agents for software development:
 |-------|-----------|--------------|
 | **business-analyst** | SWOT, market research, requirements | Competitive analysis, BRDs |
 | **product-owner** (Max) | User stories, backlog, prioritization | Sprint planning, acceptance criteria |
-| **scrum-master** | Agile ceremonies, velocity, retrospectives | Sprint management, blockers |
+| **scrum-master** (Luda) | Agile ceremonies, velocity, retrospectives | Sprint management, blockers |
 
-> **Quick Access**: Use `/max` to invoke the product owner directly.
+> **Quick Access**: Use `/max` for product owner, `/luda` for scrum master.
 
 ### Legal & Compliance
 
