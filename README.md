@@ -244,10 +244,10 @@ For complex tasks, chain multiple agents:
 |---|-------|------------|-------------|
 | 1 | **Product Owner (Max)** | `product-owner` | User stories, backlog, acceptance criteria |
 | 2 | **Scrum Master (Luda)** | `scrum-master` | Sprint planning, retrospectives, velocity |
-| 3 | Business Analyst | `business-analyst` | Market research, requirements, SWOT analysis |
-| 4 | Solution Architect | `solution-architect` | System design, ADRs, technology decisions |
+| 3 | **Business Analyst (Anna)** | `business-analyst` or `/anna` | Market research, requirements, SWOT analysis |
+| 4 | **Solution Architect (Jorge)** | `solution-architect` or `/jorge` | System design, ADRs, technology decisions |
 | 5 | Backend Developer | `backend-developer` | Spring Boot, Java, APIs, business logic |
-| 6 | Frontend Developer | `frontend-developer` | React, Next.js, React Native, UI |
+| 6 | **Frontend Developer (Finn)** | `frontend-developer` or `/finn` | React, Next.js, React Native, UI |
 | 7 | **UI/UX Designer (Aura)** | `ui-designer` or `/aura` | Landing pages, design systems, mobile UI, brand design |
 | 8 | Backend Reviewer | `backend-reviewer` | Java code review, quality, style |
 | 9 | Frontend Reviewer | `frontend-reviewer` | TypeScript review, ESLint, a11y |
@@ -526,6 +526,8 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.8.0 | 2025-12-29 | Added Anna (/anna) for Business Analyst, enhanced agent collaboration workflows |
+| 1.7.0 | 2025-12-29 | Added Finn (/finn) for Frontend Developer, Jorge (/jorge) for Solution Architect, design-first workflow |
 | 1.6.1 | 2025-12-29 | Added /aura alias for UI Designer |
 | 1.6.0 | 2025-12-27 | Added UK Accountant (Inga/Ledger-AI) as 18th core agent |
 | 1.5.0 | 2025-12-27 | Added UK Legal Counsel (Alex/Legis-AI) as 17th core agent |
