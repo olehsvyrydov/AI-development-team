@@ -248,7 +248,7 @@ For complex tasks, chain multiple agents:
 | 4 | Solution Architect | `solution-architect` | System design, ADRs, technology decisions |
 | 5 | Backend Developer | `backend-developer` | Spring Boot, Java, APIs, business logic |
 | 6 | Frontend Developer | `frontend-developer` | React, Next.js, React Native, UI |
-| 7 | **UI/UX Designer (Aura)** | `ui-designer` | Landing pages, design systems, mobile UI, brand design |
+| 7 | **UI/UX Designer (Aura)** | `ui-designer` or `/aura` | Landing pages, design systems, mobile UI, brand design |
 | 8 | Backend Reviewer | `backend-reviewer` | Java code review, quality, style |
 | 9 | Frontend Reviewer | `frontend-reviewer` | TypeScript review, ESLint, a11y |
 | 10 | Backend Tester | `backend-tester` | JUnit, Testcontainers, integration tests |
@@ -526,6 +526,7 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.6.1 | 2025-12-29 | Added /aura alias for UI Designer |
 | 1.6.0 | 2025-12-27 | Added UK Accountant (Inga/Ledger-AI) as 18th core agent |
 | 1.5.0 | 2025-12-27 | Added UK Legal Counsel (Alex/Legis-AI) as 17th core agent |
 | 1.4.0 | 2025-12-26 | Added kotlin-developer extended skill with Coroutines, Ktor, KMP expertise |
