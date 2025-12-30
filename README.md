@@ -238,29 +238,29 @@ For complex tasks, chain multiple agents:
 → technical-writer (document)
 ```
 
-### Core Agents (19 Total)
+### Core Agents (17 Total)
 
 | # | Agent | Skill Name | When to Use |
 |---|-------|------------|-------------|
-| 1 | **Product Owner (Max)** | `product-owner` | User stories, backlog, acceptance criteria |
-| 2 | **Scrum Master (Luda)** | `scrum-master` | Sprint planning, retrospectives, velocity |
+| 1 | **Product Owner (Max)** | `product-owner` or `/max` | User stories, backlog, acceptance criteria |
+| 2 | **Scrum Master (Luda)** | `scrum-master` or `/luda` | Sprint planning, acceptance criteria, status tracking |
 | 3 | **Business Analyst (Anna)** | `business-analyst` or `/anna` | Market research, requirements, SWOT analysis |
 | 4 | **Solution Architect (Jorge)** | `solution-architect` or `/jorge` | System design, ADRs, technology decisions |
-| 5 | Backend Developer | `backend-developer` | Spring Boot, Java, APIs, business logic |
-| 6 | **Frontend Developer (Finn)** | `frontend-developer` or `/finn` | React, Next.js, React Native, UI |
+| 5 | **Backend Developer (James)** | `backend-developer` or `/james` | Spring Boot, Java, APIs, TDD (writes own tests) |
+| 6 | **Frontend Developer (Finn)** | `frontend-developer` or `/finn` | React, Next.js, React Native, TDD (writes own tests) |
 | 7 | **UI/UX Designer (Aura)** | `ui-designer` or `/aura` | Landing pages, design systems, mobile UI, brand design |
-| 8 | Backend Reviewer | `backend-reviewer` | Java code review, quality, style |
-| 9 | Frontend Reviewer | `frontend-reviewer` | TypeScript review, ESLint, a11y |
-| 10 | Backend Tester | `backend-tester` | JUnit, Testcontainers, integration tests |
-| 11 | Frontend Tester | `frontend-tester` | Jest, React Testing Library |
-| 12 | E2E Tester | `e2e-tester` | Playwright, Detox, user flows, performance testing (k6, Lighthouse) |
-| 13 | DevOps Engineer | `devops-engineer` | Terraform, Kubernetes, CI/CD |
-| 14 | SecOps Engineer | `secops-engineer` | Security, OWASP, GDPR, auth |
-| 15 | MLOps Engineer | `mlops-engineer` | AI/ML integration, LLM orchestration |
-| 16 | Technical Writer | `technical-writer` | Documentation, C4 diagrams, changelogs |
-| 17 | **UK Legal Counsel (Alex)** | `uk-legal-counsel` | UK law, contracts, GDPR, employment, compliance, penalties |
-| 18 | **UK Accountant (Inga)** | `uk-accountant` | Tax planning, VAT, R&D credits, financial forecasting, IR35 |
-| 19 | **Marketing Strategist (Apex)** | `apex` or `/apex` | GTM strategy, product positioning, funnels, IT copywriting |
+| 8 | **Code Reviewer (Rev)** | `reviewer` or `/rev` | Code quality, security scanning, style, vulnerability checks |
+| 9 | **QA Tester (Rob)** | `tester` or `/rob` | Black-box testing against acceptance criteria |
+| 10 | **E2E Tester (Adam)** | `e2e-tester` or `/adam` | Playwright, Detox, performance testing (k6, Lighthouse) |
+| 11 | DevOps Engineer | `devops-engineer` | Terraform, Kubernetes, CI/CD |
+| 12 | SecOps Engineer | `secops-engineer` | Security, OWASP, GDPR, auth |
+| 13 | MLOps Engineer | `mlops-engineer` | AI/ML integration, LLM orchestration |
+| 14 | Technical Writer | `technical-writer` | Documentation, C4 diagrams, changelogs |
+| 15 | **UK Legal Counsel (Alex)** | `uk-legal-counsel` or `/alex` | UK law, contracts, GDPR, employment, compliance |
+| 16 | **UK Accountant (Inga)** | `uk-accountant` or `/inga` | Tax planning, VAT, R&D credits, financial forecasting |
+| 17 | **Marketing Strategist (Apex)** | `apex` or `/apex` | GTM strategy, product positioning, funnels, IT copywriting |
+
+> **Note**: Backend/Frontend testers and reviewers have been merged into unified agents (Rob and Rev) that handle both stacks.
 
 ### Extended Skills (10 Total)
 
@@ -300,23 +300,44 @@ Task: "Build Angular dashboard with Kafka real-time updates"
 
 Each core agent has a **Related Skills** section that references other agents for cross-cutting concerns, enabling automatic skill chaining.
 
-### Example Workflows
+### Team Workflow (TDD-Based)
 
-#### Starting a New Feature
+See `docs/TEAM_WORKFLOW.md` for the complete workflow documentation.
 
 ```
-1. /product-owner "Create user stories for payment integration"
-2. /solution-architect "Design payment integration architecture"
-3. /backend-developer "Implement Stripe payment service"
-4. /backend-tester "Write tests for payment service"
-5. /backend-reviewer "Review payment service implementation"
-6. /technical-writer "Document payment API"
+┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
+│  /max   │──▶│ /luda   │──▶│ /finn   │──▶│  /rev   │──▶│  /rob   │──▶│ /adam   │
+│ Vision  │   │   AC    │   │ or      │   │ Review  │   │  QA     │   │  E2E    │
+│         │   │         │   │ /james  │   │         │   │  Test   │   │  Test   │
+└─────────┘   └─────────┘   │  (TDD)  │   └─────────┘   └─────────┘   └─────────┘
+                            └─────────┘
+```
+
+**Key Principles**:
+- **Developers write tests** (TDD): /finn and /james write their own unit + integration tests
+- **/rev reviews code**: Quality, security scanning, style compliance
+- **/rob tests features**: Black-box testing against acceptance criteria from /luda
+- **/adam writes E2E**: End-to-end and performance tests (can run in parallel)
+
+### Example Workflows
+
+#### Starting a New Feature (TDD Flow)
+
+```
+1. /max "Define user stories for payment integration"
+2. /luda "Create acceptance criteria for payment feature"
+3. /aura "Design payment UI" → /max approves
+4. /james "Implement payment service using TDD" (writes tests + code)
+5. /rev "Review payment code for quality and security"
+6. /rob "Test payment feature against acceptance criteria"
+7. /adam "Write E2E tests for payment flow"
+8. /technical-writer "Document payment API"
 ```
 
 #### Code Review
 
 ```
-/backend-reviewer "Review src/main/java/com/example/PaymentService.java"
+/rev "Review src/main/java/com/example/PaymentService.java"
 ```
 
 #### Sprint Planning
@@ -357,11 +378,9 @@ Each core agent has a **Related Skills** section that references other agents fo
 ### Quality Layer
 | Agent | Key Technologies & Knowledge |
 |-------|------------------------------|
-| Backend Reviewer | Checkstyle 12.3, SpotBugs 4.8, SonarQube 10, Google Java Style |
-| Frontend Reviewer | ESLint 9, Prettier 3, TypeScript strict, WCAG 2.1 AA |
-| Backend Tester | JUnit 6, Mockito 5, Testcontainers, StepVerifier |
-| Frontend Tester | Jest, React Testing Library, MSW |
-| E2E Tester | Playwright, Detox, visual regression, k6/Artillery load testing, Lighthouse CI, Core Web Vitals |
+| Code Reviewer (Rev) | Checkstyle, SpotBugs, ESLint 9, SonarQube 10, Grype, Trivy, security scanning |
+| QA Tester (Rob) | Black-box testing, acceptance criteria validation, defect reporting |
+| E2E Tester (Adam) | Playwright, Detox, visual regression, k6/Artillery load testing, Lighthouse CI, Core Web Vitals |
 
 ### Operations Layer
 | Agent | Key Technologies & Knowledge |
@@ -527,6 +546,7 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 3.0.0 | 2025-12-30 | Major workflow restructure: Added James (/james) for Backend Dev, Adam (/adam) for E2E Tester, merged testers into Rob (/rob), merged reviewers into Rev (/rev). Added TDD-based team workflow with clear responsibilities. |
 | 2.0.0 | 2025-12-30 | Added comprehensive Performance Testing modules to E2E Tester (LoadTester, WebVitalsAnalyzer, APIPerformanceTester, PerformanceReporter) with k6, Artillery, Lighthouse CI templates |
 | 1.9.0 | 2025-12-30 | Added Apex (/apex) as 19th agent - Product Marketing Strategist for GTM, funnels, IT copywriting |
 | 1.8.0 | 2025-12-29 | Added Anna (/anna) for Business Analyst, enhanced agent collaboration workflows |
