@@ -20,73 +20,116 @@ This document defines the standard workflow for the AI development team, ensurin
 
 ## Development Workflow
 
+### Workflow Summary
+
+```
+/max → /luda → /jorge → [/inga] → [/alex] → [/aura] → /finn and/or /james → /rev + [/aura verify] → /rob → /adam
+Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Review            QA    E2E
+
+[ ] = Conditional participation based on feature type
+```
+
+### Approval Gates (Before Implementation)
+
+| Gate | Agent | When Required |
+|------|-------|---------------|
+| Architecture | /jorge | **ALWAYS** - all features need architectural approval |
+| Finance | /inga | Features involving: payments, billing, accounting, VAT, tax, invoicing |
+| Legal | /alex | Features involving: GDPR, privacy, terms, contracts, compliance |
+| UI Design | /aura | Features with frontend/UI changes only |
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           FEATURE DEVELOPMENT FLOW                          │
 └─────────────────────────────────────────────────────────────────────────────┘
 
    ┌─────────┐      ┌─────────┐      ┌─────────┐
-   │  /max   │─────▶│ /luda   │─────▶│ /aura   │
-   │ Vision  │      │Sprint AC│      │ Design  │
-   └─────────┘      └────┬────┘      └────┬────┘
-                         │                 │
-                         ▼                 ▼
-              ┌──────────────────┐    ┌─────────┐
-              │ Feature + AC     │◀───│ Approved│
-              │ Ready for Dev    │    │ Design  │
-              └────────┬─────────┘    └─────────┘
-                       │
-         ┌─────────────┴─────────────┐
-         │                           │
-         ▼                           ▼
-   ┌───────────┐              ┌───────────┐
-   │  /finn    │              │  /james   │
-   │ Frontend  │              │ Backend   │
-   │ TDD Cycle │              │ TDD Cycle │
-   └─────┬─────┘              └─────┬─────┘
-         │                           │
-         └─────────────┬─────────────┘
-                       │
-                       ▼
+   │  /max   │─────▶│ /luda   │─────▶│ /jorge  │ ◀── ALWAYS REQUIRED
+   │ Vision  │      │Sprint AC│      │Arch.Appr│
+   └─────────┘      └─────────┘      └────┬────┘
+                                          │
+                    ┌─────────────────────┼─────────────────────┐
+                    │ (if finance)        │                     │ (if legal)
+                    ▼                     │                     ▼
+              ┌─────────┐                 │               ┌─────────┐
+              │ /inga   │                 │               │ /alex   │
+              │Finance  │                 │               │ Legal   │
+              │Approval │                 │               │Approval │
+              └────┬────┘                 │               └────┬────┘
+                   │                      │                    │
+                   └──────────────────────┼────────────────────┘
+                                          │
+                                          ▼
+                              ┌───────────────────────┐
+                              │  Ready for Design/Dev │
+                              └───────────┬───────────┘
+                                          │
+                    ┌─────────────────────┴─────────────────────┐
+                    │ (if frontend)                             │ (backend only)
+                    ▼                                           │
+              ┌─────────┐                                       │
+              │ /aura   │                                       │
+              │ Design  │────▶ /max approves                    │
+              └────┬────┘                                       │
+                   │                                            │
+                   └──────────────────────┬────────────────────┘
+                                          │
+                    ┌─────────────────────┴─────────────────────┐
+                    │ (frontend)                                │ (backend)
+                    ▼                                           ▼
+              ┌───────────┐                              ┌───────────┐
+              │  /finn    │                              │  /james   │
+              │ Frontend  │                              │ Backend   │
+              │ TDD Cycle │                              │ TDD Cycle │
+              └─────┬─────┘                              └─────┬─────┘
+                    │                                          │
+                    └──────────────────────┬───────────────────┘
+                                           │
+                     ┌─────────────────────┴─────────────────────┐
+                     │                                           │ (if frontend)
+                     ▼                                           ▼
+               ┌───────────┐                              ┌───────────┐
+               │   /rev    │                              │  /aura    │
+               │Code Review│                              │Design QA  │
+               │Quality+Sec│                              │Browser MCP│
+               └─────┬─────┘                              └─────┬─────┘
+                     │                                          │
+                     └──────────────────────┬───────────────────┘
+                                            │
+                             ┌──────────────┴──────────────┐
+                             │                             │
+                             ▼                             ▼
+                       ┌──────────┐                  ┌──────────┐
+                       │ Approved │                  │ Rejected │
+                       └────┬─────┘                  └────┬─────┘
+                            │                             │
+                            │                             └──▶ Back to /finn or /james
+                            ▼
+                      ┌───────────┐
+                      │   /rob    │
+                      │Black Box  │
+                      │  Testing  │
+                      └─────┬─────┘
+                            │
+                     ┌──────┴──────┐
+                     │             │
+                     ▼             ▼
+                 ┌────────┐   ┌────────┐
+                 │ PASSED │   │ FAILED │
+                 └───┬────┘   └───┬────┘
+                     │            │
+                     │            └──▶ /rob reports to /luda
+                     │                 /luda creates fix tickets
+                     ▼                 Back to development
                  ┌───────────┐
-                 │   /rev    │
-                 │Code Review│
+                 │  /luda    │
+                 │Update     │
+                 │Sprint     │
                  └─────┬─────┘
                        │
-            ┌──────────┴──────────┐
-            │                     │
-            ▼                     ▼
-      ┌──────────┐          ┌──────────┐
-      │ Approved │          │ Rejected │
-      └────┬─────┘          └────┬─────┘
-           │                     │
-           │                     └──▶ Back to /finn or /james
-           ▼
-     ┌───────────┐
-     │   /rob    │
-     │Black Box  │
-     │  Testing  │
-     └─────┬─────┘
-           │
-    ┌──────┴──────┐
-    │             │
-    ▼             ▼
-┌────────┐   ┌────────┐
-│ PASSED │   │ FAILED │
-└───┬────┘   └───┬────┘
-    │            │
-    │            └──▶ /rob reports to /luda
-    │                 /luda creates fix tickets
-    ▼                 Back to development
-┌───────────┐
-│  /luda    │
-│Update     │
-│Sprint     │
-└─────┬─────┘
-      │
-      ├──▶ /technical-writer updates docs
-      │
-      └──▶ /adam writes E2E/perf tests (parallel)
+                       ├──▶ /technical-writer updates docs
+                       │
+                       └──▶ /adam writes E2E/perf tests (parallel)
 ```
 
 ## Phase 1: Planning & Design
@@ -95,15 +138,17 @@ This document defines the standard workflow for the AI development team, ensurin
 - Defines product vision and goals
 - Creates and prioritizes backlog
 - Provides business context for features
+- **Approves UI designs** from /aura before implementation
 
 ### 1.2 Scrum Master (/luda)
 **CRITICAL**: Must provide for each feature:
 - [ ] **Feature Description**: Clear explanation of what the feature does
 - [ ] **Acceptance Criteria**: Specific, testable criteria (Given/When/Then)
 - [ ] **Test Scenarios**: Key scenarios to validate
+- [ ] **Feature Type Tags**: `[frontend]`, `[backend]`, `[finance]`, `[legal]`
 
 ```markdown
-## Feature: User Login
+## Feature: User Login [frontend] [backend]
 
 ### Description
 Users can log in using email and password to access their account.
@@ -121,10 +166,40 @@ Users can log in using email and password to access their account.
 - Security: Account lockout
 ```
 
-### 1.3 UI Designer (/aura)
+### 1.3 Solution Architect (/jorge) - ALWAYS REQUIRED
+**MANDATORY**: All features require /jorge approval before implementation.
+
+- Reviews architectural impact
+- Validates patterns and design decisions
+- Approves database schema changes
+- Approves API contract changes
+- Identifies cross-cutting concerns
+
+### 1.4 Conditional Approvals
+
+#### Finance Approval (/inga)
+**Required for features involving**: payments, billing, subscriptions, VAT, tax calculations, invoicing, financial reporting, accounting integrations.
+
+- Reviews tax implications
+- Validates VAT handling
+- Approves payment flows
+- Reviews financial calculations
+
+#### Legal Approval (/alex)
+**Required for features involving**: GDPR, privacy policies, terms of service, user consent, data retention, contracts, compliance.
+
+- Reviews GDPR compliance
+- Validates consent mechanisms
+- Approves data handling
+- Reviews legal copy
+
+### 1.5 UI Designer (/aura) - Frontend Features Only
+**Only involved when feature has `[frontend]` tag**
+
 - Creates design specs based on /max vision
 - Gets approval from /max before handoff
 - Provides specifications to /finn
+- **After implementation**: Verifies UI using Browser MCP
 
 ## Phase 2: Development (TDD)
 
@@ -195,8 +270,70 @@ Reviews all code for:
 - [ ] No test implementation details
 
 **Review Outcomes**:
-- **Approved**: Code proceeds to QA testing
+- **Approved**: Code proceeds to Design QA (if frontend) or QA testing
 - **Changes Requested**: Back to developer with specific feedback
+
+## Phase 3.5: Design QA (Frontend Only)
+
+### 3.5.1 UI Designer (/aura) - Design Verification
+**Only for features with frontend changes**
+
+After /finn completes implementation and /rev approves code:
+
+**Using Browser MCP Tools**:
+```
+1. playwright_navigate → Open deployed/local feature URL
+2. playwright_screenshot → Capture current implementation
+3. playwright_resize → Test responsive breakpoints (mobile/tablet/desktop)
+4. playwright_get_visible_html → Verify component structure
+```
+
+**Design QA Checklist**:
+- [ ] Layout matches design spec
+- [ ] Colors match design system (use color picker if needed)
+- [ ] Typography is correct (font, size, weight, line-height)
+- [ ] Spacing/margins match design
+- [ ] Responsive breakpoints work correctly
+- [ ] Animations/transitions as specified
+- [ ] Empty/loading/error states implemented
+- [ ] Accessibility: focus states, contrast, touch targets
+
+**Design QA Report**:
+```markdown
+## Design QA Report: [Feature Name]
+
+**Verified By**: Aura
+**Date**: YYYY-MM-DD
+**Design Spec**: [link to design spec]
+
+### Visual Verification
+| Element | Status | Notes |
+|---------|--------|-------|
+| Layout | ✅/❌ | |
+| Colors | ✅/❌ | |
+| Typography | ✅/❌ | |
+| Spacing | ✅/❌ | |
+| Responsive | ✅/❌ | |
+| Animations | ✅/❌ | |
+
+### Screenshots
+- Desktop: [screenshot]
+- Tablet: [screenshot]
+- Mobile: [screenshot]
+
+### Issues Found
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| DES-001 | Minor | Button padding too small on mobile |
+
+### Verdict
+- [ ] **APPROVED** - Matches design spec
+- [ ] **CHANGES NEEDED** - See issues above
+```
+
+**Design QA Outcomes**:
+- **Approved**: Feature proceeds to /rob QA testing
+- **Changes Needed**: Back to /finn with specific visual fixes
 
 ## Phase 4: QA Testing (Black Box)
 
@@ -297,35 +434,49 @@ Before testing, /rob MUST verify:
 
 ## Workflow Rules
 
-### Rule 1: No Feature Without Acceptance Criteria
+### Rule 1: Architecture Approval Required
+All features MUST be approved by /jorge before implementation begins.
+
+### Rule 2: No Feature Without Acceptance Criteria
 Features cannot proceed to QA without documented acceptance criteria from /luda.
 
-### Rule 2: Developers Own Their Tests
+### Rule 3: Developers Own Their Tests
 Unit and integration tests are written BY developers, not QA. Developers are accountable for code quality.
 
-### Rule 3: Black Box QA
+### Rule 4: Black Box QA
 /rob tests features without code knowledge, purely against requirements. This validates that the feature works for end users.
 
-### Rule 4: Security is Non-Negotiable
+### Rule 5: Security is Non-Negotiable
 /rev must run security scans on every code review. Critical vulnerabilities block release.
 
-### Rule 5: Reports Close the Loop
+### Rule 6: Design QA for Frontend
+Frontend features require /aura to verify UI implementation using Browser MCP tools before /rob QA.
+
+### Rule 7: Domain Expert Approval
+- Finance features → /inga approval required
+- Legal features → /alex approval required
+
+### Rule 8: Reports Close the Loop
 Every phase produces a report/status update that triggers the next phase.
 
 ## Quick Reference: Who Does What
 
-| Task | Agent |
-|------|-------|
-| Write user stories | /max + /luda |
-| Write acceptance criteria | /luda |
-| Design UI | /aura |
-| Write unit tests | /finn or /james |
-| Write integration tests | /finn or /james |
-| Implement feature | /finn or /james |
-| Review code quality | /rev |
-| Review security | /rev |
-| Black-box testing | /rob |
-| E2E tests | /adam |
-| Performance tests | /adam |
-| Documentation | /technical-writer |
-| Sprint tracking | /luda |
+| Task | Agent | When |
+|------|-------|------|
+| Write user stories | /max + /luda | Always |
+| Write acceptance criteria | /luda | Always |
+| Approve architecture | /jorge | **Always** |
+| Approve finance features | /inga | If `[finance]` tag |
+| Approve legal features | /alex | If `[legal]` tag |
+| Design UI | /aura | If `[frontend]` tag |
+| Write unit tests | /finn or /james | Always (TDD) |
+| Write integration tests | /finn or /james | Always (TDD) |
+| Implement feature | /finn or /james | Always |
+| Review code quality | /rev | Always |
+| Review security | /rev | Always |
+| Verify UI implementation | /aura | If `[frontend]` tag |
+| Black-box testing | /rob | Always |
+| E2E tests | /adam | Always |
+| Performance tests | /adam | As needed |
+| Documentation | /technical-writer | After QA pass |
+| Sprint tracking | /luda | Always |
