@@ -253,7 +253,7 @@ For complex tasks, chain multiple agents:
 | 9 | Frontend Reviewer | `frontend-reviewer` | TypeScript review, ESLint, a11y |
 | 10 | Backend Tester | `backend-tester` | JUnit, Testcontainers, integration tests |
 | 11 | Frontend Tester | `frontend-tester` | Jest, React Testing Library |
-| 12 | E2E Tester | `e2e-tester` | Playwright, Detox, user flows |
+| 12 | E2E Tester | `e2e-tester` | Playwright, Detox, user flows, performance testing (k6, Lighthouse) |
 | 13 | DevOps Engineer | `devops-engineer` | Terraform, Kubernetes, CI/CD |
 | 14 | SecOps Engineer | `secops-engineer` | Security, OWASP, GDPR, auth |
 | 15 | MLOps Engineer | `mlops-engineer` | AI/ML integration, LLM orchestration |
@@ -361,7 +361,7 @@ Each core agent has a **Related Skills** section that references other agents fo
 | Frontend Reviewer | ESLint 9, Prettier 3, TypeScript strict, WCAG 2.1 AA |
 | Backend Tester | JUnit 6, Mockito 5, Testcontainers, StepVerifier |
 | Frontend Tester | Jest, React Testing Library, MSW |
-| E2E Tester | Playwright, Detox, visual regression |
+| E2E Tester | Playwright, Detox, visual regression, k6/Artillery load testing, Lighthouse CI, Core Web Vitals |
 
 ### Operations Layer
 | Agent | Key Technologies & Knowledge |
@@ -527,6 +527,7 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.0.0 | 2025-12-30 | Added comprehensive Performance Testing modules to E2E Tester (LoadTester, WebVitalsAnalyzer, APIPerformanceTester, PerformanceReporter) with k6, Artillery, Lighthouse CI templates |
 | 1.9.0 | 2025-12-30 | Added Apex (/apex) as 19th agent - Product Marketing Strategist for GTM, funnels, IT copywriting |
 | 1.8.0 | 2025-12-29 | Added Anna (/anna) for Business Analyst, enhanced agent collaboration workflows |
 | 1.7.0 | 2025-12-29 | Added Finn (/finn) for Frontend Developer, Jorge (/jorge) for Solution Architect, design-first workflow |
