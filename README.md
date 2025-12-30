@@ -238,7 +238,7 @@ For complex tasks, chain multiple agents:
 → technical-writer (document)
 ```
 
-### Core Agents (18 Total)
+### Core Agents (19 Total)
 
 | # | Agent | Skill Name | When to Use |
 |---|-------|------------|-------------|
@@ -260,6 +260,7 @@ For complex tasks, chain multiple agents:
 | 16 | Technical Writer | `technical-writer` | Documentation, C4 diagrams, changelogs |
 | 17 | **UK Legal Counsel (Alex)** | `uk-legal-counsel` | UK law, contracts, GDPR, employment, compliance, penalties |
 | 18 | **UK Accountant (Inga)** | `uk-accountant` | Tax planning, VAT, R&D credits, financial forecasting, IR35 |
+| 19 | **Marketing Strategist (Apex)** | `apex` or `/apex` | GTM strategy, product positioning, funnels, IT copywriting |
 
 ### Extended Skills (10 Total)
 
@@ -526,6 +527,7 @@ MIT - Use freely in your projects.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.9.0 | 2025-12-30 | Added Apex (/apex) as 19th agent - Product Marketing Strategist for GTM, funnels, IT copywriting |
 | 1.8.0 | 2025-12-29 | Added Anna (/anna) for Business Analyst, enhanced agent collaboration workflows |
 | 1.7.0 | 2025-12-29 | Added Finn (/finn) for Frontend Developer, Jorge (/jorge) for Solution Architect, design-first workflow |
 | 1.6.1 | 2025-12-29 | Added /aura alias for UI Designer |
