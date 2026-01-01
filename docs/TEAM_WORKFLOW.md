@@ -13,8 +13,8 @@ This document defines the standard workflow for the AI development team, ensurin
 | `/finn` | Finn | Frontend Developer | React/TypeScript implementation + unit/integration tests |
 | `/james` | James | Backend Developer | Java/Kotlin/Spring implementation + unit/integration tests |
 | `/rev` | Rev | Code Reviewer | Code quality, security, style, vulnerability scanning |
-| `/rob` | Rob | QA Tester | Black-box testing, feature validation against AC |
-| `/adam` | Adam | E2E Tester | End-to-end tests, performance tests |
+| `/rob` | Rob | Test Case Designer & QA | Test specs, reproduction tests, coverage review, manual testing when requested |
+| `/adam` | Adam | Test Automation Engineer | Integration, E2E, performance tests implementation |
 | `/anna` | Anna | Business Analyst | Market research, requirements analysis |
 | `/apex` | Apex | Marketing Strategist | GTM strategy, product positioning |
 
@@ -23,10 +23,16 @@ This document defines the standard workflow for the AI development team, ensurin
 ### Workflow Summary
 
 ```
-/max → /luda → /jorge → [/inga] → [/alex] → [/aura] → /finn and/or /james → /rev + [/aura verify] → /rob → /adam
-Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Review            QA    E2E
+/max → /luda → /jorge → [/inga] → [/alex] → [/aura] → /finn and/or /james → /rev + [/aura verify] → /rob + /adam
+Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Review            Automated Testing
 
 [ ] = Conditional participation based on feature type
+
+**NEW (v4.0)**: Testing workflow updated:
+- /rob designs test cases from AC, writes reproduction tests for bugs, reviews coverage
+- /adam implements ALL automated tests (integration, E2E, performance)
+- /rob can perform manual testing when requested by anyone (collaborates with /max, /jorge)
+- Automated tests are preferred - must be repeatable and CI/CD ready
 ```
 
 ### Approval Gates (Before Implementation)
@@ -105,31 +111,34 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
                             │                             │
                             │                             └──▶ Back to /finn or /james
                             ▼
-                      ┌───────────┐
-                      │   /rob    │
-                      │Black Box  │
-                      │  Testing  │
-                      └─────┬─────┘
-                            │
-                     ┌──────┴──────┐
-                     │             │
-                     ▼             ▼
-                 ┌────────┐   ┌────────┐
-                 │ PASSED │   │ FAILED │
-                 └───┬────┘   └───┬────┘
-                     │            │
-                     │            └──▶ /rob reports to /luda
-                     │                 /luda creates fix tickets
-                     ▼                 Back to development
-                 ┌───────────┐
-                 │  /luda    │
-                 │Update     │
-                 │Sprint     │
-                 └─────┬─────┘
-                       │
-                       ├──▶ /technical-writer updates docs
-                       │
-                       └──▶ /adam writes E2E/perf tests (parallel)
+                      ┌───────────────────────────────────────┐
+                      │        AUTOMATED TESTING PHASE        │
+                      ├───────────────────────────────────────┤
+                      │  /rob designs test cases from AC      │
+                      │  /adam implements automated tests:    │
+                      │  • Integration tests (Testcontainers) │
+                      │  • E2E tests (Playwright/Cucumber)    │
+                      │  • Performance tests (k6)             │
+                      │  /rob reviews test coverage           │
+                      └─────────────┬─────────────────────────┘
+                                    │
+                             ┌──────┴──────┐
+                             │             │
+                             ▼             ▼
+                         ┌────────┐   ┌────────┐
+                         │ PASSED │   │ FAILED │
+                         └───┬────┘   └───┬────┘
+                             │            │
+                             │            └──▶ /adam reports to /luda
+                             │                 /luda creates fix tickets
+                             ▼                 Back to development
+                         ┌───────────┐
+                         │  /luda    │
+                         │Update     │
+                         │Sprint     │
+                         └─────┬─────┘
+                               │
+                               └──▶ /technical-writer updates docs
 ```
 
 ## Phase 1: Planning & Design
@@ -335,9 +344,9 @@ After /finn completes implementation and /rev approves code:
 - **Approved**: Feature proceeds to /rob QA testing
 - **Changes Needed**: Back to /finn with specific visual fixes
 
-## Phase 4: QA Testing (Black Box)
+## Phase 4: Automated Testing (No Manual Testing)
 
-### 4.1 QA Tester (/rob)
+### 4.1 Test Case Designer (/rob) - NEW ROLE
 
 **PREREQUISITE CHECK**:
 Before testing, /rob MUST verify:
@@ -349,76 +358,146 @@ Before testing, /rob MUST verify:
 ```
 /rob → /max: "Feature [X] cannot be tested - missing acceptance criteria"
 /luda → Adds missing information
-/rob → Proceeds with testing
+/rob → Proceeds with test design
 ```
 
-**Testing Approach**:
-- Black-box testing (no code knowledge required)
-- Test against acceptance criteria
-- Test based on feature description
-- Report defects with reproduction steps
+**Rob's New Responsibilities**:
+- Design test cases from acceptance criteria
+- Write test specifications for /adam to implement
+- Write reproduction tests for bugs (during investigation)
+- Review test coverage after /adam implements tests
+- Validate that tests properly cover acceptance criteria
 
-**Test Report Format**:
+**Test Case Specification Format**:
 ```markdown
-## QA Test Report: [Feature Name]
+## Test Specification: [Feature Name]
 
-**Tested By**: Rob
+**Designed By**: Rob
+**Date**: YYYY-MM-DD
+**For Implementation By**: /adam
+
+### Test Cases from Acceptance Criteria
+
+| Test ID | AC | Test Description | Type | Priority |
+|---------|-----|-----------------|------|----------|
+| TC-001 | AC-1 | Valid login redirects to dashboard | E2E | High |
+| TC-002 | AC-2 | Invalid credentials shows error | E2E | High |
+| TC-003 | AC-2 | Email validation error message | Integration | Medium |
+| TC-004 | AC-3 | Account lockout after 5 attempts | Integration | High |
+
+### Test Implementation Notes
+- TC-001: Use Playwright, verify URL change
+- TC-004: Requires test container for database reset
+
+### Edge Cases to Cover
+- Empty email/password
+- SQL injection attempt
+- XSS in error message
+```
+
+### 4.2 Test Automation Engineer (/adam) - EXPANDED ROLE
+
+**Adam now implements ALL automated tests**:
+
+| Test Type | Framework | When |
+|-----------|-----------|------|
+| **Integration Tests** | JUnit + Testcontainers (backend) | Always |
+| **Integration Tests** | Jest + Testing Library (frontend) | Always |
+| **E2E Tests** | Playwright (web) | Critical paths |
+| **E2E Tests** | Detox (mobile) | Critical paths |
+| **Performance Tests** | k6, Artillery | As needed |
+| **Visual Regression** | Playwright screenshots | Frontend features |
+
+**Adam's Workflow**:
+1. Receive test specifications from /rob
+2. Implement automated tests
+3. Run tests in CI/CD pipeline
+4. Report results with pass/fail status
+5. Work with developers to fix flaky tests
+
+**Automated Test Report Format**:
+```markdown
+## Automated Test Report: [Feature Name]
+
+**Implemented By**: Adam
 **Date**: YYYY-MM-DD
 **Build**: [version/commit]
+**CI/CD Run**: [link]
 
-### Summary
-| Total Tests | Passed | Failed | Blocked |
-|-------------|--------|--------|---------|
-| X           | Y      | Z      | W       |
+### Test Summary
+| Type | Total | Passed | Failed | Skipped |
+|------|-------|--------|--------|---------|
+| Integration | X | Y | Z | W |
+| E2E | X | Y | Z | W |
+| Performance | X | Y | Z | W |
 
-### Results by Acceptance Criteria
-| AC | Description | Status | Notes |
-|----|-------------|--------|-------|
-| AC-1 | Valid login redirects | PASS | - |
-| AC-2 | Invalid credentials error | FAIL | See DEF-001 |
+### Acceptance Criteria Coverage
+| AC | Test IDs | Status |
+|----|----------|--------|
+| AC-1 | TC-001, TC-002 | ✅ COVERED |
+| AC-2 | TC-003, TC-004 | ✅ COVERED |
 
-### Defects Found
-#### DEF-001: Error message not displayed
-- **Severity**: High
-- **Steps to Reproduce**:
-  1. Enter invalid password
-  2. Click login
-- **Expected**: Error message shown
-- **Actual**: No message, form clears
-- **Screenshot**: [link]
+### Failed Tests
+| Test ID | Test Name | Error | Link |
+|---------|-----------|-------|------|
+| TC-003 | Email validation | Timeout | [trace] |
+
+### Performance Results (if applicable)
+| Metric | Target | Actual | Status |
+|--------|--------|--------|--------|
+| p95 Response | <500ms | 320ms | ✅ |
+| Throughput | >100 rps | 150 rps | ✅ |
 
 ### Recommendation
-[ ] PASS - Ready for release
-[X] FAIL - Requires fixes before release
+- [X] **PASS** - All automated tests passing
+- [ ] **FAIL** - See failed tests above
 ```
 
-### 4.2 After QA Testing
+### 4.3 After Automated Testing
 
-**If PASSED**:
+**If ALL TESTS PASS**:
 ```
-/rob → /luda: "Feature [X] QA testing PASSED"
+/adam → /luda: "Feature [X] automated tests PASSED"
+/rob → Reviews test coverage
 /luda → Updates sprint status
 /luda → Triggers /technical-writer for documentation
-/adam → Writes E2E tests (can be parallel)
 ```
 
-**If FAILED**:
+**If TESTS FAIL**:
 ```
-/rob → /luda: "Feature [X] QA testing FAILED - see report"
-/luda → Creates fix tickets from defects
+/adam → /luda: "Feature [X] automated tests FAILED - see report"
+/luda → Creates fix tickets from failures
 /luda → Adds tickets to current/next sprint
 → Back to Phase 2 (Development)
 ```
 
-## Phase 5: E2E & Performance Testing
+## Phase 5: Test Coverage Review
 
-### 5.1 E2E Tester (/adam)
-**Can run in parallel with QA testing**
+### 5.1 Test Case Designer (/rob) - Coverage Review
 
-- Writes Playwright/Detox E2E tests
-- Tests critical user journeys
-- Runs performance tests (k6, Lighthouse)
-- Validates cross-browser compatibility
+After /adam implements tests:
+- [ ] Verify all AC are covered by tests
+- [ ] Verify edge cases are tested
+- [ ] Verify error paths are tested
+- [ ] Sign off on test coverage
+
+**Coverage Sign-off**:
+```markdown
+## Test Coverage Sign-off: [Feature Name]
+
+**Reviewed By**: Rob
+**Date**: YYYY-MM-DD
+
+### Coverage Assessment
+| AC | Tests | Edge Cases | Error Paths | Status |
+|----|-------|------------|-------------|--------|
+| AC-1 | ✅ | ✅ | ✅ | COMPLETE |
+| AC-2 | ✅ | ⚠️ Missing | ✅ | NEEDS WORK |
+
+### Verdict
+- [ ] **APPROVED** - Test coverage is sufficient
+- [ ] **NEEDS MORE TESTS** - See gaps above
+```
 
 ## Phase 6: Documentation & Release
 
@@ -480,3 +559,224 @@ Every phase produces a report/status update that triggers the next phase.
 | Performance tests | /adam | As needed |
 | Documentation | /technical-writer | After QA pass |
 | Sprint tracking | /luda | Always |
+
+## Bug / Issue Workflow
+
+### Reporting a Bug
+
+Use the `/bug` or `/issue` command with a simple description:
+
+```
+/bug I see internal server error in /approval page when I move from dashboard to users menu item
+/bug Login button doesn't work on mobile Safari
+/bug Performance is slow when loading users list with more than 100 entries
+```
+
+### Bug Workflow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              BUG WORKFLOW                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+   /bug [description] or /issue [description]
+         │
+         ▼
+   ┌─────────────────────────┐
+   │ Creates structured bug  │
+   │ report (BUG-XXX)        │
+   └───────────┬─────────────┘
+               │
+               ▼
+   ┌─────────────────────────┐
+   │ /luda creates ticket    │
+   │ • Sets priority (P0-P3) │
+   │   (consults /max,/jorge,│
+   │    user, or suggests    │
+   │    based on load)       │
+   │ • Assigns investigator: │
+   │   /finn, /james, /adam  │
+   │ • Schedules in sprint   │
+   └───────────┬─────────────┘
+               │
+               ▼
+   ┌─────────────────────────┐
+   │ INVESTIGATION PHASE     │
+   │ • Identify component    │
+   │ • Reproduce issue       │
+   │ • Find root cause       │
+   │ • Gather evidence       │
+   └───────────┬─────────────┘
+               │
+         ┌─────┴─────┐
+         │           │
+         ▼           ▼
+   ┌───────────┐  ┌───────────────────────┐
+   │ REPRODUCED│  │ CANNOT REPRODUCE      │
+   └─────┬─────┘  │ /rob recommends:      │
+         │        │ • Close as "works as  │
+         │        │   designed" OR        │
+         │        │ • Request more info   │
+         │        │   from reporter OR    │
+         │        │ • Mark for monitoring │
+         │        └───────────────────────┘
+         ▼
+   ┌─────────────────────────┐
+   │ /rob writes failing     │
+   │ reproduction test       │
+   │ (MUST fail before fix,  │
+   │  pass after fix)        │
+   └───────────┬─────────────┘
+               │
+               ▼
+   ┌─────────────────────────┐
+   │ Investigation Report    │
+   │ created and saved       │
+   │ (root cause, fix plan)  │
+   └───────────┬─────────────┘
+               │
+               ▼
+   ┌─────────────────────────┐
+   │ FIX PHASE (TDD)         │
+   │ • Read investigation    │
+   │ • Verify repro test     │
+   │   still fails           │
+   │ • Write unit tests      │
+   │   (RED - tests fail)    │
+   │ • Implement fix         │
+   │   (GREEN - tests pass)  │
+   │ • Refactor code         │
+   │ • All tests pass        │
+   └───────────┬─────────────┘
+               │
+               ▼
+   ┌─────────────────────────┐
+   │ /rev reviews fix        │
+   │ /adam runs automated    │
+   │ tests (verifies fix)    │
+   │ /luda closes ticket     │
+   └─────────────────────────┘
+```
+
+### Bug Priority Levels
+
+| Priority | Criteria | Response Time |
+|----------|----------|---------------|
+| **P0** | System down, data loss, security breach | Immediate - drop everything |
+| **P1** | Major feature broken, no workaround | Same day fix |
+| **P2** | Feature impaired, workaround exists | Current sprint |
+| **P3** | Minor issue, cosmetic | Backlog |
+
+### Cannot Reproduce Scenarios
+
+When a bug cannot be reproduced, /rob has several options:
+
+| Scenario | Recommendation | Action |
+|----------|----------------|--------|
+| **Works as designed** | Close bug | Document why behavior is correct |
+| **Insufficient info** | Request more details | Ask reporter for exact steps, environment, data |
+| **Environment-specific** | Additional investigation | Check reporter's specific config, device, browser |
+| **Intermittent/Flaky** | Mark for monitoring | Add logging, set up alerts, wait for recurrence |
+| **Stale report** | Close as outdated | Bug may have been fixed in recent changes |
+
+**Cannot Reproduce Report**:
+```markdown
+## Cannot Reproduce Report: BUG-XXX
+
+**Reported**: YYYY-MM-DD
+**Investigated By**: /rob
+**Attempts**: [number of reproduction attempts]
+**Environment Tested**: [browsers, devices, data sets]
+
+### Investigation Summary
+[What was tried to reproduce the issue]
+
+### Recommendation
+- [ ] **CLOSE** - Works as designed / Cannot reproduce
+- [ ] **MORE INFO NEEDED** - Request from reporter: [specific questions]
+- [ ] **MONITOR** - Add logging and wait for recurrence
+- [ ] **FURTHER INVESTIGATION** - Escalate to /jorge for architecture review
+
+### Notes
+[Any additional context or observations]
+```
+
+### Bug Investigation Report Template
+
+```markdown
+# Bug Investigation Report: BUG-XXX
+
+**Reported**: YYYY-MM-DD
+**Investigated By**: [agent]
+**Priority**: P0/P1/P2/P3
+**Component**: Frontend / Backend / Mobile / API
+
+## Summary
+[Brief description of the bug]
+
+## Root Cause Analysis
+[Technical explanation of what's causing the bug]
+
+## Affected Files
+- `path/to/file1.ts` - [description of involvement]
+- `path/to/file2.kt` - [description of involvement]
+
+## Reproduction Steps
+1. Step 1
+2. Step 2
+3. Expected: [what should happen]
+4. Actual: [what happens]
+
+## Reproduction Test (Written by /rob)
+```typescript
+describe('BUG-XXX', () => {
+  it('should [expected behavior]', () => {
+    // This test currently FAILS - proves the bug exists
+    // After fix, this test MUST pass
+  });
+});
+```
+
+## Proposed Fix
+[Description of how to fix the issue]
+
+## Risk Assessment
+- **Impact**: Low / Medium / High
+- **Regression Risk**: Low / Medium / High
+- **Testing Required**: Unit / Integration / E2E / Manual
+
+## Evidence
+- Logs: [relevant log snippets]
+- Screenshots: [if applicable]
+- Network traces: [if applicable]
+```
+
+### Bug Workflow Roles
+
+| Phase | Agent | Responsibility |
+|-------|-------|----------------|
+| Report | User/Any Agent | Describe the issue with `/bug` command |
+| Investigation | Claude + Component Expert | Reproduce, find root cause |
+| Reproduction Test | /rob | Write failing test that proves bug exists |
+| Cannot Reproduce | /rob | Recommend: close, more info, or monitor |
+| Ticket Creation | /luda | Prioritize and assign to developer |
+| Fix | /finn or /james | Implement fix, ensure test passes |
+| Review | /rev | Code quality and security review |
+| Verification | /adam | Run automated tests, confirm fix |
+| Closure | /luda | Update sprint, close ticket |
+
+### Bug vs Feature Request
+
+| Type | Command | Workflow |
+|------|---------|----------|
+| **Bug** | `/bug` or `/issue` | Investigation → Reproduction Test → Fix → Verify |
+| **Feature** | Talk to /max | Full feature workflow (design → implement → test) |
+| **Enhancement** | Talk to /max | Add to backlog → prioritize → implement |
+
+### Best Practices for Bug Reports
+
+1. **Be Specific**: Include exact steps to reproduce
+2. **Include Context**: Browser, device, user role, test data
+3. **Expected vs Actual**: What should happen vs what happens
+4. **Evidence**: Screenshots, console errors, network responses
+5. **Severity**: Is it blocking work? Is there a workaround?
