@@ -11,7 +11,7 @@ A reusable repository of specialized Claude Code skills that work together like 
     ┌──────▼──────┐      ┌───────▼───────┐     ┌──────▼──────┐
     │   PRODUCT   │      │    SCRUM      │     │  BUSINESS   │
     │    OWNER    │      │   MASTER      │     │  ANALYST    │
-    │    /max     │      │    /luda      │     │   /anna     │
+    │     /po     │      │     /sm       │     │    /ba      │
     └──────┬──────┘      └───────┬───────┘     └──────┬──────┘
            └─────────────────────┼─────────────────────┘
                                  │
@@ -19,7 +19,7 @@ A reusable repository of specialized Claude Code skills that work together like 
                       ┌──────────▼──────────┐
                       │     SOLUTION        │
                       │    ARCHITECT        │
-                      │      /jorge         │
+                      │       /arch         │
                       └──────────┬──────────┘
                                  │
          ┌───────────────────────┼───────────────────────┐
@@ -27,7 +27,7 @@ A reusable repository of specialized Claude Code skills that work together like 
 ┌────────▼───────┐    ┌─────────▼────────┐    ┌─────────▼────────┐
 │    BACKEND     │    │    FRONTEND      │    │     DEVOPS       │
 │   DEVELOPER    │    │   DEVELOPER      │    │    ENGINEER      │
-│    /james      │    │     /finn        │    │                  │
+│      /be       │    │      /fe         │    │                  │
 └───────┬────────┘    └────────┬─────────┘    └────────┬─────────┘
         │                      │                       │
         │   QUALITY LAYER      │                       │
@@ -35,13 +35,13 @@ A reusable repository of specialized Claude Code skills that work together like 
 ┌───────────────┐      ┌───────────────┐       ┌───────────────┐
 │     CODE      │      │   UI/UX       │       │    SECOPS     │
 │   REVIEWER    │      │   DESIGNER    │       │   ENGINEER    │
-│     /rev      │      │    /aura      │       │               │
+│     /rev      │      │     /ui       │       │               │
 └───────┬───────┘      └───────┬───────┘       └───────────────┘
         ▼                      ▼
 ┌───────────────┐      ┌───────────────┐
 │  QA / TEST    │      │     E2E       │
 │   DESIGNER    │      │    TESTER     │
-│    /rob       │      │    /adam      │
+│     /qa       │      │     /e2e      │
 └───────────────┘      └───────────────┘
 
                          COMPLIANCE LAYER
@@ -49,7 +49,7 @@ A reusable repository of specialized Claude Code skills that work together like 
       │              │              │              │
 ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐
 │ACCOUNTANT │  │   LEGAL   │  │ MARKETING │  │ TECHNICAL │
-│   /inga   │  │   /alex   │  │   /apex   │  │  WRITER   │
+│   /fin    │  │  /legal   │  │   /mkt    │  │  WRITER   │
 └───────────┘  └───────────┘  └───────────┘  └───────────┘
 ```
 
@@ -122,19 +122,19 @@ ls ~/.claude/commands/
 │
 ├── commands/                    # 16 slash commands
 │   ├── agents.md                # /agents - list all agents
-│   ├── max.md                   # /max - Product Owner
-│   ├── luda.md                  # /luda - Scrum Master
-│   ├── jorge.md                 # /jorge - Solution Architect
-│   ├── finn.md                  # /finn - Frontend Developer
-│   ├── james.md                 # /james - Backend Developer
+│   ├── po.md                    # /po - Product Owner
+│   ├── sm.md                    # /sm - Scrum Master
+│   ├── arch.md                  # /arch - Solution Architect
+│   ├── fe.md                    # /fe - Frontend Developer
+│   ├── be.md                    # /be - Backend Developer
 │   ├── rev.md                   # /rev - Code Reviewer
-│   ├── rob.md                   # /rob - QA/Test Designer
-│   ├── adam.md                  # /adam - E2E Tester
-│   ├── aura.md                  # /aura - UI Designer
-│   ├── anna.md                  # /anna - Business Analyst
-│   ├── inga.md                  # /inga - UK Accountant
-│   ├── alex.md                  # /alex - UK Legal
-│   ├── apex.md                  # /apex - Marketing
+│   ├── qa.md                    # /qa - QA/Test Designer
+│   ├── e2e.md                   # /e2e - E2E Tester
+│   ├── ui.md                    # /ui - UI Designer
+│   ├── ba.md                    # /ba - Business Analyst
+│   ├── fin.md                   # /fin - UK Accountant
+│   ├── legal.md                 # /legal - UK Legal
+│   ├── mkt.md                   # /mkt - Marketing
 │   ├── bug.md                   # /bug - Report bugs
 │   └── issue.md                 # /issue - Report issues
 │
@@ -152,27 +152,27 @@ ls ~/.claude/commands/
 
 ### Core Agents (18)
 
-| Command | Name | Role | Expertise |
-|---------|------|------|-----------|
-| `/max` | Max | Product Owner | Vision, backlog, user stories |
-| `/luda` | Luda | Scrum Master | Sprints, AC, status tracking |
-| `/anna` | Anna | Business Analyst | Research, requirements |
-| `/jorge` | Jorge | Solution Architect | System design, patterns, ADRs |
-| `/finn` | Finn | Frontend Developer | React, TypeScript, Next.js |
-| `/james` | James | Backend Developer | Java, Spring Boot, APIs |
-| `/rev` | Rev | Code Reviewer | Quality, security, style |
-| `/rob` | Rob | QA Engineer | Test design, bug investigation |
-| `/adam` | Adam | E2E Tester | Playwright, Detox, performance |
-| `/aura` | Aura | UI Designer | Design systems, prototypes |
-| `/inga` | Inga | UK Accountant | Tax, VAT, R&D credits |
-| `/alex` | Alex | UK Legal | GDPR, contracts, compliance |
-| `/apex` | Apex | Marketing | GTM, positioning, content |
-| - | DevOps | DevOps Engineer | Terraform, K8s, CI/CD |
-| - | SecOps | Security Engineer | OWASP, auth, security |
-| - | MLOps | ML Engineer | AI/ML, LLM integration |
-| - | Technical Writer | Documentation | Docs, diagrams, guides |
-| - | Generic Accountant | Finance | Multi-jurisdiction finance |
-| - | Generic Legal | Legal | Multi-jurisdiction legal |
+| Command | Role | Expertise |
+|---------|------|-----------|
+| `/po` | Product Owner | Vision, backlog, user stories |
+| `/sm` | Scrum Master | Sprints, AC, status tracking |
+| `/ba` | Business Analyst | Research, requirements |
+| `/arch` | Solution Architect | System design, patterns, ADRs |
+| `/fe` | Frontend Developer | React, TypeScript, Next.js |
+| `/be` | Backend Developer | Java, Spring Boot, APIs |
+| `/rev` | Code Reviewer | Quality, security, style |
+| `/qa` | QA Engineer | Test design, bug investigation |
+| `/e2e` | E2E Tester | Playwright, Detox, performance |
+| `/ui` | UI Designer | Design systems, prototypes |
+| `/fin` | UK Accountant | Tax, VAT, R&D credits |
+| `/legal` | UK Legal | GDPR, contracts, compliance |
+| `/mkt` | Marketing | GTM, positioning, content |
+| - | DevOps Engineer | Terraform, K8s, CI/CD |
+| - | Security Engineer | OWASP, auth, security |
+| - | ML Engineer | AI/ML, LLM integration |
+| - | Technical Writer | Docs, diagrams, guides |
+| - | Generic Accountant | Multi-jurisdiction finance |
+| - | Generic Legal | Multi-jurisdiction legal |
 
 ### Extended Skills (14)
 
@@ -202,18 +202,18 @@ Technology-specific extensions that activate alongside core agents:
 ### Development Sequence
 
 ```
-/max → /luda → /jorge → [/inga] → [/alex] → [/aura] → /finn|/james → /rev → /rob + /adam
-Vision   AC    Arch.    Finance   Legal    Design     TDD Dev        Review   Testing
+/po → /sm → /arch → [/fin] → [/legal] → [/ui] → /fe|/be → /rev → /qa + /e2e
+Vision  AC   Arch.   Finance  Legal    Design   TDD Dev   Review  Testing
 ```
 
 ### Approval Gates
 
 | Gate | Agent | When Required |
 |------|-------|---------------|
-| Architecture | /jorge | **ALWAYS** |
-| Finance | /inga | Payments, billing, tax |
-| Legal | /alex | GDPR, privacy, contracts |
-| UI Design | /aura | Frontend features |
+| Architecture | /arch | **ALWAYS** |
+| Finance | /fin | Payments, billing, tax |
+| Legal | /legal | GDPR, privacy, contracts |
+| UI Design | /ui | Frontend features |
 
 ### Bug Workflow
 
@@ -236,13 +236,13 @@ All development follows Test-Driven Development:
 
 ### Architecture First
 
-ALL features require `/jorge` approval before implementation.
+ALL features require `/arch` approval before implementation.
 
 ### Developers Own Tests
 
-- `/finn` and `/james` write unit and integration tests
-- `/rob` designs test cases from acceptance criteria
-- `/adam` implements automated E2E and performance tests
+- `/fe` and `/be` write unit and integration tests
+- `/qa` designs test cases from acceptance criteria
+- `/e2e` implements automated E2E and performance tests
 
 ---
 

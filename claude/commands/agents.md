@@ -39,33 +39,33 @@ These are your primary agents for software development:
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **ui-designer** (Aura) | React, Tailwind, Framer Motion, Design Systems | Landing pages, dashboards, mobile UI, brand design |
+| **ui-designer** | React, Tailwind, Framer Motion, Design Systems | Landing pages, dashboards, mobile UI, brand design |
 
 ### Product & Process
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
 | **business-analyst** | SWOT, market research, requirements | Competitive analysis, BRDs |
-| **product-owner** (Max) | User stories, backlog, prioritization | Sprint planning, acceptance criteria |
-| **scrum-master** (Luda) | Agile ceremonies, velocity, retrospectives | Sprint management, blockers |
+| **product-owner** | User stories, backlog, prioritization | Sprint planning, acceptance criteria |
+| **scrum-master** | Agile ceremonies, velocity, retrospectives | Sprint management, blockers |
 
-> **Quick Access**: Use `/max` for product owner, `/luda` for scrum master.
+> **Quick Access**: Use `/po` for product owner, `/sm` for scrum master.
 
 ### Legal & Compliance
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **uk-legal-counsel** (Alex) | UK Law, GDPR, Employment, Contracts, Penalties | Legal advice, contracts, compliance, risk |
+| **uk-legal-counsel** | UK Law, GDPR, Employment, Contracts, Penalties | Legal advice, contracts, compliance, risk |
 
-> **Quick Access**: Use `/alex` to invoke the legal counsel directly.
+> **Quick Access**: Use `/legal` to invoke the legal counsel directly.
 
 ### Finance & Accounting
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **uk-accountant** (Inga) | Corporation Tax, VAT, PAYE, R&D Credits, IR35, UK GAAP | Tax planning, financial forecasting, compliance, accounting logic |
+| **uk-accountant** | Corporation Tax, VAT, PAYE, R&D Credits, IR35, UK GAAP | Tax planning, financial forecasting, compliance, accounting logic |
 
-> **Quick Access**: Use `/inga` or `/accountant` to invoke the accountant directly.
+> **Quick Access**: Use `/fin` to invoke the accountant directly.
 
 ---
 
