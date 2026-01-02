@@ -18,6 +18,166 @@ This document defines the standard workflow for the AI development team, ensurin
 | `/ba` | Business Analyst | Market research, requirements analysis |
 | `/mkt` | Marketing Strategist | GTM strategy, product positioning |
 
+---
+
+## Context Preservation System (CRITICAL)
+
+**Purpose**: All approvals, decisions, and reports MUST be saved to files to preserve context across conversations. This is mandatory for team continuity.
+
+### Sprint Folder Structure
+
+Every sprint gets a dedicated working folder:
+
+```
+docs/sprints/
+├── sprint-{N}-{feature-name}/              # Sprint working folder
+│   ├── README.md                           # Sprint overview + live status
+│   │
+│   ├── approvals/                          # Gate approvals (REQUIRED)
+│   │   ├── arch-architecture.md            # /arch decisions
+│   │   ├── fin-finance.md                  # /fin (if needed)
+│   │   ├── legal-compliance.md             # /legal (if needed)
+│   │   └── ui-designs/                     # /ui designs
+│   │       ├── {TICKET}-{feature}.md
+│   │       └── ...
+│   │
+│   ├── implementation/                     # Dev notes per ticket
+│   │   ├── {TICKET}-{feature}.md
+│   │   └── ...
+│   │
+│   ├── reviews/                            # Code review reports
+│   │   ├── rev-{TICKET}.md
+│   │   └── ...
+│   │
+│   └── testing/                            # QA & E2E reports
+│       ├── qa-{TICKET}.md
+│       ├── e2e-{TICKET}.md
+│       └── ...
+│
+└── SPRINT-STATUS.md                        # Overall sprint tracking
+```
+
+### Agent File Conventions
+
+| Agent | Writes To | When | Triggers /sm |
+|-------|-----------|------|--------------|
+| `/po` | README.md (goals section) | Sprint planning | Yes |
+| `/sm` | README.md, SPRINT-STATUS.md | After each approval, status change | N/A |
+| `/arch` | `approvals/arch-architecture.md` | Architecture decisions | **YES** |
+| `/fin` | `approvals/fin-finance.md` | Finance/payment approvals | **YES** |
+| `/legal` | `approvals/legal-compliance.md` | Legal/compliance approvals | **YES** |
+| `/ui` | `approvals/ui-designs/{ticket}.md` | UI specifications | **YES** |
+| `/be` | `implementation/{ticket}.md` | Backend implementation notes | Yes (on complete) |
+| `/fe` | `implementation/{ticket}.md` | Frontend implementation notes | Yes (on complete) |
+| `/rev` | `reviews/rev-{ticket}.md` | Code review reports | Yes |
+| `/qa` | `testing/qa-{ticket}.md` | QA test reports | Yes |
+| `/e2e` | `testing/e2e-{ticket}.md` | E2E test reports | Yes |
+
+### Auto-Save Rules (MANDATORY)
+
+**Rule 1: Every Approval Must Be Saved**
+```
+After ANY approval gate completes:
+1. Agent saves decision to their designated file
+2. Agent explicitly triggers: "/sm - please update sprint status"
+3. /sm updates README.md with approval status
+```
+
+**Rule 2: Implementation Notes Required**
+```
+When starting implementation:
+1. /fe or /be creates implementation/{ticket}.md
+2. Notes include: approach, key decisions, blockers
+3. On completion: update file with results + trigger /sm
+```
+
+**Rule 3: Reports Are Persistent**
+```
+All reports (review, QA, E2E) MUST:
+1. Be saved to the designated file
+2. Include date, status, and findings
+3. Trigger /sm to update sprint status
+```
+
+### Sprint README.md Template
+
+```markdown
+# Sprint {N}: {Feature Name}
+
+**Started**: YYYY-MM-DD
+**Status**: 🟡 In Progress | 🟢 Complete | 🔴 Blocked
+
+## Goals
+- [ ] Goal 1
+- [ ] Goal 2
+
+## Approval Status
+
+| Gate | Agent | Status | File | Date |
+|------|-------|--------|------|------|
+| Architecture | /arch | ✅ Approved | [Link](approvals/arch-architecture.md) | YYYY-MM-DD |
+| Finance | /fin | ⏳ Pending | - | - |
+| Legal | /legal | N/A | - | - |
+| UI Design | /ui | ✅ Approved | [Link](approvals/ui-designs/) | YYYY-MM-DD |
+
+## Tickets
+
+| Ticket | Description | Dev | Status | Review | QA | E2E |
+|--------|-------------|-----|--------|--------|-----|-----|
+| ABC-123 | Feature X | /fe | ✅ Done | ✅ | ⏳ | ⏳ |
+| ABC-124 | API Y | /be | 🔄 In Progress | - | - | - |
+
+## Blockers
+- None currently
+
+## Notes
+- Key decisions or context for future reference
+```
+
+### Approval File Templates
+
+**Architecture Approval (`approvals/arch-architecture.md`)**:
+```markdown
+# Architecture Approval: {Feature Name}
+
+**Reviewed By**: /arch
+**Date**: YYYY-MM-DD
+**Status**: ✅ Approved | ❌ Rejected | ⚠️ Approved with conditions
+
+## Summary
+Brief description of architectural decision
+
+## Key Decisions
+1. Decision 1 - rationale
+2. Decision 2 - rationale
+
+## Patterns Selected
+- Pattern 1: Reason
+- Pattern 2: Reason
+
+## Database Changes
+- Table/field changes if any
+
+## API Changes
+- Endpoint changes if any
+
+## Risks & Mitigations
+| Risk | Mitigation |
+|------|------------|
+| Risk 1 | How we handle it |
+
+## Dependencies
+- External service X
+- Library Y
+
+## Next Steps
+- [ ] Proceed to /fin approval (if finance)
+- [ ] Proceed to /ui design (if frontend)
+- [ ] Proceed to implementation
+```
+
+---
+
 ## Development Workflow
 
 ### Workflow Summary

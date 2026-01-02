@@ -55,6 +55,28 @@ Vision  AC   Arch.   Finance  Legal    Design   TDD Dev    Review  Testing
 5. **Design QA for Frontend**: /ui verifies UI before QA
 6. **Automated Testing**: /qa designs, /e2e implements
 
+### Context Preservation (CRITICAL)
+
+**Every approval and report MUST be saved to files.** This ensures context survives across conversations.
+
+**Sprint Folder Location**: `docs/sprints/sprint-{N}-{feature}/`
+
+| Agent | Saves To | After Saving |
+|-------|----------|--------------|
+| `/arch` | `approvals/arch-architecture.md` | Trigger /sm |
+| `/fin` | `approvals/fin-finance.md` | Trigger /sm |
+| `/legal` | `approvals/legal-compliance.md` | Trigger /sm |
+| `/ui` | `approvals/ui-designs/{ticket}.md` | Trigger /sm |
+| `/fe` | `implementation/{ticket}.md` | Trigger /sm (on complete) |
+| `/be` | `implementation/{ticket}.md` | Trigger /sm (on complete) |
+| `/rev` | `reviews/rev-{ticket}.md` | Trigger /sm |
+| `/qa` | `testing/qa-{ticket}.md` | Trigger /sm |
+| `/e2e` | `testing/e2e-{ticket}.md` | Trigger /sm |
+
+**Rule**: After ANY approval → Save to file → Say "/sm - please update sprint status"
+
+See `~/.claude/TEAM_WORKFLOW.md` for complete folder structure and templates.
+
 ### Bug Workflow
 
 ```
