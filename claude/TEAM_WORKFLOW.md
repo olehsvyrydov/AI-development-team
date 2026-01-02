@@ -4,34 +4,34 @@ This document defines the standard workflow for the AI development team, ensurin
 
 ## Team Roles Overview
 
-| Agent | Name | Role | Responsibility |
-|-------|------|------|----------------|
-| `/max` | Max | Product Owner | Vision, backlog, feature prioritization |
-| `/luda` | Luda | Scrum Master | Sprint planning, acceptance criteria, status tracking |
-| `/aura` | Aura | UI Designer | Design specs, UI components, visual assets |
-| `/jorge` | Jorge | Solution Architect | Architecture, patterns, technical decisions |
-| `/finn` | Finn | Frontend Developer | React/TypeScript implementation + unit/integration tests |
-| `/james` | James | Backend Developer | Java/Kotlin/Spring implementation + unit/integration tests |
-| `/rev` | Rev | Code Reviewer | Code quality, security, style, vulnerability scanning |
-| `/rob` | Rob | Test Case Designer & QA | Test specs, reproduction tests, coverage review, manual testing when requested |
-| `/adam` | Adam | Test Automation Engineer | Integration, E2E, performance tests implementation |
-| `/anna` | Anna | Business Analyst | Market research, requirements analysis |
-| `/apex` | Apex | Marketing Strategist | GTM strategy, product positioning |
+| Agent | Role | Responsibility |
+|-------|------|----------------|
+| `/po` | Product Owner | Vision, backlog, feature prioritization |
+| `/sm` | Scrum Master | Sprint planning, acceptance criteria, status tracking |
+| `/ui` | UI Designer | Design specs, UI components, visual assets |
+| `/arch` | Solution Architect | Architecture, patterns, technical decisions |
+| `/fe` | Frontend Developer | React/TypeScript implementation + unit/integration tests |
+| `/be` | Backend Developer | Java/Kotlin/Spring implementation + unit/integration tests |
+| `/rev` | Code Reviewer | Code quality, security, style, vulnerability scanning |
+| `/qa` | Test Case Designer & QA | Test specs, reproduction tests, coverage review, manual testing when requested |
+| `/e2e` | Test Automation Engineer | Integration, E2E, performance tests implementation |
+| `/ba` | Business Analyst | Market research, requirements analysis |
+| `/mkt` | Marketing Strategist | GTM strategy, product positioning |
 
 ## Development Workflow
 
 ### Workflow Summary
 
 ```
-/max → /luda → /jorge → [/inga] → [/alex] → [/aura] → /finn and/or /james → /rev + [/aura verify] → /rob + /adam
-Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Review            Automated Testing
+/po → /sm → /arch → [/fin] → [/legal] → [/ui] → /fe and/or /be → /rev + [/ui verify] → /qa + /e2e
+Vision  AC   Arch.   Finance  Legal    Design   TDD Dev            Review           Automated Testing
 
 [ ] = Conditional participation based on feature type
 
 **NEW (v4.0)**: Testing workflow updated:
-- /rob designs test cases from AC, writes reproduction tests for bugs, reviews coverage
-- /adam implements ALL automated tests (integration, E2E, performance)
-- /rob can perform manual testing when requested by anyone (collaborates with /max, /jorge)
+- /qa designs test cases from AC, writes reproduction tests for bugs, reviews coverage
+- /e2e implements ALL automated tests (integration, E2E, performance)
+- /qa can perform manual testing when requested by anyone (collaborates with /po, /arch)
 - Automated tests are preferred - must be repeatable and CI/CD ready
 ```
 
@@ -39,10 +39,10 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
 
 | Gate | Agent | When Required |
 |------|-------|---------------|
-| Architecture | /jorge | **ALWAYS** - all features need architectural approval |
-| Finance | /inga | Features involving: payments, billing, accounting, VAT, tax, invoicing |
-| Legal | /alex | Features involving: GDPR, privacy, terms, contracts, compliance |
-| UI Design | /aura | Features with frontend/UI changes only |
+| Architecture | /arch | **ALWAYS** - all features need architectural approval |
+| Finance | /fin | Features involving: payments, billing, accounting, VAT, tax, invoicing |
+| Legal | /legal | Features involving: GDPR, privacy, terms, contracts, compliance |
+| UI Design | /ui | Features with frontend/UI changes only |
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -50,7 +50,7 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
 └─────────────────────────────────────────────────────────────────────────────┘
 
    ┌─────────┐      ┌─────────┐      ┌─────────┐
-   │  /max   │─────▶│ /luda   │─────▶│ /jorge  │ ◀── ALWAYS REQUIRED
+   │  /po    │─────▶│  /sm    │─────▶│ /arch   │ ◀── ALWAYS REQUIRED
    │ Vision  │      │Sprint AC│      │Arch.Appr│
    └─────────┘      └─────────┘      └────┬────┘
                                           │
@@ -58,7 +58,7 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
                     │ (if finance)        │                     │ (if legal)
                     ▼                     │                     ▼
               ┌─────────┐                 │               ┌─────────┐
-              │ /inga   │                 │               │ /alex   │
+              │  /fin   │                 │               │ /legal  │
               │Finance  │                 │               │ Legal   │
               │Approval │                 │               │Approval │
               └────┬────┘                 │               └────┬────┘
@@ -74,8 +74,8 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
                     │ (if frontend)                             │ (backend only)
                     ▼                                           │
               ┌─────────┐                                       │
-              │ /aura   │                                       │
-              │ Design  │────▶ /max approves                    │
+              │  /ui    │                                       │
+              │ Design  │────▶ /po approves                     │
               └────┬────┘                                       │
                    │                                            │
                    └──────────────────────┬────────────────────┘
@@ -84,7 +84,7 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
                     │ (frontend)                                │ (backend)
                     ▼                                           ▼
               ┌───────────┐                              ┌───────────┐
-              │  /finn    │                              │  /james   │
+              │   /fe     │                              │   /be     │
               │ Frontend  │                              │ Backend   │
               │ TDD Cycle │                              │ TDD Cycle │
               └─────┬─────┘                              └─────┬─────┘
@@ -95,7 +95,7 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
                      │                                           │ (if frontend)
                      ▼                                           ▼
                ┌───────────┐                              ┌───────────┐
-               │   /rev    │                              │  /aura    │
+               │   /rev    │                              │   /ui     │
                │Code Review│                              │Design QA  │
                │Quality+Sec│                              │Browser MCP│
                └─────┬─────┘                              └─────┬─────┘
@@ -109,17 +109,17 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
                        │ Approved │                  │ Rejected │
                        └────┬─────┘                  └────┬─────┘
                             │                             │
-                            │                             └──▶ Back to /finn or /james
+                            │                             └──▶ Back to /fe or /be
                             ▼
                       ┌───────────────────────────────────────┐
                       │        AUTOMATED TESTING PHASE        │
                       ├───────────────────────────────────────┤
-                      │  /rob designs test cases from AC      │
-                      │  /adam implements automated tests:    │
+                      │  /qa designs test cases from AC       │
+                      │  /e2e implements automated tests:     │
                       │  • Integration tests (Testcontainers) │
                       │  • E2E tests (Playwright/Cucumber)    │
                       │  • Performance tests (k6)             │
-                      │  /rob reviews test coverage           │
+                      │  /qa reviews test coverage            │
                       └─────────────┬─────────────────────────┘
                                     │
                              ┌──────┴──────┐
@@ -129,27 +129,27 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev              Revie
                          │ PASSED │   │ FAILED │
                          └───┬────┘   └───┬────┘
                              │            │
-                             │            └──▶ /adam reports to /luda
-                             │                 /luda creates fix tickets
+                             │            └──▶ /e2e reports to /sm
+                             │                 /sm creates fix tickets
                              ▼                 Back to development
                          ┌───────────┐
-                         │  /luda    │
+                         │   /sm     │
                          │Update     │
                          │Sprint     │
                          └─────┬─────┘
                                │
-                               └──▶ /technical-writer updates docs
+                               └──▶ Technical Writer updates docs
 ```
 
 ## Phase 1: Planning & Design
 
-### 1.1 Product Owner (/max)
+### 1.1 Product Owner (/po)
 - Defines product vision and goals
 - Creates and prioritizes backlog
 - Provides business context for features
-- **Approves UI designs** from /aura before implementation
+- **Approves UI designs** from /ui before implementation
 
-### 1.2 Scrum Master (/luda)
+### 1.2 Scrum Master (/sm)
 **CRITICAL**: Must provide for each feature:
 - [ ] **Feature Description**: Clear explanation of what the feature does
 - [ ] **Acceptance Criteria**: Specific, testable criteria (Given/When/Then)
@@ -175,8 +175,8 @@ Users can log in using email and password to access their account.
 - Security: Account lockout
 ```
 
-### 1.3 Solution Architect (/jorge) - ALWAYS REQUIRED
-**MANDATORY**: All features require /jorge approval before implementation.
+### 1.3 Solution Architect (/arch) - ALWAYS REQUIRED
+**MANDATORY**: All features require /arch approval before implementation.
 
 - Reviews architectural impact
 - Validates patterns and design decisions
@@ -186,7 +186,7 @@ Users can log in using email and password to access their account.
 
 ### 1.4 Conditional Approvals
 
-#### Finance Approval (/inga)
+#### Finance Approval (/fin)
 **Required for features involving**: payments, billing, subscriptions, VAT, tax calculations, invoicing, financial reporting, accounting integrations.
 
 - Reviews tax implications
@@ -194,7 +194,7 @@ Users can log in using email and password to access their account.
 - Approves payment flows
 - Reviews financial calculations
 
-#### Legal Approval (/alex)
+#### Legal Approval (/legal)
 **Required for features involving**: GDPR, privacy policies, terms of service, user consent, data retention, contracts, compliance.
 
 - Reviews GDPR compliance
@@ -202,17 +202,17 @@ Users can log in using email and password to access their account.
 - Approves data handling
 - Reviews legal copy
 
-### 1.5 UI Designer (/aura) - Frontend Features Only
+### 1.5 UI Designer (/ui) - Frontend Features Only
 **Only involved when feature has `[frontend]` tag**
 
-- Creates design specs based on /max vision
-- Gets approval from /max before handoff
-- Provides specifications to /finn
+- Creates design specs based on /po vision
+- Gets approval from /po before handoff
+- Provides specifications to /fe
 - **After implementation**: Verifies UI using Browser MCP
 
 ## Phase 2: Development (TDD)
 
-### 2.1 Developers (/finn, /james)
+### 2.1 Developers (/fe, /be)
 Developers are responsible for ALL tests related to their code:
 - **Unit Tests**: Test individual functions/components
 - **Integration Tests**: Test component interactions
@@ -284,10 +284,10 @@ Reviews all code for:
 
 ## Phase 3.5: Design QA (Frontend Only)
 
-### 3.5.1 UI Designer (/aura) - Design Verification
+### 3.5.1 UI Designer (/ui) - Design Verification
 **Only for features with frontend changes**
 
-After /finn completes implementation and /rev approves code:
+After /fe completes implementation and /rev approves code:
 
 **Using Browser MCP Tools**:
 ```
@@ -341,40 +341,40 @@ After /finn completes implementation and /rev approves code:
 ```
 
 **Design QA Outcomes**:
-- **Approved**: Feature proceeds to /rob QA testing
-- **Changes Needed**: Back to /finn with specific visual fixes
+- **Approved**: Feature proceeds to /qa QA testing
+- **Changes Needed**: Back to /fe with specific visual fixes
 
 ## Phase 4: Automated Testing (No Manual Testing)
 
-### 4.1 Test Case Designer (/rob) - NEW ROLE
+### 4.1 Test Case Designer (/qa) - NEW ROLE
 
 **PREREQUISITE CHECK**:
-Before testing, /rob MUST verify:
-- [ ] Feature description exists from /luda
+Before testing, /qa MUST verify:
+- [ ] Feature description exists from /sm
 - [ ] Acceptance criteria are defined
 - [ ] Test scenarios are documented
 
 **If Missing Information**:
 ```
-/rob → /max: "Feature [X] cannot be tested - missing acceptance criteria"
-/luda → Adds missing information
-/rob → Proceeds with test design
+/qa → /po: "Feature [X] cannot be tested - missing acceptance criteria"
+/sm → Adds missing information
+/qa → Proceeds with test design
 ```
 
-**Rob's New Responsibilities**:
+**QA New Responsibilities**:
 - Design test cases from acceptance criteria
-- Write test specifications for /adam to implement
+- Write test specifications for /e2e to implement
 - Write reproduction tests for bugs (during investigation)
-- Review test coverage after /adam implements tests
+- Review test coverage after /e2e implements tests
 - Validate that tests properly cover acceptance criteria
 
 **Test Case Specification Format**:
 ```markdown
 ## Test Specification: [Feature Name]
 
-**Designed By**: Rob
+**Designed By**: QA
 **Date**: YYYY-MM-DD
-**For Implementation By**: /adam
+**For Implementation By**: /e2e
 
 ### Test Cases from Acceptance Criteria
 
@@ -395,9 +395,9 @@ Before testing, /rob MUST verify:
 - XSS in error message
 ```
 
-### 4.2 Test Automation Engineer (/adam) - EXPANDED ROLE
+### 4.2 Test Automation Engineer (/e2e) - EXPANDED ROLE
 
-**Adam now implements ALL automated tests**:
+**E2E Tester now implements ALL automated tests**:
 
 | Test Type | Framework | When |
 |-----------|-----------|------|
@@ -408,8 +408,8 @@ Before testing, /rob MUST verify:
 | **Performance Tests** | k6, Artillery | As needed |
 | **Visual Regression** | Playwright screenshots | Frontend features |
 
-**Adam's Workflow**:
-1. Receive test specifications from /rob
+**E2E Tester's Workflow**:
+1. Receive test specifications from /qa
 2. Implement automated tests
 3. Run tests in CI/CD pipeline
 4. Report results with pass/fail status
@@ -419,7 +419,7 @@ Before testing, /rob MUST verify:
 ```markdown
 ## Automated Test Report: [Feature Name]
 
-**Implemented By**: Adam
+**Implemented By**: E2E Tester
 **Date**: YYYY-MM-DD
 **Build**: [version/commit]
 **CI/CD Run**: [link]
@@ -457,25 +457,25 @@ Before testing, /rob MUST verify:
 
 **If ALL TESTS PASS**:
 ```
-/adam → /luda: "Feature [X] automated tests PASSED"
-/rob → Reviews test coverage
-/luda → Updates sprint status
-/luda → Triggers /technical-writer for documentation
+/e2e → /sm: "Feature [X] automated tests PASSED"
+/qa → Reviews test coverage
+/sm → Updates sprint status
+/sm → Triggers Technical Writer for documentation
 ```
 
 **If TESTS FAIL**:
 ```
-/adam → /luda: "Feature [X] automated tests FAILED - see report"
-/luda → Creates fix tickets from failures
-/luda → Adds tickets to current/next sprint
+/e2e → /sm: "Feature [X] automated tests FAILED - see report"
+/sm → Creates fix tickets from failures
+/sm → Adds tickets to current/next sprint
 → Back to Phase 2 (Development)
 ```
 
 ## Phase 5: Test Coverage Review
 
-### 5.1 Test Case Designer (/rob) - Coverage Review
+### 5.1 Test Case Designer (/qa) - Coverage Review
 
-After /adam implements tests:
+After /e2e implements tests:
 - [ ] Verify all AC are covered by tests
 - [ ] Verify edge cases are tested
 - [ ] Verify error paths are tested
@@ -485,7 +485,7 @@ After /adam implements tests:
 ```markdown
 ## Test Coverage Sign-off: [Feature Name]
 
-**Reviewed By**: Rob
+**Reviewed By**: QA
 **Date**: YYYY-MM-DD
 
 ### Coverage Assessment
@@ -501,12 +501,12 @@ After /adam implements tests:
 
 ## Phase 6: Documentation & Release
 
-### 6.1 Technical Writer (/technical-writer)
+### 6.1 Technical Writer
 - Updates API documentation
 - Updates user guides
 - Creates release notes
 
-### 6.2 Scrum Master (/luda)
+### 6.2 Scrum Master (/sm)
 - Updates sprint status
 - Marks feature as complete
 - Updates velocity metrics
@@ -514,26 +514,26 @@ After /adam implements tests:
 ## Workflow Rules
 
 ### Rule 1: Architecture Approval Required
-All features MUST be approved by /jorge before implementation begins.
+All features MUST be approved by /arch before implementation begins.
 
 ### Rule 2: No Feature Without Acceptance Criteria
-Features cannot proceed to QA without documented acceptance criteria from /luda.
+Features cannot proceed to QA without documented acceptance criteria from /sm.
 
 ### Rule 3: Developers Own Their Tests
 Unit and integration tests are written BY developers, not QA. Developers are accountable for code quality.
 
 ### Rule 4: Black Box QA
-/rob tests features without code knowledge, purely against requirements. This validates that the feature works for end users.
+/qa tests features without code knowledge, purely against requirements. This validates that the feature works for end users.
 
 ### Rule 5: Security is Non-Negotiable
 /rev must run security scans on every code review. Critical vulnerabilities block release.
 
 ### Rule 6: Design QA for Frontend
-Frontend features require /aura to verify UI implementation using Browser MCP tools before /rob QA.
+Frontend features require /ui to verify UI implementation using Browser MCP tools before /qa QA.
 
 ### Rule 7: Domain Expert Approval
-- Finance features → /inga approval required
-- Legal features → /alex approval required
+- Finance features → /fin approval required
+- Legal features → /legal approval required
 
 ### Rule 8: Reports Close the Loop
 Every phase produces a report/status update that triggers the next phase.
@@ -542,23 +542,23 @@ Every phase produces a report/status update that triggers the next phase.
 
 | Task | Agent | When |
 |------|-------|------|
-| Write user stories | /max + /luda | Always |
-| Write acceptance criteria | /luda | Always |
-| Approve architecture | /jorge | **Always** |
-| Approve finance features | /inga | If `[finance]` tag |
-| Approve legal features | /alex | If `[legal]` tag |
-| Design UI | /aura | If `[frontend]` tag |
-| Write unit tests | /finn or /james | Always (TDD) |
-| Write integration tests | /finn or /james | Always (TDD) |
-| Implement feature | /finn or /james | Always |
+| Write user stories | /po + /sm | Always |
+| Write acceptance criteria | /sm | Always |
+| Approve architecture | /arch | **Always** |
+| Approve finance features | /fin | If `[finance]` tag |
+| Approve legal features | /legal | If `[legal]` tag |
+| Design UI | /ui | If `[frontend]` tag |
+| Write unit tests | /fe or /be | Always (TDD) |
+| Write integration tests | /fe or /be | Always (TDD) |
+| Implement feature | /fe or /be | Always |
 | Review code quality | /rev | Always |
 | Review security | /rev | Always |
-| Verify UI implementation | /aura | If `[frontend]` tag |
-| Black-box testing | /rob | Always |
-| E2E tests | /adam | Always |
-| Performance tests | /adam | As needed |
-| Documentation | /technical-writer | After QA pass |
-| Sprint tracking | /luda | Always |
+| Verify UI implementation | /ui | If `[frontend]` tag |
+| Black-box testing | /qa | Always |
+| E2E tests | /e2e | Always |
+| Performance tests | /e2e | As needed |
+| Documentation | Technical Writer | After QA pass |
+| Sprint tracking | /sm | Always |
 
 ## Bug / Issue Workflow
 
@@ -589,13 +589,13 @@ Use the `/bug` or `/issue` command with a simple description:
                │
                ▼
    ┌─────────────────────────┐
-   │ /luda creates ticket    │
+   │ /sm creates ticket      │
    │ • Sets priority (P0-P3) │
-   │   (consults /max,/jorge,│
+   │   (consults /po,/arch,  │
    │    user, or suggests    │
    │    based on load)       │
    │ • Assigns investigator: │
-   │   /finn, /james, /adam  │
+   │   /fe, /be, /e2e        │
    │ • Schedules in sprint   │
    └───────────┬─────────────┘
                │
@@ -613,7 +613,7 @@ Use the `/bug` or `/issue` command with a simple description:
          ▼           ▼
    ┌───────────┐  ┌───────────────────────┐
    │ REPRODUCED│  │ CANNOT REPRODUCE      │
-   └─────┬─────┘  │ /rob recommends:      │
+   └─────┬─────┘  │ /qa recommends:      │
          │        │ • Close as "works as  │
          │        │   designed" OR        │
          │        │ • Request more info   │
@@ -622,7 +622,7 @@ Use the `/bug` or `/issue` command with a simple description:
          │        └───────────────────────┘
          ▼
    ┌─────────────────────────┐
-   │ /rob writes failing     │
+   │ /qa writes failing      │
    │ reproduction test       │
    │ (MUST fail before fix,  │
    │  pass after fix)        │
@@ -652,9 +652,9 @@ Use the `/bug` or `/issue` command with a simple description:
                ▼
    ┌─────────────────────────┐
    │ /rev reviews fix        │
-   │ /adam runs automated    │
+   │ /e2e runs automated     │
    │ tests (verifies fix)    │
-   │ /luda closes ticket     │
+   │ /sm closes ticket       │
    └─────────────────────────┘
 ```
 
@@ -669,7 +669,7 @@ Use the `/bug` or `/issue` command with a simple description:
 
 ### Cannot Reproduce Scenarios
 
-When a bug cannot be reproduced, /rob has several options:
+When a bug cannot be reproduced, /qa has several options:
 
 | Scenario | Recommendation | Action |
 |----------|----------------|--------|
@@ -684,7 +684,7 @@ When a bug cannot be reproduced, /rob has several options:
 ## Cannot Reproduce Report: BUG-XXX
 
 **Reported**: YYYY-MM-DD
-**Investigated By**: /rob
+**Investigated By**: /qa
 **Attempts**: [number of reproduction attempts]
 **Environment Tested**: [browsers, devices, data sets]
 
@@ -695,7 +695,7 @@ When a bug cannot be reproduced, /rob has several options:
 - [ ] **CLOSE** - Works as designed / Cannot reproduce
 - [ ] **MORE INFO NEEDED** - Request from reporter: [specific questions]
 - [ ] **MONITOR** - Add logging and wait for recurrence
-- [ ] **FURTHER INVESTIGATION** - Escalate to /jorge for architecture review
+- [ ] **FURTHER INVESTIGATION** - Escalate to /arch for architecture review
 
 ### Notes
 [Any additional context or observations]
@@ -727,7 +727,7 @@ When a bug cannot be reproduced, /rob has several options:
 3. Expected: [what should happen]
 4. Actual: [what happens]
 
-## Reproduction Test (Written by /rob)
+## Reproduction Test (Written by /qa)
 ```typescript
 describe('BUG-XXX', () => {
   it('should [expected behavior]', () => {
@@ -757,21 +757,21 @@ describe('BUG-XXX', () => {
 |-------|-------|----------------|
 | Report | User/Any Agent | Describe the issue with `/bug` command |
 | Investigation | Claude + Component Expert | Reproduce, find root cause |
-| Reproduction Test | /rob | Write failing test that proves bug exists |
-| Cannot Reproduce | /rob | Recommend: close, more info, or monitor |
-| Ticket Creation | /luda | Prioritize and assign to developer |
-| Fix | /finn or /james | Implement fix, ensure test passes |
+| Reproduction Test | /qa | Write failing test that proves bug exists |
+| Cannot Reproduce | /qa | Recommend: close, more info, or monitor |
+| Ticket Creation | /sm | Prioritize and assign to developer |
+| Fix | /fe or /be | Implement fix, ensure test passes |
 | Review | /rev | Code quality and security review |
-| Verification | /adam | Run automated tests, confirm fix |
-| Closure | /luda | Update sprint, close ticket |
+| Verification | /e2e | Run automated tests, confirm fix |
+| Closure | /sm | Update sprint, close ticket |
 
 ### Bug vs Feature Request
 
 | Type | Command | Workflow |
 |------|---------|----------|
 | **Bug** | `/bug` or `/issue` | Investigation → Reproduction Test → Fix → Verify |
-| **Feature** | Talk to /max | Full feature workflow (design → implement → test) |
-| **Enhancement** | Talk to /max | Add to backlog → prioritize → implement |
+| **Feature** | Talk to /po | Full feature workflow (design → implement → test) |
+| **Enhancement** | Talk to /po | Add to backlog → prioritize → implement |
 
 ### Best Practices for Bug Reports
 

@@ -31,8 +31,8 @@ All projects must follow **strict TDD principles**:
 ### Workflow Sequence
 
 ```
-/max → /luda → /jorge → [/inga] → [/alex] → [/aura] → /finn|/james → /rev → /rob + /adam
-Vision   AC    Arch.    Finance   Legal    Design     TDD Dev        Review   Testing
+/po → /sm → /arch → [/fin] → [/legal] → [/ui] → /fe|/be → /rev → /qa + /e2e
+Vision  AC   Arch.   Finance  Legal    Design   TDD Dev    Review  Testing
 
 [ ] = Conditional based on feature type
 ```
@@ -41,52 +41,52 @@ Vision   AC    Arch.    Finance   Legal    Design     TDD Dev        Review   Te
 
 | Gate | Agent | When Required |
 |------|-------|---------------|
-| Architecture | /jorge | **ALWAYS** - all features |
-| Finance | /inga | Payments, billing, VAT, tax |
-| Legal | /alex | GDPR, privacy, contracts |
-| UI Design | /aura | Frontend features |
+| Architecture | /arch | **ALWAYS** - all features |
+| Finance | /fin | Payments, billing, VAT, tax |
+| Legal | /legal | GDPR, privacy, contracts |
+| UI Design | /ui | Frontend features |
 
 ### Critical Rules
 
-1. **Architecture First**: ALL features require /jorge approval
-2. **Developers Own Tests**: /finn and /james write unit/integration tests (TDD)
-3. **Acceptance Criteria Required**: No feature without AC from /luda
+1. **Architecture First**: ALL features require /arch approval
+2. **Developers Own Tests**: /fe and /be write unit/integration tests (TDD)
+3. **Acceptance Criteria Required**: No feature without AC from /sm
 4. **Code Review Before QA**: /rev reviews quality + security
-5. **Design QA for Frontend**: /aura verifies UI before QA
-6. **Automated Testing**: /rob designs, /adam implements
+5. **Design QA for Frontend**: /ui verifies UI before QA
+6. **Automated Testing**: /qa designs, /e2e implements
 
 ### Bug Workflow
 
 ```
-/bug [description] → /luda ticket → Investigation → /rob reproduction test → TDD Fix → /rev review → /adam tests
+/bug [description] → /sm ticket → Investigation → /qa reproduction test → TDD Fix → /rev review → /e2e tests
 ```
 
 ### Team Quick Reference
 
-| Command | Name | Role |
-|---------|------|------|
-| `/max` | Max | Product Owner - vision, backlog |
-| `/luda` | Luda | Scrum Master - AC, sprints |
-| `/jorge` | Jorge | Solution Architect - architecture |
-| `/anna` | Anna | Business Analyst - research |
-| `/inga` | Inga | UK Accountant - finance |
-| `/alex` | Alex | UK Legal - legal |
-| `/aura` | Aura | UI Designer - design |
-| `/finn` | Finn | Frontend Dev - React/TS |
-| `/james` | James | Backend Dev - Java/Spring |
-| `/rev` | Rev | Code Reviewer - quality |
-| `/rob` | Rob | QA - test design |
-| `/adam` | Adam | Test Automation - E2E |
-| `/apex` | Apex | Marketing - GTM |
+| Command | Role |
+|---------|------|
+| `/po` | Product Owner - vision, backlog |
+| `/sm` | Scrum Master - AC, sprints |
+| `/arch` | Solution Architect - architecture |
+| `/ba` | Business Analyst - research |
+| `/fin` | UK Accountant - finance |
+| `/legal` | UK Legal - legal |
+| `/ui` | UI Designer - design |
+| `/fe` | Frontend Dev - React/TS |
+| `/be` | Backend Dev - Java/Spring |
+| `/rev` | Code Reviewer - quality |
+| `/qa` | QA - test design |
+| `/e2e` | Test Automation - E2E |
+| `/mkt` | Marketing - GTM |
 
 ### Before Starting Any Feature
 
 - [ ] Feature description exists
-- [ ] Acceptance criteria from /luda
-- [ ] /jorge approved architecture (MANDATORY)
-- [ ] /inga approved (if finance)
-- [ ] /alex approved (if legal)
-- [ ] /aura approved design (if frontend)
+- [ ] Acceptance criteria from /sm
+- [ ] /arch approved architecture (MANDATORY)
+- [ ] /fin approved (if finance)
+- [ ] /legal approved (if legal)
+- [ ] /ui approved design (if frontend)
 
 ## General Rules
 
