@@ -32,17 +32,20 @@ Every sprint gets a dedicated working folder:
 docs/sprints/
 ├── sprint-{N}-{feature-name}/              # Sprint working folder
 │   ├── README.md                           # Sprint overview + live status
+│   ├── DECISION_LOG.md                     # All key decisions with rationale (REQUIRED)
 │   │
 │   ├── approvals/                          # Gate approvals (REQUIRED)
 │   │   ├── arch-architecture.md            # /arch decisions
 │   │   ├── fin-finance.md                  # /fin (if needed)
 │   │   ├── legal-compliance.md             # /legal (if needed)
+│   │   ├── ba-gap-analysis.md              # /ba pre-implementation review (for P0/P1)
 │   │   └── ui-designs/                     # /ui designs
 │   │       ├── {TICKET}-{feature}.md
 │   │       └── ...
 │   │
 │   ├── implementation/                     # Dev notes per ticket
 │   │   ├── {TICKET}-{feature}.md
+│   │   ├── TECH-001-{description}.md       # Technical debt tickets from /rev
 │   │   └── ...
 │   │
 │   ├── reviews/                            # Code review reports
@@ -52,10 +55,27 @@ docs/sprints/
 │   └── testing/                            # QA & E2E reports
 │       ├── qa-{TICKET}.md
 │       ├── e2e-{TICKET}.md
+│       ├── qa-e2e-review-{TICKET}.md       # /qa E2E review reports
 │       └── ...
 │
 └── SPRINT-STATUS.md                        # Overall sprint tracking
 ```
+
+### Decision Logging (MANDATORY)
+
+Every sprint folder MUST include a `DECISION_LOG.md` tracking key decisions:
+
+```markdown
+# Decision Log: Sprint {N}
+
+| ID | Decision | Category | Rationale | Approved By | Date |
+|----|----------|----------|-----------|-------------|------|
+| D-001 | Use REST over GraphQL | Architecture | Team familiarity, simpler tooling | /arch | YYYY-MM-DD |
+| D-002 | Authorization/capture for payments | Finance | Saves fees on cancellations | /fin | YYYY-MM-DD |
+| D-003 | User-sets-price model | Legal | Avoids price-fixing concerns | /legal | YYYY-MM-DD |
+```
+
+**Categories**: Architecture, Finance, Legal, Product, Security, Performance
 
 ### Agent File Conventions
 
@@ -202,7 +222,47 @@ Vision  AC   Arch.   Finance  Legal    Design   TDD Dev            Review       
 | Architecture | /arch | **ALWAYS** - all features need architectural approval |
 | Finance | /fin | Features involving: payments, billing, accounting, VAT, tax, invoicing |
 | Legal | /legal | Features involving: GDPR, privacy, terms, contracts, compliance |
+| Gap Analysis | /ba | P0/P1 features - pre-implementation review |
 | UI Design | /ui | Features with frontend/UI changes only |
+
+### Gap Analysis Gate (/ba)
+
+For P0/P1 priority features, /ba performs a pre-implementation review:
+
+**Gap Analysis Checklist**:
+- [ ] All requirements documented
+- [ ] Success metrics defined
+- [ ] Edge cases identified
+- [ ] Competitive context understood
+- [ ] User impact assessed
+- [ ] Rollback strategy defined
+
+**Gap Analysis Report Format**:
+```markdown
+## Pre-Implementation Review: [Feature Name]
+
+**Reviewed By**: /ba
+**Date**: YYYY-MM-DD
+**Priority**: P0/P1
+**Quality Score**: X/10
+
+### Gaps Identified
+
+| Gap | Priority | Status | Resolution |
+|-----|----------|--------|------------|
+| Missing success metrics | P1 | OPEN | Define before implementation |
+| No rollback strategy | P0 | RESOLVED | /arch defined in ADR |
+
+### Recommendations
+1. [Recommendation]
+2. [Recommendation]
+
+### Verdict
+- [ ] **PROCEED** - Ready for implementation (Score >= 8/10)
+- [ ] **GAPS TO ADDRESS** - Resolve issues before implementation
+```
+
+**Quality Score Threshold**: Features must achieve 8/10 or higher to proceed.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -442,6 +502,43 @@ Reviews all code for:
 - **Approved**: Code proceeds to Design QA (if frontend) or QA testing
 - **Changes Requested**: Back to developer with specific feedback
 
+### Technical Debt from Code Reviews
+
+Non-blocking suggestions from /rev should be logged as technical debt:
+
+**Process**:
+1. /rev identifies improvement that isn't blocking (e.g., "consider extracting utility")
+2. /rev marks as "SUGGESTION" in review report
+3. /sm creates TECH-XXX ticket in sprint folder
+4. Technical debt is prioritized for future sprints
+
+**TECH Ticket Format**:
+```markdown
+# TECH-XXX: [Description]
+
+**Source**: /rev code review for [TICKET]
+**Priority**: Low/Medium/High
+**Effort**: Small/Medium/Large
+**Sprint**: Backlog
+
+## Description
+[What improvement is suggested]
+
+## Files Affected
+- `path/to/file.ts` - [specific location]
+
+## Rationale
+[Why this would improve the codebase]
+
+## Acceptance Criteria
+- [ ] [Criteria]
+```
+
+**Technical Debt Rules**:
+- Never block a review for Low priority suggestions
+- Track all suggestions to prevent accumulation
+- Review tech debt backlog at sprint planning
+
 ## Phase 3.5: Design QA (Frontend Only)
 
 ### 3.5.1 UI Designer (/ui) - Design Verification
@@ -574,6 +671,26 @@ Before testing, /qa MUST verify:
 3. Run tests in CI/CD pipeline
 4. Report results with pass/fail status
 5. Work with developers to fix flaky tests
+6. Maintain DISABLED_TESTS_TRACKER.md for any disabled tests
+
+**Disabled Tests Tracker (MANDATORY)**:
+When tests must be disabled, /e2e maintains a DISABLED_TESTS_TRACKER.md:
+
+```markdown
+# Disabled Tests Tracker
+
+## Active Disabled Tests
+
+| Test File | Test Name | Disabled Date | Reason | Dependency/Blocker | Target Sprint |
+|-----------|-----------|---------------|--------|-------------------|---------------|
+| login.spec.ts | TC-003 | 2024-01-01 | Mobile keyboard | Backend API | Sprint X |
+
+## Re-enabled Tests
+
+| Test File | Test Name | Re-enabled Date | Notes |
+|-----------|-----------|-----------------|-------|
+| checkout.spec.ts | TC-007 | 2024-01-15 | Backend deployed |
+```
 
 **Automated Test Report Format**:
 ```markdown
@@ -613,12 +730,51 @@ Before testing, /qa MUST verify:
 - [ ] **FAIL** - See failed tests above
 ```
 
-### 4.3 After Automated Testing
+### 4.3 E2E Review by QA
 
-**If ALL TESTS PASS**:
+After /e2e implements tests, /qa performs E2E Review to validate coverage:
+
+**E2E Review Checklist**:
+- [ ] Test count matches QA specification
+- [ ] All acceptance criteria have corresponding tests
+- [ ] Disabled tests have valid justification documented
+- [ ] Legal/compliance requirements are covered (if applicable)
+- [ ] Edge cases are covered
+
+**E2E Review Report Format**:
+```markdown
+## E2E Review Report: [Feature Name]
+
+**Reviewed By**: /qa
+**Date**: YYYY-MM-DD
+**E2E Author**: /e2e
+**QA Spec**: [link to QA test spec]
+
+### Coverage Verification
+
+| AC | QA Test Cases | E2E Tests | Status |
+|----|---------------|-----------|--------|
+| AC-1 | 5 | 5 | COVERED |
+| AC-2 | 3 | 3 | COVERED |
+
+### Disabled Tests
+
+| Test | Disabled Reason | Acceptable? |
+|------|-----------------|-------------|
+| TC-X | [justification] | Yes/No |
+
+### Verdict
+- [ ] **APPROVED** - E2E tests meet QA coverage requirements
+- [ ] **NEEDS MORE TESTS** - See gaps above
 ```
-/e2e → /sm: "Feature [X] automated tests PASSED"
-/qa → Reviews test coverage
+
+### 4.4 After Automated Testing
+
+**If ALL TESTS PASS AND E2E REVIEW APPROVED**:
+```
+/e2e → /qa: "Feature [X] automated tests PASSED"
+/qa → Reviews E2E coverage (E2E Review)
+/qa → /sm: "Feature [X] E2E review APPROVED"
 /sm → Updates sprint status
 /sm → Triggers Technical Writer for documentation
 ```
@@ -629,6 +785,13 @@ Before testing, /qa MUST verify:
 /sm → Creates fix tickets from failures
 /sm → Adds tickets to current/next sprint
 → Back to Phase 2 (Development)
+```
+
+**If E2E REVIEW FINDS GAPS**:
+```
+/qa → /e2e: "E2E review - missing tests for [ACs]"
+/e2e → Adds missing tests
+/e2e → /qa: "Tests added, please re-review"
 ```
 
 ## Phase 5: Test Coverage Review

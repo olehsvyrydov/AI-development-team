@@ -193,3 +193,84 @@ Invoke these skills for cross-cutting concerns:
 3. **Scope Creep**: Expanding research beyond original objectives
 4. **Stale Data**: Using outdated statistics
 5. **Single Source**: Relying on one source for critical facts
+
+## Pre-Implementation Gap Analysis (MANDATORY)
+
+For P0 and P1 features, /ba must perform a pre-implementation review BEFORE development begins. This is a mandatory gate in the workflow.
+
+### Gap Analysis Process
+
+1. **Trigger**: After /arch approves architecture, before /fe or /be start implementation
+2. **Scope**: P0 (Must Have) and P1 (Should Have) features only
+3. **Output**: Gap analysis report saved to `approvals/ba-gap-analysis-{ticket}.md`
+
+### Gap Analysis Template
+
+```markdown
+# Pre-Implementation Gap Analysis
+
+**Ticket:** {ID}
+**Feature:** {name}
+**Analyst:** /ba
+**Date:** YYYY-MM-DD
+**Status:** APPROVED / NEEDS WORK
+
+## Analysis Scope
+
+- [ ] Business requirements reviewed
+- [ ] Acceptance criteria validated
+- [ ] Edge cases identified
+- [ ] External dependencies mapped
+- [ ] Risk assessment complete
+
+## Gaps Identified
+
+| ID | Gap | Severity | Recommendation | Status |
+|----|-----|----------|----------------|--------|
+| G-001 | {gap description} | High/Medium/Low | {action} | Open/Resolved |
+
+## Quality Score
+
+| Criterion | Score (1-10) | Notes |
+|-----------|--------------|-------|
+| Requirements Clarity | X | {notes} |
+| AC Completeness | X | {notes} |
+| Edge Case Coverage | X | {notes} |
+| Risk Mitigation | X | {notes} |
+| **Average** | **X** | - |
+
+**Threshold:** Minimum 8/10 average to proceed
+
+## Verdict
+
+- [ ] **APPROVED** - Proceed to implementation
+- [ ] **NEEDS WORK** - Resolve gaps before proceeding
+```
+
+### Gap Analysis Rules
+
+1. **Blocking gate**: Implementation CANNOT start until gaps are resolved
+2. **Quality threshold**: Average score must be 8/10 or higher
+3. **All gaps addressed**: Every identified gap must be resolved or deferred with rationale
+4. **Report to /sm**: Findings reported to scrum master for sprint tracking
+
+## Team Collaboration
+
+| Agent | Interaction |
+|-------|-------------|
+| `/po` (Product Owner) | Requirements clarification, priorities |
+| `/sm` (Scrum Master) | Sprint planning, gap reporting |
+| `/arch` (Solution Architect) | Technical feasibility, architecture alignment |
+| `/fe` (Frontend Dev) | Frontend requirements |
+| `/be` (Backend Dev) | Backend requirements |
+| `/legal` (Legal Counsel) | Compliance requirements |
+| `/fin` (Accountant) | Financial requirements |
+
+## Workflow Triggers
+
+### On Gap Analysis Complete
+```
+→ /sm: "Gap analysis [APPROVED/NEEDS WORK] for [Ticket]"
+→ If APPROVED: Implementation can begin
+→ If NEEDS WORK: /po addresses gaps before proceeding
+```

@@ -256,3 +256,79 @@ export class LoginPage {
 3. **Slow Tests**: Parallelize and optimize
 4. **Hard-coded Waits**: Use auto-waiting
 5. **No Page Objects**: Maintain abstraction
+
+## Disabled Tests Tracker (MANDATORY)
+
+When tests must be disabled due to dependencies, blockers, or technical limitations, /e2e MUST maintain a `DISABLED_TESTS_TRACKER.md` file in the sprint testing folder.
+
+### Tracker Template
+
+```markdown
+# Disabled Tests Tracker
+
+**Sprint:** {N}
+**Last Updated:** YYYY-MM-DD
+
+## Summary
+
+| Category | Count | Reason |
+|----------|-------|--------|
+| Backend Dependencies | X | Awaiting endpoints |
+| SDK Limitations | Y | Mobile SDK issues |
+| Flaky - Under Investigation | Z | Stability issues |
+
+## Disabled Tests
+
+### [Ticket-ID]: Feature Name
+
+| Test File | Test Name | Reason | Blocker | Target Sprint |
+|-----------|-----------|--------|---------|---------------|
+| `path/to/test.spec.ts` | `should do X` | Backend endpoint not ready | LJ-XXX | Sprint N+1 |
+
+### Re-enablement Plan
+
+| Test | Dependency | Expected Resolution |
+|------|------------|---------------------|
+| TC-001 | Backend endpoint | Sprint N+1 |
+```
+
+### Rules for Disabling Tests
+
+1. **Document immediately**: Every disabled test must have an entry in the tracker
+2. **Valid justification required**: "Flaky" is not sufficient - root cause must be identified
+3. **Target sprint assigned**: When should this test be re-enabled?
+4. **/qa review**: Disabled tests are validated during /qa E2E review
+5. **No silent disabling**: Tests cannot be skipped without documentation
+
+## Team Collaboration
+
+| Agent | Interaction |
+|-------|-------------|
+| `/po` (Product Owner) | Acceptance criteria, test scenarios |
+| `/sm` (Scrum Master) | Sprint testing scope, report results |
+| `/fe` (Frontend Dev) | UI component testing, selectors |
+| `/be` (Backend Dev) | API testing, test data |
+| `/qa` (QA Tester) | Receive test specs, E2E review |
+| `/arch` (Solution Architect) | Test architecture |
+
+## Workflow Triggers
+
+### On E2E Tests Complete
+```
+→ /qa: "E2E tests implemented for [Feature] - ready for E2E review"
+→ /qa reviews coverage against QA specification
+→ /qa approves OR requests additional tests
+```
+
+### On E2E Review Approved
+```
+→ /sm: "E2E tests APPROVED for [Feature]"
+→ /sm updates sprint status
+```
+
+### On E2E Review Needs Work
+```
+→ /e2e: "Coverage gaps identified - X additional tests needed"
+→ /e2e implements missing tests
+→ Re-submit for /qa review
+```
