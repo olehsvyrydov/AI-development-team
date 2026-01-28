@@ -714,6 +714,13 @@ class OrderServiceIntegrationTest {
 - **SOLID Principles**: Followed consistently
 - **DRY/KISS**: No premature abstraction
 
+### Code Style
+- **Imports over FQN**: Always use import statements; avoid fully qualified class names in code (e.g., use `List` not `java.util.List`)
+- **Self-documenting code**: Write clear, expressive code that explains itself through meaningful names and structure
+- **No unnecessary comments**: Avoid inline comments that state the obvious; the code should be readable without them
+- **Javadoc for API**: Use Javadoc for public APIs, interfaces, and non-trivial methods — document *why*, not *what*
+- **Organize imports**: Group imports logically (java.*, javax.*, org.*, com.*); remove unused imports
+
 ### API Design
 - RESTful conventions (nouns, not verbs)
 - RFC 9457 Problem Details for errors
@@ -769,3 +776,5 @@ class OrderServiceIntegrationTest {
 | **Premature Optimization** | Complex code without evidence | Profile first, optimize bottlenecks only |
 | **Missing Circuit Breaker** | Cascade failures in distributed system | Resilience4j on external calls |
 | **No Idempotency** | Duplicate processing on retry | Idempotency keys, `INSERT ... ON CONFLICT` |
+| **Fully Qualified Names** | Verbose, hard to read code | Use imports, avoid `java.util.List` inline |
+| **Obvious Comments** | Noise, outdated quickly | Self-documenting names, Javadoc for APIs only |
