@@ -1103,3 +1103,430 @@ describe('BUG-XXX', () => {
 3. **Expected vs Actual**: What should happen vs what happens
 4. **Evidence**: Screenshots, console errors, network responses
 5. **Severity**: Is it blocking work? Is there a workaround?
+
+---
+
+## Proposals System
+
+**Purpose:** Structured process for discussing and approving new features requiring cross-team input before implementation.
+
+### When to Use Proposals
+
+Use the proposals system when:
+- Feature requires input from multiple domain experts (architecture, legal, finance)
+- Feature has significant business/technical impact
+- Feature requires research before implementation can begin
+- Strategic features that need alignment across the team
+
+### Proposals Folder Structure
+
+```
+docs/proposals/
+├── README.md                          # Proposals system documentation
+├── PROPOSAL-INDEX.md                  # Index of all proposals with status
+│
+└── PROP-XXX-{feature-name}/           # Each proposal gets its own folder
+    ├── README.md                      # Proposal overview
+    ├── DISCUSSION-TICKETS.md          # Agent discussion items
+    ├── TECHNICAL-REQUIREMENTS.md      # Technical specifications
+    ├── USER-STORIES.md                # User stories and acceptance criteria
+    └── DECISIONS.md                   # Recorded decisions (after discussion)
+```
+
+### Proposal Lifecycle
+
+```
+DRAFT → DISCUSSION → APPROVED → SCHEDULED → IMPLEMENTED
+  │         │           │           │
+  │         │           │           └── Added to sprint backlog
+  │         │           └── All agents approved, decisions recorded
+  │         └── Agents reviewing and providing input
+  └── Initial proposal created
+          │
+          ▼
+      REJECTED (with rationale)
+```
+
+### Proposal Status Definitions
+
+| Status | Description |
+|--------|-------------|
+| **DRAFT** | Initial proposal, not ready for discussion |
+| **DISCUSSION** | Agents actively reviewing and providing input |
+| **APPROVED** | All discussions complete, ready for implementation |
+| **SCHEDULED** | Added to sprint backlog with ticket IDs |
+| **REJECTED** | Not proceeding, with documented rationale |
+| **ON HOLD** | Paused pending external factors |
+
+### Agent Responsibilities in Proposals
+
+| Agent | Review Focus |
+|-------|--------------|
+| /po | Product vision alignment, prioritization |
+| /arch | Technical architecture, feasibility |
+| /legal | Legal compliance, data protection |
+| /fin | Cost analysis, financial impact |
+| /ba | Market research, competitive analysis |
+| /mkt | Marketing implications, user messaging |
+| /ui | UI/UX design considerations |
+| /fe | Frontend implementation complexity |
+| /be | Backend implementation complexity |
+
+### Creating a New Proposal
+
+When creating a new proposal, /sm must:
+
+1. **Create folder structure:**
+   ```bash
+   mkdir -p docs/proposals/PROP-XXX-{feature-name}
+   ```
+
+2. **Create required documents:**
+   - `README.md` - Proposal overview, problem statement, solution
+   - `DISCUSSION-TICKETS.md` - Items for each relevant agent
+   - `TECHNICAL-REQUIREMENTS.md` - Technical specifications
+   - `USER-STORIES.md` - User stories with acceptance criteria
+
+3. **Update PROPOSAL-INDEX.md** - Add entry with status
+
+4. **Assign agents** - Tag relevant agents for review
+
+### Proposal Approval Checklist
+
+Before moving from DISCUSSION to APPROVED:
+
+- [ ] /arch: Architecture review completed
+- [ ] /legal: Legal review completed (if applicable)
+- [ ] /fin: Cost analysis completed (if applicable)
+- [ ] /ba: Market research supports value
+- [ ] /po: Product vision alignment confirmed
+- [ ] All blocking concerns resolved
+
+### Proposal README Template
+
+```markdown
+# PROP-XXX: [Feature Name]
+
+**Proposal ID:** PROP-XXX
+**Status:** DRAFT | DISCUSSION | APPROVED | SCHEDULED | REJECTED | ON HOLD
+**Created:** YYYY-MM-DD
+**Author:** [Agent]
+**Priority:** HIGH | MEDIUM | LOW
+
+---
+
+## Problem Statement
+
+[What problem does this feature solve?]
+
+---
+
+## Proposed Solution
+
+[How will we solve it?]
+
+---
+
+## Business Value
+
+[Why is this important?]
+
+---
+
+## Scope
+
+### In Scope
+- Item 1
+- Item 2
+
+### Out of Scope
+- Item 1
+- Item 2
+
+---
+
+## Success Metrics
+
+| Metric | Target |
+|--------|--------|
+| Metric 1 | Target value |
+
+---
+
+## Risks and Mitigations
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Risk 1 | HIGH/MED/LOW | HIGH/MED/LOW | How to mitigate |
+
+---
+
+## Dependencies
+
+| Dependency | Type | Status |
+|------------|------|--------|
+| Dep 1 | Technical/External/Legal | ✅/⏳ |
+
+---
+
+## Approval Status
+
+| Agent | Status | Date | Notes |
+|-------|--------|------|-------|
+| /po | ⏳ PENDING | | |
+| /arch | ⏳ PENDING | | |
+```
+
+### Current Proposals
+
+Track all proposals in `docs/proposals/PROPOSAL-INDEX.md`
+
+---
+
+## Sprint Retrospective Process
+
+**Purpose:** Continuous improvement through structured reflection at sprint boundaries. Involves domain experts to identify cross-functional improvements.
+
+### When to Run Retrospectives
+
+| Trigger | Type | Participants |
+|---------|------|--------------|
+| Sprint completion | Standard Retrospective | Core team + relevant domain experts |
+| Major release | Launch Retrospective | All agents |
+| Critical incident | Incident Retrospective | Affected agents |
+| Quarterly | Strategic Retrospective | /po, /arch, /fin, /legal, /ba, /mkt |
+
+### Retrospective Participants (v6.0 - Full Team)
+
+**Core Team (Always Required):**
+
+| Agent | Role | Focus Area |
+|-------|------|------------|
+| /sm | Facilitator | Process, workflow, sprint metrics, consolidation |
+| /po | Product Owner | Product vision, priorities, backlog, user value |
+| /arch | Architecture | Technical decisions, patterns, quality |
+| /ba | Business Analysis | Requirements coverage, user value |
+| /be | Backend Development | Implementation challenges, TDD, backend patterns |
+| /fe | Frontend Development | UI/UX implementation, component design |
+| /rev | Code Review | Quality gates, security, review process |
+| /qa | QA Engineering | Test design, coverage gaps, QA process |
+| /e2e | E2E Automation | CI/CD, test infrastructure, automation strategy |
+
+**Domain Experts (Conditional):**
+
+| Agent | When Required |
+|-------|---------------|
+| /fin | Finance features (payments, billing, accounting) |
+| /legal | Legal features (GDPR, compliance, terms, privacy) |
+| /mkt | Launch/marketing features (landing pages, GTM) |
+
+### Three Questions Framework
+
+Each participating agent answers:
+
+1. **What went well?** - Successes, achievements, practices to continue
+2. **What could be improved?** - Pain points, inefficiencies, gaps identified
+3. **What should change?** - Process changes, new practices, workflow updates
+
+### Retrospective Workflow
+
+```
+Sprint Complete
+      │
+      ▼
+┌─────────────────────┐
+│ /sm triggers retro  │
+│ Identifies agents   │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    PARALLEL AGENT RETROSPECTIVES                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│  CORE TEAM (Always):                                                     │
+│  /po      /arch    /ba      /be       /fe       /rev     /qa      /e2e  │
+│  PO       Arch.    BA       Backend   Frontend  Review   QA       E2E   │
+│                                                                          │
+│  DOMAIN EXPERTS (Conditional):                                           │
+│  /fin       /legal      /mkt                                             │
+│  (if fin)   (if legal)  (if launch)                                      │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               ▼
+                      ┌────────────────┐
+                      │ /sm consolidates│
+                      │ Creates report  │
+                      └────────┬───────┘
+                               │
+               ┌───────────────┼───────────────┐
+               │               │               │
+               ▼               ▼               ▼
+        ┌────────────┐  ┌────────────┐  ┌────────────┐
+        │ Tech Debt  │  │ Process    │  │ Next Sprint│
+        │ Tickets    │  │ Updates    │  │ Planning   │
+        └────────────┘  └────────────┘  └────────────┘
+```
+
+### Agent Retrospective Report Template
+
+Each agent creates their report in the sprint folder:
+
+```markdown
+# {Agent Role} Retrospective: Sprint {N}
+
+**Agent:** /{agent}
+**Date:** YYYY-MM-DD
+**Sprint:** {N}
+**Overall Score:** X/10
+
+---
+
+## 1. What Went Well
+
+### Area 1
+| Metric | Score | Notes |
+|--------|-------|-------|
+| {metric} | X/10 | {description} |
+
+**Key Achievements:**
+- Achievement 1
+- Achievement 2
+
+---
+
+## 2. What Could Be Improved
+
+| ID | Issue | Priority | Risk | SP Est. |
+|----|-------|----------|------|---------|
+| {ID} | {description} | P0/P1/P2 | HIGH/MED/LOW | X |
+
+---
+
+## 3. What Should Change
+
+| ID | Change | Category | Owner | Status |
+|----|--------|----------|-------|--------|
+| {ID} | {change} | {category} | /{agent} | NEW |
+
+---
+
+## Recommendations
+
+1. {Recommendation 1}
+2. {Recommendation 2}
+
+---
+
+## Tickets Created
+
+- {TICKET-ID}: {Title} ({SP} SP)
+```
+
+### Consolidated Retrospective Report
+
+/sm creates a consolidated report combining all agent inputs:
+
+```markdown
+# Consolidated Retrospective: Sprint {N}
+
+**Date:** YYYY-MM-DD
+**Facilitator:** /sm
+**Contributing Agents:** /{agent1}, /{agent2}, ...
+
+---
+
+## Executive Summary
+
+{Brief summary of sprint outcomes and key findings}
+
+---
+
+## 1. What Went Well (Combined)
+
+### Architecture (/{arch})
+{Summary of architecture achievements}
+
+### Business Analysis (/{ba})
+{Summary of BA achievements}
+
+### Finance (/{fin}) - if applicable
+{Summary of finance achievements}
+
+### Legal (/{legal}) - if applicable
+{Summary of legal achievements}
+
+### Marketing (/{mkt}) - if applicable
+{Summary of marketing achievements}
+
+---
+
+## 2. What Could Be Improved (All Issues)
+
+| ID | Issue | Agent | Priority | SP Est. |
+|----|-------|-------|----------|---------|
+| {ID} | {issue} | /{agent} | P0/P1/P2 | X |
+
+---
+
+## 3. What Should Change (Process Improvements)
+
+| ID | Change | Category | Owner | Status |
+|----|--------|----------|-------|--------|
+| {ID} | {change} | {category} | /{agent} | NEW |
+
+---
+
+## Technical Debt Tickets Created
+
+{List of all tickets created from retrospective}
+
+---
+
+## Next Sprint Recommendations
+
+### P0 - Must Have
+| Ticket | Title | SP | Owner |
+|--------|-------|-----|-------|
+
+### P1 - Should Have
+| Ticket | Title | SP | Owner |
+|--------|-------|-----|-------|
+
+---
+
+## Process Updates Made
+
+{List of updates to TEAM_WORKFLOW.md or other process docs}
+```
+
+### Retrospective Output Artifacts
+
+| Artifact | Location | Created By |
+|----------|----------|------------|
+| Agent reports | `docs/sprints/sprint-{N}/retrospectives/{agent}-retro.md` | Each agent |
+| Consolidated report | `docs/sprints/sprint-{N}/consolidated-retrospective.md` | /sm |
+| Tech debt tickets | `docs/sprints/sprint-{N}/implementation/TECH-*.md` | /sm |
+| Process updates | `TEAM_WORKFLOW.md` | /sm |
+
+### Retrospective Metrics to Track
+
+| Metric | Definition | Target |
+|--------|------------|--------|
+| Velocity | SP delivered per sprint | Stable or improving |
+| Quality Score | Average agent scores | ≥ 8/10 |
+| Tech Debt Ratio | Tech debt SP / Feature SP | ≤ 20% |
+| Process Improvements | Changes implemented per retro | ≥ 2 |
+| Issue Resolution Rate | Issues addressed from previous retro | ≥ 80% |
+
+### Retrospective Best Practices
+
+1. **Run retrospectives immediately after sprint completion** - Context is fresh
+2. **Use parallel agent execution** - Faster, avoids groupthink
+3. **Create actionable tickets** - Every issue becomes a ticket
+4. **Update TEAM_WORKFLOW.md** - Process improvements are codified
+5. **Track improvement metrics** - Measure retrospective effectiveness
+6. **Include domain experts** - Architecture, finance, legal perspectives
+7. **Focus on systems, not people** - Blame-free environment
+8. **Limit scope** - 3 questions keep focus tight
+9. **Follow up** - Review previous retro items at sprint start
+10. **Celebrate wins** - Recognize team achievements
