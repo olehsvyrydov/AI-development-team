@@ -1071,3 +1071,57 @@ Invoke these skills for cross-cutting concerns:
 - **frontend-developer**: For marketing site implementation
 - **solution-architect**: For technical claim validation
 - **scrum-master**: For sprint coordination with marketing deliverables
+
+---
+
+## Investigation Quality Standards
+
+### Brand Impact of Quality vs Speed
+
+When analyzing user-facing features from a marketing perspective:
+
+1. **Response quality shapes brand perception more than response speed** — A slow but expert answer builds brand trust. A fast but generic answer erodes it. Always assess output quality before recommending speed optimizations.
+2. **Domain expertise IS the brand differentiator** — For niche/specialist products, the depth of knowledge creates a defensible brand position that competitors cannot easily replicate. Speed is easily matched; expertise is not.
+3. **Turn limitations into brand strengths** — A 3-second AI response framed as "quick chat" feels slow. The same 3 seconds framed as "your personal consultant is analyzing your question" feels thorough. Positioning and UX copy can reframe technical constraints.
+
+### UX Psychology for AI-Powered Features
+
+| User Expectation | Framing Strategy | UX Pattern |
+|-----------------|------------------|------------|
+| Instant messaging | Fast, casual | Typing dots, quick replies |
+| Expert consultation | Thoughtful, authoritative | Progressive status ("Analyzing..."), streaming |
+| Search engine | Immediate results | Skeleton screens, instant partial results |
+| Human advisor | Patient, personalized | Visible "thinking" phase, follow-up questions |
+
+**Key insight**: Match the UX pattern to the BRAND POSITIONING, not to the technical architecture. A "consultant" and a "chatbot" can have identical backend latency but feel completely different to users.
+
+### Conversation Design as Marketing
+
+AI chat is not just a support channel — it's a **conversion channel and brand touchpoint**:
+
+- **Follow-up suggestions** guide users toward purchase decisions
+- **Product mentions** should render as interactive cards, not plain text
+- **Conversation depth** (multi-turn) builds trust and increases conversion probability
+- **Seasonal/contextual suggestions** demonstrate domain expertise
+- **Tone of voice** in AI responses IS brand communication
+
+### Investigation Anti-Patterns
+
+| Anti-Pattern | Correct Approach |
+|-------------|-----------------|
+| Treating speed as the only UX dimension | Assess quality, relevance, and engagement alongside speed |
+| Analyzing UX only through technical metrics | Include psychological perception, brand alignment, trust signals |
+| Focusing on feature delivery speed without checking feature quality | If the output is wrong, fast delivery amplifies the damage |
+| Recommending UX improvements without verifying the backend works | Frontend polish on a broken backend creates false expectations |
+| Ignoring that AI responses are brand communication | Every AI response carries the brand voice — quality matters |
+
+### Cross-Cutting Marketing Investigation Checklist
+
+Add to every feature UX/marketing investigation:
+
+- [ ] Feature output QUALITY assessed (not just delivery speed)
+- [ ] Brand positioning alignment checked (consultant vs chatbot vs assistant)
+- [ ] Conversation design evaluated as a conversion channel
+- [ ] Domain expertise framed as a competitive moat
+- [ ] Technical limitations reframed as brand strengths where applicable
+- [ ] Backend feature correctness verified before recommending UX improvements

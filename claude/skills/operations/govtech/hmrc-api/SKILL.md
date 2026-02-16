@@ -688,3 +688,92 @@ hmrc.scopes=read:self-assessment write:self-assessment
 4. **Ignoring sandbox**: Production issues are costly
 5. **Hardcoded credentials**: Use environment variables
 6. **No audit trail**: Compliance requirement
+7. **Using internal IDs for API calls**: HMRC requires its own business IDs
+8. **Outdated Accept header**: API version mismatch causes 406 errors
+9. **No sandbox vs production differentiation**: They behave differently
+
+---
+
+## Critical: External ID Management
+
+### HMRC Business ID vs Internal UUID
+
+**NEVER** use internal UUIDs when calling HMRC APIs. HMRC assigns its own identifiers:
+
+```java
+// WRONG - internal UUID
+String selfEmploymentId = entity.getId().toString(); // UUID from your DB
+client.submitUpdate(nino, selfEmploymentId, ...); // MATCHING_RESOURCE_NOT_FOUND!
+
+// CORRECT - HMRC-assigned business ID
+String businessId = hmrcObligationsService.getBusinessId(nino);
+client.submitUpdate(nino, businessId, ...); // Works
+```
+
+### Retrieve Business ID from Obligations Endpoint
+
+The `businessId` must be retrieved dynamically from HMRC's obligations endpoint:
+
+```java
+public String getBusinessId(String nino, String accessToken) {
+    ObligationsResponse obligations = client.getObligations(
+        nino,
+        "Bearer " + accessToken,
+        "application/vnd.hmrc.2.0+json" // Correct version!
+    );
+    return obligations.getObligations().stream()
+        .findFirst()
+        .map(Obligation::getBusinessId)
+        .orElseThrow(() -> new HmrcException("No business ID found"));
+}
+```
+
+### API Version Headers
+
+**Always** use the correct Accept header version:
+
+```java
+// Current MTD Self Assessment API version
+private static final String ACCEPT_HEADER = "application/vnd.hmrc.2.0+json";
+
+// Check HMRC Developer Hub for current version before implementation
+```
+
+**If you get 406 errors**, the Accept header version is likely outdated.
+
+---
+
+## Sandbox vs Production Differences
+
+| Aspect | Sandbox | Production |
+|--------|---------|------------|
+| **Base URL** | `test-api.service.hmrc.gov.uk` | `api.service.hmrc.gov.uk` |
+| **Test NINOs** | Use specific test NINOs (e.g., `AA123456A`) | Real user NINOs |
+| **Validation** | Some validations relaxed | Full validation |
+| **NINO verification** | Returns 404 for all NINOs (no real user data) | Returns actual user details |
+| **Fraud headers** | Required but less strictly validated | Strictly enforced |
+| **Rate limits** | Lower limits | Higher limits |
+
+### Sandbox Testing Limitations
+
+1. **Cannot verify NINO correctness** — sandbox returns 404 for all NINOs
+2. **Business IDs may differ** — always retrieve dynamically
+3. **Some error codes only appear in production**
+
+### Document Differences
+
+Create a reference document for your team:
+
+```markdown
+## Sandbox Limitations
+
+- NINO validation: Not available (always 404)
+- Business ID: Use sandbox-specific test IDs
+- Error simulation: Limited error scenarios available
+
+## Production Checklist
+- [ ] OAuth credentials are production credentials
+- [ ] Base URL is production
+- [ ] Fraud headers meet production requirements
+- [ ] Error handling covers all documented error codes
+```

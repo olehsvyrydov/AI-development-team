@@ -957,3 +957,83 @@ describe('ResourceList', () => {
 | **Client Component Overuse** | Unnecessary JS shipped | Server Components by default, `'use client'` only when needed |
 | **Blocking Rendering** | UI freezes during heavy computation | `useTransition`, `useDeferredValue`, Web Workers |
 | **localStorage for Auth Tokens** | XSS can steal tokens | httpOnly cookies, server-side sessions |
+| **Obvious Comments** | Clutter code, become stale | Self-documenting names, JSDoc for public APIs only |
+| **Commented-out Code** | Dead code noise | Delete it; git preserves history |
+
+---
+
+## Code Style: Self-Documenting Code
+
+Write code that explains itself without needing comments:
+
+```tsx
+// BAD - obvious comments cluttering code
+// Check if user is logged in
+if (user !== null) {
+  // Show the dashboard
+  return <Dashboard />;
+}
+
+// GOOD - self-documenting
+if (user) {
+  return <Dashboard />;
+}
+
+// GOOD - JSDoc for component API (public interface)
+/**
+ * Displays user profile with edit capabilities.
+ * @param userId - The user's unique identifier
+ * @param onUpdate - Called when profile is successfully updated
+ */
+export function UserProfile({ userId, onUpdate }: UserProfileProps) { ... }
+```
+
+**Rules:**
+- **No "what" comments** — code shows what; write clear code instead
+- **"Why" comments OK** — explain non-obvious business logic or workarounds
+- **JSDoc for public APIs** — document component props, hooks, utilities
+- **No commented-out code** — delete it; version control preserves history
+- **No noise in tests** — test names should describe behavior; no inline narration
+
+---
+
+## Universal Work Principles
+
+### Verify the Foundation (MANDATORY)
+
+Before implementing any UI feature, optimization, or fix:
+
+1. **Verify the feature you're extending works correctly** — if the backend API or existing page is deployed to staging, test it before building on top of it. Building UI for a broken API wastes effort.
+2. **Verify the ticket addresses the right problem** — if the ticket says "improve UX of X", first check that X actually works. If the ticket says "add loading state to Y", confirm Y is functioning.
+3. **Verify backend dependencies** — if your UI depends on an API endpoint, confirm the endpoint returns correct data before building the UI layer.
+
+### Challenge the Brief
+
+When receiving a ticket:
+- Ask "Is this the right solution to the user's problem?" before "How do I implement this?"
+- If you discover the problem is different from what the ticket describes, **escalate to /luda before implementing the wrong fix**
+- "The user's real problem is Z, not X" is valuable UX insight
+
+### Escalate Critical Findings Immediately
+
+If during implementation you discover:
+- The backend API is returning incorrect data
+- The design spec doesn't match the actual user flow
+- A critical UX issue in existing functionality that the ticket builds upon
+
+**STOP implementation and escalate to /luda immediately.** A well-implemented UI for a broken backend is still a broken feature.
+
+### State Your Assumptions
+
+In implementation notes, explicitly document:
+- What you assumed about the API response format and data shape
+- What you assumed about user behavior and interaction patterns
+- What browser/device constraints you designed for
+- What you did NOT test or verify (known gaps)
+
+### Output Quality Over Delivery Speed
+
+When building features that present information to users:
+- **Correctness first** — displaying wrong data quickly is worse than displaying correct data slowly
+- **Assess output quality** — does the information actually help the user make a decision or complete their goal?
+- **Test with real content** — placeholder data that "looks right" may hide layout and content quality issues

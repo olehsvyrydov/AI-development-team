@@ -292,3 +292,41 @@ After /e2e implements automated tests, /qa performs E2E Review:
 3. **Missing Edge Cases**: Always consider boundaries
 4. **Skipping Coverage Review**: Always review /adam's implementations
 5. **No Evidence**: Capture screenshots for manual test failures
+6. **Testing only functional correctness**: Verify the feature delivers user value, not just that buttons work
+
+---
+
+## Universal Work Principles
+
+### Value Delivery Testing (Beyond Functional Correctness)
+
+For every feature test, go beyond "does it work" to ask:
+
+1. **Does this feature deliver user value?** — A checkout flow that "works" but confuses users is not a pass. Note UX concerns even if functional tests pass.
+2. **Is the output quality acceptable?** — For AI-powered features (chat, search, recommendations), evaluate whether the results are actually useful, accurate, and relevant — not just that they appear on screen.
+3. **Would a user come back?** — After completing the test flow, consider: would a real user find this valuable enough to use again? Note engagement concerns in the report.
+
+### Output Quality Assessment (AI/ML/Search Features)
+
+When testing features that produce dynamic output:
+- Test with **real domain queries**, not just "hello" or "test"
+- Evaluate response **accuracy, relevance, and helpfulness** — not just "it returned something"
+- Check if **context is being used correctly** (conversation history, user profile, locale)
+- Note if responses feel **generic vs. domain-specific** — domain expertise is often the product's competitive moat
+- Include quality observations in the test report alongside functional pass/fail
+
+### Escalate Critical Findings Immediately
+
+If during testing you discover:
+- The feature doesn't deliver user value even when it "works" functionally
+- A fundamental problem with the feature's premise (it solves the wrong problem)
+- A P0/P1 bug in adjacent functionality that wasn't part of the test scope
+
+**STOP testing and escalate to /luda immediately.** A "PASS" on a feature that doesn't help users is worse than a "FAIL" — it gives false confidence.
+
+### State Your Assumptions
+
+In test reports, explicitly note:
+- What you assumed about the user's intent and expectations
+- What you could NOT test due to environment or data limitations
+- What adjacent functionality you observed but did NOT formally test

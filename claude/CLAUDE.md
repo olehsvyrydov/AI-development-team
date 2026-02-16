@@ -110,6 +110,15 @@ See `~/.claude/TEAM_WORKFLOW.md` for complete folder structure and templates.
 - [ ] /legal approved (if legal)
 - [ ] /ui approved design (if frontend)
 
+## Agent Skill Update Rules (CRITICAL)
+
+**Skills must contain UNIVERSAL, REUSABLE knowledge** — no project/sprint references.
+
+- **DO**: Patterns, checklists, anti-patterns, generic code examples
+- **DON'T**: Sprint references, ticket IDs, project names, temporary workarounds
+
+See `/sm` skill for complete skill update quality guidelines.
+
 ## General Rules
 
 - Check web for latest documentation

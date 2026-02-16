@@ -1054,3 +1054,62 @@ Invoke these skills for cross-cutting concerns:
 12. **HiPPO decisions**: Highest Paid Person's Opinion overrides data
 13. **MVP confusion**: Shipping a half-baked v1 instead of testing assumptions
 14. **Ignoring feedback loop**: Shipping and never checking if it worked
+15. **Optimizing before validating**: Investing in speed/performance of a feature that isn't working correctly
+16. **Speed over quality**: Prioritizing delivery speed when the feature's output quality is the actual problem
+17. **Answering without reframing**: Accepting stakeholder's question at face value when evidence suggests a different question matters more
+
+---
+
+## Investigation Quality Standards
+
+### Feature Health Check (MANDATORY)
+
+Before prioritizing ANY optimization or enhancement, verify:
+
+1. **Does the feature work as designed?** — Check if the existing implementation actually delivers its core value. A broken RAG pipeline, a disconnected API, or a misconfigured integration makes all optimization work worthless.
+2. **Is the investment being utilized?** — If the team spent N story points building a capability, verify it is actually functioning. Wasted investment in broken features is a higher priority than new optimizations.
+3. **What is the user actually experiencing?** — Test the feature yourself (or assign /rob to test on staging). Don't rely on architectural diagrams; verify runtime behavior.
+
+### Reframe Before Prioritize
+
+When stakeholders request optimization:
+
+| Stakeholder Says | PO Should Ask |
+|-----------------|---------------|
+| "Make it faster" | "Is the output correct and valuable first?" |
+| "Add caching" | "What is the actual bottleneck? Would the user notice?" |
+| "Improve performance" | "What metric actually drives user retention?" |
+| "Users say it's slow" | "Is the complaint about speed, or about the experience of waiting?" |
+| "We need a new feature" | "Are existing features working and delivering value?" |
+
+### Engagement-First Metrics
+
+When prioritizing product improvements, prefer engagement depth metrics over surface speed metrics:
+
+- **Conversation continuation rate**: Does the user engage beyond the first interaction?
+- **Return rate**: Do users come back to the feature?
+- **Task completion**: Did the user accomplish what they came for?
+- **Quality rating**: Does the user rate the output as helpful?
+- **Conversion from feature**: Does feature usage lead to business outcomes?
+
+These often matter more than response time, load time, or other performance metrics.
+
+### Content and Knowledge as Product Investment
+
+For AI-powered features, the knowledge base IS the product:
+
+- Prioritize content quality, domain expertise curation, and knowledge base improvements alongside technical features
+- Treat knowledge corpus improvements as product backlog items (not just DevOps tasks)
+- Domain expertise creates defensible competitive advantages; infrastructure speed does not
+- Include "knowledge quality sprint" items in every quarter's planning
+
+### Investigation Checklist
+
+Add to every optimization investigation:
+
+- [ ] Feature health verified (it actually works as designed)
+- [ ] Prior investment audited (is the built capability being utilized?)
+- [ ] User experience tested on staging (not just theorized from code)
+- [ ] Stakeholder question reframed if evidence points elsewhere
+- [ ] Engagement depth metrics prioritized over surface speed metrics
+- [ ] Content/knowledge quality evaluated as alternative investment

@@ -253,3 +253,45 @@ class ResourceControllerIT {
 3. **Slow Tests**: Use mocks for unit tests
 4. **Test Dependencies**: Each test should be independent
 5. **Missing Edge Cases**: Test boundaries and errors
+6. **Obvious Comments in Tests**: Test method names and structure should be self-documenting
+7. **Mocking Persistence in Integration Tests**: Use real databases (Testcontainers) to catch SQL/query bugs
+
+---
+
+## Code Style: Self-Documenting Tests
+
+Tests should be readable without inline comments:
+
+```java
+// BAD - obvious comments cluttering test
+@Test
+void testLogin() {
+    // Arrange - create user
+    User user = new User("test@example.com", "password");
+    userRepository.save(user);
+
+    // Act - perform login
+    LoginResult result = authService.login("test@example.com", "password");
+
+    // Assert - check success
+    assertTrue(result.isSuccess());
+}
+
+// GOOD - self-documenting, descriptive test name
+@Test
+@DisplayName("should authenticate user with valid credentials")
+void shouldAuthenticateUserWithValidCredentials() {
+    User user = new User("test@example.com", "password");
+    userRepository.save(user);
+
+    LoginResult result = authService.login("test@example.com", "password");
+
+    assertThat(result.isSuccess()).isTrue();
+}
+```
+
+**Rules:**
+- **Descriptive `@DisplayName`** — describes the scenario, no comments needed
+- **No Arrange/Act/Assert comments** — structure with blank lines instead
+- **"Why" comments OK** — explain non-obvious test data or workarounds
+- **Javadoc for shared test utilities** — document test helper methods
