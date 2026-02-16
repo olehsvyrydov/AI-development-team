@@ -1319,7 +1319,7 @@ This checklist prevents integration boundary bugs where:
 - Wrong IDs are used (internal vs external)
 - Success dialogs appear on failure
 - Data is lost on restart
-- API version mismatches cause errors
+- API version mismatches cause 406 errors
 
 ---
 

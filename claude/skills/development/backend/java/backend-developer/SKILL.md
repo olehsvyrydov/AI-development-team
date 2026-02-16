@@ -782,11 +782,76 @@ class OrderServiceIntegrationTest {
 
 ---
 
+## Filter Enumeration & Schema Change Protocol
+
+### Pre-Implementation Filter Enumeration (MANDATORY)
+
+Before writing any matching, filtering, or reconciliation logic:
+
+1. **List all filter criteria** — enumerate every condition that should include or exclude items
+2. **Write a test for each filter** — each criterion gets a dedicated test with "filtered item should NOT appear in output"
+3. **Include negative tests** — verify that items which should be excluded are actually excluded
+4. **Review the enumeration** — check against acceptance criteria and domain expert conditions
+
+```java
+// Example: Before implementing a reconciliation service
+// Step 1: Enumerate all exclusion criteria
+// - EXCLUDED status transactions must not be matched
+// - Soft-deleted transactions must not be matched
+// - Transactions outside the date range must not be matched
+
+// Step 2: Write a test for each
+@Test
+void shouldNotMatchExcludedTransactions() { ... }
+
+@Test
+void shouldNotMatchSoftDeletedTransactions() { ... }
+
+@Test
+void shouldNotMatchTransactionsOutsideDateRange() { ... }
+```
+
+### Post-Schema-Change Query Audit (MANDATORY)
+
+After any migration that adds a filter dimension (soft-delete column, status column, etc.):
+
+1. **Grep all queries** on the affected table
+2. **Verify each query** respects the new filter (e.g., `WHERE deleted_at IS NULL`)
+3. **Add missing filters** to any query that doesn't account for the new dimension
+4. **Write regression tests** for each updated query
+
+### Fail-Loud Audit Trail Standard
+
+Functions that manage audit data (file hashing, timestamps, retention enforcement) must NEVER silently return null or swallow exceptions:
+
+```java
+// BAD — silent null on failure
+public String computeFileHash(Path file) {
+    try {
+        return DigestUtils.sha256Hex(Files.readAllBytes(file));
+    } catch (IOException e) {
+        return null; // Caller has no idea hashing failed
+    }
+}
+
+// GOOD — fail loud
+public String computeFileHash(Path file) {
+    try {
+        return DigestUtils.sha256Hex(Files.readAllBytes(file));
+    } catch (IOException e) {
+        throw new AuditIntegrityException("File hash computation failed: " + file, e);
+    }
+}
+```
+
+---
+
 ## Checklist
 
 ### Before Implementing
 - [ ] AC and approvals are read from sprint folder
 - [ ] /arch architecture is approved
+- [ ] Search for pre-existing implementations before writing new code (branches, stashed changes, untracked files)
 - [ ] Tests are written first (TDD)
 - [ ] API contract is defined (OpenAPI spec)
 - [ ] Database schema is planned (Flyway migration)
@@ -798,8 +863,9 @@ class OrderServiceIntegrationTest {
 - [ ] Coverage meets threshold
 - [ ] No security vulnerabilities
 - [ ] API documentation updated
-- [ ] Implementation notes saved to sprint folder
+- [ ] Implementation notes saved to sprint folder (`implementation/{ticket}.md`)
 - [ ] Sprint README.md status updated
+- [ ] Commit does not exceed 1,000 insertions or 10 files (split if needed)
 
 ---
 
@@ -823,6 +889,10 @@ class OrderServiceIntegrationTest {
 | **Obvious Comments** | Noise, outdated quickly | Self-documenting names, Javadoc for APIs only |
 | **Raw Strings for External IDs** | Type confusion, wrong ID format | Use value objects (e.g., `HmrcBusinessId`) |
 | **Mocking Repositories in Integration Tests** | Misses real DB behavior | Test actual implementations with Testcontainers |
+| **ThreadLocal for Parser State** | Memory leaks, wrong context in virtual threads, testing complexity | Pass state as method parameters or use ScopedValue |
+| **Silent Null Returns in Audit Functions** | Data integrity loss goes undetected | Throw exception or log WARN for audit-critical functions (hashing, timestamping, retention) |
+| **Unaudited Queries After Schema Change** | Queries miss new filter dimensions (e.g., soft-delete) | After any schema change adding a filter, grep all queries on the affected table |
+| **Implementing Filters Without Enumeration** | Missing exclusion criteria discovered in review/QA | Enumerate ALL filter/exclusion criteria as a checklist before writing any matching logic |
 
 ---
 
@@ -833,11 +903,11 @@ class OrderServiceIntegrationTest {
 When integrating with external APIs, **never use raw strings** for external identifiers. Create value objects that enforce format validation:
 
 ```java
-public record ExternalBusinessId(String value) {
-    public ExternalBusinessId {
+public record HmrcBusinessId(String value) {
+    public HmrcBusinessId {
         Objects.requireNonNull(value);
         if (!value.matches("[A-Z0-9]{15}")) {
-            throw new IllegalArgumentException("Invalid business ID format: " + value);
+            throw new IllegalArgumentException("Invalid HMRC business ID format: " + value);
         }
     }
 }
@@ -945,3 +1015,35 @@ When building features that produce user-visible output (AI responses, search re
 - **Correctness first** — a correct result delivered slowly beats an incorrect result delivered instantly
 - **Assess output quality** alongside functional tests — does the output actually help the user?
 - **Domain-specific validation** — generic "it returns something" tests are insufficient; validate the output is relevant, accurate, and useful
+
+---
+
+## Filament Admin Panel Development Checklist
+
+When building Filament custom pages with widgets:
+
+### Widget Registration (CRITICAL)
+- [ ] **Choose ONE registration method** — auto-discovery OR explicit `getHeaderWidgets()`/`getFooterWidgets()`, never both
+- [ ] **Set `protected static bool $isDiscovered = false;`** on all widgets that are explicitly registered on a custom page
+- [ ] **Verify blade template** — `<x-filament-panels::page>` already renders header/footer widgets automatically. Do NOT manually render widgets inside the slot unless you need custom content between them
+- [ ] **Test widget count** — add assertion that verifies the expected number of widgets render (prevents silent duplication)
+
+### Widget Rendering Paths (Know All Three)
+1. **Auto-discovery** — Filament scans `app/Filament/Widgets/` and registers all widgets on the dashboard
+2. **Explicit PHP registration** — `getHeaderWidgets()` / `getFooterWidgets()` on Page classes
+3. **Blade template rendering** — `<x-filament-widgets::widgets :widgets="...">` in blade views
+
+Using more than one path for the same widget = duplication. Always audit which path is active.
+
+### Translation Key Checklist
+When adding new admin form fields or table columns:
+- [ ] Translation keys added to ALL supported locale files BEFORE implementation is complete
+- [ ] Admin form labels, helper text, and placeholders all use `__()` translation calls
+- [ ] Table column headers use `__()` translation calls
+- [ ] Select/dropdown options use `__()` for each option
+- [ ] Verify translations render correctly (not raw keys) by running the feature locally or on staging
+
+### Migration Safety
+- [ ] Check if the index/constraint already exists in earlier migrations before adding
+- [ ] Run `migrate:fresh` locally to catch duplicate index errors before pushing to CI
+- [ ] Name indexes explicitly to avoid conflicts with auto-generated names

@@ -2503,6 +2503,45 @@ C4Container
 
 ---
 
+## Proven Patterns from Practice
+
+### Extending Closed Interfaces Without Breaking Changes
+When an interface/enum defines a fixed set of operations but modules need MORE:
+- **Don't** add module-specific values to a shared enum (pollutes the contract)
+- **Don't** use `instanceof ConcreteClass` in service layers (couples to concrete types)
+- **Do** create an optional capability interface that modules implement alongside the base interface
+- **Do** use `instanceof CapabilityInterface` for capability detection (not module-specific logic)
+- **Do** add dispatch default methods to the base interface for uniform invocation by enum/ID
+
+### Scheduler Authentication in Reactive Systems
+When a background process (no HTTP request) needs to call authenticated APIs via reactive WebClient:
+- **Don't** hardcode auth types — let the authenticating entity determine and store the type
+- **Don't** store credentials in YAML config — use a secure runtime token store (e.g., Redis hash)
+- **Do** store full auth context (type + credentials) together — the writer knows the scheme
+- **Do** inject auth via Reactor context (`.contextWrite()`) — reuse existing WebClient filters unchanged
+
+### Reactive Return Types for Polymorphic Dispatch
+When a single dispatch method must return results of different cardinalities (single value OR collection):
+- **Use `Mono<Object>`** — the adapter wraps collections via `.collectList()`, single values via `Mono.just()`; callers serialize uniformly
+- **Don't use `Flux<Object>`** — misleading for single-value endpoints; forces every consumer to `.collectList()` even when the adapter already has the data
+- **Don't use `Publisher<Object>`** — Reactor's own guidance: use `Mono`/`Flux` for return types, `Publisher` for input parameters; `Mono.from(Flux)` silently drops elements
+- **Don't use sealed wrappers** (`EndpointResult.Single` / `.Collection`) — over-engineered; the endpoint enum already tells callers what type to expect
+- **Future path**: Add type parameter to the endpoint interface (`Endpoint<T>`) to eliminate casts without re-architecting the return type
+
+### Enum-Based Extension Over String Constants
+When modules need to define their own identifiers (endpoints, event types, commands, operations):
+- **Use module-specific enums implementing a shared interface** — type-safe, compile-time exhaustiveness in `switch`, IDE autocomplete, refactor-safe
+- **Don't use `String` constants or `Set<String>`** — no compile-time safety, typo-prone, no exhaustiveness checking
+- **Pattern**: Define a shared interface (e.g., `Operation`) with an identifier method (e.g., `getKey()`) → core enum (`CoreOperation implements Operation`) for standard items + module-specific enums (`CustomOperation implements Operation`) for extensions. All coexist in `Set<Operation>`.
+- **Dispatch**: Use `instanceof ModuleEnum ep` pattern matching in `switch` for type-safe routing without casting
+- **Discovery**: Consumers detect capabilities via `instanceof ExtensionProvider` rather than coupling to concrete types
+
+### Strategy Pattern for Uniform Processing
+When processing items from a registry uniformly:
+- Prefer ONE default strategy that handles all items via capability detection over per-item custom strategies
+- Per-item strategies lead to `instanceof` chains and couple the orchestrator to concrete implementations
+- Capability interfaces (optional interface implementation) enable uniform processing without type coupling
+
 ## Anti-Patterns to Avoid
 
 1. **Distributed Monolith**: Microservices with tight coupling
@@ -2621,6 +2660,19 @@ Invoke these skills for cross-cutting concerns:
 - [ ] Dependencies identified
 - [ ] Monitoring/observability planned
 
+### Integration Boundary Review (External APIs)
+- [ ] External IDs stored separately from internal IDs
+- [ ] Error states propagate from service to UI layer
+- [ ] API version headers documented
+- [ ] All user-visible data has persistence strategy
+- [ ] Sandbox vs Production differences documented
+
+### Architecture Conditions Quality
+- [ ] Conditions include both positive (what to DO) and negative (what to SKIP/REJECT) cases
+- [ ] Conditions specify boundary enforcement for result types (e.g., ParseResult stays within orchestration layer, not exposed to unrelated services)
+- [ ] Schema drift awareness: verify that dual schema definitions (migrations vs in-memory DDL) remain synchronized
+- [ ] Filter dimensions in conditions: when adding status/soft-delete columns, enumerate all query points that must filter
+
 ---
 
 ## Investigation Quality Standards
@@ -2667,3 +2719,20 @@ Add to every investigation report:
 - [ ] Output QUALITY assessed alongside delivery SPEED
 - [ ] Key business metric identified (may differ from the technical metric)
 - [ ] Domain-specific context considered (expert tool vs utility tool vs entertainment)
+
+---
+
+## Admin Framework Widget Architecture Checklist
+
+When approving architectures that involve admin panel widgets (Filament, Nova, Backstage, etc.):
+
+### Widget Registration Audit (MANDATORY)
+- [ ] **Specify registration method** — explicitly state in the architecture approval whether widgets should use auto-discovery, explicit registration, or blade rendering. Never leave this ambiguous.
+- [ ] **One registration path per widget** — admin frameworks often have multiple widget rendering paths. Using more than one causes silent duplication. Document which path to use.
+- [ ] **Custom page blade templates** — if the framework's parent page component auto-renders widgets, custom blade content should NOT re-render them. Specify this constraint explicitly.
+
+### Reusable API Patterns
+When a feature introduces a new API endpoint pattern (e.g., suggestion/search/filter APIs):
+- [ ] **Document the pattern** — if the endpoint includes pagination + caching + locale scoping, document it as a reusable template for future endpoints
+- [ ] **Specify caching strategy** — define cache TTL, invalidation triggers, and whether to cache empty results
+- [ ] **Pre-rendering strategy** — for interactive components, specify whether to use eager loading (v-show), lazy loading (v-if), or idle-time prefetch (requestIdleCallback)
