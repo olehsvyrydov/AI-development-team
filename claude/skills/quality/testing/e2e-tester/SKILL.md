@@ -256,6 +256,95 @@ export class LoginPage {
 3. **Slow Tests**: Parallelize and optimize
 4. **Hard-coded Waits**: Use auto-waiting
 5. **No Page Objects**: Maintain abstraction
+6. **Happy-Path Only**: Every happy-path test needs a matching error-path test
+7. **Mocked Persistence in E2E**: Use real databases (SQLite, Testcontainers)
+8. **No Contract Tests for External APIs**: WireMock stubs must match real API responses
+9. **Obvious Comments in Tests**: Test names and structure should be self-documenting
+
+---
+
+## Code Style: Self-Documenting Tests
+
+Tests should be readable without inline comments:
+
+```typescript
+// BAD - obvious comments cluttering test
+test('login', async ({ page }) => {
+  // Navigate to login page
+  await page.goto('/login');
+  // Enter email
+  await page.fill('#email', 'user@test.com');
+  // Enter password
+  await page.fill('#password', 'password');
+  // Click login button
+  await page.click('button[type="submit"]');
+  // Verify redirect
+  await expect(page).toHaveURL('/dashboard');
+});
+
+// GOOD - self-documenting, descriptive test name
+test('should redirect to dashboard after successful login', async ({ page }) => {
+  await page.goto('/login');
+  await page.fill('#email', 'user@test.com');
+  await page.fill('#password', 'password');
+  await page.click('button[type="submit"]');
+
+  await expect(page).toHaveURL('/dashboard');
+});
+```
+
+**Rules:**
+- **Descriptive test names** — name describes the scenario, no comments needed
+- **No "what" comments** — code shows what; let assertions speak for themselves
+- **"Why" comments OK** — explain non-obvious workarounds or timing issues
+- **Page Objects for abstraction** — hide implementation, reveal intent
+
+---
+
+## Integration Boundary Testing
+
+### Error-Path E2E Tests (Mandatory)
+
+For every E2E happy-path test, create a matching error-path test:
+
+```typescript
+// Happy path
+test('should submit form successfully', async ({ page }) => {
+  await page.fill('#email', 'user@example.com');
+  await page.click('button[type="submit"]');
+  await expect(page.locator('.success-message')).toBeVisible();
+});
+
+// Error path - MANDATORY companion test
+test('should show error on API failure', async ({ page }) => {
+  await page.route('**/api/submit', route =>
+    route.fulfill({ status: 500, body: 'Server error' })
+  );
+  await page.fill('#email', 'user@example.com');
+  await page.click('button[type="submit"]');
+  await expect(page.locator('.error-message')).toBeVisible();
+  await expect(page.locator('.success-message')).not.toBeVisible();
+});
+```
+
+**Pattern**: If UI shows success dialog, test that failure shows error dialog (not success).
+
+### Contract Tests for External APIs
+
+When integrating with external APIs, create contract tests to validate your stubs:
+
+```typescript
+describe('External API Contract Tests', () => {
+  test('WireMock stub matches actual API response schema', async () => {
+    const stub = JSON.parse(fs.readFileSync('wiremock/api-response.json'));
+    expect(stub.response.body).toMatchSchema(apiResponseSchema);
+  });
+});
+```
+
+### Persistence Boundary Tests
+
+**Never mock persistence in E2E tests** — data loss bugs escape when you do.
 
 ## Disabled Tests Tracker (MANDATORY)
 
@@ -332,3 +421,40 @@ When tests must be disabled due to dependencies, blockers, or technical limitati
 → /e2e implements missing tests
 → Re-submit for /qa review
 ```
+
+---
+
+## Universal Work Principles
+
+### Output Quality E2E Tests (AI/Search/Recommendation Features)
+
+For features that produce dynamic, user-visible output:
+
+1. **Don't just test "response received"** — validate the response contains relevant, accurate content for the given query
+2. **Test with domain-specific queries** — generic queries may pass but miss quality issues that domain-specific queries reveal
+3. **Assert output relevance** — check that search results match the query intent, that AI responses address the question, that recommendations are contextually appropriate
+4. **Regression test quality** — if response quality degrades after a code change (e.g., AI starts giving generic answers), the test should detect it
+5. **Test conversation continuity** — for chat features, verify that follow-up questions use conversation context (not just the latest message)
+
+### Verify the Foundation Before Automating
+
+Before writing E2E tests for a feature:
+- **Manually verify the feature works** — don't automate a broken feature; report the bug first
+- **Verify the test environment matches expectations** — API endpoints respond, test data exists, external dependencies are available
+- **Confirm the feature delivers user value** — automate tests that verify real user outcomes, not just technical paths
+
+### Escalate Critical Findings Immediately
+
+If during E2E test development or execution you discover:
+- The feature is fundamentally broken (not a flaky test — a real defect)
+- The feature works technically but delivers no user value
+- A critical regression in existing functionality
+
+**STOP test development and escalate to /luda immediately.** Don't write E2E tests for a broken feature — report the defect first.
+
+### State Your Assumptions
+
+In E2E test documentation, explicitly note:
+- What test data you assumed exists (and how to recreate it)
+- What environment-specific behavior may affect test reliability
+- What user scenarios you chose NOT to automate and why

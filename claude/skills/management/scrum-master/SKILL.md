@@ -267,6 +267,35 @@ After applying:
 - [ ] Version numbers or dates are updated in skill metadata
 - [ ] Changes are committed to git with descriptive message
 
+### CRITICAL: Skill Update Quality Rules
+
+**Skills must contain UNIVERSAL, REUSABLE knowledge** — patterns that apply to any project, not project-specific details.
+
+#### DO Add:
+- **Patterns** — reusable approaches that apply to any project
+- **Checklists** — verification items that prevent common mistakes
+- **Anti-patterns** — things to avoid with clear rationale
+- **Code examples** — concise, generic snippets (no project-specific imports)
+- **Rules** — universal guidelines
+
+#### DO NOT Add:
+- **Sprint references** — no "learned in Sprint 10" or "per Sprint 7 retro"
+- **Project-specific details** — no ticket IDs, project names, business IDs
+- **Verbose explanations** — keep it concise
+- **Duplicate knowledge** — check if similar guidance exists
+- **Temporary workarounds** — only permanent solutions
+
+#### The Test: Is This Universal?
+
+Before adding to a skill, ask:
+1. Would this help a developer on a DIFFERENT project? → If YES, add it
+2. Does this reference a specific sprint, ticket, or project? → If YES, remove those references
+3. Is this already covered by existing skill content? → If YES, don't duplicate
+4. Is this a temporary workaround or permanent pattern? → Only add permanent patterns
+
+**Example - Good**: "Always use value objects for external system IDs to get compile-time type safety"
+**Example - Bad**: "Per Sprint 10D, we learned to use HmrcBusinessId for HMRC API calls"
+
 ### Knowledge Categories to Track
 
 | Category | What to Capture | Updates Which Agents |
@@ -849,3 +878,90 @@ Every sprint folder MUST include a `DECISION_LOG.md` tracking key decisions made
 10. **Forgetting knowledge capture**: Not updating agent skills after sprint learnings
 11. **Information silos**: Not embedding expert outputs into tickets
 12. **Blind delegation**: Assigning work without checking if the agent has the needed context
+13. **Big-bang delivery**: Delivering everything at once instead of phasing into smaller, independently verifiable increments
+14. **Ignoring condition folding**: When multiple reviewers identify overlapping concerns, fold them into existing tickets rather than creating duplicate tickets
+15. **Accepting investigation premises at face value**: Always challenge the stakeholder's proposed solution before dispatching investigators. "Should we use X?" must be met with "Is X the right question?"
+16. **Dispatching investigations without verification**: Before assigning any investigation, verify the feature under analysis actually works. If broken, the investigation scope changes from "optimize" to "fix."
+
+---
+
+## Investigation Quality Gate (MANDATORY)
+
+**Effective:** All investigations from Sprint 51 onward
+**Enforcement:** /luda verifies gate completion before accepting any investigation report
+**Scope:** ALL investigation tasks assigned to ANY agent
+
+### Purpose
+
+This gate prevents the pattern where agents produce excellent technical analysis that misses the most important questions. Individual expertise is necessary but not sufficient — the gate ensures every investigation covers the meta-level questions that domain expertise alone does not guarantee.
+
+### 5-Step Investigation Workflow
+
+Replace the "assign and collect" pattern with:
+
+```
+Step 1: FRAME (Luda facilitates)
+  - Restate the problem in USER terms (not solution terms)
+  - Challenge the premise: Is this the right question?
+  - Verify feature health: Does the thing under investigation actually work?
+  - Define success metrics: What does "better" mean for the user?
+
+Step 2: ALIGN (All investigators, brief sync)
+  - Share initial hypotheses
+  - Assign coverage areas (avoid duplication)
+  - Identify gaps in coverage
+  - Agree on shared assumptions
+
+Step 3: INVESTIGATE (Parallel agent work)
+  - Each agent works within their assigned scope
+  - P0/P1 Escalation Protocol active
+  - Each report must pass Quality Gate checklist
+
+Step 4: CONSOLIDATE (Luda + all agents)
+  - Cross-read: each agent reviews one other agent's report
+  - Identify contradictions, gaps, and overlaps
+  - Challenge findings: "What did we miss?"
+  - Synthesize into unified recommendation
+
+Step 5: PLAN (Luda + /jorge)
+  - Create sprint tickets from consolidated findings
+  - Prioritize by user impact, not technical elegance
+  - Ensure P0 issues are addressed before optimization
+```
+
+### P0 Escalation Protocol
+
+When ANY agent discovers a P0 or P1 issue during an investigation:
+
+1. **IMMEDIATELY stop investigation work**
+2. Write a 3-line summary: What is broken / User impact / Location in code
+3. Report to /luda
+4. /luda triages within 1 hour:
+   - **HALT**: Stop all investigation, fix the P0 first
+   - **CONTINUE**: Note the P0, but current investigation scope is different
+   - **PIVOT**: Reframe the investigation around the P0 finding
+5. All other investigating agents are notified
+
+### Pre-Submission Checklist (Agent Must Complete)
+
+```
+VERIFICATION (Non-negotiable)
+- [ ] Feature tested on staging (not assumed to work)
+- [ ] End-to-end pipeline verified (data flows from input to user-visible output)
+- [ ] Output quality manually assessed (not just speed/latency metrics)
+
+PREMISE CHALLENGE (Non-negotiable)
+- [ ] Investigation premise explicitly challenged in report
+- [ ] "Is this the right question?" section included
+- [ ] Alternative framings explored (minimum 2)
+- [ ] "Do nothing" option evaluated
+
+SOLUTION COMPLETENESS (Required)
+- [ ] Infrastructure, algorithmic, AND content/prompt solutions all evaluated
+- [ ] ROI comparison across solution types included
+- [ ] "What did I miss?" section present
+```
+
+### Gate Failure
+
+Reports that skip verification are returned with "BLOCKED: Verification Required" status. Agent has 24 hours to address gaps.

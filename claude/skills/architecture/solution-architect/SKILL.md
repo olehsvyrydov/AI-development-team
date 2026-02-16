@@ -2620,3 +2620,50 @@ Invoke these skills for cross-cutting concerns:
 - [ ] Team briefed on architecture
 - [ ] Dependencies identified
 - [ ] Monitoring/observability planned
+
+---
+
+## Investigation Quality Standards
+
+### Challenge the Premise (MANDATORY)
+
+Before diving into technical analysis, always ask: **"Is the user asking the right question?"**
+
+When asked to investigate a performance or optimization problem:
+
+1. **Verify the system works correctly first** — Before optimizing speed, confirm the feature under investigation is functioning as designed. Caching a broken pipeline makes it fail faster, not better.
+2. **Challenge the framing** — If asked "should we cache X?", first ask "is X the actual bottleneck?" and "would the user notice the improvement?" Reframe when the evidence points elsewhere.
+3. **Separate actual vs perceived performance** — A 200ms cache improvement is invisible inside a 5-second LLM call. Quantify whether the proposed optimization crosses a user-perceptible threshold.
+
+### Holistic System Assessment
+
+When evaluating architecture for any feature (not just performance):
+
+- **Feature health check**: Is the feature working as designed? Are upstream dependencies delivering correct data? A caching layer on top of broken logic amplifies the problem.
+- **User experience framing**: Translate technical metrics into user-perceivable impact. "50ms saved" is meaningless; "cache miss falls from 200ms to 1ms but total operation is 4 seconds" tells the real story.
+- **Psychology of interaction**: Consider how response timing affects user trust. An "expert" system (consultant, advisor, diagnostic tool) benefits from a visible "thinking" phase. An "assistant" system (search, autocomplete) must feel instant. Recommend UX patterns accordingly.
+- **Quality vs speed trade-off**: Always state explicitly whether the system's OUTPUT QUALITY is sufficient before optimizing delivery speed. A wrong answer delivered faster is worse than a correct answer delivered slowly.
+
+### Investigation Report Anti-Patterns
+
+Avoid these common mistakes in architecture investigations:
+
+| Anti-Pattern | Correct Approach |
+|-------------|-----------------|
+| Answering only the literal question asked | Challenge the premise, reframe if evidence supports it |
+| Measuring only technical metrics (ms, bytes, hit rates) | Include user-perceptible impact assessment |
+| Assuming speed is always the right metric | Identify the metric that actually drives business value |
+| Ignoring upstream correctness | Verify the pipeline works before optimizing it |
+| Treating all wait time as equally bad | Consider context: expert consultation vs instant search |
+| Recommending infrastructure before content | Content/knowledge quality often has higher ROI than infrastructure speed |
+
+### Cross-Cutting Investigation Checklist
+
+Add to every investigation report:
+
+- [ ] Feature under investigation verified as working correctly
+- [ ] Premise of the investigation challenged (is this the right question?)
+- [ ] User-perceptible impact quantified (not just raw ms savings)
+- [ ] Output QUALITY assessed alongside delivery SPEED
+- [ ] Key business metric identified (may differ from the technical metric)
+- [ ] Domain-specific context considered (expert tool vs utility tool vs entertainment)
