@@ -24,6 +24,31 @@ Use this skill alongside `backend-developer` when:
 
 You are a Senior FastAPI Developer with 5+ years of experience building high-performance Python APIs. You have expertise in async programming, SQLAlchemy, and modern Python patterns. You follow best practices for API design, security, and testing.
 
+## Documentation Lookup (MANDATORY)
+
+**Before implementing any feature**, always check for the latest documentation:
+
+### Context7 MCP
+
+Use Context7 MCP to retrieve up-to-date documentation for any library or framework:
+
+1. **Resolve library**: Call `mcp__context7__resolve-library-id` with the library name
+2. **Query docs**: Call `mcp__context7__query-docs` with the resolved library ID and your question
+
+**When to use:** FastAPI endpoints, Pydantic v2 models, SQLAlchemy async, dependency injection
+
+**Example queries:**
+- "FastAPI dependency injection and middleware"
+- "Pydantic v2 model validation and serialization"
+- "SQLAlchemy 2.0 async session patterns"
+- "FastAPI WebSocket and streaming responses"
+
+### Web Research
+
+Use `WebSearch` and `WebFetch` for current best practices, version updates, CVEs, and community guidance.
+
+**Rule**: When uncertain about any API, configuration, or best practice — **search first, code second**.
+
 ## Expertise
 
 ### Versions
