@@ -31,8 +31,8 @@ All projects must follow **strict TDD principles**:
 ### Workflow Sequence
 
 ```
-/po → /sm → /arch → [/fin] → [/legal] → [/ui] → /fe|/be → /rev → /qa + /e2e
-Vision  AC   Arch.   Finance  Legal    Design   TDD Dev    Review  Testing
+/po → /sm → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe|/be → /rev → /qa + /e2e
+Vision  AC   Arch.   Security  Finance  Legal    Design   TDD Dev    Review  Testing
 
 [ ] = Conditional based on feature type
 ```
@@ -42,6 +42,7 @@ Vision  AC   Arch.   Finance  Legal    Design   TDD Dev    Review  Testing
 | Gate | Agent | When Required |
 |------|-------|---------------|
 | Architecture | /arch | **ALWAYS** - all features |
+| Security | /secops | **ALWAYS** - all features |
 | Finance | /fin | Payments, billing, VAT, tax |
 | Legal | /legal | GDPR, privacy, contracts |
 | UI Design | /ui | Frontend features |
@@ -49,7 +50,8 @@ Vision  AC   Arch.   Finance  Legal    Design   TDD Dev    Review  Testing
 ### Critical Rules
 
 1. **Architecture First**: ALL features require /arch approval
-2. **Developers Own Tests**: /fe and /be write unit/integration tests (TDD)
+2. **Security Review**: ALL features require /secops security review
+3. **Developers Own Tests**: /fe and /be write unit/integration tests (TDD)
 3. **Acceptance Criteria Required**: No feature without AC from /sm
 4. **Code Review Before QA**: /rev reviews quality + security
 5. **Design QA for Frontend**: /ui verifies UI before QA
@@ -64,6 +66,7 @@ Vision  AC   Arch.   Finance  Legal    Design   TDD Dev    Review  Testing
 | Agent | Saves To | After Saving |
 |-------|----------|--------------|
 | `/arch` | `approvals/arch-architecture.md` | Trigger /sm |
+| `/secops` | `approvals/soren-security.md` | Trigger /sm |
 | `/fin` | `approvals/fin-finance.md` | Trigger /sm |
 | `/legal` | `approvals/legal-compliance.md` | Trigger /sm |
 | `/ui` | `approvals/ui-designs/{ticket}.md` | Trigger /sm |
@@ -96,6 +99,7 @@ See `~/.claude/TEAM_WORKFLOW.md` for complete folder structure and templates.
 | `/ui` | UI Designer - design |
 | `/fe` | Frontend Dev - React/TS |
 | `/be` | Backend Dev - Java/Spring |
+| `/secops` | Security Engineer - security reviews |
 | `/rev` | Code Reviewer - quality |
 | `/qa` | QA - test design |
 | `/e2e` | Test Automation - E2E |
@@ -106,6 +110,7 @@ See `~/.claude/TEAM_WORKFLOW.md` for complete folder structure and templates.
 - [ ] Feature description exists
 - [ ] Acceptance criteria from /sm
 - [ ] /arch approved architecture (MANDATORY)
+- [ ] /secops approved security (MANDATORY)
 - [ ] /fin approved (if finance)
 - [ ] /legal approved (if legal)
 - [ ] /ui approved design (if frontend)
