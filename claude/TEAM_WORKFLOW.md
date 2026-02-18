@@ -13,6 +13,7 @@ This document defines the standard workflow for the AI development team, ensurin
 | `/fe` | Frontend Developer | React/TypeScript implementation + unit/integration tests |
 | `/be` | Backend Developer | Java/Kotlin/Spring implementation + unit/integration tests |
 | `/rev` | Code Reviewer | Code quality, security, style, vulnerability scanning |
+| `/secops` | Security Engineer | Security reviews, threat modeling, scanning pipelines, compliance |
 | `/qa` | Test Case Designer & QA | Test specs, reproduction tests, coverage review, manual testing when requested |
 | `/e2e` | Test Automation Engineer | Integration, E2E, performance tests implementation |
 | `/ba` | Business Analyst | Market research, requirements analysis |
@@ -84,6 +85,7 @@ Every sprint folder MUST include a `DECISION_LOG.md` tracking key decisions:
 | `/po` | README.md (goals section) | Sprint planning | Yes |
 | `/sm` | README.md, SPRINT-STATUS.md | After each approval, status change | N/A |
 | `/arch` | `approvals/arch-architecture.md` | Architecture decisions | **YES** |
+| `/secops` | `approvals/soren-security.md` | Security reviews | **YES** |
 | `/fin` | `approvals/fin-finance.md` | Finance/payment approvals | **YES** |
 | `/legal` | `approvals/legal-compliance.md` | Legal/compliance approvals | **YES** |
 | `/ui` | `approvals/ui-designs/{ticket}.md` | UI specifications | **YES** |
@@ -136,6 +138,7 @@ All reports (review, QA, E2E) MUST:
 | Gate | Agent | Status | File | Date |
 |------|-------|--------|------|------|
 | Architecture | /arch | ✅ Approved | [Link](approvals/arch-architecture.md) | YYYY-MM-DD |
+| Security | /secops | ✅ Approved | [Link](approvals/soren-security.md) | YYYY-MM-DD |
 | Finance | /fin | ⏳ Pending | - | - |
 | Legal | /legal | N/A | - | - |
 | UI Design | /ui | ✅ Approved | [Link](approvals/ui-designs/) | YYYY-MM-DD |
@@ -203,8 +206,8 @@ Brief description of architectural decision
 ### Workflow Summary
 
 ```
-/po → /sm → /arch → [/fin] → [/legal] → [/ui] → /fe and/or /be → /rev + [/ui verify] → /qa + /e2e
-Vision  AC   Arch.   Finance  Legal    Design   TDD Dev            Review           Automated Testing
+/po → /sm → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe and/or /be → /rev + [/ui verify] → /qa + /e2e
+Vision  AC   Arch.   Security  Finance  Legal    Design   TDD Dev            Review           Automated Testing
 
 [ ] = Conditional participation based on feature type
 
@@ -220,6 +223,7 @@ Vision  AC   Arch.   Finance  Legal    Design   TDD Dev            Review       
 | Gate | Agent | When Required |
 |------|-------|---------------|
 | Architecture | /arch | **ALWAYS** - all features need architectural approval |
+| Security | /secops | **ALWAYS** - all features need security review |
 | Finance | /fin | Features involving: payments, billing, accounting, VAT, tax, invoicing |
 | Legal | /legal | Features involving: GDPR, privacy, terms, contracts, compliance |
 | Gap Analysis | /ba | P0/P1 features - pre-implementation review |
@@ -269,13 +273,13 @@ For P0/P1 priority features, /ba performs a pre-implementation review:
 │                           FEATURE DEVELOPMENT FLOW                          │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-   ┌─────────┐      ┌─────────┐      ┌─────────┐
-   │  /po    │─────▶│  /sm    │─────▶│ /arch   │ ◀── ALWAYS REQUIRED
-   │ Vision  │      │Sprint AC│      │Arch.Appr│
-   └─────────┘      └─────────┘      └────┬────┘
-                                          │
-                    ┌─────────────────────┼─────────────────────┐
-                    │ (if finance)        │                     │ (if legal)
+   ┌─────────┐      ┌─────────┐      ┌─────────┐      ┌─────────┐
+   │  /po    │─────▶│  /sm    │─────▶│ /arch   │─────▶│/secops  │ ◀── ALWAYS REQUIRED
+   │ Vision  │      │Sprint AC│      │Arch.Appr│      │Sec.Revw │
+   └─────────┘      └─────────┘      └─────────┘      └────┬────┘
+                                                            │
+                    ┌───────────────────────┼───────────────────────┐
+                    │ (if finance)          │                       │ (if legal)
                     ▼                     │                     ▼
               ┌─────────┐                 │               ┌─────────┐
               │  /fin   │                 │               │ /legal  │
@@ -403,6 +407,16 @@ Users can log in using email and password to access their account.
 - Approves database schema changes
 - Approves API contract changes
 - Identifies cross-cutting concerns
+
+### 1.3.1 Security Engineer (/secops) - ALWAYS REQUIRED
+**MANDATORY**: All features require /secops security review before implementation.
+
+- Conducts threat modeling (STRIDE/PASTA/LINDDUN)
+- Reviews authentication and authorization design
+- Identifies security requirements and compliance obligations
+- Defines security scanning configuration for CI/CD
+- Assesses supply chain and dependency risks
+- Output: `approvals/soren-security.md`
 
 ### 1.4 Conditional Approvals
 
@@ -839,6 +853,9 @@ After /e2e implements tests:
 ### Rule 1: Architecture Approval Required
 All features MUST be approved by /arch before implementation begins.
 
+### Rule 1.1: Security Review Required
+All features MUST be reviewed by /secops before implementation begins. Security review follows architecture approval.
+
 ### Rule 2: No Feature Without Acceptance Criteria
 Features cannot proceed to QA without documented acceptance criteria from /sm.
 
@@ -868,6 +885,7 @@ Every phase produces a report/status update that triggers the next phase.
 | Write user stories | /po + /sm | Always |
 | Write acceptance criteria | /sm | Always |
 | Approve architecture | /arch | **Always** |
+| Security review | /secops | **Always** |
 | Approve finance features | /fin | If `[finance]` tag |
 | Approve legal features | /legal | If `[legal]` tag |
 | Design UI | /ui | If `[frontend]` tag |

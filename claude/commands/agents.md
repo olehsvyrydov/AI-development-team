@@ -32,8 +32,10 @@ These are your primary agents for software development:
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **secops-engineer** | Spring Security, JWT, OAuth2, OWASP | Auth, security headers, compliance |
+| **secops-engineer** | OWASP Top 10:2025, Threat Modeling, OAuth 2.1, Supply Chain, Zero Trust, AI/LLM Security | Security reviews, threat modeling, auth, compliance, scanning pipelines |
 | **technical-writer** | C4 diagrams, ADRs, API docs, Mermaid | Documentation, changelogs, README |
+
+> **Quick Access**: Use `/secops` to invoke the security engineer directly.
 
 ### Design
 
