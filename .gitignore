@@ -17,6 +17,17 @@ Thumbs.db
 # Node (if using for any tooling)
 node_modules/
 
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# RAG / Qdrant
+*.snapshot
+claude/rag/mcp-server/.venv/
+claude/rag/management/backups/
+
 # Temporary files
 *.tmp
 *.bak

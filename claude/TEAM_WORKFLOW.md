@@ -1225,6 +1225,7 @@ Each agent answers:
 3. **Tech debt tickets** → Created in Jira
 4. **Process improvements** → Updated in this TEAM_WORKFLOW.md
 5. **Skill updates** → Updated in `~/.claude/skills/` (universal knowledge only)
+6. **Knowledge capture** → Key learnings stored in AI Team Memory via `memory_store` (if RAG is configured)
 
 ---
 
