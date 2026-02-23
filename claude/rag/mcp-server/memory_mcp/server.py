@@ -35,7 +35,7 @@ def _get_qdrant():
     if _qdrant is None:
         from qdrant_client import QdrantClient
         url = os.environ.get("QDRANT_URL", "http://localhost:6333")
-        _qdrant = QdrantClient(url=url)
+        _qdrant = QdrantClient(url=url, check_compatibility=False)
     return _qdrant
 
 

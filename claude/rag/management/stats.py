@@ -14,7 +14,7 @@ from memory_mcp.collections import ensure_collections, get_collection_stats
 def get_client(url: str = None) -> QdrantClient:
     """Create Qdrant client from URL or environment."""
     url = url or os.environ.get("QDRANT_URL", "http://localhost:6333")
-    return QdrantClient(url=url)
+    return QdrantClient(url=url, check_compatibility=False)
 
 
 def cmd_init(args):
