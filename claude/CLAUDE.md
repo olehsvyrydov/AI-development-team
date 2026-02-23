@@ -15,102 +15,125 @@ All projects must follow **strict TDD principles**:
 5. **Refactor**: Clean up while keeping tests green
 6. **Commit**: Git commit after successful test run
 
-### Project Management with Scrum
+### Project Management
 
-1. Create `SPRINT-STATUS.md` for sprint tracking
-2. Split requirements into small, testable tasks
-3. Document tasks in `docs/sprints/` with descriptions, AC, and test cases
-4. Run all tests before committing
-5. Create comprehensive commit messages
-6. Update sprint status after each task
+1. Use **Jira** for issue tracking (Kanban board) and **Confluence** for documentation
+2. Split requirements into small, testable Stories with behavioral AC
+3. Run all tests before committing
+4. Create comprehensive commit messages with Jira ticket IDs
+5. Track sprint status in Jira and agent context in Git files
 
 ## AI Development Team Workflow
 
 **Reference**: `~/.claude/TEAM_WORKFLOW.md` for complete documentation.
 
+### Tooling (REQUIRED)
+
+**Atlassian MCP Server** — Jira + Confluence integration:
+```bash
+claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp
+```
+
 ### Workflow Sequence
 
 ```
-/po → /sm → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe|/be → /rev → /qa + /e2e
-Vision  AC   Arch.   Security  Finance  Legal    Design   TDD Dev    Review  Testing
+/po+/ba → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe|/be → /rev → /qa + /e2e
+Vision+AC  Arch.   Security  Finance  Legal    Design  TDD Dev   Review  Testing
+
+                            ↓ Ticket Approval Gate ↓
+                   All team members approve Story before implementation
 
 [ ] = Conditional based on feature type
 ```
 
 ### Approval Gates
 
-| Gate | Agent | When Required |
-|------|-------|---------------|
+| Gate | Command | When Required |
+|------|---------|---------------|
 | Architecture | /arch | **ALWAYS** - all features |
 | Security | /secops | **ALWAYS** - all features |
 | Finance | /fin | Payments, billing, VAT, tax |
 | Legal | /legal | GDPR, privacy, contracts |
+| Gap Analysis | /ba | P0/P1 features |
 | UI Design | /ui | Frontend features |
 
 ### Critical Rules
 
 1. **Architecture First**: ALL features require /arch approval
 2. **Security Review**: ALL features require /secops security review
-3. **Developers Own Tests**: /fe and /be write unit/integration tests (TDD)
-3. **Acceptance Criteria Required**: No feature without AC from /sm
-4. **Code Review Before QA**: /rev reviews quality + security
-5. **Design QA for Frontend**: /ui verifies UI before QA
-6. **Automated Testing**: /qa designs, /e2e implements
+3. **Ticket Approval Gate**: ALL team members approve Story before implementation
+4. **Behavior-Only Tickets**: Stories describe WHAT, not HOW (no file paths, code, line numbers)
+5. **Developers Own Tests**: /fe and /be write unit/integration tests (TDD)
+6. **Acceptance Criteria Required**: No feature without behavioral AC from /po + /ba
+7. **Code Review Before QA**: /rev reviews quality + security
+8. **Design QA for Frontend**: /ui verifies UI before QA
+9. **Automated Testing**: /qa designs, /e2e implements
+10. **Reports as Jira Comments**: Every phase documents what was done in the Jira ticket
 
-### Context Preservation (CRITICAL)
+### Context Preservation (Hybrid Model)
 
-**Every approval and report MUST be saved to files.** This ensures context survives across conversations.
+**Primary**: Jira for ticket process (comments), Confluence for documentation.
+**Secondary**: Git files for agent context across sessions.
+
+**Agents write to BOTH Jira/Confluence AND Git files.** Jira is for human visibility; Git files are for agent context.
 
 **Sprint Folder Location**: `docs/sprints/sprint-{N}-{feature}/`
 
-| Agent | Saves To | After Saving |
-|-------|----------|--------------|
-| `/arch` | `approvals/arch-architecture.md` | Trigger /sm |
-| `/secops` | `approvals/soren-security.md` | Trigger /sm |
-| `/fin` | `approvals/fin-finance.md` | Trigger /sm |
-| `/legal` | `approvals/legal-compliance.md` | Trigger /sm |
-| `/ui` | `approvals/ui-designs/{ticket}.md` | Trigger /sm |
-| `/fe` | `implementation/{ticket}.md` | Trigger /sm (on complete) |
-| `/be` | `implementation/{ticket}.md` | Trigger /sm (on complete) |
-| `/rev` | `reviews/rev-{ticket}.md` | Trigger /sm |
-| `/qa` | `testing/qa-{ticket}.md` | Trigger /sm |
-| `/e2e` | `testing/e2e-{ticket}.md` | Trigger /sm |
+| Command | Saves To (Git) | Also In |
+|---------|----------------|---------|
+| `/arch` | `approvals/arch-architecture.md` | Confluence ADR |
+| `/secops` | `approvals/secops-security.md` | Confluence Checklist |
+| `/fin` | `approvals/fin-finance.md` | Confluence Checklist |
+| `/legal` | `approvals/legal-compliance.md` | Confluence Checklist |
+| `/ui` | `approvals/ui-designs/{ticket}.md` | Confluence Feature Vision |
+| `/fe` | `implementation/{ticket}.md` | Jira comments |
+| `/be` | `implementation/{ticket}.md` | Jira comments |
+| `/rev` | `reviews/rev-{ticket}.md` | Jira comments |
+| `/qa` | `testing/qa-{ticket}.md` | Jira comments |
+| `/e2e` | `testing/e2e-{ticket}.md` | Jira comments |
 
-**Rule**: After ANY approval → Save to file → Say "/sm - please update sprint status"
+**Rule**: After ANY approval → Save to Git file + Jira/Confluence → Say "/sm - please update sprint status"
 
-See `~/.claude/TEAM_WORKFLOW.md` for complete folder structure and templates.
+### Git Conventions with Jira
+
+- **Branch names**: `feature/LJ-123-description` (use Jira project key)
+- **Commit messages**: `LJ-123: Implement token generation for password reset`
+- **PR titles**: `LJ-123: Password reset via email`
 
 ### Bug Workflow
 
 ```
-/bug [description] → /sm ticket → Investigation → /qa reproduction test → TDD Fix → /rev review → /e2e tests
+/bug [description] → /sm creates Bug in Jira → Investigation → /qa reproduction test → TDD Fix → /rev review → /e2e tests
 ```
 
 ### Team Quick Reference
 
-| Command | Role |
-|---------|------|
-| `/po` | Product Owner - vision, backlog |
-| `/sm` | Scrum Master - AC, sprints |
-| `/arch` | Solution Architect - architecture |
-| `/ba` | Business Analyst - research |
-| `/fin` | UK Accountant - finance |
-| `/legal` | UK Legal - legal |
-| `/ui` | UI Designer - design |
-| `/fe` | Frontend Dev - React/TS |
-| `/be` | Backend Dev - Java/Spring |
-| `/secops` | Security Engineer - security reviews |
-| `/rev` | Code Reviewer - quality |
-| `/qa` | QA - test design |
-| `/e2e` | Test Automation - E2E |
-| `/mkt` | Marketing - GTM |
+| Command | Alias | Role |
+|---------|-------|------|
+| `/po` | `/max` | Product Owner - vision, backlog, Epics |
+| `/sm` | `/luda` | Scrum Master - AC, Stories, ceremonies |
+| `/arch` | `/jorge` | Solution Architect - architecture |
+| `/ba` | `/anna` | Business Analyst - research |
+| `/fin` | `/inga` | UK Accountant - finance |
+| `/legal` | `/alex` | UK Legal - legal |
+| `/ui` | `/aura` | UI Designer - design |
+| `/fe` | `/finn` | Frontend Dev - React/TS |
+| `/be` | `/james` | Backend Dev - Java/Spring |
+| `/secops` | `/soren` | Security Engineer - security |
+| `/rev` | — | Code Reviewer - quality |
+| `/qa` | `/rob` | Test Case Designer - QA |
+| `/e2e` | `/adam` | Test Automation - E2E |
+| `/mkt` | `/apex` | Marketing - GTM |
+
+> **Both naming conventions are supported.** Role-based commands (`/arch`, `/be`, `/fe`) are the standard. Persona aliases are team-specific names that invoke the same agent.
 
 ### Before Starting Any Feature
 
-- [ ] Feature description exists
-- [ ] Acceptance criteria from /sm
+- [ ] Feature Vision in Confluence (/po)
+- [ ] Acceptance criteria in Jira Story (/po + /ba) — behavioral only
 - [ ] /arch approved architecture (MANDATORY)
 - [ ] /secops approved security (MANDATORY)
+- [ ] Ticket Approval Gate passed (all team members)
 - [ ] /fin approved (if finance)
 - [ ] /legal approved (if legal)
 - [ ] /ui approved design (if frontend)
