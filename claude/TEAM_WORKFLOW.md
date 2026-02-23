@@ -2,202 +2,100 @@
 
 This document defines the standard workflow for the AI development team, ensuring quality, accountability, and proper handoffs between team members.
 
-## Team Roles Overview
-
-| Agent | Role | Responsibility |
-|-------|------|----------------|
-| `/po` | Product Owner | Vision, backlog, feature prioritization |
-| `/sm` | Scrum Master | Sprint planning, acceptance criteria, status tracking |
-| `/ui` | UI Designer | Design specs, UI components, visual assets |
-| `/arch` | Solution Architect | Architecture, patterns, technical decisions |
-| `/fe` | Frontend Developer | React/TypeScript implementation + unit/integration tests |
-| `/be` | Backend Developer | Java/Kotlin/Spring implementation + unit/integration tests |
-| `/rev` | Code Reviewer | Code quality, security, style, vulnerability scanning |
-| `/secops` | Security Engineer | Security reviews, threat modeling, scanning pipelines, compliance |
-| `/qa` | Test Case Designer & QA | Test specs, reproduction tests, coverage review, manual testing when requested |
-| `/e2e` | Test Automation Engineer | Integration, E2E, performance tests implementation |
-| `/ba` | Business Analyst | Market research, requirements analysis |
-| `/mkt` | Marketing Strategist | GTM strategy, product positioning |
+**Version**: 7.0 — Jira/Confluence Integration, Behavior-Only Tickets, Collaborative Architecture
 
 ---
 
-## Context Preservation System (CRITICAL)
+## Team Roles Overview
 
-**Purpose**: All approvals, decisions, and reports MUST be saved to files to preserve context across conversations. This is mandatory for team continuity.
+| Command | Alias | Name | Role | Responsibility |
+|---------|-------|------|------|----------------|
+| `/po` | `/max` | Max | Product Owner | Vision, backlog, Feature Visions in Confluence, Epics in Jira |
+| `/sm` | `/luda` | Luda | Scrum Master | Stories in Jira, acceptance criteria, Ticket Approval Gate, ceremonies |
+| `/ui` | `/aura` | Aura | UI Designer | Design specs in Confluence Feature Vision, design QA via Browser MCP |
+| `/arch` | `/jorge` | Jorge | Solution Architect | Architecture recommendations in Confluence (ADRs, C4), Jira comments |
+| `/secops` | `/soren` | Soren | Security Engineer | Security reviews, threat modeling, scanning pipelines, compliance |
+| `/fe` | `/finn` | Finn | Frontend Developer | React/TypeScript implementation + TDD, Jira comments for decisions |
+| `/be` | `/james` | James | Backend Developer | Java/Kotlin/Spring implementation + TDD, Jira comments for decisions |
+| `/rev` | — | Rev | Code Reviewer | Code quality, security, review reports as Jira comments |
+| `/qa` | `/rob` | Rob | Test Case Designer & QA | Test plans in Confluence, BDD specs, reports as Jira comments |
+| `/e2e` | `/adam` | Adam | Test Automation Engineer | Integration, E2E, performance test implementation, reports as Jira comments |
+| `/ba` | `/anna` | Anna | Business Analyst | Investigations in Confluence, requirements analysis |
+| `/fin` | `/inga` | Inga | UK Accountant | Finance approval for payments, billing, VAT, tax |
+| `/legal` | `/alex` | Alex | UK Legal Counsel | Legal approval for GDPR, privacy, contracts |
+| `/mkt` | `/apex` | Apex | Marketing Strategist | GTM strategy, product positioning |
 
-### Sprint Folder Structure
+> **Both naming conventions are supported.** Role-based commands (`/arch`, `/be`, `/fe`) are the standard. Persona aliases (`/jorge`, `/james`, `/finn`) are team-specific names that invoke the same agent.
 
-Every sprint gets a dedicated working folder:
+---
 
-```
-docs/sprints/
-├── sprint-{N}-{feature-name}/              # Sprint working folder
-│   ├── README.md                           # Sprint overview + live status
-│   ├── DECISION_LOG.md                     # All key decisions with rationale (REQUIRED)
-│   │
-│   ├── approvals/                          # Gate approvals (REQUIRED)
-│   │   ├── arch-architecture.md            # /arch decisions
-│   │   ├── fin-finance.md                  # /fin (if needed)
-│   │   ├── legal-compliance.md             # /legal (if needed)
-│   │   ├── ba-gap-analysis.md              # /ba pre-implementation review (for P0/P1)
-│   │   └── ui-designs/                     # /ui designs
-│   │       ├── {TICKET}-{feature}.md
-│   │       └── ...
-│   │
-│   ├── implementation/                     # Dev notes per ticket
-│   │   ├── {TICKET}-{feature}.md
-│   │   ├── TECH-001-{description}.md       # Technical debt tickets from /rev
-│   │   └── ...
-│   │
-│   ├── reviews/                            # Code review reports
-│   │   ├── rev-{TICKET}.md
-│   │   └── ...
-│   │
-│   └── testing/                            # QA & E2E reports
-│       ├── qa-{TICKET}.md
-│       ├── e2e-{TICKET}.md
-│       ├── qa-e2e-review-{TICKET}.md       # /qa E2E review reports
-│       └── ...
-│
-└── SPRINT-STATUS.md                        # Overall sprint tracking
+## Tooling Setup
+
+### Atlassian MCP Server (REQUIRED)
+
+All projects use Jira for issue tracking and Confluence for documentation via the Atlassian MCP server:
+
+```bash
+# Add Atlassian MCP server (user-scope, available for all projects)
+claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp
 ```
 
-### Decision Logging (MANDATORY)
+OAuth 2.1 authentication via browser on first use. Provides 48+ tools for Jira and Confluence.
 
-Every sprint folder MUST include a `DECISION_LOG.md` tracking key decisions:
+**Key tools used by agents**:
+- `createJiraIssue` / `editJiraIssue` / `transitionJiraIssue` — Issue CRUD
+- `addCommentToJiraIssue` — Dev process tracking in tickets
+- `searchJiraIssuesUsingJql` — Query tickets
+- `createConfluencePage` / `updateConfluencePage` — Documentation
+- `getConfluencePage` / `searchConfluenceUsingCql` — Read docs
 
-```markdown
-# Decision Log: Sprint {N}
+### Context7 MCP (Recommended)
 
-| ID | Decision | Category | Rationale | Approved By | Date |
-|----|----------|----------|-----------|-------------|------|
-| D-001 | Use REST over GraphQL | Architecture | Team familiarity, simpler tooling | /arch | YYYY-MM-DD |
-| D-002 | Authorization/capture for payments | Finance | Saves fees on cancellations | /fin | YYYY-MM-DD |
-| D-003 | User-sets-price model | Legal | Avoids price-fixing concerns | /legal | YYYY-MM-DD |
+Agents should use Context7 to check actual framework documentation before writing code or tests.
+
+---
+
+## Multi-Project Setup
+
+Each project gets its own Jira project and Confluence space. The AI dev team framework (skills, commands, TEAM_WORKFLOW.md) is shared across all projects via `~/.claude/`.
+
+```
+Jira Projects:              Confluence Spaces:
+├── LEMMEJOB (LJ)           ├── Lemmejob
+├── PROJECT-2 (P2)          ├── Project 2
+└── PROJECT-N (PN)          └── Project N
+
+Shared across all projects:
+└── ~/.claude/
+    ├── skills/             (agent skills — universal)
+    ├── commands/           (agent commands — universal)
+    ├── CLAUDE.md           (global instructions)
+    └── TEAM_WORKFLOW.md    (this file — team process)
 ```
 
-**Categories**: Architecture, Finance, Legal, Product, Security, Performance
+**Jira project key** (e.g., `LJ` for Lemmejob) is used in:
+- Branch names: `feature/LJ-123-password-reset`
+- Commit messages: `LJ-123: Implement token generation for password reset`
+- PR titles: `LJ-123: Password reset via email`
 
-### Agent File Conventions
+---
 
-| Agent | Writes To | When | Triggers /sm |
-|-------|-----------|------|--------------|
-| `/po` | README.md (goals section) | Sprint planning | Yes |
-| `/sm` | README.md, SPRINT-STATUS.md | After each approval, status change | N/A |
-| `/arch` | `approvals/arch-architecture.md` | Architecture decisions | **YES** |
-| `/secops` | `approvals/soren-security.md` | Security reviews | **YES** |
-| `/fin` | `approvals/fin-finance.md` | Finance/payment approvals | **YES** |
-| `/legal` | `approvals/legal-compliance.md` | Legal/compliance approvals | **YES** |
-| `/ui` | `approvals/ui-designs/{ticket}.md` | UI specifications | **YES** |
-| `/be` | `implementation/{ticket}.md` | Backend implementation notes | Yes (on complete) |
-| `/fe` | `implementation/{ticket}.md` | Frontend implementation notes | Yes (on complete) |
-| `/rev` | `reviews/rev-{ticket}.md` | Code review reports | Yes |
-| `/qa` | `testing/qa-{ticket}.md` | QA test reports | Yes |
-| `/e2e` | `testing/e2e-{ticket}.md` | E2E test reports | Yes |
+## Board Type: Kanban (Not Sprint Board)
 
-### Auto-Save Rules (MANDATORY)
+Traditional sprint dashboards are NOT useful for AI development because:
+- AI dev completes in hours, not weeks — sprint boards go 0%→100% in one session
+- Velocity charts measure team capacity — irrelevant when "capacity" = API budget
+- Burndown charts assume gradual progress — AI development is bursty
 
-**Rule 1: Every Approval Must Be Saved**
+**Use Kanban board** for continuous flow:
+
 ```
-After ANY approval gate completes:
-1. Agent saves decision to their designated file
-2. Agent explicitly triggers: "/sm - please update sprint status"
-3. /sm updates README.md with approval status
+To Do | Investigation | Approved | In Progress | Review | Testing | Done
 ```
 
-**Rule 2: Implementation Notes Required**
-```
-When starting implementation:
-1. /fe or /be creates implementation/{ticket}.md
-2. Notes include: approach, key decisions, blockers
-3. On completion: update file with results + trigger /sm
-```
+No sprint boundaries. Features flow through gates at AI speed. The board gives real-time visibility without artificial timebox constraints.
 
-**Rule 3: Reports Are Persistent**
-```
-All reports (review, QA, E2E) MUST:
-1. Be saved to the designated file
-2. Include date, status, and findings
-3. Trigger /sm to update sprint status
-```
-
-### Sprint README.md Template
-
-```markdown
-# Sprint {N}: {Feature Name}
-
-**Started**: YYYY-MM-DD
-**Status**: 🟡 In Progress | 🟢 Complete | 🔴 Blocked
-
-## Goals
-- [ ] Goal 1
-- [ ] Goal 2
-
-## Approval Status
-
-| Gate | Agent | Status | File | Date |
-|------|-------|--------|------|------|
-| Architecture | /arch | ✅ Approved | [Link](approvals/arch-architecture.md) | YYYY-MM-DD |
-| Security | /secops | ✅ Approved | [Link](approvals/soren-security.md) | YYYY-MM-DD |
-| Finance | /fin | ⏳ Pending | - | - |
-| Legal | /legal | N/A | - | - |
-| UI Design | /ui | ✅ Approved | [Link](approvals/ui-designs/) | YYYY-MM-DD |
-
-## Tickets
-
-| Ticket | Description | Dev | Status | Review | QA | E2E |
-|--------|-------------|-----|--------|--------|-----|-----|
-| ABC-123 | Feature X | /fe | ✅ Done | ✅ | ⏳ | ⏳ |
-| ABC-124 | API Y | /be | 🔄 In Progress | - | - | - |
-
-## Blockers
-- None currently
-
-## Notes
-- Key decisions or context for future reference
-```
-
-### Approval File Templates
-
-**Architecture Approval (`approvals/arch-architecture.md`)**:
-```markdown
-# Architecture Approval: {Feature Name}
-
-**Reviewed By**: /arch
-**Date**: YYYY-MM-DD
-**Status**: ✅ Approved | ❌ Rejected | ⚠️ Approved with conditions
-
-## Summary
-Brief description of architectural decision
-
-## Key Decisions
-1. Decision 1 - rationale
-2. Decision 2 - rationale
-
-## Patterns Selected
-- Pattern 1: Reason
-- Pattern 2: Reason
-
-## Database Changes
-- Table/field changes if any
-
-## API Changes
-- Endpoint changes if any
-
-## Risks & Mitigations
-| Risk | Mitigation |
-|------|------------|
-| Risk 1 | How we handle it |
-
-## Dependencies
-- External service X
-- Library Y
-
-## Next Steps
-- [ ] Proceed to /fin approval (if finance)
-- [ ] Proceed to /ui design (if frontend)
-- [ ] Proceed to implementation
-```
+**Ceremonies** (planning, retro, refinement) happen at **natural breakpoints** — feature complete, investigation done, major milestone reached — not on a fixed schedule.
 
 ---
 
@@ -206,34 +104,628 @@ Brief description of architectural decision
 ### Workflow Summary
 
 ```
-/po → /sm → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe and/or /be → /rev + [/ui verify] → /qa + /e2e
-Vision  AC   Arch.   Security  Finance  Legal    Design   TDD Dev            Review           Automated Testing
+PRODUCT DISCOVERY (User + /po + /ba)
+─────────────────────────────────────
+/po (PO)         → Works WITH the user (stakeholder) to understand business needs
+                   Clarifies: what problem? who is the user? what does success look like?
+                   Creates Feature Vision in Confluence (lightweight: goals, metrics, user needs)
+                   Divides requirements into Epics/Stories describing expected system behavior
+                   Orders backlog by value/risk/urgency
+                   → USER APPROVES Feature Vision before proceeding
 
-[ ] = Conditional participation based on feature type
+/ba (BA)         → Works closely WITH /po (thin border, tight collaboration)
+                   Discovers and clarifies: rules, edge cases, data needs, process flows
+                   Refines Stories: adds AC (Given/When/Then), examples, business rules
+                   Maps business processes (as-is / to-be) when useful
+                   Identifies dependencies, risks, integration points
+                   Ensures stories are small, testable, and valuable
+                   Makes items "ready" so the team can build without guessing
 
-**NEW (v4.0)**: Testing workflow updated:
-- /qa designs test cases from AC, writes reproduction tests for bugs, reviews coverage
-- /e2e implements ALL automated tests (integration, E2E, performance)
-- /qa can perform manual testing when requested by anyone (collaborates with /po, /arch)
-- Automated tests are preferred - must be repeatable and CI/CD ready
+         ↓ Feature Vision approved, Stories refined ↓
+
+ARCHITECTURE & SECURITY REVIEW
+──────────────────────────────
+/arch (Architect) → Reviews architecturally relevant stories
+                    Provides guardrails: patterns, constraints, boundaries, NFRs
+                    Creates ADR in Confluence (C4, Mermaid) for significant decisions
+                    Adds recommendations as Jira comments (devs may deviate with reasoning)
+                    Does NOT dictate implementation — developers decide HOW
+/secops (SecOps)  → Security review, threat modeling, Confluence Approval Checklist
+[/fin, /legal, /ui, /mkt] → Specialist approval when needed
+
+         ↓ Feature approved ↓
+
+TICKET APPROVAL GATE
+────────────────────
+/sm (SM)         → Manages Kanban board, facilitates Ticket Approval Gate
+                   Creates Approval Checklist in Confluence
+ALL team members → Ticket Approval Gate (see below):
+  - /arch confirms architecture guidance is clear
+  - /po confirms business intent is preserved
+  - /ba confirms requirements are complete, edge cases covered
+  - /be or /fe confirms they understand what to build
+  - /ui confirms UX spec is clear (if frontend)
+  - /qa confirms AC are testable and complete for BDD
+
+         ↓ All approve ↓
+
+PARALLEL IMPLEMENTATION
+───────────────────────
+/qa (QA)         → Write test cases + BDD specs from behavioral AC (Confluence)
+/e2e (E2E)       → Implement automated tests from /qa specs
+/be or /fe       → Implement feature (TDD), create Subtasks in Jira
+                   Developers and testers work IN PARALLEL
+
+         ↓ Implementation complete ↓
+
+REVIEW & VERIFICATION
+─────────────────────
+/rev             → Code review (report as Jira comment)
+/secops          → Security review of implementation (if needed)
+/ui              → Design QA via Browser MCP (if frontend, report as Jira comment)
+/qa              → Reviews /e2e tests against approved test cases
+/qa + /e2e       → Execute all tests, report results as Jira comments
+
+         ↓ All pass ↓
+
+RETROSPECTIVE (at natural breakpoints)
+──────────────────────────────────────
+ALL agents       → What went well? What to improve? What to change?
+/sm              → Consolidate, update process, create improvement tickets
 ```
 
 ### Approval Gates (Before Implementation)
 
-| Gate | Agent | When Required |
-|------|-------|---------------|
-| Architecture | /arch | **ALWAYS** - all features need architectural approval |
-| Security | /secops | **ALWAYS** - all features need security review |
-| Finance | /fin | Features involving: payments, billing, accounting, VAT, tax, invoicing |
-| Legal | /legal | Features involving: GDPR, privacy, terms, contracts, compliance |
-| Gap Analysis | /ba | P0/P1 features - pre-implementation review |
+| Gate | Command | When Required |
+|------|---------|---------------|
+| Architecture | /arch | **ALWAYS** — all features need architectural review |
+| Security | /secops | **ALWAYS** — all features need security review |
+| Finance | /fin | Payments, billing, accounting, VAT, tax, invoicing |
+| Legal | /legal | GDPR, privacy, terms, contracts, compliance |
+| Requirements Review | /ba | **ALWAYS** — ensures stories are complete and testable |
 | UI Design | /ui | Features with frontend/UI changes only |
 
-### Gap Analysis Gate (/ba)
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FEATURE DEVELOPMENT FLOW                          │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-For P0/P1 priority features, /ba performs a pre-implementation review:
+   ┌──────────────┐      ┌──────────────┐
+   │  /po + User  │─────▶│    /ba       │
+   │Feature Vision│      │Refine Stories│
+   │Confluence    │      │Add AC, rules │
+   │Epics/Stories │      │edge cases    │
+   └──────────────┘      └──────┬───────┘
+                                │
+                    ┌───────────┴───────────┐
+                    ▼                       ▼
+              ┌─────────┐            ┌─────────┐
+              │  /arch  │            │ /secops │ ◀── ALWAYS REQUIRED
+              │ADR in   │            │Security │
+              │Confluenc│            │in Conflu│
+              └────┬────┘            └────┬────┘
+                   │                      │
+                   └──────────┬───────────┘
+                              │
+                    ┌─────────┼─────────┐
+                    │ (if)    │         │ (if)
+                    ▼         │         ▼
+              ┌─────────┐    │   ┌─────────┐
+              │  /fin   │    │   │ /legal  │
+              │Finance  │    │   │ Legal   │
+              └────┬────┘    │   └────┬────┘
+                   └─────────┼────────┘
+                             │
+                             ▼
+               ┌──────────────────────────┐
+               │  TICKET APPROVAL GATE     │
+               │  /sm facilitates          │
+               │  All team members approve │
+               │  Story before impl starts │
+               └────────────┬─────────────┘
+                            │
+                 ┌──────────┴──────────┐
+                 │ (if frontend)       │ (backend only)
+                 ▼                     │
+           ┌─────────┐                │
+           │  /ui    │                │
+           │ Design  │──▶ /po approves│
+           └────┬────┘                │
+                └──────────┬──────────┘
+                           │
+                 ┌─────────┴─────────┐
+                 │ (frontend)        │ (backend)
+                 ▼                   ▼
+           ┌───────────┐      ┌───────────┐
+           │   /fe     │      │   /be     │
+           │ Frontend  │ ◀──▶ │ Backend   │   IN PARALLEL
+           │ TDD Cycle │      │ TDD Cycle │   with /qa + /e2e
+           └─────┬─────┘      └─────┬─────┘
+                 └────────┬─────────┘
+                          │
+                 ┌────────┴────────┐
+                 │                 │ (if frontend)
+                 ▼                 ▼
+           ┌───────────┐    ┌───────────┐
+           │   /rev    │    │   /ui     │
+           │Code Review│    │Design QA  │
+           └─────┬─────┘    └─────┬─────┘
+                 └────────┬───────┘
+                          │
+               ┌──────────┴──────────┐
+               │                     │
+               ▼                     ▼
+         ┌──────────┐         ┌──────────┐
+         │ Approved │         │ Rejected │──▶ Back to /fe or /be
+         └────┬─────┘         └──────────┘    (fix + Jira comment)
+              │
+              ▼
+        ┌───────────────────────────────────────┐
+        │        AUTOMATED TESTING PHASE        │
+        ├───────────────────────────────────────┤
+        │  /qa designs test cases from AC       │
+        │  /e2e implements automated tests:     │
+        │  • Integration tests (Testcontainers) │
+        │  • E2E tests (Playwright/Cucumber)    │
+        │  • Performance tests (k6)             │
+        │  /qa reviews /e2e tests against specs │
+        │  Reports as Jira comments             │
+        └─────────────┬─────────────────────────┘
+                      │
+               ┌──────┴──────┐
+               │             │
+               ▼             ▼
+           ┌────────┐   ┌────────┐
+           │ PASSED │   │ FAILED │──▶ /e2e reports in Jira
+           └───┬────┘   └────────┘    /sm creates fix tickets
+               │                      Back to development
+               ▼
+           ┌───────────┐
+           │   /sm     │
+           │Transition │
+           │to Done    │
+           └───────────┘
+```
 
-**Gap Analysis Checklist**:
+---
+
+## Jira Issue Hierarchy
+
+### When to Use Each Type
+
+| Type | Definition | When to Use | Created By | Status |
+|------|-----------|-------------|------------|--------|
+| **Epic** | Large feature spanning multiple stories | Complex features, multi-session work | /po | Ready |
+| **Story** | User-facing behavior, completable in one session | Standard features | /po (draft) → /ba (refine AC) | Ready after /po + /ba |
+| **Task** | Technical work not user-facing | CI/CD, ADR, infra, spikes | /arch, /be, /fe, /sm | Draft → /po confirms priority |
+| **Subtask** | Atomic step within a Story | Complex stories needing decomposition | /be, /fe | Ready (devs own) |
+| **Bug** | Defect found during testing or production | Defects, regressions | /qa, /e2e, /rev, any agent | Draft → /po confirms priority |
+
+### Decision Guide
+
+| Scenario | Use |
+|----------|-----|
+| Complex feature, multiple sessions, multiple stories | **Epic** with child Stories |
+| Complex feature, one session, multiple phases | **Story with Subtasks** |
+| Simple feature, one session, one story | **Story only** (no Epic needed) |
+| Technical work, not user-facing | **Task** |
+
+**Not everything needs an Epic.** A Story can stand alone for simple features.
+
+### Example Hierarchy
+
+```
+EPIC: User Authentication System (/po)
+├── STORY: User can log in with email and password (/po draft → /ba refines AC)
+│   ├── Subtask: Implement auth token service (/be)
+│   └── Subtask: Build login form (/fe)
+├── STORY: User can reset password via email (/po draft → /ba refines AC)
+│   ├── Subtask: Implement reset token service (/be)
+│   └── Subtask: Build reset form (/fe)
+└── STORY: User can enable 2FA (/po draft → /ba refines AC)
+```
+
+---
+
+## Ticket Creation Model
+
+### Principle: Anyone can draft, /po is accountable
+
+Any agent can create a ticket in Jira, but the Product Owner is accountable that backlog items represent the right work and are ordered correctly.
+
+### Who Creates What (Default)
+
+| Agent | Creates | Initial Status | Becomes Ready When |
+|-------|---------|---------------|-------------------|
+| `/po` | Epics, Stories (behavior-focused) | **Ready** (PO owns these) | /ba refines AC |
+| `/ba` | Stories (refined from /po vision) | **Ready** | After /po approves priority |
+| `/arch` | Tasks, Spikes (technical research) | Draft | /po confirms priority |
+| `/be`, `/fe` | Subtasks (under Stories) | **Ready** (devs own decomposition) | Immediately |
+| `/qa`, `/e2e` | Bugs (found during testing) | Draft | /po confirms priority |
+| `/rev` | Bugs, Tech Debt Tasks | Draft | /po confirms priority |
+| `/sm` | Process Tasks, Ceremony tickets | **Ready** (SM owns process) | Immediately |
+
+### "Ready" Definition
+
+A Story is **Ready** for implementation when:
+1. `/po` agreed on value + priority
+2. AC are clear — Given/When/Then, edge cases, business rules (from `/po` + `/ba` collaboration)
+3. Team has no major unknowns (or a Spike exists to resolve them)
+
+### Kanban Board Columns
+
+```
+Backlog (drafts) | To Do | Investigation | Approved | In Progress | Review | Testing | Done
+     ↑                ↑
+  Any agent       /po orders
+  creates         + /ba refines
+```
+
+Drafts sit in **Backlog** until `/po` reviews priority. `/po` + `/ba` refine and move to **To Do** when Ready.
+
+### Anti-Patterns to Avoid
+
+| Anti-Pattern | Why It's Bad |
+|-------------|-------------|
+| Only /po can write tickets | /po becomes bottleneck, other agents lose findings |
+| Agents create tickets without /po clarity | Technically perfect tickets for the wrong outcome |
+| Stories changed mid-implementation without agreement | Chaos — use /po + team conversation |
+| Bugs created without reproduction context | Wastes investigation time |
+
+---
+
+## Feature Vision (Confluence)
+
+For every feature (whether Epic or standalone Story), `/po` creates a **Feature Vision** document in Confluence from a template.
+
+### Feature Vision Template
+
+```markdown
+# Feature Vision: [Feature Name]
+
+## Overview
+| Field | Value |
+|-------|-------|
+| Status | Draft / Under Review / Approved |
+| Epic | [Jira Epic link] (if applicable) |
+| Owner | /po |
+| Architect | /arch |
+| Developers | /be, /fe |
+
+## Business Context
+Why does this feature exist? What customer problem does it solve?
+
+## Feature Goals (Checklist)
+- [ ] Goal 1: [measurable outcome]
+- [ ] Goal 2: [measurable outcome]
+- [ ] Goal 3: [measurable outcome]
+
+## Success Metrics
+| Metric | Current | Target | How Measured |
+|--------|---------|--------|--------------|
+
+## User Stories (High-Level)
+| As a ... | I want ... | So that ... | Priority |
+|----------|------------|-------------|----------|
+
+## Design
+[/ui design specs, wireframes, mockups]
+
+## Architecture Overview
+[/arch C4 diagrams in Mermaid, high-level boundaries]
+
+## Discussions & Decisions
+| Date | Topic | Decision | Who |
+|------|-------|----------|-----|
+
+## Open Questions
+| Question | Owner | Answer | Date |
+|----------|-------|--------|------|
+
+## Out of Scope
+- What this feature will NOT do
+
+## Related
+- Investigation: [Confluence link]
+- Approval Checklist: [Confluence link]
+- Test Plan: [Confluence link]
+```
+
+---
+
+## Confluence Space Structure
+
+Each project's Confluence space follows this structure:
+
+```
+Confluence Space: [Product Name]
+│
+├── Product Vision & Strategy/
+│   └── Feature Visions/
+│       └── [Feature Name] Vision              ← /po creates from template
+│
+├── Architecture/
+│   ├── C4 Context Diagram                     ← /arch
+│   ├── C4 Container Diagram                   ← /arch
+│   └── ADRs/
+│       └── ADR-001: [Decision Name]           ← /arch (Mermaid diagrams)
+│
+├── Investigations/
+│   └── [Feature Name] Investigation           ← /ba, /arch
+│
+├── Approvals/
+│   └── [Feature Name] Approval Checklist      ← /sm
+│       ├── ☑ Architecture reviewed (/arch)
+│       ├── ☑ Security reviewed (/secops)
+│       ├── ☐ Finance reviewed (/fin) — if applicable
+│       ├── ☐ Legal reviewed (/legal) — if applicable
+│       └── ☐ Design reviewed (/ui) — if applicable
+│
+├── Test Plans/
+│   └── [Feature Name] Test Cases              ← /qa
+│
+├── Sprints/
+│   ├── Sprint N — Planning                    ← /sm (linked to Jira)
+│   ├── Sprint N — Review Notes                ← /sm
+│   └── Sprint N — Retrospective               ← /sm + all agents
+│
+└── Knowledge Base/
+    └── [Topic]                                ← any agent
+```
+
+---
+
+## Ticket Model: Behavior-Only (CRITICAL)
+
+### Principle: Describe WHAT the system should DO, not HOW to code it
+
+**Stories describe behavior.** No file paths. No code snippets. No line numbers. Developers decide HOW to implement within architectural guidance.
+
+### Story Template (Jira)
+
+```
+Title: [Brief description]
+Type: Story
+Epic: [Link if applicable]
+
+## User Story
+As a [role],
+I want [capability],
+So that [business value]
+
+## Acceptance Criteria (Given/When/Then — BEHAVIOR ONLY)
+
+### Scenario 1: [Happy path name]
+Given [initial context/state]
+When [action is performed]
+Then [expected outcome]
+And [additional outcome]
+
+### Scenario 2: [Error case name]
+Given [initial context/state]
+When [invalid action is performed]
+Then [error behavior]
+
+### Scenario 3: [Edge case name]
+...
+
+## Non-Functional Requirements (measurable)
+- Performance: [metric] < [target]
+- Security: [requirement]
+- Availability: [requirement]
+
+## Architecture Guidance (/arch)
+### Pattern: [recommended pattern]
+### Constraints:
+- [constraint 1]
+- [constraint 2]
+### Boundaries:
+- [service boundary 1]
+- [service boundary 2]
+### Recommendations (developer may deviate with justification):
+- [suggestion with reasoning]
+
+## Security Requirements (/secops)
+- [requirement if applicable]
+
+## Links
+- Feature Vision: [Confluence link]
+- Approval Checklist: [Confluence link]
+- Test Plan: [Confluence link]
+```
+
+### What Does NOT Belong in Stories
+
+| DO NOT Include | Why |
+|----------------|-----|
+| File paths, line numbers | Developers choose implementation |
+| Before/after code snippets | Developers decide how to code |
+| Database column names | Architect recommends, developer decides |
+| Specific library usage | Developer selects tools within constraints |
+| Implementation steps | Developer plans their own approach |
+
+---
+
+## Architecture-Developer Collaboration Model
+
+### Principle: Guide, Don't Dictate
+
+The architect-developer relationship is **collaborative, not prescriptive**. The architect provides guardrails; developers own implementation.
+
+### How /arch and Developers Work Together
+
+1. **/arch recommends** — patterns, constraints, boundaries, C4 diagrams, NFRs. May suggest specific approaches or even code IF it explains WHY (e.g., "consider PersistentTokenRepository because it handles rotation automatically")
+2. **Developer analyzes** — accepts, validates, or challenges /arch suggestions
+3. **Developer decides** — follows recommendation OR deviates with justification
+4. **Jira comments** — all reasoning captured so the user understands WHY decisions were made
+
+### What /arch IS Responsible For (System-Level)
+
+- Defines or guides **structure**: components/services/modules and how they connect
+- Makes **tradeoffs** explicit: cost vs speed vs safety
+- Sets **guardrails**: patterns, standards, constraints
+- Ensures **NFRs** are addressed: security, performance, reliability
+- Aligns **cross-team interfaces** and evolution plans
+- Approves only **high-impact architectural changes** (not everything)
+
+### What /arch is NOT Responsible For
+
+- How the team builds it (coding, task assignment) — that's developers
+- Approving every PR or technical decision
+- Dictating code style or internal class design
+- Designing without considering operations (deploy, monitoring, rollback)
+
+### When to Involve /arch
+
+| Involve /arch | Developer-Led |
+|--------------|---------------|
+| New service or database | Adding endpoints within existing boundary |
+| Changing API contracts used by other teams | Internal refactoring (no external behavior change) |
+| Switching sync → async messaging | UI feature (unless it changes backend contracts) |
+| Security model changes (scopes/roles/PII) | Minor library upgrades |
+| High-load features, performance constraints | Standard CRUD operations |
+| Major refactors, migrations, schema changes | Bug fixes within existing architecture |
+
+### If Developer Deviates from /arch Recommendation
+
+The developer MUST comment in the Jira ticket explaining:
+- What they chose instead
+- Why it's better for this specific case
+- Any trade-offs the team should know about
+
+### /rev Verification
+
+During code review, /rev checks:
+- Are the architectural constraints met? (patterns, boundaries, NFRs)
+- If developer deviated from /arch recommendation, is the reasoning documented and sound?
+- Does the implementation satisfy the behavioral AC?
+
+---
+
+## Ticket Approval Gate (MANDATORY)
+
+Before implementation begins, ALL relevant team members must approve the Story by commenting in Jira:
+
+| Role | Command | Approves | What They Check |
+|------|---------|----------|----------------|
+| Architect | `/arch` | Architecture | Guidance is clear, fits system boundaries |
+| Product Owner | `/po` | Business | Business intent preserved in AC |
+| Business Analyst | `/ba` | Requirements | Requirements complete, edge cases covered |
+| Developer | `/be` or `/fe` | Implementation | "I understand what to build" |
+| Designer | `/ui` (if UI) | Design | UX spec is clear and complete |
+| QA | `/qa` | Testability | AC are testable and complete for BDD |
+
+**Process**:
+1. /po + /ba create and refine Story in Jira with behavioral AC
+2. /sm facilitates Ticket Approval Gate, tags team members
+3. Each member reviews and comments "APPROVED" or raises concerns
+4. /sm updates Confluence Approval Checklist
+5. Only when all required approvals are in → Story moves to "In Progress"
+
+---
+
+## Full Dev Process in a Jira Ticket
+
+The Jira ticket IS the single source of truth for the entire dev process. Every stage adds a comment. Reading a ticket top-to-bottom shows the full journey:
+
+```
+STORY: "As a user, I can reset my password via email"
+│
+├── Description: behavioral AC (Given/When/Then), NFRs, links to Confluence
+│   Written by /po, AC refined by /ba
+│
+├── Comment 1 (/arch): Architecture suggestions
+│   "I recommend token-based with TTL because... Consider
+│    PersistentTokenRepository for automatic rotation.
+│    Email via async event to decouple services."
+│
+├── Comment 2 (/qa): Ticket Approval — Testability
+│   "APPROVED. AC are testable. I'll write BDD specs for all 3 scenarios."
+│
+├── Comment 3 (/be): Developer vision
+│   "I'll follow /arch's token approach but use Redis TTL instead
+│    of DB-based TTL because we already have Redis for sessions."
+│
+├── Comment 4 (/be): Implementation details (after coding)
+│   "Implemented in PR #42. Key decisions:
+│    - Used RedisTokenRepository with 24h TTL
+│    - Rate limiting at 3/hour via @RateLimiter
+│    - Email via Spring Events (not Kafka — overkill for this volume)"
+│
+├── Comment 5 (/rev): Code review report
+│   "APPROVED with suggestions:
+│    - Add null check on token lookup (line 45)
+│    - Consider adding metrics for reset attempts"
+│
+├── Comment 6 (/be): Fix resolution
+│   "Fixed: added null check + Micrometer counter. PR #42 updated."
+│
+├── Comment 7 (/qa): Test case review + execution report
+│   "PASSED: 5/5 scenarios. /e2e tests reviewed against specs. Coverage: 94%."
+│
+├── Comment 8 (/e2e): E2E test report
+│   "PASSED: Full flow in Playwright. Cross-browser: Chrome, Firefox, Safari."
+│
+└── Status: DONE ✅
+```
+
+---
+
+## Phase 1: Product Discovery & Planning
+
+### 1.1 Product Owner (/po)
+
+/po advocates for the user/stakeholders. Works WITH the user to understand needs.
+
+**Responsibilities**:
+- Product **vision & outcomes**: What problem? Who is the user? What does success look like?
+- **Backlog ownership**: Ordering items by value/risk/urgency. Deciding what's most important now.
+- **Clarifying requirements**: Explaining intent and expected behavior. Making tradeoffs when constraints appear.
+- **Acceptance of work**: Verifies delivered items meet acceptance criteria.
+- **Stakeholder management**: Collects needs/feedback, aligns conflicting requests, communicates roadmap.
+
+**Outputs**:
+- **Feature Vision** in Confluence (lightweight: goals, metrics, user stories high-level)
+- **Epics** in Jira (if feature is complex enough)
+- **Stories** in Jira (behavior-focused drafts describing expected system behavior)
+- Well-ordered **Product Backlog** — top items are clear, valuable, and small enough to plan
+- **Approves UI designs** from /ui before implementation
+
+**What /po is NOT responsible for**:
+- How the team builds it (architecture, coding, task assignment)
+- Running Scrum process (that's /sm)
+- Writing every detail alone (supported by /ba, /ui, /arch)
+- Approving every technical decision or PR
+
+**User approves Feature Vision** before proceeding to refinement.
+
+### 1.2 Business Analyst (/ba)
+
+/ba works closely with /po (thin border, tight collaboration). Makes items "ready" so the team can build without guessing.
+
+**Responsibilities**:
+- **Clarifies "what problem are we solving?"** — helps stakeholders express goals, pain points, constraints
+- **Shapes and refines requirements** — breaks big ideas into smaller slices (epics → stories), adds AC (Given/When/Then), examples, edge cases, business rules, data needs
+- **Supports backlog refinement** — prepares items before refinement, helps team estimate, identifies dependencies and risks early
+- **Aligns stakeholders** — runs workshops/discovery sessions, ensures team interpretation matches stakeholder intent, handles "we actually meant something else" before work starts
+- **Helps with solution options** — maps business processes (as-is / to-be), clarifies integrations, data flows, reporting needs, supports UX flows
+- **Validates outcomes** — checks delivered work against AC, supports UAT, collects feedback
+
+**Outputs**:
+- Well-formed **user stories + acceptance criteria** (Given/When/Then)
+- **Process flows / user journeys** when useful
+- **Business rules** documentation
+- **Non-functional requirements** notes (security, audit, performance)
+- **Investigation reports** in Confluence
+
+**BA is doing well if**:
+- The team rarely says: "we didn't know this requirement existed"
+- Refinement sessions are productive (not confused debates)
+- Stories entering implementation are small, clear, and testable
+- Stakeholders agree: "yes, that's what we wanted"
+- Rework caused by misunderstanding decreases over time
+
+**Gap Analysis Checklist** (for P0/P1 features):
 - [ ] All requirements documented
 - [ ] Success metrics defined
 - [ ] Edge cases identified
@@ -241,208 +733,57 @@ For P0/P1 priority features, /ba performs a pre-implementation review:
 - [ ] User impact assessed
 - [ ] Rollback strategy defined
 
-**Gap Analysis Report Format**:
-```markdown
-## Pre-Implementation Review: [Feature Name]
+### 1.3 Scrum Master (/sm)
 
-**Reviewed By**: /ba
-**Date**: YYYY-MM-DD
-**Priority**: P0/P1
-**Quality Score**: X/10
+/sm manages process, not content. Facilitates, doesn't author requirements.
 
-### Gaps Identified
+**Responsibilities**:
+- Manages **Kanban board** and ticket workflow states
+- Facilitates **Ticket Approval Gate** — tags team members, tracks approvals
+- Creates **Approval Checklist** in Confluence
+- Removes **blockers**, coaches team on process
+- Facilitates **ceremonies** at natural breakpoints (planning, retro, refinement)
+- Creates **fix tickets** when tests fail, **tech debt tickets** from review suggestions
 
-| Gap | Priority | Status | Resolution |
-|-----|----------|--------|------------|
-| Missing success metrics | P1 | OPEN | Define before implementation |
-| No rollback strategy | P0 | RESOLVED | /arch defined in ADR |
+### 1.4 Solution Architect (/arch) — ALWAYS REQUIRED
+**MANDATORY**: All features with architectural relevance require /arch review before implementation.
 
-### Recommendations
-1. [Recommendation]
-2. [Recommendation]
+/arch focuses on things that affect system shape: boundaries, data ownership, integration patterns, performance, security, operational concerns.
 
-### Verdict
-- [ ] **PROCEED** - Ready for implementation (Score >= 8/10)
-- [ ] **GAPS TO ADDRESS** - Resolve issues before implementation
-```
+- Writes **ADR in Confluence** with C4 diagrams (Mermaid) for significant decisions
+- Adds **architecture guidance** as Jira comment: patterns, constraints, boundaries, NFRs
+- Comments **recommendations** — developer may deviate with justification
+- Does **just enough design "ahead"**, keeps it iterative (spikes, architecture runway)
+- Provides **guardrails**: recommended patterns, service boundaries, API guidelines, cross-cutting concerns
+- Does NOT prescribe exact implementation — developers decide HOW within guardrails
 
-**Quality Score Threshold**: Features must achieve 8/10 or higher to proceed.
+**During sprint**: /arch is available for quick design validation, decisions when unknowns appear, reviewing PRs only where architectural constraints matter. Not a gate that blocks delivery.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           FEATURE DEVELOPMENT FLOW                          │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-   ┌─────────┐      ┌─────────┐      ┌─────────┐      ┌─────────┐
-   │  /po    │─────▶│  /sm    │─────▶│ /arch   │─────▶│/secops  │ ◀── ALWAYS REQUIRED
-   │ Vision  │      │Sprint AC│      │Arch.Appr│      │Sec.Revw │
-   └─────────┘      └─────────┘      └─────────┘      └────┬────┘
-                                                            │
-                    ┌───────────────────────┼───────────────────────┐
-                    │ (if finance)          │                       │ (if legal)
-                    ▼                     │                     ▼
-              ┌─────────┐                 │               ┌─────────┐
-              │  /fin   │                 │               │ /legal  │
-              │Finance  │                 │               │ Legal   │
-              │Approval │                 │               │Approval │
-              └────┬────┘                 │               └────┬────┘
-                   │                      │                    │
-                   └──────────────────────┼────────────────────┘
-                                          │
-                                          ▼
-                              ┌───────────────────────┐
-                              │  Ready for Design/Dev │
-                              └───────────┬───────────┘
-                                          │
-                    ┌─────────────────────┴─────────────────────┐
-                    │ (if frontend)                             │ (backend only)
-                    ▼                                           │
-              ┌─────────┐                                       │
-              │  /ui    │                                       │
-              │ Design  │────▶ /po approves                     │
-              └────┬────┘                                       │
-                   │                                            │
-                   └──────────────────────┬────────────────────┘
-                                          │
-                    ┌─────────────────────┴─────────────────────┐
-                    │ (frontend)                                │ (backend)
-                    ▼                                           ▼
-              ┌───────────┐                              ┌───────────┐
-              │   /fe     │                              │   /be     │
-              │ Frontend  │                              │ Backend   │
-              │ TDD Cycle │                              │ TDD Cycle │
-              └─────┬─────┘                              └─────┬─────┘
-                    │                                          │
-                    └──────────────────────┬───────────────────┘
-                                           │
-                     ┌─────────────────────┴─────────────────────┐
-                     │                                           │ (if frontend)
-                     ▼                                           ▼
-               ┌───────────┐                              ┌───────────┐
-               │   /rev    │                              │   /ui     │
-               │Code Review│                              │Design QA  │
-               │Quality+Sec│                              │Browser MCP│
-               └─────┬─────┘                              └─────┬─────┘
-                     │                                          │
-                     └──────────────────────┬───────────────────┘
-                                            │
-                             ┌──────────────┴──────────────┐
-                             │                             │
-                             ▼                             ▼
-                       ┌──────────┐                  ┌──────────┐
-                       │ Approved │                  │ Rejected │
-                       └────┬─────┘                  └────┬─────┘
-                            │                             │
-                            │                             └──▶ Back to /fe or /be
-                            ▼
-                      ┌───────────────────────────────────────┐
-                      │        AUTOMATED TESTING PHASE        │
-                      ├───────────────────────────────────────┤
-                      │  /qa designs test cases from AC       │
-                      │  /e2e implements automated tests:     │
-                      │  • Integration tests (Testcontainers) │
-                      │  • E2E tests (Playwright/Cucumber)    │
-                      │  • Performance tests (k6)             │
-                      │  /qa reviews test coverage            │
-                      └─────────────┬─────────────────────────┘
-                                    │
-                             ┌──────┴──────┐
-                             │             │
-                             ▼             ▼
-                         ┌────────┐   ┌────────┐
-                         │ PASSED │   │ FAILED │
-                         └───┬────┘   └───┬────┘
-                             │            │
-                             │            └──▶ /e2e reports to /sm
-                             │                 /sm creates fix tickets
-                             ▼                 Back to development
-                         ┌───────────┐
-                         │   /sm     │
-                         │Update     │
-                         │Sprint     │
-                         └─────┬─────┘
-                               │
-                               └──▶ Technical Writer updates docs
-```
-
-## Phase 1: Planning & Design
-
-### 1.1 Product Owner (/po)
-- Defines product vision and goals
-- Creates and prioritizes backlog
-- Provides business context for features
-- **Approves UI designs** from /ui before implementation
-
-### 1.2 Scrum Master (/sm)
-**CRITICAL**: Must provide for each feature:
-- [ ] **Feature Description**: Clear explanation of what the feature does
-- [ ] **Acceptance Criteria**: Specific, testable criteria (Given/When/Then)
-- [ ] **Test Scenarios**: Key scenarios to validate
-- [ ] **Feature Type Tags**: `[frontend]`, `[backend]`, `[finance]`, `[legal]`
-
-```markdown
-## Feature: User Login [frontend] [backend]
-
-### Description
-Users can log in using email and password to access their account.
-
-### Acceptance Criteria
-- [ ] AC-1: Given valid credentials, When user submits login form, Then user is redirected to dashboard
-- [ ] AC-2: Given invalid credentials, When user submits login form, Then error message is displayed
-- [ ] AC-3: Given 5 failed attempts, When user fails again, Then account is locked for 15 minutes
-
-### Test Scenarios
-- Happy path: Valid login
-- Error: Invalid email format
-- Error: Wrong password
-- Error: Non-existent user
-- Security: Account lockout
-```
-
-### 1.3 Solution Architect (/arch) - ALWAYS REQUIRED
-**MANDATORY**: All features require /arch approval before implementation.
-
-- Reviews architectural impact
-- Validates patterns and design decisions
-- Approves database schema changes
-- Approves API contract changes
-- Identifies cross-cutting concerns
-
-### 1.3.1 Security Engineer (/secops) - ALWAYS REQUIRED
+### 1.5 Security Engineer (/secops) — ALWAYS REQUIRED
 **MANDATORY**: All features require /secops security review before implementation.
 
 - Conducts threat modeling (STRIDE/PASTA/LINDDUN)
 - Reviews authentication and authorization design
-- Identifies security requirements and compliance obligations
-- Defines security scanning configuration for CI/CD
-- Assesses supply chain and dependency risks
-- Output: `approvals/soren-security.md`
+- Updates Confluence **Approval Checklist** with security sign-off
+- Adds security requirements to Jira Story if applicable
 
-### 1.4 Conditional Approvals
+### 1.6 Conditional Approvals
 
 #### Finance Approval (/fin)
-**Required for features involving**: payments, billing, subscriptions, VAT, tax calculations, invoicing, financial reporting, accounting integrations.
-
-- Reviews tax implications
-- Validates VAT handling
-- Approves payment flows
-- Reviews financial calculations
+**Required for**: payments, billing, subscriptions, VAT, tax, invoicing, financial reporting.
 
 #### Legal Approval (/legal)
-**Required for features involving**: GDPR, privacy policies, terms of service, user consent, data retention, contracts, compliance.
+**Required for**: GDPR, privacy policies, terms of service, user consent, data retention, contracts.
 
-- Reviews GDPR compliance
-- Validates consent mechanisms
-- Approves data handling
-- Reviews legal copy
+### 1.7 UI Designer (/ui) — Frontend Features Only
+- Adds design specs to **Confluence Feature Vision**
+- Gets approval from /po before handoff to /fe
+- **After implementation**: Verifies UI using Browser MCP, reports as Jira comment
 
-### 1.5 UI Designer (/ui) - Frontend Features Only
-**Only involved when feature has `[frontend]` tag**
+### 1.8 Ticket Approval Gate
+See "Ticket Approval Gate" section above. All relevant team members must approve before implementation starts.
 
-- Creates design specs based on /po vision
-- Gets approval from /po before handoff
-- Provides specifications to /fe
-- **After implementation**: Verifies UI using Browser MCP
+---
 
 ## Phase 2: Development (TDD)
 
@@ -450,6 +791,8 @@ Users can log in using email and password to access their account.
 Developers are responsible for ALL tests related to their code:
 - **Unit Tests**: Test individual functions/components
 - **Integration Tests**: Test component interactions
+
+**Before coding**: Add a **developer vision** comment in Jira explaining approach.
 
 **TDD Cycle (Mandatory)**:
 ```
@@ -480,16 +823,28 @@ Developers are responsible for ALL tests related to their code:
 └──────────────────────────────────────────┘
 ```
 
+**After coding**: Add **implementation details** comment in Jira (what was built, key decisions, PR link).
+
 **Developer Testing Standards**:
 - Unit test coverage: >80%
 - Integration test coverage: >60%
 - All tests must pass before code review
-- Tests are documentation - write clear test names
+- Tests are documentation — write clear test names
+
+### 2.2 Subtasks for Complex Stories
+
+For complex Stories, developers create **Subtasks** in Jira:
+- Each Subtask is an atomic piece of work
+- Subtasks can be worked in parallel if independent
+- Parent Story only moves to "Done" when all Subtasks complete
+
+---
 
 ## Phase 3: Code Review
 
 ### 3.1 Code Reviewer (/rev)
-Reviews all code for:
+
+Reviews all code and posts report as **Jira comment** on the Story.
 
 **Quality Checks**:
 - [ ] Code style compliance (ESLint, Checkstyle)
@@ -506,56 +861,38 @@ Reviews all code for:
 - [ ] Secrets not hardcoded
 - [ ] Run security scanners (grype, Trivy, SonarQube)
 
+**Architecture Verification**:
+- [ ] Behavioral AC are satisfied by the implementation
+- [ ] Architectural constraints are met (patterns, boundaries, NFRs)
+- [ ] If developer deviated from /arch recommendation: reasoning is documented and sound
+- [ ] Architecture conditions verified (from Confluence ADR)
+
 **Test Review**:
 - [ ] Tests exist and are meaningful
 - [ ] Coverage meets threshold
 - [ ] Tests follow AAA pattern
 - [ ] No test implementation details
 
+**Two-Pass Review (v15.1)**:
+- Pass 1: Logic correctness, security, code quality
+- Pass 2: Condition verification, boundary values, schema compliance
+
 **Review Outcomes**:
-- **Approved**: Code proceeds to Design QA (if frontend) or QA testing
-- **Changes Requested**: Back to developer with specific feedback
+- **Approved**: Code proceeds to Design QA (if frontend) or testing. Comment in Jira.
+- **Changes Requested**: Back to developer with specific feedback. Comment in Jira.
 
 ### Technical Debt from Code Reviews
 
-Non-blocking suggestions from /rev should be logged as technical debt:
+Non-blocking suggestions from /rev are logged as technical debt:
+1. /rev marks as "SUGGESTION" in review comment
+2. /sm creates Bug/Task ticket in Jira for tech debt
+3. Technical debt is prioritized for future work
 
-**Process**:
-1. /rev identifies improvement that isn't blocking (e.g., "consider extracting utility")
-2. /rev marks as "SUGGESTION" in review report
-3. /sm creates TECH-XXX ticket in sprint folder
-4. Technical debt is prioritized for future sprints
-
-**TECH Ticket Format**:
-```markdown
-# TECH-XXX: [Description]
-
-**Source**: /rev code review for [TICKET]
-**Priority**: Low/Medium/High
-**Effort**: Small/Medium/Large
-**Sprint**: Backlog
-
-## Description
-[What improvement is suggested]
-
-## Files Affected
-- `path/to/file.ts` - [specific location]
-
-## Rationale
-[Why this would improve the codebase]
-
-## Acceptance Criteria
-- [ ] [Criteria]
-```
-
-**Technical Debt Rules**:
-- Never block a review for Low priority suggestions
-- Track all suggestions to prevent accumulation
-- Review tech debt backlog at sprint planning
+---
 
 ## Phase 3.5: Design QA (Frontend Only)
 
-### 3.5.1 UI Designer (/ui) - Design Verification
+### 3.5.1 UI Designer (/ui) — Design Verification
 **Only for features with frontend changes**
 
 After /fe completes implementation and /rev approves code:
@@ -564,111 +901,48 @@ After /fe completes implementation and /rev approves code:
 ```
 1. playwright_navigate → Open deployed/local feature URL
 2. playwright_screenshot → Capture current implementation
-3. playwright_resize → Test responsive breakpoints (mobile/tablet/desktop)
+3. playwright_resize → Test responsive breakpoints
 4. playwright_get_visible_html → Verify component structure
 ```
 
 **Design QA Checklist**:
 - [ ] Layout matches design spec
-- [ ] Colors match design system (use color picker if needed)
-- [ ] Typography is correct (font, size, weight, line-height)
+- [ ] Colors match design system
+- [ ] Typography correct
 - [ ] Spacing/margins match design
-- [ ] Responsive breakpoints work correctly
+- [ ] Responsive breakpoints work
 - [ ] Animations/transitions as specified
 - [ ] Empty/loading/error states implemented
 - [ ] Accessibility: focus states, contrast, touch targets
 
-**Design QA Report**:
-```markdown
-## Design QA Report: [Feature Name]
-
-**Verified By**: Aura
-**Date**: YYYY-MM-DD
-**Design Spec**: [link to design spec]
-
-### Visual Verification
-| Element | Status | Notes |
-|---------|--------|-------|
-| Layout | ✅/❌ | |
-| Colors | ✅/❌ | |
-| Typography | ✅/❌ | |
-| Spacing | ✅/❌ | |
-| Responsive | ✅/❌ | |
-| Animations | ✅/❌ | |
-
-### Screenshots
-- Desktop: [screenshot]
-- Tablet: [screenshot]
-- Mobile: [screenshot]
-
-### Issues Found
-| Issue | Severity | Description |
-|-------|----------|-------------|
-| DES-001 | Minor | Button padding too small on mobile |
-
-### Verdict
-- [ ] **APPROVED** - Matches design spec
-- [ ] **CHANGES NEEDED** - See issues above
-```
-
-**Design QA Outcomes**:
-- **Approved**: Feature proceeds to /qa QA testing
+**Design QA Outcomes**: Report posted as **Jira comment**.
+- **Approved**: Feature proceeds to testing
 - **Changes Needed**: Back to /fe with specific visual fixes
 
-## Phase 4: Automated Testing (No Manual Testing)
+---
 
-### 4.1 Test Case Designer (/qa) - NEW ROLE
+## Phase 4: Automated Testing
+
+### 4.1 Test Case Designer (/qa)
+
+/qa writes **Test Plans** in Confluence and **BDD specs** from behavioral AC.
 
 **PREREQUISITE CHECK**:
-Before testing, /qa MUST verify:
-- [ ] Feature description exists from /sm
-- [ ] Acceptance criteria are defined
+- [ ] Feature description exists from /po + /ba
+- [ ] Acceptance criteria are defined (behavioral Given/When/Then)
 - [ ] Test scenarios are documented
 
-**If Missing Information**:
-```
-/qa → /po: "Feature [X] cannot be tested - missing acceptance criteria"
-/sm → Adds missing information
-/qa → Proceeds with test design
-```
-
-**QA New Responsibilities**:
+**/qa Responsibilities**:
 - Design test cases from acceptance criteria
 - Write test specifications for /e2e to implement
-- Write reproduction tests for bugs (during investigation)
-- Review test coverage after /e2e implements tests
-- Validate that tests properly cover acceptance criteria
+- Write reproduction tests for bugs
+- **Review /e2e tests against approved test cases** (CRITICAL)
+- Validate tests properly cover acceptance criteria
+- Report results as **Jira comment**
 
-**Test Case Specification Format**:
-```markdown
-## Test Specification: [Feature Name]
+### 4.2 Test Automation Engineer (/e2e)
 
-**Designed By**: QA
-**Date**: YYYY-MM-DD
-**For Implementation By**: /e2e
-
-### Test Cases from Acceptance Criteria
-
-| Test ID | AC | Test Description | Type | Priority |
-|---------|-----|-----------------|------|----------|
-| TC-001 | AC-1 | Valid login redirects to dashboard | E2E | High |
-| TC-002 | AC-2 | Invalid credentials shows error | E2E | High |
-| TC-003 | AC-2 | Email validation error message | Integration | Medium |
-| TC-004 | AC-3 | Account lockout after 5 attempts | Integration | High |
-
-### Test Implementation Notes
-- TC-001: Use Playwright, verify URL change
-- TC-004: Requires test container for database reset
-
-### Edge Cases to Cover
-- Empty email/password
-- SQL injection attempt
-- XSS in error message
-```
-
-### 4.2 Test Automation Engineer (/e2e) - EXPANDED ROLE
-
-**E2E Tester now implements ALL automated tests**:
+/e2e implements ALL automated tests. Reports as **Jira comment**.
 
 | Test Type | Framework | When |
 |-----------|-----------|------|
@@ -679,162 +953,25 @@ Before testing, /qa MUST verify:
 | **Performance Tests** | k6, Artillery | As needed |
 | **Visual Regression** | Playwright screenshots | Frontend features |
 
-**E2E Tester's Workflow**:
-1. Receive test specifications from /qa
-2. Implement automated tests
-3. Run tests in CI/CD pipeline
-4. Report results with pass/fail status
-5. Work with developers to fix flaky tests
-6. Maintain DISABLED_TESTS_TRACKER.md for any disabled tests
+**CRITICAL (v4.2)**: /e2e MUST produce committed test script files — never just ad-hoc browser sessions or markdown-only reports. Tests must target staging and be re-runnable via CLI.
 
-**Disabled Tests Tracker (MANDATORY)**:
-When tests must be disabled, /e2e maintains a DISABLED_TESTS_TRACKER.md:
+**After Testing**:
+- **ALL TESTS PASS**: /e2e comments "PASSED" in Jira. /qa reviews tests against specs and signs off on coverage. /sm transitions to Done.
+- **TESTS FAIL**: /e2e comments "FAILED" in Jira with details. /sm creates fix tickets.
 
-```markdown
-# Disabled Tests Tracker
-
-## Active Disabled Tests
-
-| Test File | Test Name | Disabled Date | Reason | Dependency/Blocker | Target Sprint |
-|-----------|-----------|---------------|--------|-------------------|---------------|
-| login.spec.ts | TC-003 | 2024-01-01 | Mobile keyboard | Backend API | Sprint X |
-
-## Re-enabled Tests
-
-| Test File | Test Name | Re-enabled Date | Notes |
-|-----------|-----------|-----------------|-------|
-| checkout.spec.ts | TC-007 | 2024-01-15 | Backend deployed |
-```
-
-**Automated Test Report Format**:
-```markdown
-## Automated Test Report: [Feature Name]
-
-**Implemented By**: E2E Tester
-**Date**: YYYY-MM-DD
-**Build**: [version/commit]
-**CI/CD Run**: [link]
-
-### Test Summary
-| Type | Total | Passed | Failed | Skipped |
-|------|-------|--------|--------|---------|
-| Integration | X | Y | Z | W |
-| E2E | X | Y | Z | W |
-| Performance | X | Y | Z | W |
-
-### Acceptance Criteria Coverage
-| AC | Test IDs | Status |
-|----|----------|--------|
-| AC-1 | TC-001, TC-002 | ✅ COVERED |
-| AC-2 | TC-003, TC-004 | ✅ COVERED |
-
-### Failed Tests
-| Test ID | Test Name | Error | Link |
-|---------|-----------|-------|------|
-| TC-003 | Email validation | Timeout | [trace] |
-
-### Performance Results (if applicable)
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| p95 Response | <500ms | 320ms | ✅ |
-| Throughput | >100 rps | 150 rps | ✅ |
-
-### Recommendation
-- [X] **PASS** - All automated tests passing
-- [ ] **FAIL** - See failed tests above
-```
-
-### 4.3 E2E Review by QA
-
-After /e2e implements tests, /qa performs E2E Review to validate coverage:
-
-**E2E Review Checklist**:
-- [ ] Test count matches QA specification
-- [ ] All acceptance criteria have corresponding tests
-- [ ] Disabled tests have valid justification documented
-- [ ] Legal/compliance requirements are covered (if applicable)
-- [ ] Edge cases are covered
-
-**E2E Review Report Format**:
-```markdown
-## E2E Review Report: [Feature Name]
-
-**Reviewed By**: /qa
-**Date**: YYYY-MM-DD
-**E2E Author**: /e2e
-**QA Spec**: [link to QA test spec]
-
-### Coverage Verification
-
-| AC | QA Test Cases | E2E Tests | Status |
-|----|---------------|-----------|--------|
-| AC-1 | 5 | 5 | COVERED |
-| AC-2 | 3 | 3 | COVERED |
-
-### Disabled Tests
-
-| Test | Disabled Reason | Acceptable? |
-|------|-----------------|-------------|
-| TC-X | [justification] | Yes/No |
-
-### Verdict
-- [ ] **APPROVED** - E2E tests meet QA coverage requirements
-- [ ] **NEEDS MORE TESTS** - See gaps above
-```
-
-### 4.4 After Automated Testing
-
-**If ALL TESTS PASS AND E2E REVIEW APPROVED**:
-```
-/e2e → /qa: "Feature [X] automated tests PASSED"
-/qa → Reviews E2E coverage (E2E Review)
-/qa → /sm: "Feature [X] E2E review APPROVED"
-/sm → Updates sprint status
-/sm → Triggers Technical Writer for documentation
-```
-
-**If TESTS FAIL**:
-```
-/e2e → /sm: "Feature [X] automated tests FAILED - see report"
-/sm → Creates fix tickets from failures
-/sm → Adds tickets to current/next sprint
-→ Back to Phase 2 (Development)
-```
-
-**If E2E REVIEW FINDS GAPS**:
-```
-/qa → /e2e: "E2E review - missing tests for [ACs]"
-/e2e → Adds missing tests
-/e2e → /qa: "Tests added, please re-review"
-```
+---
 
 ## Phase 5: Test Coverage Review
 
-### 5.1 Test Case Designer (/qa) - Coverage Review
+### 5.1 /qa — Coverage Review
 
-After /e2e implements tests:
+After /e2e implements tests, /qa reviews them against approved test cases:
 - [ ] Verify all AC are covered by tests
 - [ ] Verify edge cases are tested
 - [ ] Verify error paths are tested
-- [ ] Sign off on test coverage
+- [ ] Sign off on test coverage (Jira comment)
 
-**Coverage Sign-off**:
-```markdown
-## Test Coverage Sign-off: [Feature Name]
-
-**Reviewed By**: QA
-**Date**: YYYY-MM-DD
-
-### Coverage Assessment
-| AC | Tests | Edge Cases | Error Paths | Status |
-|----|-------|------------|-------------|--------|
-| AC-1 | ✅ | ✅ | ✅ | COMPLETE |
-| AC-2 | ✅ | ⚠️ Missing | ✅ | NEEDS WORK |
-
-### Verdict
-- [ ] **APPROVED** - Test coverage is sufficient
-- [ ] **NEEDS MORE TESTS** - See gaps above
-```
+---
 
 ## Phase 6: Documentation & Release
 
@@ -844,707 +981,321 @@ After /e2e implements tests:
 - Creates release notes
 
 ### 6.2 Scrum Master (/sm)
-- Updates sprint status
-- Marks feature as complete
-- Updates velocity metrics
+- Transitions Jira ticket to Done
+- Updates Confluence sprint notes if applicable
+
+---
+
+## Context Preservation (Git Files for Agent Memory)
+
+While Jira and Confluence are the primary tools, **Git files** provide context preservation across Claude Code sessions. This is critical because agents lose context between sessions.
+
+### Hybrid Model: What Goes Where
+
+| Content | Primary Location | Git File (agent memory) |
+|---------|-----------------|------------------------|
+| Feature Vision | Confluence | — |
+| Architecture Decision | Confluence ADR | `approvals/arch-architecture.md` |
+| Security Review | Confluence Checklist | `approvals/secops-security.md` |
+| Finance Review | Confluence Checklist | `approvals/fin-finance.md` (if needed) |
+| Legal Review | Confluence Checklist | `approvals/legal-compliance.md` (if needed) |
+| UI Design | Confluence Feature Vision | `approvals/ui-designs/{ticket}.md` |
+| Implementation Notes | Jira comments | `implementation/{ticket}.md` |
+| Code Review | Jira comments | `reviews/rev-{ticket}.md` |
+| Test Report | Jira comments | `testing/qa-{ticket}.md` |
+| E2E Report | Jira comments | `testing/e2e-{ticket}.md` |
+| Decision Log | Confluence Discussions | `DECISION_LOG.md` |
+
+### Sprint Folder Structure (Agent Memory)
+
+```
+docs/sprints/
+├── sprint-{N}-{feature-name}/
+│   ├── README.md                  # Sprint overview + status (for agents)
+│   ├── DECISION_LOG.md            # Key decisions with rationale
+│   ├── approvals/                 # Gate approvals (mirrors Confluence)
+│   ├── implementation/            # Dev notes per ticket
+│   ├── reviews/                   # Code review reports
+│   └── testing/                   # QA & E2E reports
+└── SPRINT-STATUS.md               # Overall sprint tracking
+```
+
+**Rule**: Agents write to BOTH Jira/Confluence AND Git files. Jira is for human visibility; Git files are for agent context across sessions.
+
+### Decision Logging (MANDATORY)
+
+Every sprint folder MUST include a `DECISION_LOG.md`:
+
+```markdown
+# Decision Log: Sprint {N}
+
+| ID | Decision | Category | Rationale | Approved By | Date |
+|----|----------|----------|-----------|-------------|------|
+| D-001 | Use REST over GraphQL | Architecture | Team familiarity | /arch | YYYY-MM-DD |
+| D-002 | Redis TTL over DB TTL | Implementation | Already have Redis | /be | YYYY-MM-DD |
+```
+
+---
 
 ## Workflow Rules
 
 ### Rule 1: Architecture Approval Required
-All features MUST be approved by /arch before implementation begins.
+All features MUST be reviewed by /arch before implementation.
 
-### Rule 1.1: Security Review Required
-All features MUST be reviewed by /secops before implementation begins. Security review follows architecture approval.
+### Rule 2: Security Review Required
+All features MUST be reviewed by /secops before implementation.
 
-### Rule 2: No Feature Without Acceptance Criteria
-Features cannot proceed to QA without documented acceptance criteria from /sm.
+### Rule 3: Ticket Approval Gate
+All Stories MUST be approved by relevant team members before implementation starts.
 
-### Rule 3: Developers Own Their Tests
-Unit and integration tests are written BY developers, not QA. Developers are accountable for code quality.
+### Rule 4: Behavior-Only Tickets
+Stories describe WHAT the system should do, not HOW to code it. No file paths, code snippets, or line numbers in Stories.
 
-### Rule 4: Black Box QA
-/qa tests features without code knowledge, purely against requirements. This validates that the feature works for end users.
+### Rule 5: No Feature Without Acceptance Criteria
+Features cannot proceed without behavioral AC from /po + /ba.
 
-### Rule 5: Security is Non-Negotiable
-/rev must run security scans on every code review. Critical vulnerabilities block release.
+### Rule 6: Developers Own Their Tests
+Unit and integration tests are written BY developers, not QA.
 
-### Rule 6: Design QA for Frontend
-Frontend features require /ui to verify UI implementation using Browser MCP tools before /qa QA.
+### Rule 7: Black Box QA
+/qa tests features against requirements, not implementation. /qa reviews /e2e tests against approved test cases.
 
-### Rule 7: Domain Expert Approval
-- Finance features → /fin approval required
-- Legal features → /legal approval required
+### Rule 8: Security is Non-Negotiable
+/rev must run security scans on every code review.
 
-### Rule 8: Reports Close the Loop
-Every phase produces a report/status update that triggers the next phase.
+### Rule 9: Design QA for Frontend
+Frontend features require /ui verification using Browser MCP before testing.
 
-## Quick Reference: Who Does What
+### Rule 10: Domain Expert Approval
+Finance features → /fin. Legal features → /legal.
 
-| Task | Agent | When |
-|------|-------|------|
-| Write user stories | /po + /sm | Always |
-| Write acceptance criteria | /sm | Always |
-| Approve architecture | /arch | **Always** |
-| Security review | /secops | **Always** |
-| Approve finance features | /fin | If `[finance]` tag |
-| Approve legal features | /legal | If `[legal]` tag |
-| Design UI | /ui | If `[frontend]` tag |
-| Write unit tests | /fe or /be | Always (TDD) |
-| Write integration tests | /fe or /be | Always (TDD) |
-| Implement feature | /fe or /be | Always |
-| Review code quality | /rev | Always |
-| Review security | /rev | Always |
-| Verify UI implementation | /ui | If `[frontend]` tag |
-| Black-box testing | /qa | Always |
-| E2E tests | /e2e | Always |
-| Performance tests | /e2e | As needed |
-| Documentation | Technical Writer | After QA pass |
-| Sprint tracking | /sm | Always |
+### Rule 11: Reports as Jira Comments
+Every phase produces a Jira comment that documents what was done and why.
+
+### Rule 12: Dev Process in Tickets
+The Jira ticket is the single source of truth. Read top-to-bottom = full journey.
+
+---
 
 ## Bug / Issue Workflow
 
 ### Reporting a Bug
 
-Use the `/bug` or `/issue` command with a simple description:
+Use the `/bug` or `/issue` command:
 
 ```
-/bug I see internal server error in /approval page when I move from dashboard to users menu item
+/bug I see internal server error in /approval page when I move from dashboard
 /bug Login button doesn't work on mobile Safari
-/bug Performance is slow when loading users list with more than 100 entries
 ```
 
-### Bug Workflow Diagram
+### Bug Workflow
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              BUG WORKFLOW                                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-   /bug [description] or /issue [description]
-         │
-         ▼
-   ┌─────────────────────────┐
-   │ Creates structured bug  │
-   │ report (BUG-XXX)        │
-   └───────────┬─────────────┘
-               │
-               ▼
-   ┌─────────────────────────┐
-   │ /sm creates ticket      │
-   │ • Sets priority (P0-P3) │
-   │   (consults /po,/arch,  │
-   │    user, or suggests    │
-   │    based on load)       │
-   │ • Assigns investigator: │
-   │   /fe, /be, /e2e        │
-   │ • Schedules in sprint   │
-   └───────────┬─────────────┘
-               │
-               ▼
-   ┌─────────────────────────┐
-   │ INVESTIGATION PHASE     │
-   │ • Identify component    │
-   │ • Reproduce issue       │
-   │ • Find root cause       │
-   │ • Gather evidence       │
-   └───────────┬─────────────┘
-               │
-         ┌─────┴─────┐
-         │           │
-         ▼           ▼
-   ┌───────────┐  ┌───────────────────────┐
-   │ REPRODUCED│  │ CANNOT REPRODUCE      │
-   └─────┬─────┘  │ /qa recommends:      │
-         │        │ • Close as "works as  │
-         │        │   designed" OR        │
-         │        │ • Request more info   │
-         │        │   from reporter OR    │
-         │        │ • Mark for monitoring │
-         │        └───────────────────────┘
-         ▼
-   ┌─────────────────────────┐
-   │ /qa writes failing      │
-   │ reproduction test       │
-   │ (MUST fail before fix,  │
-   │  pass after fix)        │
-   └───────────┬─────────────┘
-               │
-               ▼
-   ┌─────────────────────────┐
-   │ Investigation Report    │
-   │ created and saved       │
-   │ (root cause, fix plan)  │
-   └───────────┬─────────────┘
-               │
-               ▼
-   ┌─────────────────────────┐
-   │ FIX PHASE (TDD)         │
-   │ • Read investigation    │
-   │ • Verify repro test     │
-   │   still fails           │
-   │ • Write unit tests      │
-   │   (RED - tests fail)    │
-   │ • Implement fix         │
-   │   (GREEN - tests pass)  │
-   │ • Refactor code         │
-   │ • All tests pass        │
-   └───────────┬─────────────┘
-               │
-               ▼
-   ┌─────────────────────────┐
-   │ /rev reviews fix        │
-   │ /e2e runs automated     │
-   │ tests (verifies fix)    │
-   │ /sm closes ticket       │
-   └─────────────────────────┘
+/bug [description] or /issue [description]
+      │
+      ▼
+┌─────────────────────────┐
+│ Creates structured bug  │
+│ report → /sm creates    │
+│ Bug ticket in Jira      │
+│ • Sets priority (P0-P3) │
+│ • Assigns investigator  │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│ INVESTIGATION PHASE     │
+│ • Identify component    │
+│ • Reproduce issue       │
+│ • Find root cause       │
+│ • Gather evidence       │
+└───────────┬─────────────┘
+            │
+      ┌─────┴─────┐
+      │           │
+      ▼           ▼
+┌───────────┐  ┌───────────────────────┐
+│ REPRODUCED│  │ CANNOT REPRODUCE      │
+└─────┬─────┘  │ /qa recommends:       │
+      │        │ • Close as "works as  │
+      │        │   designed" OR        │
+      │        │ • Request more info   │
+      │        │ • Mark for monitoring │
+      │        └───────────────────────┘
+      ▼
+┌─────────────────────────┐
+│ /qa writes failing      │
+│ reproduction test       │
+│ (MUST fail before fix,  │
+│  pass after fix)        │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│ FIX PHASE (TDD)         │
+│ • Write unit tests (RED)│
+│ • Implement fix (GREEN) │
+│ • Refactor              │
+│ • All tests pass        │
+│ • Comment fix in Jira   │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│ /rev reviews (Jira cmnt)│
+│ /e2e runs tests (cmnt)  │
+│ /sm transitions Done    │
+└─────────────────────────┘
 ```
 
 ### Bug Priority Levels
 
-| Priority | Criteria | Response Time |
-|----------|----------|---------------|
-| **P0** | System down, data loss, security breach | Immediate - drop everything |
-| **P1** | Major feature broken, no workaround | Same day fix |
-| **P2** | Feature impaired, workaround exists | Current sprint |
+| Priority | Criteria | Response |
+|----------|----------|----------|
+| **P0** | System down, data loss, security breach | Immediate |
+| **P1** | Major feature broken, no workaround | Same day |
+| **P2** | Feature impaired, workaround exists | Current cycle |
 | **P3** | Minor issue, cosmetic | Backlog |
-
-### Cannot Reproduce Scenarios
-
-When a bug cannot be reproduced, /qa has several options:
-
-| Scenario | Recommendation | Action |
-|----------|----------------|--------|
-| **Works as designed** | Close bug | Document why behavior is correct |
-| **Insufficient info** | Request more details | Ask reporter for exact steps, environment, data |
-| **Environment-specific** | Additional investigation | Check reporter's specific config, device, browser |
-| **Intermittent/Flaky** | Mark for monitoring | Add logging, set up alerts, wait for recurrence |
-| **Stale report** | Close as outdated | Bug may have been fixed in recent changes |
-
-**Cannot Reproduce Report**:
-```markdown
-## Cannot Reproduce Report: BUG-XXX
-
-**Reported**: YYYY-MM-DD
-**Investigated By**: /qa
-**Attempts**: [number of reproduction attempts]
-**Environment Tested**: [browsers, devices, data sets]
-
-### Investigation Summary
-[What was tried to reproduce the issue]
-
-### Recommendation
-- [ ] **CLOSE** - Works as designed / Cannot reproduce
-- [ ] **MORE INFO NEEDED** - Request from reporter: [specific questions]
-- [ ] **MONITOR** - Add logging and wait for recurrence
-- [ ] **FURTHER INVESTIGATION** - Escalate to /arch for architecture review
-
-### Notes
-[Any additional context or observations]
-```
-
-### Bug Investigation Report Template
-
-```markdown
-# Bug Investigation Report: BUG-XXX
-
-**Reported**: YYYY-MM-DD
-**Investigated By**: [agent]
-**Priority**: P0/P1/P2/P3
-**Component**: Frontend / Backend / Mobile / API
-
-## Summary
-[Brief description of the bug]
-
-## Root Cause Analysis
-[Technical explanation of what's causing the bug]
-
-## Affected Files
-- `path/to/file1.ts` - [description of involvement]
-- `path/to/file2.kt` - [description of involvement]
-
-## Reproduction Steps
-1. Step 1
-2. Step 2
-3. Expected: [what should happen]
-4. Actual: [what happens]
-
-## Reproduction Test (Written by /qa)
-```typescript
-describe('BUG-XXX', () => {
-  it('should [expected behavior]', () => {
-    // This test currently FAILS - proves the bug exists
-    // After fix, this test MUST pass
-  });
-});
-```
-
-## Proposed Fix
-[Description of how to fix the issue]
-
-## Risk Assessment
-- **Impact**: Low / Medium / High
-- **Regression Risk**: Low / Medium / High
-- **Testing Required**: Unit / Integration / E2E / Manual
-
-## Evidence
-- Logs: [relevant log snippets]
-- Screenshots: [if applicable]
-- Network traces: [if applicable]
-```
-
-### Bug Workflow Roles
-
-| Phase | Agent | Responsibility |
-|-------|-------|----------------|
-| Report | User/Any Agent | Describe the issue with `/bug` command |
-| Investigation | Claude + Component Expert | Reproduce, find root cause |
-| Reproduction Test | /qa | Write failing test that proves bug exists |
-| Cannot Reproduce | /qa | Recommend: close, more info, or monitor |
-| Ticket Creation | /sm | Prioritize and assign to developer |
-| Fix | /fe or /be | Implement fix, ensure test passes |
-| Review | /rev | Code quality and security review |
-| Verification | /e2e | Run automated tests, confirm fix |
-| Closure | /sm | Update sprint, close ticket |
-
-### Bug vs Feature Request
-
-| Type | Command | Workflow |
-|------|---------|----------|
-| **Bug** | `/bug` or `/issue` | Investigation → Reproduction Test → Fix → Verify |
-| **Feature** | Talk to /po | Full feature workflow (design → implement → test) |
-| **Enhancement** | Talk to /po | Add to backlog → prioritize → implement |
-
-### Best Practices for Bug Reports
-
-1. **Be Specific**: Include exact steps to reproduce
-2. **Include Context**: Browser, device, user role, test data
-3. **Expected vs Actual**: What should happen vs what happens
-4. **Evidence**: Screenshots, console errors, network responses
-5. **Severity**: Is it blocking work? Is there a workaround?
 
 ---
 
 ## Proposals System
 
-**Purpose:** Structured process for discussing and approving new features requiring cross-team input before implementation.
+**Purpose:** Structured process for complex features requiring cross-team input before implementation.
 
 ### When to Use Proposals
 
-Use the proposals system when:
-- Feature requires input from multiple domain experts (architecture, legal, finance)
-- Feature has significant business/technical impact
-- Feature requires research before implementation can begin
-- Strategic features that need alignment across the team
-
-### Proposals Folder Structure
-
-```
-docs/proposals/
-├── README.md                          # Proposals system documentation
-├── PROPOSAL-INDEX.md                  # Index of all proposals with status
-│
-└── PROP-XXX-{feature-name}/           # Each proposal gets its own folder
-    ├── README.md                      # Proposal overview
-    ├── DISCUSSION-TICKETS.md          # Agent discussion items
-    ├── TECHNICAL-REQUIREMENTS.md      # Technical specifications
-    ├── USER-STORIES.md                # User stories and acceptance criteria
-    └── DECISIONS.md                   # Recorded decisions (after discussion)
-```
+Use when a feature:
+- Requires input from multiple domain experts
+- Has significant business/technical impact
+- Requires research before implementation
+- Needs strategic alignment across the team
 
 ### Proposal Lifecycle
 
 ```
 DRAFT → DISCUSSION → APPROVED → SCHEDULED → IMPLEMENTED
-  │         │           │           │
-  │         │           │           └── Added to sprint backlog
-  │         │           └── All agents approved, decisions recorded
-  │         └── Agents reviewing and providing input
-  └── Initial proposal created
-          │
-          ▼
-      REJECTED (with rationale)
+                                     │
+                                     └── /po creates Epic/Stories in Jira
 ```
 
-### Proposal Status Definitions
-
-| Status | Description |
-|--------|-------------|
-| **DRAFT** | Initial proposal, not ready for discussion |
-| **DISCUSSION** | Agents actively reviewing and providing input |
-| **APPROVED** | All discussions complete, ready for implementation |
-| **SCHEDULED** | Added to sprint backlog with ticket IDs |
-| **REJECTED** | Not proceeding, with documented rationale |
-| **ON HOLD** | Paused pending external factors |
-
-### Agent Responsibilities in Proposals
-
-| Agent | Review Focus |
-|-------|--------------|
-| /po | Product vision alignment, prioritization |
-| /arch | Technical architecture, feasibility |
-| /legal | Legal compliance, data protection |
-| /fin | Cost analysis, financial impact |
-| /ba | Market research, competitive analysis |
-| /mkt | Marketing implications, user messaging |
-| /ui | UI/UX design considerations |
-| /fe | Frontend implementation complexity |
-| /be | Backend implementation complexity |
-
-### Creating a New Proposal
-
-When creating a new proposal, /sm must:
-
-1. **Create folder structure:**
-   ```bash
-   mkdir -p docs/proposals/PROP-XXX-{feature-name}
-   ```
-
-2. **Create required documents:**
-   - `README.md` - Proposal overview, problem statement, solution
-   - `DISCUSSION-TICKETS.md` - Items for each relevant agent
-   - `TECHNICAL-REQUIREMENTS.md` - Technical specifications
-   - `USER-STORIES.md` - User stories with acceptance criteria
-
-3. **Update PROPOSAL-INDEX.md** - Add entry with status
-
-4. **Assign agents** - Tag relevant agents for review
-
-### Proposal Approval Checklist
-
-Before moving from DISCUSSION to APPROVED:
-
-- [ ] /arch: Architecture review completed
-- [ ] /legal: Legal review completed (if applicable)
-- [ ] /fin: Cost analysis completed (if applicable)
-- [ ] /ba: Market research supports value
-- [ ] /po: Product vision alignment confirmed
-- [ ] All blocking concerns resolved
-
-### Proposal README Template
-
-```markdown
-# PROP-XXX: [Feature Name]
-
-**Proposal ID:** PROP-XXX
-**Status:** DRAFT | DISCUSSION | APPROVED | SCHEDULED | REJECTED | ON HOLD
-**Created:** YYYY-MM-DD
-**Author:** [Agent]
-**Priority:** HIGH | MEDIUM | LOW
+Proposals live in Confluence under the project's Product Vision & Strategy section.
 
 ---
 
-## Problem Statement
+## Retrospective Process (v6.0 — Full Team)
 
-[What problem does this feature solve?]
+### When to Run
 
----
+Retrospectives happen at **natural breakpoints**:
+- Feature/Epic completion
+- Major milestone reached
+- Critical incident
+- User requests one
 
-## Proposed Solution
+### Participants
 
-[How will we solve it?]
+**Core Team (Always Required)**:
 
----
+| Agent | Focus Area |
+|-------|------------|
+| /sm | Process, workflow, metrics, consolidation |
+| /po | Product vision, priorities, user value |
+| /arch | Technical decisions, patterns, quality |
+| /ba | Requirements coverage, user value |
+| /be | Backend implementation, TDD, patterns |
+| /fe | Frontend implementation, component design |
+| /rev | Quality gates, security, review process |
+| /qa | Test design, coverage gaps, QA process |
+| /e2e | CI/CD, test infrastructure, automation |
 
-## Business Value
-
-[Why is this important?]
-
----
-
-## Scope
-
-### In Scope
-- Item 1
-- Item 2
-
-### Out of Scope
-- Item 1
-- Item 2
-
----
-
-## Success Metrics
-
-| Metric | Target |
-|--------|--------|
-| Metric 1 | Target value |
-
----
-
-## Risks and Mitigations
-
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Risk 1 | HIGH/MED/LOW | HIGH/MED/LOW | How to mitigate |
-
----
-
-## Dependencies
-
-| Dependency | Type | Status |
-|------------|------|--------|
-| Dep 1 | Technical/External/Legal | ✅/⏳ |
-
----
-
-## Approval Status
-
-| Agent | Status | Date | Notes |
-|-------|--------|------|-------|
-| /po | ⏳ PENDING | | |
-| /arch | ⏳ PENDING | | |
-```
-
-### Current Proposals
-
-Track all proposals in `docs/proposals/PROPOSAL-INDEX.md`
-
----
-
-## Sprint Retrospective Process
-
-**Purpose:** Continuous improvement through structured reflection at sprint boundaries. Involves domain experts to identify cross-functional improvements.
-
-### When to Run Retrospectives
-
-| Trigger | Type | Participants |
-|---------|------|--------------|
-| Sprint completion | Standard Retrospective | Core team + relevant domain experts |
-| Major release | Launch Retrospective | All agents |
-| Critical incident | Incident Retrospective | Affected agents |
-| Quarterly | Strategic Retrospective | /po, /arch, /fin, /legal, /ba, /mkt |
-
-### Retrospective Participants (v6.0 - Full Team)
-
-**Core Team (Always Required):**
-
-| Agent | Role | Focus Area |
-|-------|------|------------|
-| /sm | Facilitator | Process, workflow, sprint metrics, consolidation |
-| /po | Product Owner | Product vision, priorities, backlog, user value |
-| /arch | Architecture | Technical decisions, patterns, quality |
-| /ba | Business Analysis | Requirements coverage, user value |
-| /be | Backend Development | Implementation challenges, TDD, backend patterns |
-| /fe | Frontend Development | UI/UX implementation, component design |
-| /rev | Code Review | Quality gates, security, review process |
-| /qa | QA Engineering | Test design, coverage gaps, QA process |
-| /e2e | E2E Automation | CI/CD, test infrastructure, automation strategy |
-
-**Domain Experts (Conditional):**
-
-| Agent | When Required |
-|-------|---------------|
-| /fin | Finance features (payments, billing, accounting) |
-| /legal | Legal features (GDPR, compliance, terms, privacy) |
-| /mkt | Launch/marketing features (landing pages, GTM) |
+**Domain Experts (Conditional)**: /fin (finance), /legal (legal), /mkt (marketing)
 
 ### Three Questions Framework
 
-Each participating agent answers:
+Each agent answers:
+1. **What went well?** — Successes, practices to continue
+2. **What could be improved?** — Pain points, gaps
+3. **What should change?** — Process updates, new practices
 
-1. **What went well?** - Successes, achievements, practices to continue
-2. **What could be improved?** - Pain points, inefficiencies, gaps identified
-3. **What should change?** - Process changes, new practices, workflow updates
+### Retrospective Outputs
 
-### Retrospective Workflow
-
-```
-Sprint Complete
-      │
-      ▼
-┌─────────────────────┐
-│ /sm triggers retro  │
-│ Identifies agents   │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    PARALLEL AGENT RETROSPECTIVES                         │
-├─────────────────────────────────────────────────────────────────────────┤
-│  CORE TEAM (Always):                                                     │
-│  /po      /arch    /ba      /be       /fe       /rev     /qa      /e2e  │
-│  PO       Arch.    BA       Backend   Frontend  Review   QA       E2E   │
-│                                                                          │
-│  DOMAIN EXPERTS (Conditional):                                           │
-│  /fin       /legal      /mkt                                             │
-│  (if fin)   (if legal)  (if launch)                                      │
-└──────────────────────────────┬──────────────────────────────────────────┘
-                               │
-                               ▼
-                      ┌────────────────┐
-                      │ /sm consolidates│
-                      │ Creates report  │
-                      └────────┬───────┘
-                               │
-               ┌───────────────┼───────────────┐
-               │               │               │
-               ▼               ▼               ▼
-        ┌────────────┐  ┌────────────┐  ┌────────────┐
-        │ Tech Debt  │  │ Process    │  │ Next Sprint│
-        │ Tickets    │  │ Updates    │  │ Planning   │
-        └────────────┘  └────────────┘  └────────────┘
-```
-
-### Agent Retrospective Report Template
-
-Each agent creates their report in the sprint folder:
-
-```markdown
-# {Agent Role} Retrospective: Sprint {N}
-
-**Agent:** /{agent}
-**Date:** YYYY-MM-DD
-**Sprint:** {N}
-**Overall Score:** X/10
+1. **Agent reports** → Confluence (Sprint N — Retrospective)
+2. **Consolidated report** → Confluence (by /sm)
+3. **Tech debt tickets** → Created in Jira
+4. **Process improvements** → Updated in this TEAM_WORKFLOW.md
+5. **Skill updates** → Updated in `~/.claude/skills/` (universal knowledge only)
 
 ---
 
-## 1. What Went Well
+## Definition of Done
 
-### Area 1
-| Metric | Score | Notes |
-|--------|-------|-------|
-| {metric} | X/10 | {description} |
+### Code Complete
+- [ ] All acceptance criteria implemented (behavioral AC from Story)
+- [ ] Unit tests written (>80% coverage)
+- [ ] Integration tests written (>60% coverage)
+- [ ] All tests passing locally
+- [ ] All modules compile successfully
+- [ ] No temporary types without consolidation ticket
+- [ ] Developer vision and implementation details commented in Jira
 
-**Key Achievements:**
-- Achievement 1
-- Achievement 2
+### Code Review
+- [ ] /rev approved (Jira comment)
+- [ ] /rev passed security scan
+- [ ] /ui verified UI (if frontend) — Jira comment
+- [ ] Architecture constraints verified
+- [ ] If deviated from /arch recommendation: reasoning documented in Jira
+- [ ] Two-pass review completed (v15.1)
 
----
+### Testing
+- [ ] /qa designed test cases (Confluence Test Plan)
+- [ ] /e2e implemented automated tests
+- [ ] All E2E tests passing
+- [ ] /qa reviewed /e2e tests against approved test cases (Jira comment)
+- [ ] /qa signed off on test coverage (Jira comment)
 
-## 2. What Could Be Improved
-
-| ID | Issue | Priority | Risk | SP Est. |
-|----|-------|----------|------|---------|
-| {ID} | {description} | P0/P1/P2 | HIGH/MED/LOW | X |
-
----
-
-## 3. What Should Change
-
-| ID | Change | Category | Owner | Status |
-|----|--------|----------|-------|--------|
-| {ID} | {change} | {category} | /{agent} | NEW |
-
----
-
-## Recommendations
-
-1. {Recommendation 1}
-2. {Recommendation 2}
+### Documentation
+- [ ] Implementation notes in Jira comments
+- [ ] Review report in Jira comments
+- [ ] Test report in Jira comments
+- [ ] Git files updated for agent context preservation
 
 ---
 
-## Tickets Created
+## Process Improvements
 
-- {TICKET-ID}: {Title} ({SP} SP)
-```
+### From Sprint 4 Retrospective (v4.1)
+- Sprint start: Run full `mvn compile` to catch cross-module issues early
+- Architecture conditions must have explicit checkboxes verified in code review
+- Temporary types require immediate consolidation ticket
+- Auth infrastructure first when building API clients
+- WireMock stubs saved to `src/test/resources/wiremock/` for shared API mocking
 
-### Consolidated Retrospective Report
+### From Sprint 15 Retrospective (v15.1)
+- Pre-implementation filter enumeration
+- Post-schema-change query audit
+- Two-pass code review as default
+- Finance verification in Definition of Done
+- Architecture conditions include negative cases
+- Fail-loud for audit trail functions
+- Feature sprints reserve 15-20% capacity for trailing tech debt
 
-/sm creates a consolidated report combining all agent inputs:
-
-```markdown
-# Consolidated Retrospective: Sprint {N}
-
-**Date:** YYYY-MM-DD
-**Facilitator:** /sm
-**Contributing Agents:** /{agent1}, /{agent2}, ...
-
----
-
-## Executive Summary
-
-{Brief summary of sprint outcomes and key findings}
-
----
-
-## 1. What Went Well (Combined)
-
-### Architecture (/{arch})
-{Summary of architecture achievements}
-
-### Business Analysis (/{ba})
-{Summary of BA achievements}
-
-### Finance (/{fin}) - if applicable
-{Summary of finance achievements}
-
-### Legal (/{legal}) - if applicable
-{Summary of legal achievements}
-
-### Marketing (/{mkt}) - if applicable
-{Summary of marketing achievements}
+### From Sprint 51 Retrospective (v51.1)
+- Widget registration audit for admin pages
+- Translation key completeness gate
+- Staging visual verification in code review
+- Widget DOM count assertions in E2E
+- 5 Questions retrospective framework
 
 ---
 
-## 2. What Could Be Improved (All Issues)
+## Version History
 
-| ID | Issue | Agent | Priority | SP Est. |
-|----|-------|-------|----------|---------|
-| {ID} | {issue} | /{agent} | P0/P1/P2 | X |
-
----
-
-## 3. What Should Change (Process Improvements)
-
-| ID | Change | Category | Owner | Status |
-|----|--------|----------|-------|--------|
-| {ID} | {change} | {category} | /{agent} | NEW |
-
----
-
-## Technical Debt Tickets Created
-
-{List of all tickets created from retrospective}
-
----
-
-## Next Sprint Recommendations
-
-### P0 - Must Have
-| Ticket | Title | SP | Owner |
-|--------|-------|-----|-------|
-
-### P1 - Should Have
-| Ticket | Title | SP | Owner |
-|--------|-------|-----|-------|
-
----
-
-## Process Updates Made
-
-{List of updates to TEAM_WORKFLOW.md or other process docs}
-```
-
-### Retrospective Output Artifacts
-
-| Artifact | Location | Created By |
-|----------|----------|------------|
-| Agent reports | `docs/sprints/sprint-{N}/retrospectives/{agent}-retro.md` | Each agent |
-| Consolidated report | `docs/sprints/sprint-{N}/consolidated-retrospective.md` | /sm |
-| Tech debt tickets | `docs/sprints/sprint-{N}/implementation/TECH-*.md` | /sm |
-| Process updates | `TEAM_WORKFLOW.md` | /sm |
-
-### Retrospective Metrics to Track
-
-| Metric | Definition | Target |
-|--------|------------|--------|
-| Velocity | SP delivered per sprint | Stable or improving |
-| Quality Score | Average agent scores | ≥ 8/10 |
-| Tech Debt Ratio | Tech debt SP / Feature SP | ≤ 20% |
-| Process Improvements | Changes implemented per retro | ≥ 2 |
-| Issue Resolution Rate | Issues addressed from previous retro | ≥ 80% |
-
-### Retrospective Best Practices
-
-1. **Run retrospectives immediately after sprint completion** - Context is fresh
-2. **Use parallel agent execution** - Faster, avoids groupthink
-3. **Create actionable tickets** - Every issue becomes a ticket
-4. **Update TEAM_WORKFLOW.md** - Process improvements are codified
-5. **Track improvement metrics** - Measure retrospective effectiveness
-6. **Include domain experts** - Architecture, finance, legal perspectives
-7. **Focus on systems, not people** - Blame-free environment
-8. **Limit scope** - 3 questions keep focus tight
-9. **Follow up** - Review previous retro items at sprint start
-10. **Celebrate wins** - Recognize team achievements
+| Version | Date | Changes |
+|---------|------|---------|
+| 4.0 | 2026-01-10 | Testing workflow: /qa designs, /e2e implements |
+| 4.1 | 2026-01-11 | Sprint 4 Retro: DoD, sprint checklists, testing standards |
+| 6.0 | 2026-01-12 | Full team retrospectives |
+| 15.1 | 2026-02-08 | Sprint 15 Retro: Filter enumeration, two-pass review |
+| 51.1 | 2026-02-16 | Sprint 51 Retro: Widget audit, translation gate |
+| **7.0** | **2026-02-23** | **Jira/Confluence integration, behavior-only tickets, Ticket Approval Gate, architecture-developer collaboration model, Kanban board, multi-project setup, Confluence space structure, Feature Vision template, full dev process in Jira comments** |
