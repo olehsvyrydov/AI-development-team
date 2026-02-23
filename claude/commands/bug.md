@@ -24,9 +24,9 @@ When you invoke `/bug [description]`:
 
 1. **Bug report created** with temporary ID (BUG-XXX)
 
-2. **/luda creates ticket**:
-   - Sets priority (P0-P3) - consults /max, /jorge, user, or suggests based on load
-   - Assigns investigator (/finn, /james, or /adam based on bug type)
+2. **/sm (/luda) creates ticket**:
+   - Sets priority (P0-P3) - consults /po, /arch, user, or suggests based on load
+   - Assigns investigator (/fe, /be, or /e2e based on bug type)
    - Schedules in sprint
 
 3. **Investigation phase**:
@@ -34,9 +34,9 @@ When you invoke `/bug [description]`:
    - Attempt to reproduce the issue
    - Gather evidence (logs, screenshots, network requests)
    - Identify root cause
-   - **If cannot reproduce**: /rob recommends close ticket OR request more info OR mark for monitoring
+   - **If cannot reproduce**: /qa recommends close ticket OR request more info OR mark for monitoring
 
-4. **Reproduction test created** by /rob:
+4. **Reproduction test created** by /qa (/rob):
    - Write a failing test that proves the bug exists
    - This test MUST fail now and pass after fix
 
@@ -54,7 +54,7 @@ When you invoke `/bug [description]`:
    - Refactor code
    - All tests pass
 
-7. **Verified** by /rev (code review) and /adam (automated tests), /luda closes ticket
+7. **Verified** by /rev (code review) and /e2e (/adam) (automated tests), /sm closes ticket
 
 ## Priority Levels
 
@@ -69,59 +69,59 @@ When you invoke `/bug [description]`:
 
 ```
 /bug [description]
-     │
-     ▼
-┌─────────────────────────┐
-│ Bug report created      │
-│ (BUG-XXX)               │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│ /luda creates ticket    │
-│ • Sets priority (P0-P3) │
-│ • Assigns investigator  │
-│ • Schedules in sprint   │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│ INVESTIGATION PHASE     │
-│ • Identifies component  │
-│ • Reproduces issue      │
-│ • Finds root cause      │
-│ (if cannot reproduce:   │
-│  close/more info/monitor│
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│ /rob writes failing     │
-│ reproduction test       │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│ Investigation Report    │
-│ created and saved       │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│ FIX PHASE (TDD)         │
-│ • Write unit tests (RED)│
-│ • Implement fix (GREEN) │
-│ • Refactor              │
-│ • All tests pass        │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│ /rev reviews fix        │
-│ /adam runs automated    │
-│ tests (verifies fix)    │
-│ /luda closes ticket     │
-└─────────────────────────┘
+     |
+     v
++-------------------------+
+| Bug report created      |
+| (BUG-XXX)               |
++-----------+-------------+
+            |
+            v
++-------------------------+
+| /sm creates ticket      |
+| - Sets priority (P0-P3) |
+| - Assigns investigator  |
+| - Schedules in sprint   |
++-----------+-------------+
+            |
+            v
++-------------------------+
+| INVESTIGATION PHASE     |
+| - Identifies component  |
+| - Reproduces issue      |
+| - Finds root cause      |
+| (if cannot reproduce:   |
+|  close/more info/monitor|
++-----------+-------------+
+            |
+            v
++-------------------------+
+| /qa writes failing      |
+| reproduction test       |
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Investigation Report    |
+| created and saved       |
++-----------+-------------+
+            |
+            v
++-------------------------+
+| FIX PHASE (TDD)         |
+| - Write unit tests (RED)|
+| - Implement fix (GREEN) |
+| - Refactor              |
+| - All tests pass        |
++-----------+-------------+
+            |
+            v
++-------------------------+
+| /rev reviews fix        |
+| /e2e runs automated     |
+| tests (verifies fix)    |
+| /sm closes ticket       |
++-------------------------+
 ```
 
 ## Optional Parameters
@@ -129,7 +129,7 @@ When you invoke `/bug [description]`:
 After the description, you can add:
 
 ```
-/bug [description]. Priority: P1. Assign to: /james
+/bug [description]. Priority: P1. Assign to: /be
 ```
 
 Or request immediate investigation:
@@ -141,4 +141,4 @@ Or request immediate investigation:
 ## Related Commands
 
 - `/issue` - Alias for `/bug`
-- `/luda` - View/manage tickets
+- `/sm` (`/luda`) - View/manage tickets

@@ -4,16 +4,47 @@ description: List all available AI Development Team agents and their specializat
 
 # AI Development Team - Agent Directory
 
-## Core Agents (18)
+> **Both naming conventions are supported.** Role-based commands (`/arch`, `/be`, `/fe`) are the standard. Persona aliases (`/jorge`, `/james`, `/finn`) are team-specific names that invoke the same agent.
 
-These are your primary agents for software development:
+## Quick Reference
+
+| Role Command | Alias | Name | Role |
+|-------------|-------|------|------|
+| `/po` | `/max` | Max | Product Owner - vision, backlog, Epics |
+| `/sm` | `/luda` | Luda | Scrum Master - orchestration, ceremonies |
+| `/ba` | `/anna` | Anna | Business Analyst - research, requirements |
+| `/arch` | `/jorge` | Jorge | Solution Architect - architecture (**MANDATORY**) |
+| `/secops` | `/soren` | Soren | Security Engineer - security (**MANDATORY**) |
+| `/fin` | `/inga` | Inga | UK Accountant - finance, tax, VAT |
+| `/legal` | `/alex` | Alex | UK Legal Counsel - compliance, GDPR |
+| `/ui` | `/aura` | Aura | UI/UX Designer - design systems |
+| `/fe` | `/finn` | Finn | Frontend Dev - React/TS/Next.js |
+| `/be` | `/james` | James | Backend Dev - Java/Spring Boot |
+| `/rev` | — | Rev | Code Reviewer - quality, security |
+| `/qa` | `/rob` | Rob | QA Engineer - test cases, manual testing |
+| `/e2e` | `/adam` | Adam | E2E Tester - Playwright, performance |
+| `/mkt` | `/apex` | Apex | Marketing - GTM, positioning |
+
+## Additional Commands
+
+| Command | Description |
+|---------|-------------|
+| `/bug` or `/issue` | Report a bug — triggers investigation workflow |
+| `/design-sprint` | Orchestrate UI design -> frontend implementation |
+| `/reviewer` | Alias for `/rev` |
+| `/tester` | Alias for `/qa` |
+| `/agents` | This directory |
+
+---
+
+## Core Agents (18)
 
 ### Development Team
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **backend-developer** | Spring Boot 4, Java 21+, WebFlux, JPA | Backend APIs, microservices, database |
-| **frontend-developer** | React 19, TypeScript 5.7, Zustand, TanStack | UI components, state management, SPA |
+| **backend-developer** | Spring Boot 4, Java 25, WebFlux, JPA | Backend APIs, microservices, database |
+| **frontend-developer** | React 19, TypeScript 5.8, Zustand, TanStack | UI components, state management, SPA |
 | **devops-engineer** | Kubernetes, GKE, Helm, CI/CD, Docker | Deployment, infrastructure, pipelines |
 | **solution-architect** | System design, CQRS, Saga, Event Sourcing | Architecture decisions, patterns, ADRs |
 | **mlops-engineer** | Spring AI, LLM integration, Gemini, OpenAI | AI features, prompt engineering, ML ops |
@@ -23,35 +54,31 @@ These are your primary agents for software development:
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
 | **backend-tester** | JUnit 6, Mockito, Testcontainers, StepVerifier | Java unit/integration tests, TDD |
-| **frontend-tester** | Jest, React Testing Library, MSW | React component tests, hook tests |
+| **frontend-tester** | Vitest, React Testing Library, MSW | React component tests, hook tests |
 | **e2e-tester** | Playwright, cross-browser, visual testing | End-to-end tests, user flows |
 | **backend-reviewer** | Checkstyle, SpotBugs, SonarQube | Java code review, quality gates |
 | **frontend-reviewer** | ESLint, Prettier, accessibility | React/TS code review, a11y |
 
-### Security & Documentation
+### Security & Operations
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **secops-engineer** | OWASP Top 10:2025, Threat Modeling, OAuth 2.1, Supply Chain, Zero Trust, AI/LLM Security | Security reviews, threat modeling, auth, compliance, scanning pipelines |
+| **secops-engineer** | OWASP Top 10:2025, Threat Modeling, OAuth 2.1, Supply Chain, Zero Trust, AI/LLM Security | Security reviews, threat modeling, auth, compliance |
 | **technical-writer** | C4 diagrams, ADRs, API docs, Mermaid | Documentation, changelogs, README |
-
-> **Quick Access**: Use `/secops` to invoke the security engineer directly.
 
 ### Design
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **ui-designer** | React, Tailwind, Framer Motion, Design Systems | Landing pages, dashboards, mobile UI, brand design |
+| **ui-designer** | React, Tailwind v4, Framer Motion, Design Systems | Landing pages, dashboards, mobile UI, brand design |
 
 ### Product & Process
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **business-analyst** | SWOT, market research, requirements | Competitive analysis, BRDs |
 | **product-owner** | User stories, backlog, prioritization | Sprint planning, acceptance criteria |
-| **scrum-master** | Agile ceremonies, velocity, retrospectives | Sprint management, blockers |
-
-> **Quick Access**: Use `/po` for product owner, `/sm` for scrum master.
+| **scrum-master** | Agile ceremonies, orchestration, retrospectives | Sprint management, blockers |
+| **business-analyst** | SWOT, market research, requirements | Competitive analysis, BRDs |
 
 ### Legal & Compliance
 
@@ -59,19 +86,21 @@ These are your primary agents for software development:
 |-------|-----------|--------------|
 | **uk-legal-counsel** | UK Law, GDPR, Employment, Contracts, Penalties | Legal advice, contracts, compliance, risk |
 
-> **Quick Access**: Use `/legal` to invoke the legal counsel directly.
-
 ### Finance & Accounting
 
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
-| **uk-accountant** | Corporation Tax, VAT, PAYE, R&D Credits, IR35, UK GAAP | Tax planning, financial forecasting, compliance, accounting logic |
+| **uk-accountant** | Corporation Tax, VAT, PAYE, R&D Credits, IR35, UK GAAP | Tax planning, financial forecasting, compliance |
 
-> **Quick Access**: Use `/fin` to invoke the accountant directly.
+### Marketing
+
+| Agent | Expertise | Trigger When |
+|-------|-----------|--------------|
+| **apex** | Go-To-Market, Positioning, Growth Funnels, SEO | Product launches, marketing strategy |
 
 ---
 
-## Extended Skills (10)
+## Extended Skills (15)
 
 Specialized skills that extend core agents:
 
@@ -91,6 +120,14 @@ Specialized skills that extend core agents:
 | **spring-kafka-integration** | Kafka producers/consumers, Reactor Kafka, DLT |
 | **quarkus-developer** | Quarkus 3.17, native builds, Panache, GraalVM |
 | **fastapi-developer** | FastAPI, Python async, Pydantic, SQLAlchemy |
+| **hmrc-api-specialist** | MTD API, OAuth2 Gov Gateway, SA103 |
+
+### Desktop Extensions
+
+| Skill | Specialization |
+|-------|----------------|
+| **javafx-developer** | JavaFX 21+, FXML, MVVM, Scene Builder |
+| **javafx-designer** | JavaFX CSS styling, Ikonli icons, component design |
 
 ### DevOps Extensions (extend devops-engineer)
 
@@ -110,27 +147,20 @@ Specialized skills that extend core agents:
 |-------|----------------|
 | **graphql-developer** | Apollo Server/Federation, DataLoader, subscriptions |
 
----
+### Compliance Extensions
 
-## How Skills Work Together
-
-1. **Core agents** are triggered by matching task descriptions
-2. **Extended skills** are invoked automatically when specialized work is detected
-3. **Related Skills** sections enable cross-agent collaboration
-
-### Example Flow
-
-```
-Task: "Build Angular dashboard with Kafka real-time updates"
-         ↓
-[frontend-developer] → triggers → [angular-developer]
-         ↓
-[backend-developer] → triggers → [spring-kafka-integration]
-         ↓
-[solution-architect] for architecture review
-```
+| Skill | Specialization |
+|-------|----------------|
+| **uk-self-employment** | SA103, Class 4 NI, allowable expenses, MTD |
 
 ---
+
+## Workflow
+
+```
+/po+/ba -> /arch -> /secops -> [/fin] -> [/legal] -> [/ui] -> /fe|/be -> /rev -> /qa + /e2e
+Vision+AC  Arch.   Security  Finance   Legal     Design  TDD Dev    Review  Testing
+```
 
 ## Skill Locations
 
