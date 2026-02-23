@@ -98,7 +98,6 @@ def get_collection_stats(client: QdrantClient) -> list[dict]:
             "description": schema["description"],
             "exists": True,
             "points": info.points_count,
-            "vectors": info.vectors_count,
             "status": info.status.value,
         })
 
