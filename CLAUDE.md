@@ -29,9 +29,14 @@ ai-dev-team/
 │   │   ├── marketing/     # Marketing Strategist
 │   │   └── specialized/   # Technical Writer
 │   │
-│   ├── commands/          # 16 slash commands (/max, /jorge, /finn, etc.)
+│   ├── commands/          # 35 slash commands (/max, /jorge, /finn, /memory, etc.)
 │   │
-│   └── templates/         # Document templates (ADR, Sprint, User Story, etc.)
+│   ├── templates/         # Document templates (ADR, Sprint, User Story, etc.)
+│   │
+│   └── rag/               # RAG Knowledge Base (Phase 3)
+│       ├── mcp-server/    # Custom MCP server (voyage-code-3 + Qdrant)
+│       ├── ingestion/     # SKILL.md chunking & embedding pipeline
+│       └── management/    # Stats, backup, prune, reindex scripts
 │
 └── docs/                  # Extended documentation
     ├── TEAM_WORKFLOW.md
@@ -94,8 +99,9 @@ All features require `/jorge` architecture approval before implementation.
 
 ## Version
 
-- **Version**: 4.0.0
-- **Release Date**: 2025-01-02
+- **Version**: 4.1.0
+- **Release Date**: 2026-02-23
 - **Skills**: 33 (categorized by technology)
-- **Commands**: 16 slash commands
+- **Commands**: 35 slash commands
 - **Templates**: 5 document templates
+- **RAG**: AI Team Memory (Qdrant + voyage-code-3)

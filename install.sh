@@ -227,6 +227,84 @@ interactive_install() {
     fi
 }
 
+# RAG Knowledge Base setup (optional)
+setup_rag() {
+    local RAG_DIR="$SOURCE_DIR/rag"
+
+    if [ ! -d "$RAG_DIR" ]; then
+        echo -e "${YELLOW}RAG directory not found, skipping...${NC}"
+        return
+    fi
+
+    echo ""
+    echo -e "${BLUE}=== RAG Knowledge Base (Optional) ===${NC}"
+    echo ""
+    echo "The AI Team Memory provides semantic search across agent expertise."
+    echo "Requirements: Docker, Python 3.11+, Voyage AI API key (free tier)"
+    echo ""
+
+    # Check Docker
+    if ! command -v docker &>/dev/null; then
+        echo -e "${YELLOW}Docker not found. Skipping RAG setup.${NC}"
+        echo "Install Docker and run: cd $RAG_DIR && docker compose up -d"
+        return
+    fi
+
+    # Check Python
+    if ! command -v python3 &>/dev/null; then
+        echo -e "${YELLOW}Python 3 not found. Skipping RAG setup.${NC}"
+        return
+    fi
+
+    read -p "Set up RAG Knowledge Base? [y/N] " rag_choice
+    if [ "$rag_choice" != "y" ] && [ "$rag_choice" != "Y" ]; then
+        echo "Skipping RAG setup."
+        echo "To set up later: see $RAG_DIR/README.md"
+        return
+    fi
+
+    # Start Qdrant
+    echo -e "${YELLOW}Starting Qdrant...${NC}"
+    cd "$RAG_DIR"
+    docker compose up -d
+
+    # Wait for Qdrant
+    echo "Waiting for Qdrant..."
+    for i in $(seq 1 15); do
+        if curl -s http://localhost:6333/healthz > /dev/null 2>&1; then
+            echo -e "${GREEN}Qdrant is running.${NC}"
+            break
+        fi
+        sleep 1
+    done
+
+    # Set up Python venv
+    echo -e "${YELLOW}Setting up Python environment...${NC}"
+    cd "$RAG_DIR/mcp-server"
+    python3 -m venv .venv
+    .venv/bin/pip install -q -e .
+
+    # Initialize collections
+    echo -e "${YELLOW}Initializing collections...${NC}"
+    cd "$RAG_DIR"
+    ./../rag/mcp-server/.venv/bin/python3 management/stats.py init
+
+    echo ""
+    echo -e "${GREEN}RAG setup complete!${NC}"
+    echo ""
+    echo "Next steps for RAG:"
+    echo "  1. Get a Voyage AI API key: https://dash.voyageai.com/"
+    echo "  2. Register MCP server:"
+    echo "     claude mcp add ai-team-memory \\"
+    echo "       -e VOYAGE_API_KEY=your-key \\"
+    echo "       -- $RAG_DIR/mcp-server/.venv/bin/python3 -m memory_mcp"
+    echo "  3. Ingest skills:"
+    echo "     cd $RAG_DIR/ingestion"
+    echo "     VOYAGE_API_KEY=your-key python3 ingest.py --skills-dir ../../skills"
+
+    cd "$SCRIPT_DIR"
+}
+
 # Main
 check_prerequisites
 
@@ -254,6 +332,11 @@ case "${1:-}" in
         ;;
 esac
 
+# Offer RAG setup in interactive mode
+if [ "${1:-}" = "" ]; then
+    setup_rag
+fi
+
 echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║              Installation Complete!               ║${NC}"
@@ -263,5 +346,6 @@ echo "Next steps:"
 echo "  1. Restart Claude Code to load new skills"
 echo "  2. Try: /agents to see all available agents"
 echo "  3. Try: /max, /jorge, /finn, /james for specific agents"
+echo "  4. Try: /memory for semantic knowledge search (requires RAG setup)"
 echo ""
 echo "Documentation: https://github.com/your-org/ai-dev-team"

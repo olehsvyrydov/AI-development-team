@@ -34,6 +34,14 @@ All projects must follow **strict TDD principles**:
 claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp
 ```
 
+**AI Team Memory MCP** — Semantic knowledge retrieval (optional, requires Qdrant + Voyage AI):
+```bash
+claude mcp add ai-team-memory \
+  -e VOYAGE_API_KEY=your-key \
+  -- /path/to/claude/rag/mcp-server/.venv/bin/python3 -m memory_mcp
+```
+Setup guide: `claude/rag/README.md`
+
 ### Workflow Sequence
 
 ```
@@ -146,6 +154,16 @@ Vision+AC  Arch.   Security  Finance  Legal    Design  TDD Dev   Review  Testing
 - **DON'T**: Sprint references, ticket IDs, project names, temporary workarounds
 
 See `/sm` skill for complete skill update quality guidelines.
+
+## AI Team Memory (RAG Knowledge Base)
+
+When the `ai-team-memory` MCP server is available, agents can:
+- **Search expertise**: `memory_agent_expertise(agent="jorge", query="webhook security")`
+- **Search across collections**: `memory_search(query="CQRS patterns", collection="agent-knowledge")`
+- **Store learnings**: `memory_store(content="...", collection="learnings", metadata='{"agent_name": "..."}')`
+- **Check health**: `memory_stats()`
+
+Use `/memory` command for interactive knowledge base access.
 
 ## General Rules
 

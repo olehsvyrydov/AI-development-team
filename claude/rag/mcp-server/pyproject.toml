@@ -1,0 +1,25 @@
+[project]
+name = "ai-team-memory"
+version = "1.0.0"
+description = "MCP server for AI Development Team semantic knowledge retrieval"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.12",
+    "voyageai>=0.3",
+    "qdrant-client>=1.13",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
