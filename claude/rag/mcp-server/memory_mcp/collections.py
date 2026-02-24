@@ -44,6 +44,15 @@ COLLECTIONS = {
             "source_file": PayloadSchemaType.KEYWORD,
         },
     },
+    "session-context": {
+        "description": "Conversation context snapshots for session persistence",
+        "payload_indexes": {
+            "project_path": PayloadSchemaType.KEYWORD,
+            "session_id": PayloadSchemaType.KEYWORD,
+            "chunk_type": PayloadSchemaType.KEYWORD,
+            "timestamp": PayloadSchemaType.FLOAT,
+        },
+    },
 }
 
 
