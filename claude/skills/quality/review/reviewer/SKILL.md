@@ -656,6 +656,69 @@ Every code review uses two passes:
 
 ---
 
+## Multi-LLM Review Synthesis
+
+### Overview
+
+/rev can invoke parallel reviews from external LLMs via the `/all` multi-LLM consultation command. Different models have complementary blind spots:
+- **GPT-5-2**: Strongest at security vulnerability detection (injection, secrets, OWASP Top 10)
+- **Gemini 3.1 Pro**: Strongest at performance analysis (N+1 queries, memory leaks, concurrency)
+- **Claude**: Strongest at architecture reasoning and business logic validation (multi-file, AC compliance)
+
+### When to Invoke Multi-LLM Review
+
+Use `/all` for cross-validation when:
+- The diff touches security-sensitive code (auth, payments, data handling)
+- The diff modifies database queries, caching, or concurrency patterns
+- The PR exceeds 200 lines of changes
+- The feature has high business impact (P0/P1)
+- You want a second opinion on complex code
+
+### How to Invoke
+
+Use the `/all` command with the `multi-llm-consult` MCP server:
+
+```
+/all Review this diff for security and performance issues: [paste diff or describe changes]
+```
+
+The `/all` command will:
+1. Check API configuration (`check_config()`)
+2. Let you select models interactively (`list_models()`)
+3. Consult each model in parallel (`consult_model()`)
+4. Synthesize findings into a consolidated report
+
+### How to Synthesize Multi-LLM Findings
+
+After the `/all` consultation completes, incorporate findings into your review:
+
+1. **Agreements** (high confidence): When multiple models flag the same issue, treat it as high-confidence. Include in BLOCKING or WARNING with note: "Confirmed by GPT-5-2 + Gemini."
+2. **Disagreements** (highest value): When models disagree, this is where human judgment matters most. Flag for developer attention with QUESTION severity.
+3. **Unique findings**: Each model catches things others miss. Validate unique findings against the code before including — false positives are possible.
+4. **No findings**: If external models find nothing but you found issues (or vice versa), note the cross-validation in your report.
+
+### Report Integration
+
+Add a "Multi-LLM Cross-Validation" section to the review report:
+
+```markdown
+## Multi-LLM Cross-Validation
+
+| Finding | GPT-5-2 (Security) | Gemini (Performance) | /rev (Architecture) | Verdict |
+|---------|---------------------|---------------------|---------------------|---------|
+| SQL injection in UserService:42 | CRITICAL | — | CONFIRMED | BLOCKING |
+| N+1 query in OrderRepo:88 | — | HIGH | CONFIRMED | WARNING |
+| Missing rate limit | HIGH | — | Not in scope | SUGGESTION |
+```
+
+### API Key Configuration
+
+The MCP server requires ONE of these environment variables:
+- `OPENROUTER_API_KEY` (preferred — single key for all models via OpenRouter)
+- `OPENAI_API_KEY` + `GOOGLE_API_KEY` (direct API fallback)
+
+---
+
 ## Checklist Before Approving
 
 - [ ] All behavioral acceptance criteria verified as implemented and tested

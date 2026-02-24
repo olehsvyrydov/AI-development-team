@@ -28,6 +28,9 @@ __pycache__/
 claude/rag/mcp-server/.venv/
 claude/rag/management/backups/
 
+# Multi-LLM Consultation MCP
+multi-llm/mcp/.venv/
+
 # Temporary files
 *.tmp
 *.bak
