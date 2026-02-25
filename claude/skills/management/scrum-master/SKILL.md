@@ -951,6 +951,20 @@ Every sprint folder MUST include a `DECISION_LOG.md` tracking key decisions made
 
 ---
 
+## E2E Test Traceability Quality Gate (MANDATORY)
+
+Before accepting /adam's test delivery for any ticket, /luda MUST verify:
+
+1. **Traceability matrix provided** — /adam delivers a TC-XX → test file:line mapping table. If missing, REJECT and send back.
+2. **100% TC coverage** — Every test case from /rob's Test Plan has a corresponding automated test. Uncovered TCs require documented justification.
+3. **No untraceable tests** — Every test maps to a TC-XX. Tests without traceability are likely testing implementation instead of requirements.
+4. **/rob has reviewed and approved** — /rob signs off on the traceability matrix before /luda accepts.
+5. **/rob's Test Plan covers all three categories** — Positive, negative, and edge cases. A Test Plan with only happy-path tests is INCOMPLETE — send back to /rob.
+
+**This gate applies to all projects regardless of technology stack (Java, Python, Go, PHP, etc.).**
+
+If this gate is not passed, the ticket CANNOT move to Done.
+
 ## Investigation Quality Gate (MANDATORY)
 
 **Effective:** All investigations from Sprint 51 onward

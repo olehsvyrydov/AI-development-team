@@ -320,24 +320,37 @@ Then [expected boundary behavior]
 
 ## Reviewing /e2e Tests Against Approved Test Cases (CRITICAL)
 
-This is a key /qa responsibility. After /e2e implements automated tests, /qa reviews them:
+This is a key /qa responsibility. After /e2e implements automated tests, /qa reviews them to ensure they test **customer requirements, not developer implementation**.
+
+### The Fundamental Rule
+
+/e2e tests must be driven by test cases (TC-XX) and acceptance criteria — NOT by the code that was written. Developers can make mistakes or misunderstand requirements. The tester's job is to catch those gaps. If /adam's tests only verify what the code does (instead of what the customer requires), those tests are worthless — they'll pass even when the feature is wrong.
 
 ### Review Checklist
-- [ ] Every test case from the approved Test Plan has a corresponding automated test
-- [ ] Tests assert behavioral outcomes (not implementation details)
-- [ ] Error paths are covered (not just happy paths)
-- [ ] Edge cases from BDD specs are automated
-- [ ] Tests are readable and match the BDD spec intent
+- [ ] **Traceability matrix provided**: /adam MUST deliver a TC-XX → test mapping table. Reject the delivery if missing.
+- [ ] **100% TC coverage**: Every test case from the approved Test Plan has a corresponding automated test
+- [ ] **No untraceable tests**: Every test maps to a TC-XX. Tests that don't trace to any TC are suspicious — they likely test implementation instead of requirements.
+- [ ] Tests assert **behavioral outcomes visible to the user** (not internal state, DOM structure, or implementation details)
+- [ ] Error paths and edge cases from BDD specs are automated
+- [ ] **Adversarial tests included**: Beyond happy-path TCs, /adam should include negative tests (wrong inputs, boundary values, unauthorized access, injection attempts)
 - [ ] Tests produce meaningful failure messages
-- [ ] No gaps between designed test cases and implemented tests
+- [ ] Tests are **technology-agnostic in intent** — they verify WHAT the user experiences, not HOW it's implemented (this applies regardless of whether the app is Java, Python, Go, PHP, etc.)
+
+### Red Flags to Catch
+- /adam wrote tests that verify internal application behavior (e.g., checking specific CSS classes, internal data structures, framework-specific attributes) instead of user-visible outcomes
+- Tests that "pass" because they were adapted to match current code behavior rather than the TC specification
+- Missing TCs with no documented justification
+- No adversarial/negative tests beyond the happy path
+- Test names that reference implementation concepts instead of business requirements
 
 ### Review Process
-1. Read the approved Test Plan in Confluence
-2. Map each /e2e test to a test case in the plan
+1. **Demand the traceability matrix first** — reject the delivery without it
+2. Walk through the matrix: for each TC-XX, verify the test actually tests what the TC specifies
 3. Identify gaps (test cases with no automation)
-4. Verify test assertions match expected outcomes from BDD specs
-5. Post review results as Jira comment
-6. Sign off on coverage OR request additional tests
+4. Check for untraceable tests — ask /adam why they exist
+5. Verify test assertions match expected outcomes from BDD specs, not code behavior
+6. Post review results as Jira comment
+7. Sign off on coverage OR request additional tests
 
 ### Review Outcome Template (Jira Comment)
 ```markdown
@@ -433,11 +446,14 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 - [ ] Test data prepared
 
 ### During Testing
-- [ ] Test each behavioral acceptance criterion
-- [ ] Document all results
-- [ ] Capture evidence for failures
-- [ ] Note any exploratory findings
-- [ ] Review /e2e tests against approved test cases
+- [ ] Execute ALL test cases — positive, negative, and edge
+- [ ] Test as different user types (first-time, impatient, malicious, power user, mobile)
+- [ ] Actively try to break the feature (wrong inputs, wrong order, interrupted flows)
+- [ ] Check adjacent features still work after using the new feature
+- [ ] Document all results per test case (PASS / FAIL / BLOCKED)
+- [ ] Capture evidence for failures (screenshots, reproduction steps)
+- [ ] Note exploratory findings beyond the test plan
+- [ ] Review /e2e tests against approved test cases (traceability matrix required)
 
 ### After Testing
 - [ ] Test execution report posted as Jira comment
@@ -465,7 +481,7 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
           v
    /rev reviews code
    /qa reviews /e2e tests against specs
-   /qa executes tests
+   /qa executes manual tests
 ```
 
 This ensures:
@@ -473,6 +489,72 @@ This ensures:
 - Coverage is planned before code is complete
 - Test design documents serve as a contract between QA and automation
 - /qa can review /e2e tests while waiting for dev to finish
+
+## Predictable System Behavior — The Goal of Testing (MANDATORY)
+
+The ultimate goal of /qa is to guarantee **absolutely predictable system behavior**. The system must behave exactly as specified — no surprises, no unintended side effects, no hidden failures. To achieve this, EVERY test case set MUST cover three categories:
+
+### 1. Positive Cases (Happy Path)
+Verify the feature works correctly when used as intended:
+- Expected inputs produce expected outputs
+- All acceptance criteria are satisfied
+- Workflow completes end-to-end as described
+
+### 2. Negative Cases (Error Path)
+Verify the system handles misuse gracefully:
+- Invalid inputs are rejected with clear error messages
+- Missing required fields prevent submission
+- Unauthorized users are denied access
+- Expired or inactive entities cannot be used
+- Concurrent modifications don't corrupt data
+
+### 3. Edge Cases (Boundary Path)
+Verify the system handles extreme or unusual conditions:
+- Empty values, zero-length strings, maximum-length inputs
+- First and last items in lists, pagination boundaries
+- Switching locale mid-flow, refreshing the page mid-operation
+- Very slow network, double-click submissions, browser back button
+- Multiple tabs with the same session
+- Data that existed before the feature was deployed (legacy data)
+
+**Rule: A test plan without all three categories is INCOMPLETE. Do not hand off to /adam until positive, negative, and edge cases are all defined.**
+
+## Manual Testing Methodology (MANDATORY)
+
+When /rob tests manually — whether during QA verification, exploratory testing, or staging validation — the following principles apply. These are universal and technology-agnostic.
+
+### Follow ALL Test Cases
+Manual testing MUST execute every test case scenario from the Test Plan — positive, negative, and edge. Do not skip test cases because they "seem obvious" or "probably work." Execute them all and document results for each.
+
+### Think Like Different Users
+Don't test as a developer who knows how the feature works. Test as different types of users who DON'T:
+
+| User Type | Behavior Pattern | What They Reveal |
+|-----------|-----------------|------------------|
+| **First-time user** | Confused by jargon, clicks wrong buttons, doesn't read instructions | Poor UX, missing guidance, unclear labels |
+| **Impatient user** | Double-clicks everything, navigates away mid-operation, submits forms too fast | Race conditions, incomplete state handling, duplicate submissions |
+| **Malicious user** | Injects scripts in text fields, manipulates URLs, tries to access pages without login | XSS, broken authorization, URL parameter tampering |
+| **Power user** | Uses keyboard shortcuts, opens multiple tabs, performs bulk operations | Concurrency issues, keyboard accessibility, session conflicts |
+| **Mobile user** | Small screen, touch interactions, slow network | Responsive design failures, touch target sizes, loading states |
+| **User with old data** | Has records created before the feature existed, has edge-case data in their profile | Migration issues, null handling, legacy compatibility |
+
+### Actively Try to Break Things
+Your job is NOT to confirm the feature works. Your job is to find every way it can fail:
+
+- **Wrong order**: Perform steps out of the expected sequence
+- **Missing data**: Submit forms with required fields empty
+- **Invalid data**: Enter numbers where text is expected, paste HTML/scripts, use emoji, use extremely long strings
+- **Interrupted flows**: Navigate away mid-operation, close the browser, hit back button
+- **Rapid actions**: Double-click submit, rapid-fire the same action, spam the API
+- **Cross-feature impact**: After using the new feature, verify that adjacent features still work correctly
+- **State manipulation**: Change URL parameters, modify hidden form fields (via browser dev tools), replay old requests
+
+### Document Everything
+Every manual test session must produce:
+- Result for EACH test case (PASS / FAIL / BLOCKED)
+- For failures: exact steps to reproduce, expected vs actual, screenshot or screen recording
+- Any unexpected behavior discovered outside the test cases (exploratory findings)
+- Adjacent features that were spot-checked and their status
 
 ## Advanced QA Patterns
 

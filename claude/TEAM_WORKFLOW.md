@@ -1058,7 +1058,30 @@ Features cannot proceed without behavioral AC from /po + /ba.
 Unit and integration tests are written BY developers, not QA.
 
 ### Rule 7: Black Box QA
-/qa tests features against requirements, not implementation. /qa reviews /e2e tests against approved test cases.
+
+**The goal of all testing is absolutely predictable system behavior.** The system must behave exactly as specified — no surprises, no unintended side effects, no hidden failures.
+
+#### /qa (Test Case Design + Manual Testing)
+- /qa designs test cases from acceptance criteria covering **three mandatory categories**:
+  1. **Positive cases (Happy Path)** — feature works as intended, all AC satisfied
+  2. **Negative cases (Error Path)** — system handles misuse gracefully (invalid inputs, unauthorized access, expired entities)
+  3. **Edge cases (Boundary Path)** — system handles extremes (empty values, max inputs, locale switching, double-clicks, browser back, legacy data)
+- During manual testing, /qa follows ALL test case scenarios — no skipping
+- /qa thinks like different users: first-time (confused), impatient (double-clicks), malicious (XSS, URL manipulation), power (multi-tab, shortcuts), mobile (small screen, slow network), legacy (old data)
+- /qa actively tries to break things: wrong order, missing data, interrupted flows, rapid actions, cross-feature impact
+- **A test plan without all three categories is INCOMPLETE**
+
+#### /e2e (Test Automation)
+- /e2e writes automated tests based on /qa's test cases (TC-XX) and behavioral AC — **NEVER from reading source code**
+- /e2e is a black-box tester: the only inputs are test cases, AC, and the running application
+- Every automated test MUST trace to a TC-XX ID from /qa's test plan
+- /e2e delivers a **traceability matrix** mapping TC-XX → test file:line for every delivery
+- Coverage target: **100% of /qa's test cases** — measured by TC completion, not lines of code
+- These principles apply regardless of technology stack (Java, Python, Go, PHP, JavaScript, etc.)
+
+#### /qa Reviews /e2e Tests
+- /qa verifies /e2e tests against approved test cases — catches requirement drift
+- Red flags: tests that verify internal behavior instead of user-visible outcomes, tests adapted to match code, missing TCs without justification, no adversarial tests
 
 ### Rule 8: Security is Non-Negotiable
 /rev must run security scans on every code review.
