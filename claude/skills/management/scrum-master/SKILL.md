@@ -960,10 +960,15 @@ Before accepting /adam's test delivery for any ticket, /luda MUST verify:
 3. **No untraceable tests** — Every test maps to a TC-XX. Tests without traceability are likely testing implementation instead of requirements.
 4. **/rob has reviewed and approved** — /rob signs off on the traceability matrix before /luda accepts.
 5. **/rob's Test Plan covers all three categories** — Positive, negative, and edge cases. A Test Plan with only happy-path tests is INCOMPLETE — send back to /rob.
+6. **/rev has reviewed test code quality** — /adam's test scripts are code and go through /rev code review. /rev checks for duplication, hardcoded credentials, silent skipping, regex precision, and shared helper extraction. /rob checks test case coverage; /rev checks code quality. Both must approve.
 
 **This gate applies to all projects regardless of technology stack (Java, Python, Go, PHP, etc.).**
 
 If this gate is not passed, the ticket CANNOT move to Done.
+
+### Why /rev Reviews Test Code
+
+Test scripts are production artifacts — they run in CI, they guard against regressions, and they are maintained long-term. When /rob flags duplication (e.g., "loginAsAdmin is copied in 3 files"), the fix must be *extract and share*, not *copy and align*. /rev catches code quality issues that /rob (focused on AC coverage) and /adam (focused on test behavior) miss: DRY violations, hardcoded secrets, overly permissive regex, runtime `test.skip()` anti-patterns.
 
 ## Investigation Quality Gate (MANDATORY)
 

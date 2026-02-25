@@ -295,7 +295,7 @@ Every review comment MUST include a severity label:
 - [ ] **Admin role assignment restriction** -- non-admin users must not be able to assign the admin role to others
 - [ ] **Dynamic panel access** -- admin panel access checks should query actual permissions, not use hardcoded role slug arrays
 
-### Tests
+### Tests (Unit/Integration — Written by Developers)
 - [ ] Unit tests exist (>80% line coverage target)
 - [ ] Integration tests for critical paths (>60% coverage)
 - [ ] Tests follow AAA pattern (Arrange-Act-Assert)
@@ -304,6 +304,16 @@ Every review comment MUST include a severity label:
 - [ ] Tests actually fail when code breaks (not tautological)
 - [ ] Edge cases and error paths have test coverage
 - [ ] Tests match acceptance criteria scenarios
+
+### E2E Test Code (Written by /adam — ALSO Reviewed by /rev)
+**Test scripts are code.** /adam's E2E test files go through /rev code review just like application code. /rev checks code quality, not test case coverage (that's /rob's job).
+- [ ] No duplicated helper functions across spec files — extract to shared helpers
+- [ ] No hardcoded credentials in committed files — use env vars loaded from `.env`
+- [ ] No silent skipping via runtime `test.skip()` that hides regressions — use explicit `throw` or `test.fail()` when preconditions are missing
+- [ ] Regex patterns are precise enough to avoid false positives (e.g., date regex requires 4-digit year)
+- [ ] Shared helpers are imported, not copy-pasted between files
+- [ ] Selectors are resilient — prefer `data-testid` over fragile DOM structure queries
+- [ ] When /rob flags duplication, the fix must **extract and share**, not **copy and align**
 
 ### Naming (All Languages)
 - [ ] Names clearly communicate purpose
