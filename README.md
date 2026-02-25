@@ -105,7 +105,7 @@ ls ~/.claude/commands/
 ├── CLAUDE.md                    # Global instructions (TDD, workflow)
 ├── TEAM_WORKFLOW.md             # Complete team workflow documentation
 │
-├── skills/                      # 33 AI agent skills
+├── skills/                      # 34 AI agent skills
 │   ├── management/              # Product Owner, Scrum Master, Business Analyst
 │   ├── architecture/            # Solution Architect, GraphQL Developer
 │   ├── development/
@@ -118,32 +118,28 @@ ls ~/.claude/commands/
 │   ├── design/                  # UI/UX Designer
 │   ├── compliance/              # Accountant, Legal (generic + UK)
 │   ├── marketing/               # Product Marketing
-│   └── specialized/             # Technical Writer
+│   └── specialized/             # Technical Writer, Kai (Meta-Agent)
 │
-├── commands/                    # 16 slash commands
+├── commands/                    # 37 slash commands
 │   ├── agents.md                # /agents - list all agents
-│   ├── po.md                    # /po - Product Owner
-│   ├── sm.md                    # /sm - Scrum Master
-│   ├── arch.md                  # /arch - Solution Architect
-│   ├── fe.md                    # /fe - Frontend Developer
-│   ├── be.md                    # /be - Backend Developer
-│   ├── rev.md                   # /rev - Code Reviewer
-│   ├── qa.md                    # /qa - QA/Test Designer
-│   ├── e2e.md                   # /e2e - E2E Tester
-│   ├── ui.md                    # /ui - UI Designer
-│   ├── ba.md                    # /ba - Business Analyst
-│   ├── fin.md                   # /fin - UK Accountant
-│   ├── legal.md                 # /legal - UK Legal
-│   ├── mkt.md                   # /mkt - Marketing
-│   ├── bug.md                   # /bug - Report bugs
-│   └── issue.md                 # /issue - Report issues
+│   ├── po.md, sm.md, arch.md   # Management + Architecture
+│   ├── fe.md, be.md             # Development
+│   ├── rev.md, qa.md, e2e.md   # Quality
+│   ├── ui.md, ba.md             # Design + Analysis
+│   ├── fin.md, legal.md, mkt.md # Compliance + Marketing
+│   ├── bug.md, issue.md         # Issue tracking
+│   ├── memory.md                # /memory - AI Team Memory search/store
+│   ├── all.md                   # /all - Multi-LLM consultation
+│   ├── kai.md                   # /kai - Self-improving meta-agent
+│   └── [13 persona aliases]     # /max, /jorge, /finn, etc.
 │
 └── templates/                   # Document templates
     ├── adr-template.md
     ├── user-story-template.md
     ├── sprint-template.md
     ├── code-review-template.md
-    └── investigation-report-template.md
+    ├── investigation-report-template.md
+    └── retrospective-template.md
 ```
 
 ---
@@ -246,6 +242,53 @@ ALL features require `/arch` approval before implementation.
 
 ---
 
+## AI Platform Features
+
+Beyond the agent skills, the framework includes an intelligent knowledge platform:
+
+### AI Team Memory (RAG Knowledge Base)
+
+Semantic search across agent expertise, past decisions, and code patterns — powered by Qdrant + Voyage AI.
+
+```bash
+/memory What does Jorge know about CQRS?
+/memory Search for React testing patterns
+```
+
+See: [RAG Setup Guide](docs/rag-setup/setup-guide.md) | [Knowledge Management](docs/knowledge-management-guide.md)
+
+### Multi-LLM Consultation (`/all`)
+
+Query GPT-5-2, Gemini 3.1 Pro, Grok 4, and more from within Claude Code. Get consensus, divergent views, and synthesized recommendations.
+
+```bash
+/all Should we use event sourcing for our payment system?
+/all Review this architecture for scalability issues
+```
+
+See: [Multi-LLM Guide](docs/multi-llm-guide.md)
+
+### Context Persistence
+
+Automatic session continuity — decisions, file changes, and error resolutions are saved to Qdrant and restored in future sessions.
+
+See: [Context Persistence Guide](docs/context-persistence-guide.md)
+
+### Self-Improving Meta-Agent (`/kai`)
+
+Kai detects recurring patterns in accumulated learnings and proposes permanent SKILL.md updates for human review.
+
+```bash
+/kai analyze                    # Scan for patterns
+/kai propose                    # Generate update proposals
+/kai approve <ID>               # Approve a proposal
+/kai apply <ID>                 # Apply to SKILL.md
+```
+
+See: [Kai Guide](docs/kai-guide.md)
+
+---
+
 ## Installation Options
 
 ### Interactive Installation
@@ -287,10 +330,28 @@ See `docs/skill-extension-guide.md` for adding new technologies.
 
 ---
 
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [RAG Setup Guide](docs/rag-setup/setup-guide.md) | Install Qdrant, MCP server, ingest skills |
+| [Knowledge Management](docs/knowledge-management-guide.md) | Add knowledge, Qdrant collections, data lifecycle |
+| [Context Persistence](docs/context-persistence-guide.md) | Session hooks, distillation pipeline |
+| [Multi-LLM Guide](docs/multi-llm-guide.md) | `/all` command, model registry, API setup |
+| [Kai Guide](docs/kai-guide.md) | Self-improving meta-agent, proposals |
+| [Embedding Providers](docs/rag-setup/embedding-providers.md) | Voyage AI vs Gemini comparison |
+| [Management](docs/rag-setup/management.md) | Backup, prune, reindex, troubleshooting |
+| [Skill Extension](docs/skill-extension-guide.md) | Adding new technologies |
+| [Agent Communication](docs/agent-communication.md) | Handoff specs, artifact flow |
+| [Team Workflow](docs/TEAM_WORKFLOW.md) | Complete phase-by-phase workflow |
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, context persistence, RAG knowledge base |
 | 4.0.0 | 2025-01-02 | Restructured for easy ~/.claude deployment |
 | 3.1.0 | 2024-12-27 | Added approval gates and Aura design verification |
 | 3.0.0 | 2024-12-26 | TDD workflow, unified QA agents |

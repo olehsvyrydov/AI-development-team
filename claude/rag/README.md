@@ -79,6 +79,7 @@ Then in Claude Code:
 | `decisions` | Architecture decisions, ADRs | `project`, `status` |
 | `learnings` | Sprint retrospective insights | `agent_name`, `learning_type` |
 | `code-patterns` | Reusable code templates | `language`, `framework` |
+| `session-context` | Conversation context snapshots | `session_id`, `project_path`, `chunk_type` |
 
 ## MCP Tools
 
@@ -125,14 +126,32 @@ claude/rag/
 │       ├── __main__.py
 │       ├── server.py          # MCP entry point (stdio)
 │       ├── embeddings.py      # Voyage AI provider
-│       ├── collections.py     # 4 collection schemas
+│       ├── collections.py     # 5 collection schemas
 │       └── tools.py           # 4 MCP tool implementations
 │
 ├── ingestion/                 # Ingestion pipeline
 │   ├── ingest.py              # Main CLI
 │   ├── chunker.py             # Markdown heading-based splitter
 │   ├── metadata.py            # Agent/category extraction
-│   └── tests/                 # pytest test suite
+│   └── tests/                 # 20 tests
+│
+├── context-cache/             # Session persistence
+│   ├── transcript_parser.py   # Parse JSONL transcripts → chunks
+│   ├── save_context.py        # PreCompact hook
+│   ├── restore_context.py     # SessionStart hook
+│   ├── distill_context.py     # Promote to long-term memory
+│   └── tests/                 # 75 tests
+│
+├── kai/                       # Self-improving meta-agent
+│   ├── models.py              # Data models
+│   ├── skill_parser.py        # Parse SKILL.md sections
+│   ├── quality.py             # SM quality rule validation
+│   ├── analyzer.py            # Pattern detection
+│   ├── proposer.py            # Proposal generation
+│   ├── applier.py             # Apply proposals to SKILL.md
+│   ├── cli.py                 # CLI entry point
+│   ├── proposals/             # Stored proposal JSON files
+│   └── tests/                 # 88 tests
 │
 └── management/                # Management scripts
     ├── stats.py               # Collection stats + init
@@ -141,6 +160,17 @@ claude/rag/
     └── reindex.py             # Full re-ingestion
 ```
 
+## Extended Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Setup Guide](../docs/rag-setup/setup-guide.md) | Full installation and ingestion walkthrough |
+| [Knowledge Management](../docs/knowledge-management-guide.md) | Collections, adding knowledge, data lifecycle |
+| [Context Persistence](../docs/context-persistence-guide.md) | Session hooks, distillation |
+| [Kai Guide](../docs/kai-guide.md) | Self-improving meta-agent |
+| [Embedding Providers](../docs/rag-setup/embedding-providers.md) | Voyage AI vs Gemini |
+| [Management](../docs/rag-setup/management.md) | Backup, prune, reindex |
+
 ## Technical Details
 
 - **Embeddings**: voyage-code-3 (1024 dimensions, cosine distance)
@@ -148,3 +178,4 @@ claude/rag/
 - **Code extraction**: Code blocks >500 chars extracted as separate `code-patterns`
 - **Idempotent**: Deterministic UUIDs from `source_file + heading` — safe to re-run
 - **Estimated volume**: ~1500 chunks from 37 SKILL.md files
+- **Total tests**: 203 (20 ingestion + 75 context-cache + 88 kai + 20 MCP server)
