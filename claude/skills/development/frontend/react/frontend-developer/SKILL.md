@@ -1064,3 +1064,40 @@ When building features that present information to users:
 - **Correctness first** — displaying wrong data quickly is worse than displaying correct data slowly
 - **Assess output quality** — does the information actually help the user make a decision or complete their goal?
 - **Test with real content** — placeholder data that "looks right" may hide layout and content quality issues
+
+## Ad/Media Component URL Contract
+
+When a backend service returns full URLs (e.g., via `asset()` or equivalent), frontend components must use the URL as-is from props. Never apply path prefixes like `/storage/` to props that are already absolute URLs.
+
+**Anti-pattern**:
+```vue
+<!-- BUG: double-prefixes the URL -->
+<img :src="`/storage/${ad.image}`" />
+```
+
+**Correct**:
+```vue
+<!-- Uses the full URL from backend as-is -->
+<img :src="ad.image" />
+```
+
+Check if the backend is sending relative paths or full URLs, and match your consumption pattern accordingly. Different components in the same app may use different conventions — verify before adding prefixes.
+
+## Image Performance Attributes
+
+Always include `decoding="async"` alongside `loading="lazy"` on images that are below the fold:
+
+```html
+<img :src="url" loading="lazy" decoding="async" />
+```
+
+This enables the browser to decode images off the main thread, reducing jank during scroll.
+
+## Unused Import Hygiene
+
+Remove unused imports before committing. Common offenders in Vue 3 Composition API:
+- `useI18n` imported but `t()` never called (component was refactored)
+- `computed` imported but all computeds were inlined
+- `watch`/`watchEffect` imported but side effects were removed
+
+Automated PR review tools (Copilot, ESLint) catch these — clean them up proactively.

@@ -671,3 +671,27 @@ When testing analytics dashboards or metrics displays:
 - [ ] **Don't accept "works visually" as sufficient** -- verify metric values make sense given the test data
 - [ ] **Cross-reference metrics** -- if the system shows "0% hit rate" but the feature clearly works, flag the tracking logic as a potential bug
 - [ ] **Test empty data state** -- verify the dashboard handles zero data gracefully (no errors, shows "N/A" or "0")
+
+## Test Case Specificity for Data-Dependent Behavior
+
+When designing test cases for features where visual output varies by data state (e.g., different ad types show different labels), test cases MUST specify the expected output per variant:
+
+| Ad Type | Expected Badge Text (UK) | Expected Badge Text (EN) |
+|---------|-------------------------|-------------------------|
+| banner | Реклама | Ad |
+| text | Реклама | Ad |
+| sponsored | Спонсорований контент | Sponsored content |
+
+Without this specificity, /adam must guess expected values, leading to false assumptions and test rework.
+
+## Triple Review Validation
+
+For frontend features, three independent review types catch different issue categories:
+
+| Reviewer | Catches |
+|----------|---------|
+| /rev (code review) | Logic errors, security, code quality, architecture compliance |
+| /rob (manual QA) | Visual bugs, broken images, UX issues, staging environment problems |
+| /aura (design review) | Layout issues, spacing, color, brand consistency |
+
+When /rob and /aura independently find the same P1 bug (e.g., broken hero image), it validates the value of multi-perspective testing. Do not skip any review layer for frontend sprints.

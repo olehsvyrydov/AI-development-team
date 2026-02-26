@@ -1102,3 +1102,34 @@ When any feature adds user-facing text (UI labels, admin fields, error messages)
 - [ ] All translation keys exist in ALL supported locale files before QA
 - [ ] Admin panel field labels verified in both locales during code review
 - [ ] Translation validation is part of the implementation checklist, not a QA discovery
+
+## Copilot PR Review as Mandatory Gate
+
+GitHub Copilot automated review should be a mandatory gate before merging PRs. In practice, it catches 5-10 real issues per PR that human reviewers miss:
+- Unused imports after refactoring
+- Missing HTML performance attributes
+- Hardcoded strings that should use model constants
+- Helper function logic bugs
+
+**Process**: After /rev code review is complete and PR is created, wait for Copilot review comments. Fix all findings, push, and verify no new comments before merging.
+
+## Two-Phase Sprint Model — Validated
+
+The two-phase sprint workflow works well:
+- **Phase 1** (per-ticket): TDD implementation + /rev code review — keeps individual code quality high
+- **Phase 2** (sprint-end batch): /adam writes E2E for the full integrated feature, /rob reviews, /rev reviews test code, then run tests
+
+Benefits observed:
+- No fragmented E2E tests for incomplete features
+- Comprehensive integration testing of the full feature
+- Clear gates between phases
+
+## Synthetic Test Data Pattern
+
+For features that need specific database state for E2E testing (e.g., active ad campaigns), establish an artisan/CLI command for test data management:
+- `seed` action creates the minimum required data
+- `cleanup` action removes all synthetic data
+- Idempotent: safe to run multiple times
+- Flushes caches after changes
+
+This pattern enables repeatable E2E testing without polluting production data. Consider integrating into test setup (beforeAll) for full automation.
