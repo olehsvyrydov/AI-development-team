@@ -1074,3 +1074,25 @@ When adding new admin form fields or table columns:
 - [ ] Check if the index/constraint already exists in earlier migrations before adding
 - [ ] Run `migrate:fresh` locally to catch duplicate index errors before pushing to CI
 - [ ] Name indexes explicitly to avoid conflicts with auto-generated names
+
+## Model Constants in Middleware and Shared Code
+
+When referencing model-specific values (positions, statuses, types) in middleware, controllers, or shared services, always use model constants instead of hardcoded strings:
+
+```php
+// CORRECT — uses model constants
+'pageHeroCampaign' => fn () => $this->getAdForPosition($request, Advertisement::POSITION_PAGE_HERO),
+
+// WRONG — hardcoded string
+'pageHeroCampaign' => fn () => $this->getAdForPosition($request, 'page_hero'),
+```
+
+This ensures consistency and prevents typo-related bugs. If the model defines constants, the entire codebase should reference them.
+
+## Full URL vs Relative Path API Contracts
+
+When a service transforms stored relative paths to full URLs (e.g., using `asset('storage/' . $model->image)`), document this contract clearly. Frontend consumers must know whether they receive:
+- A relative path (e.g., `advertisements/image.jpg`) — consumer must build the full URL
+- A full URL (e.g., `https://domain.com/storage/advertisements/image.jpg`) — consumer must use as-is
+
+Mixing conventions in the same API response leads to double-prefixing bugs on the frontend.

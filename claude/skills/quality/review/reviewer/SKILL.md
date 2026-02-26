@@ -888,3 +888,32 @@ For features with visual output (admin dashboards, widgets, form changes):
 - [ ] **Quick staging check** -- after approving code, do a 5-minute visual verification on staging to catch rendering issues that code review alone cannot detect
 - [ ] **Both locales verified** -- switch locale and confirm labels/text render correctly
 - [ ] **Widget deduplication check** -- visually confirm widgets appear the expected number of times
+
+## Backend-Frontend URL Contract Verification
+
+When reviewing code that passes URLs between backend and frontend (e.g., image paths in API responses or Inertia props):
+
+- [ ] **Verify URL format consistency** — check if backend sends relative paths or full URLs
+- [ ] **Check all consumers** — if backend sends full URLs via `asset()`, verify no frontend component prepends `/storage/` or other prefixes
+- [ ] **Cross-reference ad/media components** — different components may consume the same prop differently; verify they all match
+
+This is a common source of P1 bugs (broken images) that are invisible in code review but immediately visible on staging.
+
+## Image Element Completeness
+
+When reviewing `<img>` elements in frontend components:
+
+- [ ] `loading="lazy"` present on below-fold images
+- [ ] `decoding="async"` present alongside lazy loading
+- [ ] `alt` attribute present (accessibility)
+- [ ] Responsive image attributes (`srcset`, `sizes`) used where appropriate
+
+## Copilot PR Review Integration
+
+GitHub Copilot review is effective at catching mechanical issues that human reviewers frequently miss:
+- Unused imports (especially after refactoring)
+- Missing HTML attributes (`decoding`, `alt`)
+- Hardcoded strings that should reference constants
+- Helper functions with incorrect logic (e.g., counting hidden DOM elements)
+
+Treat Copilot findings as valid review items that need resolution before merge.
