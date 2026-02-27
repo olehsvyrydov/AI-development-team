@@ -594,6 +594,17 @@ For features using non-standard navigation (buttons with JS handlers instead of 
 - Use JavaScript evaluation to find and trigger navigation elements when standard selectors don't work
 - Document the navigation pattern in the QA report for future reference
 
+## Cross-Reference Verification (MANDATORY)
+
+Before finalizing test cases, verify that field names, cookie names, API endpoints, and identifiers in test case descriptions **match the actual system**. Ticket descriptions may use placeholder or outdated names.
+
+**Rules:**
+1. When test cases reference specific cookie names, form field names, or API endpoints — verify them against the running staging environment or ask the developer
+2. If /rob's test cases use a name that doesn't match the actual system, /adam's tests will fail silently or test the wrong thing
+3. Document any name mismatches found during review and update test cases immediately
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **Testing without AC**: Never test without behavioral acceptance criteria
@@ -607,6 +618,7 @@ For features using non-standard navigation (buttons with JS handlers instead of 
 9. **Testing only functional correctness**: Verify the feature delivers user value, not just that buttons work
 10. **Skipping /e2e test review**: ALWAYS review /e2e tests against approved test cases before signing off on coverage
 11. **Confirming Bug priority**: /qa creates draft Bugs -- /po reviews and confirms priority
+12. **Trusting ticket field names blindly**: Always verify cookie names, API endpoints, and identifiers against the actual system — tickets may use placeholder names
 
 ---
 
