@@ -550,6 +550,70 @@ Run E2E tests locally: `mvn test -Dsurefire.excludedGroups=`
 ### QA Test Design Workflow
 Follow the established workflow: /qa designs test cases from acceptance criteria first, then /e2e implements them. Don't skip the test design step.
 
+## Playwright Reliability Patterns (MANDATORY)
+
+### `waitFor()` vs `isVisible()` — Critical Distinction
+
+`locator.isVisible()` is a **one-shot** check — it returns immediately with the current state. For elements that render asynchronously after `domcontentloaded` (e.g., consent banners, modals, toast notifications that mount after framework hydration), `isVisible()` returns `false` even when the element will appear shortly.
+
+**Always use `waitFor()` for async-rendered elements:**
+```javascript
+// WRONG — one-shot, misses elements that render after page load
+const isVisible = await banner.isVisible();
+if (isVisible) { await banner.click(); }
+
+// RIGHT — auto-retrying, waits up to timeout
+try {
+    await banner.waitFor({ state: 'visible', timeout: 10_000 });
+    await banner.click();
+} catch {
+    // Element genuinely not present — handle gracefully
+}
+```
+
+### Navigation: `domcontentloaded` over `networkidle`
+
+Pages with ad iframes (returning 429), AI chat widgets (persistent WebSocket), or analytics (long-polling) **never reach `networkidle`**. Always use `domcontentloaded` for navigation:
+```javascript
+await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+```
+For content that requires framework hydration (e.g., Vue/Inertia page title), use `page.waitForFunction()` after navigation.
+
+### Test Ordering for Rate-Limited Endpoints
+
+Tests that repeatedly submit to rate-limited endpoints (e.g., contact forms with throttle limits) **MUST run LAST in the suite**. If they run early and trigger 429 responses with retry loops, the server becomes slow for all subsequent tests, causing cascade timeouts.
+
+**Rules:**
+1. Place form submission tests in a **separate `describe` block at the end** of the spec file
+2. Keep retry deadlines **short** (2 minutes max, not 8)
+3. Use **direct button clicks** for validation-only tests — don't call the full submission helper
+4. Validation, SEO, rendering, and navigation tests go FIRST — they're fast and don't stress the server
+
+### Shared Test Helpers Pattern
+
+Extract duplicated helpers into a shared `helpers/` directory alongside spec files:
+- **`constants.js`** — cookie names, regex patterns, tolerance values
+- **`navigation.js`** — navigation, cookie, consent, and error collection helpers
+
+Benefits: single point of fix when bugs are found, consistent behavior across spec files, cleaner imports.
+
+### Console Error Filters Must Be Specific
+
+When filtering benign console errors in shared helpers, be specific about which errors to suppress. A broad filter like `text.includes('endpoint-name')` hides ALL errors from that endpoint — including legitimate ones. Pair endpoint name with expected status codes:
+```javascript
+// WRONG — hides all errors from the endpoint
+if (text.includes('advertisements/impression')) return;
+
+// RIGHT — only suppress known benign status codes
+if (text.includes('advertisements/impression') && /status of (403|404|429)/.test(text)) return;
+```
+
+### Locale-Varying UI Elements
+
+UI elements like consent banners, form labels, and buttons have **different text per locale**. Always use `data-testid` selectors for locale-varying elements, never text-based selectors.
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **Testing code instead of requirements**: NEVER write tests based on reading source code. Test what /rob's test cases specify. If you find yourself looking at ANY source file to understand what to test, STOP — go back to the test cases. The technology stack is irrelevant to you.
@@ -569,6 +633,10 @@ Follow the established workflow: /qa designs test cases from acceptance criteria
 15. **Ignoring output quality**: For AI/search/recommendation features, asserting "response received" is insufficient -- assert output relevance
 16. **Ad-hoc browser sessions only**: MUST produce committed test script files re-runnable via CLI
 17. **Confirming Bug priority**: /e2e creates draft Bugs -- /po reviews and confirms priority
+18. **Using `isVisible()` for async elements**: `isVisible()` is one-shot — use `waitFor({ state: 'visible' })` in try-catch for elements that render after page load
+19. **Using `networkidle` with ad iframes**: Pages with ads, chat widgets, or analytics never settle — use `domcontentloaded` instead
+20. **Running rate-limited tests first**: Form submission tests with retry loops must run LAST to avoid starving subsequent tests
+21. **Broad console error filters**: Don't suppress all errors from an endpoint — pair endpoint name with expected status codes
 
 ---
 

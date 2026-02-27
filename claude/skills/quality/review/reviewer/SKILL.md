@@ -915,5 +915,15 @@ GitHub Copilot review is effective at catching mechanical issues that human revi
 - Missing HTML attributes (`decoding`, `alt`)
 - Hardcoded strings that should reference constants
 - Helper functions with incorrect logic (e.g., counting hidden DOM elements)
+- Inconsistent test attribute usage (e.g., `test_` prefix vs `#[Test]` attribute in PHPUnit)
+- Request-scoped memoization keys that unnecessarily include per-request-constant values
+- Overly broad error filters that hide legitimate issues
 
 Treat Copilot findings as valid review items that need resolution before merge.
+
+## Memoization & Caching Scope Review
+
+When reviewing code with in-memory memoization (instance properties used as cache):
+- [ ] **Verify the scope** — is the memoization request-scoped (instance property) or application-scoped (static/singleton)?
+- [ ] **Check key composition** — keys should include ONLY dimensions that actually vary within the scope. For request-scoped memoization, values constant within a request (visitor ID, session ID) are unnecessary in the key
+- [ ] **Check cache vs per-request logic** — operations that must run per-visitor (like frequency capping) should happen OUTSIDE the shared cache layer, not inside it
