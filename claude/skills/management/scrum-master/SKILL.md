@@ -1103,6 +1103,8 @@ When any feature adds user-facing text (UI labels, admin fields, error messages)
 - [ ] Admin panel field labels verified in both locales during code review
 - [ ] Translation validation is part of the implementation checklist, not a QA discovery
 
+---
+
 ## Copilot PR Review as Mandatory Gate
 
 GitHub Copilot automated review should be a mandatory gate before merging PRs. In practice, it catches 5-10 real issues per PR that human reviewers miss:
@@ -1123,6 +1125,17 @@ Benefits observed:
 - No fragmented E2E tests for incomplete features
 - Comprehensive integration testing of the full feature
 - Clear gates between phases
+
+## E2E Fix Round Baseline
+
+For sprints with Filament admin + frontend E2E test suites, expect **3-4 fix rounds** before reaching green. This is a stable baseline, not a failure signal. Common root causes by round:
+
+- **Round 1**: Seeder data issues (double-encoding, missing fields), wrong selectors from assumed HTML
+- **Round 2**: Filter/table state issues (default filters hiding records), missing confirmation dialogs
+- **Round 3**: Alpine.js visibility timing, modal transition races
+- **Round 4**: Edge cases in button targeting, scoping assertions to avoid related content sections
+
+**Improvement lever**: Pre-discovering actual HTML with Browser MCP before writing tests reduces rounds by 1-2. The goal is to converge toward 2-3 rounds consistently.
 
 ## Synthetic Test Data Pattern
 
