@@ -8,7 +8,7 @@
 #   ./install.sh           # Interactive installation
 #   ./install.sh --merge   # Merge without prompting
 #   ./install.sh --replace # Replace without prompting
-#   ./install.sh --link    # Create symlink (for development)
+#   ./install.sh --link    # Create symlink to source (for development)
 #   ./install.sh --help    # Show this help
 #
 
@@ -28,7 +28,7 @@ TARGET_DIR="$HOME/.claude"
 BACKUP_DIR="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
 
 # Version
-VERSION="4.0.0"
+VERSION="4.1.0"
 
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════════╗"
@@ -41,12 +41,15 @@ show_help() {
     echo "Usage: $0 [OPTION]"
     echo ""
     echo "Options:"
-    echo "  --merge    Merge with existing ~/.claude (keep existing, add new)"
-    echo "  --replace  Backup existing ~/.claude and replace completely"
+    echo "  --merge    Merge with existing ~/.claude (add new, update existing)"
+    echo "  --replace  Backup skills/commands/templates and replace"
     echo "  --link     Create symlink to source (for development)"
     echo "  --help     Show this help message"
     echo ""
     echo "If no option is provided, interactive mode is used."
+    echo ""
+    echo "After installation, optional RAG + Multi-LLM setup is offered"
+    echo "(requires Docker, Python 3.11+, and API keys)."
 }
 
 # Check prerequisites
@@ -71,82 +74,95 @@ count_items() {
     echo "$skills skills, $commands commands, $templates templates"
 }
 
-# Merge installation
+# Merge installation — adds new files, updates existing ones
 install_merge() {
     echo -e "${YELLOW}Merging with existing ~/.claude...${NC}"
 
     # Create target if doesn't exist
     mkdir -p "$TARGET_DIR"
 
-    # Copy skills (don't overwrite existing)
+    # Copy skills (update existing, add new, keep extras)
     if [ -d "$SOURCE_DIR/skills" ]; then
-        echo "  - Copying skills..."
-        cp -rn "$SOURCE_DIR/skills" "$TARGET_DIR/" 2>/dev/null || true
-        # For nested directories, we need to be more careful
+        echo "  - Syncing skills..."
+        mkdir -p "$TARGET_DIR/skills"
         find "$SOURCE_DIR/skills" -name "SKILL.md" | while read src_skill; do
             rel_path="${src_skill#$SOURCE_DIR/}"
             target_path="$TARGET_DIR/$rel_path"
             target_dir=$(dirname "$target_path")
-            if [ ! -f "$target_path" ]; then
-                mkdir -p "$target_dir"
-                cp "$src_skill" "$target_path"
-            fi
+            mkdir -p "$target_dir"
+            cp "$src_skill" "$target_path"
         done
     fi
 
-    # Copy commands (don't overwrite existing)
+    # Copy commands (update existing, add new, keep extras)
     if [ -d "$SOURCE_DIR/commands" ]; then
-        echo "  - Copying commands..."
+        echo "  - Syncing commands..."
         mkdir -p "$TARGET_DIR/commands"
         for cmd in "$SOURCE_DIR/commands"/*.md; do
             if [ -f "$cmd" ]; then
-                target_cmd="$TARGET_DIR/commands/$(basename "$cmd")"
-                if [ ! -f "$target_cmd" ]; then
-                    cp "$cmd" "$target_cmd"
-                fi
+                cp "$cmd" "$TARGET_DIR/commands/"
             fi
         done
     fi
 
-    # Copy templates (don't overwrite existing)
+    # Copy templates (update existing, add new, keep extras)
     if [ -d "$SOURCE_DIR/templates" ]; then
-        echo "  - Copying templates..."
+        echo "  - Syncing templates..."
         mkdir -p "$TARGET_DIR/templates"
         for tmpl in "$SOURCE_DIR/templates"/*.md; do
             if [ -f "$tmpl" ]; then
-                target_tmpl="$TARGET_DIR/templates/$(basename "$tmpl")"
-                if [ ! -f "$target_tmpl" ]; then
-                    cp "$tmpl" "$target_tmpl"
-                fi
+                cp "$tmpl" "$TARGET_DIR/templates/"
             fi
         done
     fi
 
-    # Copy CLAUDE.md if not exists
-    if [ -f "$SOURCE_DIR/CLAUDE.md" ] && [ ! -f "$TARGET_DIR/CLAUDE.md" ]; then
-        echo "  - Copying CLAUDE.md..."
+    # Always update CLAUDE.md and TEAM_WORKFLOW.md (these define the workflow)
+    if [ -f "$SOURCE_DIR/CLAUDE.md" ]; then
+        echo "  - Updating CLAUDE.md..."
         cp "$SOURCE_DIR/CLAUDE.md" "$TARGET_DIR/"
     fi
 
-    # Copy TEAM_WORKFLOW.md if not exists
-    if [ -f "$SOURCE_DIR/TEAM_WORKFLOW.md" ] && [ ! -f "$TARGET_DIR/TEAM_WORKFLOW.md" ]; then
-        echo "  - Copying TEAM_WORKFLOW.md..."
+    if [ -f "$SOURCE_DIR/TEAM_WORKFLOW.md" ]; then
+        echo "  - Updating TEAM_WORKFLOW.md..."
         cp "$SOURCE_DIR/TEAM_WORKFLOW.md" "$TARGET_DIR/"
     fi
 
     echo -e "${GREEN}Merge complete!${NC}"
 }
 
-# Replace installation
+# Replace installation — only replaces skills/commands/templates, keeps system dirs
 install_replace() {
-    if [ -d "$TARGET_DIR" ]; then
-        echo -e "${YELLOW}Backing up existing ~/.claude to $BACKUP_DIR...${NC}"
-        mv "$TARGET_DIR" "$BACKUP_DIR"
+    mkdir -p "$TARGET_DIR"
+
+    # Backup only the content we're replacing
+    if [ -d "$TARGET_DIR/skills" ] || [ -d "$TARGET_DIR/commands" ] || [ -d "$TARGET_DIR/templates" ]; then
+        echo -e "${YELLOW}Backing up existing content to $BACKUP_DIR...${NC}"
+        mkdir -p "$BACKUP_DIR"
+        for item in skills commands templates CLAUDE.md TEAM_WORKFLOW.md; do
+            if [ -e "$TARGET_DIR/$item" ]; then
+                cp -r "$TARGET_DIR/$item" "$BACKUP_DIR/"
+            fi
+        done
         echo -e "${GREEN}Backup created at: $BACKUP_DIR${NC}"
     fi
 
+    # Remove and replace skills/commands/templates
     echo -e "${YELLOW}Installing to ~/.claude...${NC}"
-    cp -r "$SOURCE_DIR" "$TARGET_DIR"
+    for d in skills commands templates; do
+        rm -rf "$TARGET_DIR/$d"
+        if [ -d "$SOURCE_DIR/$d" ]; then
+            cp -r "$SOURCE_DIR/$d" "$TARGET_DIR/"
+        fi
+    done
+
+    # Copy CLAUDE.md and TEAM_WORKFLOW.md
+    if [ -f "$SOURCE_DIR/CLAUDE.md" ]; then
+        cp "$SOURCE_DIR/CLAUDE.md" "$TARGET_DIR/"
+    fi
+    if [ -f "$SOURCE_DIR/TEAM_WORKFLOW.md" ]; then
+        cp "$SOURCE_DIR/TEAM_WORKFLOW.md" "$TARGET_DIR/"
+    fi
+
     echo -e "${GREEN}Installation complete!${NC}"
 }
 
@@ -180,8 +196,8 @@ interactive_install() {
         echo -e "${YELLOW}Existing ~/.claude directory found.${NC}"
         echo ""
         echo "Options:"
-        echo "  1) Merge - Add new skills/commands, keep existing (recommended)"
-        echo "  2) Replace - Backup existing and replace completely"
+        echo "  1) Merge - Add new, update existing, keep your extras (recommended)"
+        echo "  2) Replace - Backup skills/commands/templates and replace"
         echo "  3) Link - Create symlink to source (for development)"
         echo "  4) Cancel"
         echo ""
@@ -229,7 +245,7 @@ interactive_install() {
 
 # RAG Knowledge Base setup (optional)
 setup_rag() {
-    local RAG_DIR="$SOURCE_DIR/rag"
+    local RAG_DIR="$SCRIPT_DIR/claude/rag"
 
     if [ ! -d "$RAG_DIR" ]; then
         echo -e "${YELLOW}RAG directory not found, skipping...${NC}"
@@ -239,14 +255,15 @@ setup_rag() {
     echo ""
     echo -e "${BLUE}=== RAG Knowledge Base (Optional) ===${NC}"
     echo ""
-    echo "The AI Team Memory provides semantic search across agent expertise."
+    echo "The AI Team Memory provides semantic search across agent expertise,"
+    echo "context persistence across sessions, and self-improving skills (Kai)."
     echo "Requirements: Docker, Python 3.11+, Voyage AI API key (free tier)"
     echo ""
 
     # Check Docker
     if ! command -v docker &>/dev/null; then
         echo -e "${YELLOW}Docker not found. Skipping RAG setup.${NC}"
-        echo "Install Docker and run: cd $RAG_DIR && docker compose up -d"
+        echo "Install Docker and re-run, or set up manually: see claude/rag/README.md"
         return
     fi
 
@@ -256,10 +273,17 @@ setup_rag() {
         return
     fi
 
+    local PY_MINOR
+    PY_MINOR=$(python3 -c 'import sys; print(sys.version_info.minor)')
+    if [ "$PY_MINOR" -lt 11 ]; then
+        echo -e "${YELLOW}Python 3.11+ required (found 3.$PY_MINOR). Skipping RAG setup.${NC}"
+        return
+    fi
+
     read -p "Set up RAG Knowledge Base? [y/N] " rag_choice
     if [ "$rag_choice" != "y" ] && [ "$rag_choice" != "Y" ]; then
         echo "Skipping RAG setup."
-        echo "To set up later: see $RAG_DIR/README.md"
+        echo "To set up later: see claude/rag/README.md"
         return
     fi
 
@@ -270,39 +294,208 @@ setup_rag() {
 
     # Wait for Qdrant
     echo "Waiting for Qdrant..."
-    for i in $(seq 1 15); do
+    for i in $(seq 1 30); do
         if curl -s http://localhost:6333/healthz > /dev/null 2>&1; then
             echo -e "${GREEN}Qdrant is running.${NC}"
             break
         fi
+        if [ "$i" -eq 30 ]; then
+            echo -e "${YELLOW}Qdrant didn't start in 30s. Check: docker compose logs${NC}"
+        fi
         sleep 1
     done
 
-    # Set up Python venv
-    echo -e "${YELLOW}Setting up Python environment...${NC}"
+    # Set up RAG MCP Python venv
+    echo -e "${YELLOW}Setting up RAG MCP Python environment...${NC}"
     cd "$RAG_DIR/mcp-server"
     python3 -m venv .venv
     .venv/bin/pip install -q -e .
+    echo -e "${GREEN}RAG MCP venv ready.${NC}"
 
     # Initialize collections
-    echo -e "${YELLOW}Initializing collections...${NC}"
+    echo -e "${YELLOW}Initializing Qdrant collections...${NC}"
     cd "$RAG_DIR"
-    ./../rag/mcp-server/.venv/bin/python3 management/stats.py init
+    mcp-server/.venv/bin/python3 -m management.stats 2>/dev/null || true
 
+    # Prompt for Voyage AI key
     echo ""
-    echo -e "${GREEN}RAG setup complete!${NC}"
-    echo ""
-    echo "Next steps for RAG:"
-    echo "  1. Get a Voyage AI API key: https://dash.voyageai.com/"
-    echo "  2. Register MCP server:"
-    echo "     claude mcp add ai-team-memory \\"
-    echo "       -e VOYAGE_API_KEY=your-key \\"
-    echo "       -- $RAG_DIR/mcp-server/.venv/bin/python3 -m memory_mcp"
-    echo "  3. Ingest skills:"
-    echo "     cd $RAG_DIR/ingestion"
-    echo "     VOYAGE_API_KEY=your-key python3 ingest.py --skills-dir ../../skills"
+    read -rp "  Enter VOYAGE_API_KEY (or press Enter to skip): " VOYAGE_KEY
+
+    local RAG_PYTHON="$RAG_DIR/mcp-server/.venv/bin/python3"
+
+    if [ -n "$VOYAGE_KEY" ]; then
+        # Register MCP server
+        if command -v claude &>/dev/null; then
+            claude mcp add --transport stdio ai-team-memory \
+                -e "VOYAGE_API_KEY=$VOYAGE_KEY" \
+                -- "$RAG_PYTHON" -m memory_mcp
+            echo -e "${GREEN}ai-team-memory MCP registered.${NC}"
+        fi
+
+        # Ingest skills
+        echo -e "${YELLOW}Ingesting skills into Qdrant...${NC}"
+        cd "$RAG_DIR"
+        VOYAGE_API_KEY="$VOYAGE_KEY" "$RAG_PYTHON" -m ingestion.ingest "$TARGET_DIR/skills/" 2>/dev/null || \
+            echo -e "${YELLOW}Ingestion skipped (run manually if needed).${NC}"
+    else
+        echo ""
+        echo "  Register MCP server later with:"
+        echo "    claude mcp add ai-team-memory \\"
+        echo "      -e VOYAGE_API_KEY=your-key \\"
+        echo "      -- $RAG_PYTHON -m memory_mcp"
+        echo ""
+        echo "  Ingest skills later with:"
+        echo "    cd $RAG_DIR"
+        echo "    VOYAGE_API_KEY=your-key $RAG_PYTHON -m ingestion.ingest ~/.claude/skills/"
+    fi
 
     cd "$SCRIPT_DIR"
+}
+
+# Multi-LLM Consultation setup (optional)
+setup_multi_llm() {
+    local MLM_DIR="$SCRIPT_DIR/multi-llm/mcp"
+
+    if [ ! -d "$MLM_DIR" ]; then
+        echo -e "${YELLOW}Multi-LLM directory not found, skipping...${NC}"
+        return
+    fi
+
+    echo ""
+    echo -e "${BLUE}=== Multi-LLM Consultation (Optional) ===${NC}"
+    echo ""
+    echo "Query GPT, Gemini, Grok and more from within Claude Code (/all command)."
+    echo "Requirements: Python 3.11+, OpenRouter API key"
+    echo ""
+
+    # Check Python
+    if ! command -v python3 &>/dev/null; then
+        echo -e "${YELLOW}Python 3 not found. Skipping Multi-LLM setup.${NC}"
+        return
+    fi
+
+    read -p "Set up Multi-LLM Consultation? [y/N] " mlm_choice
+    if [ "$mlm_choice" != "y" ] && [ "$mlm_choice" != "Y" ]; then
+        echo "Skipping Multi-LLM setup."
+        echo "To set up later: see docs/multi-llm-guide.md"
+        return
+    fi
+
+    # Set up Python venv
+    echo -e "${YELLOW}Setting up Multi-LLM Python environment...${NC}"
+    cd "$MLM_DIR"
+    python3 -m venv .venv
+    .venv/bin/pip install -q -e .
+    echo -e "${GREEN}Multi-LLM MCP venv ready.${NC}"
+
+    # Prompt for OpenRouter key
+    echo ""
+    read -rp "  Enter OPENROUTER_API_KEY (or press Enter to skip): " OPENROUTER_KEY
+
+    local MLM_PYTHON="$MLM_DIR/.venv/bin/python3"
+
+    if [ -n "$OPENROUTER_KEY" ]; then
+        if command -v claude &>/dev/null; then
+            claude mcp add --transport stdio multi-llm \
+                -e "OPENROUTER_API_KEY=$OPENROUTER_KEY" \
+                -- "$MLM_PYTHON" -m consult_mcp
+            echo -e "${GREEN}multi-llm MCP registered.${NC}"
+        fi
+    else
+        echo ""
+        echo "  Register MCP server later with:"
+        echo "    claude mcp add multi-llm \\"
+        echo "      -e OPENROUTER_API_KEY=your-key \\"
+        echo "      -- $MLM_PYTHON -m consult_mcp"
+    fi
+
+    cd "$SCRIPT_DIR"
+}
+
+# Atlassian MCP setup
+setup_atlassian() {
+    echo ""
+    echo -e "${BLUE}=== Atlassian Integration (Optional) ===${NC}"
+    echo ""
+    echo "Jira + Confluence integration for ticket management and documentation."
+    echo ""
+
+    read -p "Register Atlassian MCP server? [y/N] " atl_choice
+    if [ "$atl_choice" != "y" ] && [ "$atl_choice" != "Y" ]; then
+        echo "Skipping. Register later with:"
+        echo "  claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp"
+        return
+    fi
+
+    if command -v claude &>/dev/null; then
+        claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp 2>/dev/null || true
+        echo -e "${GREEN}atlassian MCP registered.${NC}"
+    else
+        echo -e "${YELLOW}Claude Code CLI not found. Register manually after installing Claude Code.${NC}"
+    fi
+}
+
+# Context persistence hooks setup
+setup_hooks() {
+    local RAG_PYTHON="$SCRIPT_DIR/claude/rag/mcp-server/.venv/bin/python3"
+    local CONTEXT_DIR="$SCRIPT_DIR/claude/rag/context-cache"
+
+    # Only offer if RAG venv exists and context-cache scripts exist
+    if [ ! -f "$RAG_PYTHON" ] || [ ! -f "$CONTEXT_DIR/save_context.py" ]; then
+        return
+    fi
+
+    echo ""
+    echo -e "${BLUE}=== Context Persistence Hooks (Optional) ===${NC}"
+    echo ""
+    echo "Automatically save session context before compaction and restore"
+    echo "it in future sessions. Requires RAG setup (Qdrant + venv)."
+    echo ""
+
+    read -p "Enable context persistence hooks? [y/N] " hook_choice
+    if [ "$hook_choice" != "y" ] && [ "$hook_choice" != "Y" ]; then
+        echo "Skipping. See docs/context-persistence-guide.md to enable later."
+        return
+    fi
+
+    # We need to know the project dir to write settings.local.json
+    # For now, write a helper message since project path varies
+    echo ""
+    echo -e "${GREEN}To enable hooks for a project, add this to the project's settings.local.json:${NC}"
+    echo ""
+    echo "  File: ~/.claude/projects/<escaped-project-path>/settings.local.json"
+    echo ""
+    cat <<HOOKEOF
+  {
+    "hooks": {
+      "PreCompact": [
+        {
+          "matcher": "",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "$RAG_PYTHON $CONTEXT_DIR/save_context.py",
+              "timeout": 60
+            }
+          ]
+        }
+      ],
+      "SessionStart": [
+        {
+          "matcher": "compact|resume",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "$RAG_PYTHON $CONTEXT_DIR/restore_context.py",
+              "timeout": 30
+            }
+          ]
+        }
+      ]
+    }
+  }
+HOOKEOF
+    echo ""
 }
 
 # Main
@@ -332,20 +525,43 @@ case "${1:-}" in
         ;;
 esac
 
-# Offer RAG setup in interactive mode
-if [ "${1:-}" = "" ]; then
+# Show what was installed
+echo ""
+echo -e "${GREEN}╔═══════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║          Core Installation Complete!              ║${NC}"
+echo -e "${GREEN}╚═══════════════════════════════════════════════════╝${NC}"
+echo ""
+SKILL_COUNT=$(find "$TARGET_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l)
+CMD_COUNT=$(ls "$TARGET_DIR/commands"/*.md 2>/dev/null | wc -l)
+TMPL_COUNT=$(ls "$TARGET_DIR/templates"/*.md 2>/dev/null | wc -l)
+echo "Installed: $SKILL_COUNT skills, $CMD_COUNT commands, $TMPL_COUNT templates"
+echo ""
+
+# Offer optional platform setup (all modes, not just interactive)
+echo -e "${BLUE}=== Optional Platform Features ===${NC}"
+echo ""
+echo "The framework includes optional features that require additional setup."
+echo "You can skip all of these now and set them up later."
+echo ""
+
+read -p "Configure optional features? [y/N] " optional_choice
+if [ "$optional_choice" = "y" ] || [ "$optional_choice" = "Y" ]; then
     setup_rag
+    setup_multi_llm
+    setup_atlassian
+    setup_hooks
 fi
 
 echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║              Installation Complete!               ║${NC}"
+echo -e "${GREEN}║              All Done!                            ║${NC}"
 echo -e "${GREEN}╚═══════════════════════════════════════════════════╝${NC}"
 echo ""
 echo "Next steps:"
 echo "  1. Restart Claude Code to load new skills"
 echo "  2. Try: /agents to see all available agents"
-echo "  3. Try: /max, /jorge, /finn, /james for specific agents"
-echo "  4. Try: /memory for semantic knowledge search (requires RAG setup)"
+echo "  3. Try: /po, /arch, /fe, /be for specific agents"
+echo "  4. Try: /memory for semantic knowledge search (requires RAG)"
+echo "  5. Try: /all for multi-LLM consultation (requires Multi-LLM)"
 echo ""
-echo "Documentation: https://github.com/your-org/ai-dev-team"
+echo "Documentation: https://github.com/AiDevelopTeam/ai-dev-team"

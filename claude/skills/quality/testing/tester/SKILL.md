@@ -603,6 +603,8 @@ Before finalizing test cases, verify that field names, cookie names, API endpoin
 2. If /rob's test cases use a name that doesn't match the actual system, /adam's tests will fail silently or test the wrong thing
 3. Document any name mismatches found during review and update test cases immediately
 
+**Example:** Ticket says cookie `apimedicum_consent` but actual cookie is `apimedicum_cookie_consent` — this mismatch causes /adam's entire visitor ID test suite to fail because the cookie parser checks the wrong name.
+
 ---
 
 ## Anti-Patterns to Avoid
@@ -619,6 +621,8 @@ Before finalizing test cases, verify that field names, cookie names, API endpoin
 10. **Skipping /e2e test review**: ALWAYS review /e2e tests against approved test cases before signing off on coverage
 11. **Confirming Bug priority**: /qa creates draft Bugs -- /po reviews and confirms priority
 12. **Trusting ticket field names blindly**: Always verify cookie names, API endpoints, and identifiers against the actual system — tickets may use placeholder names
+13. **Approving tests with `test.skip()`**: When reviewing /adam's E2E tests, reject any test that uses `test.skip()` for data-dependent conditions. Require synthetic data seeding instead (artisan command + Playwright global setup/teardown)
+14. **Approving always-passing assertions**: Watch for logical tautologies like `expect(count).toBeGreaterThanOrEqual(0)` — a count of non-negative numbers can NEVER be less than 0, making the assertion meaningless. Require `.toBeGreaterThan(0)` for existence checks. Similarly, `expect(sum).toBeGreaterThanOrEqual(0)` for sums of non-negative values is always true
 
 ---
 
@@ -683,6 +687,8 @@ When testing analytics dashboards or metrics displays:
 - [ ] **Don't accept "works visually" as sufficient** -- verify metric values make sense given the test data
 - [ ] **Cross-reference metrics** -- if the system shows "0% hit rate" but the feature clearly works, flag the tracking logic as a potential bug
 - [ ] **Test empty data state** -- verify the dashboard handles zero data gracefully (no errors, shows "N/A" or "0")
+
+---
 
 ## Test Case Specificity for Data-Dependent Behavior
 

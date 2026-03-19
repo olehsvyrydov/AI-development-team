@@ -315,6 +315,23 @@ Every review comment MUST include a severity label:
 - [ ] Selectors are resilient — prefer `data-testid` over fragile DOM structure queries
 - [ ] When /rob flags duplication, the fix must **extract and share**, not **copy and align**
 
+### Integration Test Assertion Quality
+- [ ] No `.getContentType().toString()` without null check — use `isCompatibleWith()` or null-safe wrapper
+- [ ] No "could technically be the same" comments excusing weak assertions — strengthen or redesign
+- [ ] No `assertTrue(status == A || status == B)` when implementation enforces one specific status
+- [ ] No `assertTrue(a || b)` tautology — if at least one is always true, the assertion provides zero value; use `&&` or `assertEquals`
+- [ ] No `assertNotNull(x)` when x should be validated as proper JSON — use `objectMapper.readValue()`
+- [ ] Statistical tests (chaos error rates, nullable fields) use 100+ iterations with proper tolerance bands, not 20
+- [ ] No duplicate helper methods across test classes — extract to shared utility class
+- [ ] `junit-platform.properties` disables parallel execution when tests share server state
+- [ ] Test cases designed in docs BEFORE implementation — serves as spec and review checklist
+
+### Nullable Dereference Detection (CRITICAL — All Languages)
+
+**Universal principle: never chain a method/property call on a nullable return value without a null guard first.** This applies to production code AND test code, in every language. A test that throws NPE/TypeError is a broken test, not a passing one.
+
+During Pass 2, scan for chained calls on nullable returns. Language-specific patterns, tools, and commands are in the appropriate sub-skill (see Stack-Specific Sub-Skills below).
+
 ### Naming (All Languages)
 - [ ] Names clearly communicate purpose
 - [ ] Names are not overly abbreviated
@@ -331,84 +348,27 @@ Every review comment MUST include a severity label:
 - [ ] No commented-out code (delete it; git has history)
 - [ ] TODOs have ticket numbers (not open-ended)
 
-### Frontend Specific (TypeScript/React/Angular)
-- [ ] No ESLint errors
-- [ ] TypeScript strict mode -- no `any` types (prefer `unknown`)
-- [ ] Accessibility (WCAG 2.1 AA) -- alt text, keyboard nav, ARIA, contrast
-- [ ] Proper memoization (useMemo, useCallback where needed)
-- [ ] No prop drilling (>3 levels -> use Context/Zustand/NgRx)
-- [ ] Named exports only (no default exports)
-- [ ] `const`/`let` only (never `var`)
-- [ ] `===`/`!==` only (never `==`/`!=`)
-- [ ] Errors thrown as Error instances (never strings)
-- [ ] Interfaces preferred over type aliases for object shapes
-- [ ] Array syntax `T[]` for simple types, `Array<T>` for complex
-- [ ] No leading/trailing underscores for private (use TS `private`)
-- [ ] Acronyms treated as words: `loadHttpUrl` not `loadHTTPURL`
-- [ ] Component files <200 lines
-- [ ] No `eval()` or dynamic code evaluation
-- [ ] No prototype manipulation
+### Stack-Specific Checklist (MANDATORY)
 
-### Backend Specific (Java/Kotlin)
-- [ ] No Checkstyle violations (Google Java Style)
-- [ ] No SpotBugs findings
-- [ ] Proper exception handling (specific exceptions, not generic)
-- [ ] Transaction boundaries correct
-- [ ] No N+1 queries
-- [ ] `@Override` annotation on all overriding methods
-- [ ] Never ignore caught exceptions (log or rethrow)
-- [ ] Static members accessed via class name, not instance
-- [ ] No finalizers
-- [ ] Null safety: use `Objects.requireNonNull()`, `Optional`, or `@NotNull`
-- [ ] String operations in loops use `StringBuilder`
-- [ ] Polymorphism preferred over type-checking if/switch chains
-- [ ] Resources properly closed (try-with-resources)
-- [ ] Class visibility minimized (package-private by default)
-- [ ] Check existing framework APIs before adding dependencies
-- [ ] No debug statements in production code
-- [ ] Incomplete code marked with TODO/FIXME + ticket number
+/rev MUST load the appropriate sub-skill for the tech stack being reviewed. Stack-specific checklists, tools, nullable patterns, and static analysis commands live in these sub-skills:
 
-### Kotlin Specific
-- [ ] Safe calls (`?.`) instead of `!!` assertions
-- [ ] Structured concurrency (no `GlobalScope`)
-- [ ] Correct dispatcher usage (IO/Default/Main)
-- [ ] No blocking calls on wrong dispatcher (`delay()` not `Thread.sleep()`)
-- [ ] Data classes for DTOs and value objects
-- [ ] Sealed classes for type-safe hierarchies
-- [ ] `let`/`run`/`also`/`apply` used appropriately
-- [ ] Value classes for domain primitives (UserId, Price)
-- [ ] `asSequence()` for large collection chains
-- [ ] Minimal nullable primitives (avoid boxing)
+| Tech Stack | Sub-Skill | File Indicators |
+|-----------|-----------|-----------------|
+| Java/Kotlin/Spring | `/backend-reviewer` | `.java`, `.kt`, `pom.xml`, `build.gradle` |
+| TypeScript/React/Angular | `/frontend-reviewer` | `.ts`, `.tsx`, `.js`, `.jsx`, `package.json` |
+| PHP/Laravel | `/php-reviewer` | `.php`, `composer.json` |
 
-## Code Quality Tools
+**Each sub-skill provides:** language-specific code quality checklist, nullable dereference patterns, static analysis tool commands, and language-specific code smells.
 
-### Backend Tools
-
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Checkstyle | 12.3.0+ | Style enforcement (Google Java Style) |
-| SpotBugs | 4.8.x+ | Bug detection |
-| SonarQube | 10.x+ | Comprehensive analysis |
-
-### Frontend Tools
-
-| Tool | Version | Purpose |
-|------|---------|---------|
-| ESLint | 9.x+ | Static analysis (flat config) |
-| Prettier | 3.x+ | Code formatting |
-| TypeScript | strict mode | Type safety |
-
-### Security Scanners
+## Security Scanners
 
 | Tool | Purpose | Command |
 |------|---------|---------|
 | Grype | Container/dependency vulnerabilities | `grype .` |
 | Trivy | Multi-scanner (container, IaC, secrets) | `trivy fs .` |
-| npm audit | Node.js dependencies | `npm audit` |
-| OWASP Dependency Check | Java dependencies | Gradle/Maven plugin |
 | SonarQube | SAST analysis | CI/CD integration |
 
-## Code Smells to Detect
+## Code Smells to Detect (Universal)
 
 | Smell | Detection | Action |
 |-------|-----------|--------|
@@ -419,12 +379,6 @@ Every review comment MUST include a severity label:
 | Feature Envy | Method uses other class's data more than its own | Move method |
 | Shotgun Surgery | One change requires edits in many classes | Consolidate |
 | Primitive Obsession | Primitives instead of small objects | Introduce value objects |
-| N+1 Queries | Loop with DB calls | Use batch/join/fetch join |
-| Prop Drilling | Props through 3+ levels | Use Context/Zustand/NgRx |
-| Inline Objects | Objects created in JSX props | Extract to useMemo or const |
-| any Type | Explicit any usage in TypeScript | Define proper types / use unknown |
-| !! Assertion (Kotlin) | Null assertion | Use safe call (?.) or require() |
-| GlobalScope (Kotlin) | Unstructured coroutine | Use proper CoroutineScope |
 | God Object | Class that knows/does too much | Decompose by responsibility |
 | Dead Code | Unreachable or unused code | Delete (git has history) |
 | Speculative Generality | Interfaces/abstractions for one implementation | Remove; add when needed |
@@ -641,9 +595,48 @@ Every review comment MUST include a severity label:
 -> Developer fixes issues, adds Jira comment explaining changes, and re-submits
 ```
 
-## Two-Pass Review Process (DEFAULT)
+## Three-Pass Review Process (DEFAULT)
 
-Every code review uses two passes:
+Every code review uses three passes:
+
+### Pass 0: Automated Static Analysis (MANDATORY — Run Before Manual Review)
+
+**Run automated tools FIRST** to catch mechanical bugs that are difficult to detect by eye. This is non-negotiable — tools catch bugs that even senior reviewers miss (e.g., NPE on `@Nullable` returns, resource leaks, threading issues).
+
+**For Java/Kotlin projects** (detected by `pom.xml` or `build.gradle`):
+
+1. **SpotBugs** — bytecode analysis for bugs, NPE, threading, resource leaks:
+   ```bash
+   mvn compile test-compile com.github.spotbugs:spotbugs-maven-plugin:4.9.8.0:check \
+     -Dspotbugs.includeTests=true -Dspotbugs.effort=Max -Dspotbugs.threshold=Low
+   ```
+   If SpotBugs fails due to unsupported class file version, try the latest plugin version.
+
+2. **Nullable dereference grep scan** — catches framework-specific NPE that SpotBugs misses:
+   SpotBugs does NOT detect NPE from Spring/framework `@Nullable` returns (e.g., `ResponseEntity.getBody()`, `HttpHeaders.getContentType()`, `Map.get()`). Use grep to find these patterns in BOTH production and test code:
+   ```bash
+   # Search changed files for nullable dereference patterns
+   grep -rn '\.getBody()\.' src/
+   grep -rn '\.getContentType()\.' src/
+   grep -rn '\.get(".*")\.' src/   # Map.get() returns @Nullable
+   ```
+   Every hit must have a preceding null check or `assertNotNull()`. Flag violations as BLOCKING.
+
+3. **PMD** — source-code analysis (works regardless of Java version):
+   ```bash
+   mvn org.apache.maven.plugins:maven-pmd-plugin:3.26.0:check -Dpmd.includeTests=true
+   ```
+
+**For TypeScript/React projects** (detected by `package.json`):
+- `npm audit` / `pnpm audit` for dependency vulnerabilities
+- ESLint with strict null checks enabled
+
+**For PHP/Laravel projects** (detected by `composer.json`):
+- PHPStan at level 8+ for null safety
+- `composer audit` for dependency vulnerabilities
+
+**Report all tool findings** in the "Static Analysis Results" section of the review report.
+If tools cannot run (version incompatibility, missing config), document the failure and **intensify manual null-safety review in Pass 2**.
 
 ### Pass 1: Logic, Security, Code Quality
 - Code correctness and readability
@@ -658,74 +651,14 @@ Every code review uses two passes:
 - Boundary values tested (empty, null, max, negative)
 - Schema compliance: all queries on modified tables respect new filters
 - Dead code sweep: no unused parameters, unreachable branches, or speculative utilities
+- **Nullable dereference manual scan** — verify grep findings from Pass 0 and scan for patterns tools missed
 
 **Exit Criteria for Pass 2:**
+- [ ] Static analysis tools ran (Pass 0) — results documented
+- [ ] Nullable dereference scan completed (automated + manual)
 - [ ] Dead code sweep performed (flag unused parameters, unreachable code)
 - [ ] All filter/exclusion criteria have corresponding negative tests
 - [ ] Schema changes audited: all queries on affected tables verified
-
----
-
-## Multi-LLM Review Synthesis
-
-### Overview
-
-/rev can invoke parallel reviews from external LLMs via the `/all` multi-LLM consultation command. Different models have complementary blind spots:
-- **GPT-5-2**: Strongest at security vulnerability detection (injection, secrets, OWASP Top 10)
-- **Gemini 3.1 Pro**: Strongest at performance analysis (N+1 queries, memory leaks, concurrency)
-- **Claude**: Strongest at architecture reasoning and business logic validation (multi-file, AC compliance)
-
-### When to Invoke Multi-LLM Review
-
-Use `/all` for cross-validation when:
-- The diff touches security-sensitive code (auth, payments, data handling)
-- The diff modifies database queries, caching, or concurrency patterns
-- The PR exceeds 200 lines of changes
-- The feature has high business impact (P0/P1)
-- You want a second opinion on complex code
-
-### How to Invoke
-
-Use the `/all` command with the `multi-llm-consult` MCP server:
-
-```
-/all Review this diff for security and performance issues: [paste diff or describe changes]
-```
-
-The `/all` command will:
-1. Check API configuration (`check_config()`)
-2. Let you select models interactively (`list_models()`)
-3. Consult each model in parallel (`consult_model()`)
-4. Synthesize findings into a consolidated report
-
-### How to Synthesize Multi-LLM Findings
-
-After the `/all` consultation completes, incorporate findings into your review:
-
-1. **Agreements** (high confidence): When multiple models flag the same issue, treat it as high-confidence. Include in BLOCKING or WARNING with note: "Confirmed by GPT-5-2 + Gemini."
-2. **Disagreements** (highest value): When models disagree, this is where human judgment matters most. Flag for developer attention with QUESTION severity.
-3. **Unique findings**: Each model catches things others miss. Validate unique findings against the code before including — false positives are possible.
-4. **No findings**: If external models find nothing but you found issues (or vice versa), note the cross-validation in your report.
-
-### Report Integration
-
-Add a "Multi-LLM Cross-Validation" section to the review report:
-
-```markdown
-## Multi-LLM Cross-Validation
-
-| Finding | GPT-5-2 (Security) | Gemini (Performance) | /rev (Architecture) | Verdict |
-|---------|---------------------|---------------------|---------------------|---------|
-| SQL injection in UserService:42 | CRITICAL | — | CONFIRMED | BLOCKING |
-| N+1 query in OrderRepo:88 | — | HIGH | CONFIRMED | WARNING |
-| Missing rate limit | HIGH | — | Not in scope | SUGGESTION |
-```
-
-### API Key Configuration
-
-The MCP server requires ONE of these environment variables:
-- `OPENROUTER_API_KEY` (preferred — single key for all models via OpenRouter)
-- `OPENAI_API_KEY` + `GOOGLE_API_KEY` (direct API fallback)
 
 ---
 
@@ -740,7 +673,8 @@ The MCP server requires ONE of these environment variables:
 - [ ] No code smells remain
 - [ ] Documentation updated (if behavior changed)
 - [ ] No degradation of overall system code health
-- [ ] Two-pass review completed (Pass 1: logic/security, Pass 2: conditions/boundaries/schema)
+- [ ] Three-pass review completed (Pass 0: static analysis tools, Pass 1: logic/security, Pass 2: conditions/boundaries/schema)
+- [ ] Static analysis ran and findings documented (SpotBugs, grep nullable scan, PMD)
 - [ ] Dead code sweep completed (no unused parameters or speculative utilities)
 - [ ] Review report posted as Jira comment AND saved to Git file
 
@@ -862,60 +796,13 @@ When reviewing features that produce dynamic output (AI responses, search result
 
 ---
 
-## Widget & Admin Panel Review Checklist
-
-When reviewing code that touches admin panel widgets (Filament, Nova, etc.):
-
-- [ ] **Widget registration audit** -- verify widgets use exactly ONE registration path (auto-discovery, explicit PHP, or blade). Mixed paths cause duplication.
-- [ ] **`$isDiscovered = false`** present on all widgets explicitly registered on custom pages
-- [ ] **Blade template check** -- ensure custom page blade doesn't manually render widgets that the parent component already renders automatically
-- [ ] **Widget count verification** -- E2E or integration test exists that asserts the expected number of widgets on the page
-
-## Translation Key Review Checklist
-
-When reviewing code that adds new user-facing or admin-facing text:
-
-- [ ] **All `__()` keys exist** in every supported locale file (en, uk, etc.)
-- [ ] **No raw translation keys** will appear in the UI -- check that keys are not just referenced but actually defined
-- [ ] **Locale files updated in the SAME commit** as the code that uses the keys
-- [ ] **Select/dropdown options** all use translation keys (easy to miss individual options)
-- [ ] **Helper text and placeholders** use translation keys (often forgotten)
-
-## Staging Verification for UI Features
-
-For features with visual output (admin dashboards, widgets, form changes):
-
-- [ ] **Quick staging check** -- after approving code, do a 5-minute visual verification on staging to catch rendering issues that code review alone cannot detect
-- [ ] **Both locales verified** -- switch locale and confirm labels/text render correctly
-- [ ] **Widget deduplication check** -- visually confirm widgets appear the expected number of times
-
-## Backend-Frontend URL Contract Verification
-
-When reviewing code that passes URLs between backend and frontend (e.g., image paths in API responses or Inertia props):
-
-- [ ] **Verify URL format consistency** — check if backend sends relative paths or full URLs
-- [ ] **Check all consumers** — if backend sends full URLs via `asset()`, verify no frontend component prepends `/storage/` or other prefixes
-- [ ] **Cross-reference ad/media components** — different components may consume the same prop differently; verify they all match
-
-This is a common source of P1 bugs (broken images) that are invisible in code review but immediately visible on staging.
-
-## Image Element Completeness
-
-When reviewing `<img>` elements in frontend components:
-
-- [ ] `loading="lazy"` present on below-fold images
-- [ ] `decoding="async"` present alongside lazy loading
-- [ ] `alt` attribute present (accessibility)
-- [ ] Responsive image attributes (`srcset`, `sizes`) used where appropriate
-
 ## Copilot PR Review Integration
 
 GitHub Copilot review is effective at catching mechanical issues that human reviewers frequently miss:
 - Unused imports (especially after refactoring)
-- Missing HTML attributes (`decoding`, `alt`)
 - Hardcoded strings that should reference constants
-- Helper functions with incorrect logic (e.g., counting hidden DOM elements)
-- Inconsistent test attribute usage (e.g., `test_` prefix vs `#[Test]` attribute in PHPUnit)
+- Helper functions with incorrect logic
+- Inconsistent test attribute usage
 - Request-scoped memoization keys that unnecessarily include per-request-constant values
 - Overly broad error filters that hide legitimate issues
 
@@ -927,3 +814,11 @@ When reviewing code with in-memory memoization (instance properties used as cach
 - [ ] **Verify the scope** — is the memoization request-scoped (instance property) or application-scoped (static/singleton)?
 - [ ] **Check key composition** — keys should include ONLY dimensions that actually vary within the scope. For request-scoped memoization, values constant within a request (visitor ID, session ID) are unnecessary in the key
 - [ ] **Check cache vs per-request logic** — operations that must run per-visitor (like frequency capping) should happen OUTSIDE the shared cache layer, not inside it
+
+## Backend-Frontend URL Contract Verification
+
+When reviewing code that passes URLs between backend and frontend (e.g., image paths in API responses or Inertia props):
+
+- [ ] **Verify URL format consistency** — check if backend sends relative paths or full URLs
+- [ ] **Check all consumers** — if backend sends full URLs via `asset()`, verify no frontend component prepends `/storage/` or other prefixes
+- [ ] **Cross-reference ad/media components** — different components may consume the same prop differently; verify they all match

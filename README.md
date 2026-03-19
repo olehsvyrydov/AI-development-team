@@ -1,8 +1,16 @@
 # AI Development Team
 
-A reusable repository of specialized Claude Code skills that work together like a real software development team. Each "agent" has deep expertise, follows best practices, and can be invoked for specific tasks.
+A complete virtual software development team for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). 40 specialized AI agents — from Product Owner to E2E Tester — that collaborate through a structured workflow with approval gates, TDD, and semantic knowledge retrieval.
 
-## Team Overview
+```
+/po → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe | /be → /rev → /qa + /e2e
+```
+
+Each agent is a Claude Code skill with deep domain expertise, specific technology knowledge, and awareness of its role in the team workflow. Agents hand off work to each other, write to Jira/Confluence, and accumulate institutional knowledge through a RAG-powered memory system.
+
+---
+
+## Team at a Glance
 
 ```
                               MANAGEMENT LAYER
@@ -11,90 +19,73 @@ A reusable repository of specialized Claude Code skills that work together like 
     ┌──────▼──────┐      ┌───────▼───────┐     ┌──────▼──────┐
     │   PRODUCT   │      │    SCRUM      │     │  BUSINESS   │
     │    OWNER    │      │   MASTER      │     │  ANALYST    │
-    │     /po     │      │     /sm       │     │    /ba      │
+    │   /po /max  │      │  /sm /luda    │     │  /ba /anna  │
     └──────┬──────┘      └───────┬───────┘     └──────┬──────┘
            └─────────────────────┼─────────────────────┘
                                  │
                         ARCHITECTURE LAYER
-                      ┌──────────▼──────────┐
-                      │     SOLUTION        │
-                      │    ARCHITECT        │
-                      │       /arch         │
-                      └──────────┬──────────┘
+           ┌─────────────────────┼─────────────────────┐
+    ┌──────▼──────────┐                       ┌────────▼────────┐
+    │    SOLUTION     │                       │    SECURITY     │
+    │   ARCHITECT     │                       │    ENGINEER     │
+    │  /arch /jorge   │                       │ /secops /soren  │
+    └──────┬──────────┘                       └────────┬────────┘
+           └─────────────────────┬─────────────────────┘
                                  │
+                        DEVELOPMENT LAYER
          ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌────────▼───────┐    ┌─────────▼────────┐    ┌─────────▼────────┐
-│    BACKEND     │    │    FRONTEND      │    │     DEVOPS       │
-│   DEVELOPER    │    │   DEVELOPER      │    │    ENGINEER      │
-│      /be       │    │      /fe         │    │                  │
-└───────┬────────┘    └────────┬─────────┘    └────────┬─────────┘
-        │                      │                       │
-        │   QUALITY LAYER      │                       │
-        ▼                      ▼                       ▼
-┌───────────────┐      ┌───────────────┐       ┌───────────────┐
-│     CODE      │      │   UI/UX       │       │    SECOPS     │
-│   REVIEWER    │      │   DESIGNER    │       │   ENGINEER    │
-│     /rev      │      │     /ui       │       │               │
-└───────┬───────┘      └───────┬───────┘       └───────────────┘
-        ▼                      ▼
-┌───────────────┐      ┌───────────────┐
-│  QA / TEST    │      │     E2E       │
-│   DESIGNER    │      │    TESTER     │
-│     /qa       │      │     /e2e      │
-└───────────────┘      └───────────────┘
+  ┌──────▼────────┐    ┌────────▼─────────┐    ┌────────▼────────┐
+  │    BACKEND    │    │    FRONTEND      │    │     DEVOPS      │
+  │   DEVELOPER   │    │   DEVELOPER      │    │    ENGINEER     │
+  │  /be /james   │    │   /fe /finn      │    │                 │
+  └──────┬────────┘    └────────┬─────────┘    └─────────────────┘
+         │                      │
+         │        QUALITY LAYER │
+         ▼                      ▼
+  ┌──────────────┐     ┌───────────────┐     ┌───────────────┐
+  │     CODE     │     │  QA ENGINEER  │     │   E2E TESTER  │
+  │   REVIEWER   │     │   /qa /rob    │     │  /e2e /adam   │
+  │     /rev     │     └───────────────┘     └───────────────┘
+  └──────────────┘
 
-                         COMPLIANCE LAYER
-      ┌──────────────┬──────────────┬──────────────┐
-      │              │              │              │
-┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐
-│ACCOUNTANT │  │   LEGAL   │  │ MARKETING │  │ TECHNICAL │
-│   /fin    │  │  /legal   │  │   /mkt    │  │  WRITER   │
-└───────────┘  └───────────┘  └───────────┘  └───────────┘
+                        SPECIALIST LAYER
+  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐
+  │ UI/UX     │  │ACCOUNTANT │  │   LEGAL   │  │ MARKETING │
+  │ /ui /aura │  │ /fin /inga│  │/legal/alex│  │ /mkt /apex│
+  └───────────┘  └───────────┘  └───────────┘  └───────────┘
 ```
 
 ---
 
 ## Quick Start
 
-### Installation (One Command)
+### 1. Install
 
 ```bash
-# Clone and install
-git clone https://github.com/your-org/ai-dev-team.git
+git clone https://github.com/AiDevelopTeam/ai-dev-team.git
 cd ai-dev-team
 ./install.sh
 ```
 
-The installer will:
-- Detect existing `~/.claude` directory
-- Offer merge or replace options
-- Backup existing configuration if replacing
-- Install all skills, commands, and templates
+The installer detects existing `~/.claude` configuration and offers:
+- **Merge** — add new skills, keep your existing ones (recommended)
+- **Replace** — backup existing `~/.claude` and install fresh
+- **Link** — symlink for development (changes in repo reflect immediately)
 
-### Manual Installation
+Or use flags directly: `./install.sh --merge`, `./install.sh --replace`, `./install.sh --link`
 
-```bash
-# Clone the repository
-git clone https://github.com/your-org/ai-dev-team.git
-cd ai-dev-team
-
-# Copy to ~/.claude
-cp -r claude/* ~/.claude/
-```
-
-### Verify Installation
+### 2. Verify
 
 ```bash
-# List installed skills
-ls ~/.claude/skills/
-
-# List commands
-ls ~/.claude/commands/
-
-# In Claude Code, try:
-/agents
+# In Claude Code:
+/agents         # List all 40 agents
+/po             # Start with Product Owner
+/arch           # Get architecture review
 ```
+
+### 3. Optional: Enable RAG Knowledge Base
+
+The installer will offer to set up the semantic knowledge base (requires Docker + Python 3.11+). You can also do it manually later — see [RAG Setup](#rag-knowledge-base-ai-team-memory).
 
 ---
 
@@ -102,42 +93,35 @@ ls ~/.claude/commands/
 
 ```
 ~/.claude/
-├── CLAUDE.md                    # Global instructions (TDD, workflow)
-├── TEAM_WORKFLOW.md             # Complete team workflow documentation
+├── CLAUDE.md                    # Global instructions (TDD workflow, approval gates)
+├── TEAM_WORKFLOW.md             # Complete team process documentation
 │
-├── skills/                      # 34 AI agent skills
+├── skills/                      # 40 agent skill files
 │   ├── management/              # Product Owner, Scrum Master, Business Analyst
 │   ├── architecture/            # Solution Architect, GraphQL Developer
 │   ├── development/
-│   │   ├── backend/             # Java, Kotlin, Python specialists
-│   │   └── frontend/            # React, Angular, Vue, Flutter
+│   │   ├── backend/             # Java/Spring, Kotlin, PHP/Laravel, Python/FastAPI
+│   │   ├── frontend/            # React/Next.js, Angular, Vue, Flutter
+│   │   └── desktop/             # JavaFX
 │   ├── quality/
-│   │   ├── review/              # Code reviewers
-│   │   └── testing/             # QA, E2E, BDD testers
-│   ├── operations/              # DevOps, SecOps, MLOps
-│   ├── design/                  # UI/UX Designer
-│   ├── compliance/              # Accountant, Legal (generic + UK)
-│   ├── marketing/               # Product Marketing
-│   └── specialized/             # Technical Writer, Kai (Meta-Agent)
+│   │   ├── review/              # Full-stack, Backend, Frontend, PHP reviewers
+│   │   └── testing/             # QA, E2E (Playwright/Detox), BDD/Cucumber, unit testers
+│   ├── operations/              # DevOps, SecOps, MLOps, Terraform, HMRC API
+│   ├── design/                  # UI/UX Designer, JavaFX Designer
+│   ├── compliance/              # Accountant, Legal (generic + UK regional variants)
+│   ├── marketing/               # Product Marketing Strategist
+│   └── specialized/             # Technical Writer, Kai (self-improving meta-agent)
 │
 ├── commands/                    # 37 slash commands
-│   ├── agents.md                # /agents - list all agents
-│   ├── po.md, sm.md, arch.md   # Management + Architecture
-│   ├── fe.md, be.md             # Development
-│   ├── rev.md, qa.md, e2e.md   # Quality
-│   ├── ui.md, ba.md             # Design + Analysis
-│   ├── fin.md, legal.md, mkt.md # Compliance + Marketing
-│   ├── bug.md, issue.md         # Issue tracking
-│   ├── memory.md                # /memory - AI Team Memory search/store
-│   ├── all.md                   # /all - Multi-LLM consultation
-│   ├── kai.md                   # /kai - Self-improving meta-agent
-│   └── [13 persona aliases]     # /max, /jorge, /finn, etc.
+│   ├── [14 role-based]          # /po, /sm, /ba, /arch, /fe, /be, /rev, /qa, /e2e ...
+│   ├── [13 persona aliases]     # /max, /luda, /jorge, /finn, /james, /adam ...
+│   └── [10 utility]             # /agents, /bug, /issue, /memory, /all, /kai ...
 │
-└── templates/                   # Document templates
-    ├── adr-template.md
-    ├── user-story-template.md
-    ├── sprint-template.md
-    ├── code-review-template.md
+└── templates/                   # 6 document templates
+    ├── adr-template.md          # Architecture Decision Records
+    ├── user-story-template.md   # User stories with Given/When/Then AC
+    ├── sprint-template.md       # Sprint planning & tracking
+    ├── code-review-template.md  # Structured code review reports
     ├── investigation-report-template.md
     └── retrospective-template.md
 ```
@@ -146,50 +130,58 @@ ls ~/.claude/commands/
 
 ## Agent Reference
 
-### Core Agents (18)
+### Core Agents
 
-| Command | Role | Expertise |
-|---------|------|-----------|
-| `/po` | Product Owner | Vision, backlog, user stories |
-| `/sm` | Scrum Master | Sprints, AC, status tracking |
-| `/ba` | Business Analyst | Research, requirements |
-| `/arch` | Solution Architect | System design, patterns, ADRs |
-| `/fe` | Frontend Developer | React, TypeScript, Next.js |
-| `/be` | Backend Developer | Java, Spring Boot, APIs |
-| `/rev` | Code Reviewer | Quality, security, style |
-| `/qa` | QA Engineer | Test design, bug investigation |
-| `/e2e` | E2E Tester | Playwright, Detox, performance |
-| `/ui` | UI Designer | Design systems, prototypes |
-| `/fin` | UK Accountant | Tax, VAT, R&D credits |
-| `/legal` | UK Legal | GDPR, contracts, compliance |
-| `/mkt` | Marketing | GTM, positioning, content |
-| - | DevOps Engineer | Terraform, K8s, CI/CD |
-| - | Security Engineer | OWASP, auth, security |
-| - | ML Engineer | AI/ML, LLM integration |
-| - | Technical Writer | Docs, diagrams, guides |
-| - | Generic Accountant | Multi-jurisdiction finance |
-| - | Generic Legal | Multi-jurisdiction legal |
+| Command | Alias | Role | Key Expertise |
+|---------|-------|------|---------------|
+| `/po` | `/max` | Product Owner | Vision, backlog, user stories, prioritization |
+| `/sm` | `/luda` | Scrum Master | Sprint ceremonies, AC refinement, team orchestration |
+| `/ba` | `/anna` | Business Analyst | Market research, requirements, gap analysis |
+| `/arch` | `/jorge` | Solution Architect | System design, patterns (CQRS, Saga), ADRs |
+| `/fe` | `/finn` | Frontend Developer | React 19, Next.js, TypeScript, TailwindCSS |
+| `/be` | `/james` | Backend Developer | Java 21+, Spring Boot 4, Kotlin, reactive APIs |
+| `/rev` | — | Code Reviewer | Quality, security, style, requirements validation |
+| `/qa` | `/rob` | QA Engineer | Test case design, BDD specs, exploratory testing |
+| `/e2e` | `/adam` | E2E Tester | Playwright, Detox, performance testing |
+| `/ui` | `/aura` | UI/UX Designer | Design systems, Figma-to-code, accessibility |
+| `/secops` | `/soren` | Security Engineer | OWASP, threat modeling, Zero Trust, supply chain |
+| `/fin` | `/inga` | UK Accountant | Tax planning, VAT, R&D credits, MTD compliance |
+| `/legal` | `/alex` | UK Legal Counsel | GDPR, contracts, employment law, compliance |
+| `/mkt` | `/apex` | Marketing Strategist | GTM strategy, positioning, content, SEO |
+| — | — | DevOps Engineer | Terraform, Kubernetes, GitHub Actions, Docker |
+| — | — | MLOps Engineer | LLM integration, AI pipelines, model serving |
+| — | — | Technical Writer | API docs, architecture diagrams, onboarding guides |
 
-### Extended Skills (14)
+> Both naming conventions work: `/arch` (role-based, primary) and `/jorge` (persona alias) invoke the same agent.
 
-Technology-specific extensions that activate alongside core agents:
+### Technology Extensions
+
+These activate alongside core agents when working with specific technologies:
 
 | Skill | Extends | Technology |
 |-------|---------|------------|
-| angular-developer | frontend-developer | Angular 21 |
-| vue-developer | frontend-developer | Vue 3 |
-| flutter-developer | frontend-developer | Flutter/Dart |
-| kotlin-developer | backend-developer | Kotlin 2.1 |
-| quarkus-developer | backend-developer | Quarkus |
-| fastapi-developer | backend-developer | Python FastAPI |
-| spring-kafka | backend-developer | Kafka integration |
-| graphql-developer | solution-architect | GraphQL APIs |
-| terraform-specialist | devops-engineer | Terraform/OpenTofu |
-| cucumber-bdd | e2e-tester | BDD/Cucumber |
-| backend-reviewer | reviewer | Java/Kotlin focus |
-| frontend-reviewer | reviewer | TypeScript focus |
-| backend-tester | tester | JUnit, Testcontainers |
-| frontend-tester | tester | Jest, RTL |
+| Angular Developer | Frontend | Angular 21, Signals, NgRx SignalStore |
+| Vue Developer | Frontend | Vue 3, Composition API, Pinia, Nuxt 3 |
+| Flutter Developer | Frontend | Flutter/Dart, Riverpod, Material 3 |
+| Kotlin Developer | Backend | Kotlin 2.1, Coroutines, KMP |
+| Quarkus Developer | Backend | Quarkus, Panache, GraalVM Native |
+| FastAPI Developer | Backend | Python FastAPI, async, Pydantic v2 |
+| Laravel Developer | Backend | PHP/Laravel, Eloquent, Filament, Livewire 3 |
+| Spring Kafka | Backend | Kafka 4.x, Reactor Kafka, DLT/retry |
+| JavaFX Developer | Desktop | JavaFX 21+, FXML, Scene Builder |
+| GraphQL Developer | Architect | Apollo, Federation, DataLoader |
+| Terraform Specialist | DevOps | Multi-cloud IaC, state management |
+| Cucumber BDD | E2E Tester | Gherkin, step definitions, Cucumber-JVM/JS |
+| HMRC API | Backend | UK Making Tax Digital, OAuth2 Gateway |
+| Backend Reviewer | Reviewer | Java/Kotlin focus, Checkstyle, SonarQube |
+| Frontend Reviewer | Reviewer | TypeScript focus, ESLint, accessibility |
+| PHP Reviewer | Reviewer | PHP/Laravel focus, PHPStan, Psalm |
+| Backend Tester | Tester | JUnit 5, Testcontainers, StepVerifier |
+| Frontend Tester | Tester | Jest, React Testing Library, Vitest |
+| JavaFX Designer | UI Designer | JavaFX CSS, FXML layouts |
+| UK Accountant | Accountant | UK-specific tax, HMRC, IR35 |
+| UK Legal Counsel | Legal | English & Welsh Law, GDPR UK |
+| UK Self-Employment | UK Accountant | SA103, Class 4 NI, MTD quarterly |
 
 ---
 
@@ -197,19 +189,38 @@ Technology-specific extensions that activate alongside core agents:
 
 ### Development Sequence
 
+Every feature follows this pipeline:
+
 ```
-/po → /sm → /arch → [/fin] → [/legal] → [/ui] → /fe|/be → /rev → /qa + /e2e
-Vision  AC   Arch.   Finance  Legal    Design   TDD Dev   Review  Testing
+1. /po + /ba    → Define vision, write user stories with behavioral AC
+2. /arch        → Architecture review and ADR (MANDATORY for all features)
+3. /secops      → Security review (MANDATORY for all features)
+4. [/fin]       → Finance review (if payments, billing, tax)
+5. [/legal]     → Legal review (if GDPR, privacy, contracts)
+6. [/ui]        → UI design (if frontend feature)
+7. /fe or /be   → TDD implementation (tests first, then code)
+8. /rev         → Code review (quality + security + requirements)
+9. /qa + /e2e   → Test case design + automated E2E tests
 ```
 
 ### Approval Gates
 
 | Gate | Agent | When Required |
 |------|-------|---------------|
-| Architecture | /arch | **ALWAYS** |
-| Finance | /fin | Payments, billing, tax |
-| Legal | /legal | GDPR, privacy, contracts |
-| UI Design | /ui | Frontend features |
+| Architecture | `/arch` | **Always** — all features |
+| Security | `/secops` | **Always** — all features |
+| Finance | `/fin` | Payments, billing, VAT, tax features |
+| Legal | `/legal` | GDPR, privacy, contracts, employment |
+| UI Design | `/ui` | Frontend features |
+
+### TDD (Mandatory)
+
+All development follows strict Test-Driven Development:
+
+1. **Red** — Write failing tests that define expected behavior
+2. **Green** — Write minimum code to pass tests
+3. **Refactor** — Clean up while keeping tests green
+4. **Commit** — Git commit after successful test run
 
 ### Bug Workflow
 
@@ -217,45 +228,97 @@ Vision  AC   Arch.   Finance  Legal    Design   TDD Dev   Review  Testing
 /bug Login button doesn't work on mobile Safari
 ```
 
-Creates structured bug report → Investigation → Reproduction test → TDD fix → Review → Tests
+Creates a structured investigation → reproduction test → TDD fix → code review → E2E test.
 
----
+### Jira & Confluence Integration
 
-## Key Principles
+The framework integrates with Atlassian tools via the [Atlassian MCP server](https://mcp.atlassian.com):
 
-### TDD (Mandatory)
+```bash
+claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp
+```
 
-All development follows Test-Driven Development:
-1. Write tests first (RED)
-2. Implement minimum code (GREEN)
-3. Refactor (REFACTOR)
-
-### Architecture First
-
-ALL features require `/arch` approval before implementation.
-
-### Developers Own Tests
-
-- `/fe` and `/be` write unit and integration tests
-- `/qa` designs test cases from acceptance criteria
-- `/e2e` implements automated E2E and performance tests
+- **Jira**: Kanban board for issue tracking, ticket lifecycle, sprint management
+- **Confluence**: Architecture decisions, security reviews, investigation reports, sprint documentation
+- **Git conventions**: Branch names (`feature/LJ-123-description`), commit messages (`LJ-123: Implement feature`)
 
 ---
 
 ## AI Platform Features
 
-Beyond the agent skills, the framework includes an intelligent knowledge platform:
+Beyond agent skills, the framework includes an intelligent knowledge platform with three systems:
 
-### AI Team Memory (RAG Knowledge Base)
+### RAG Knowledge Base (AI Team Memory)
 
-Semantic search across agent expertise, past decisions, and code patterns — powered by Qdrant + Voyage AI.
+Semantic search across agent expertise, architecture decisions, sprint learnings, and code patterns — powered by [Qdrant](https://qdrant.tech) + [Voyage AI](https://voyageai.com).
 
 ```bash
+# In Claude Code:
 /memory What does Jorge know about CQRS?
 /memory Search for React testing patterns
 ```
 
+**4 MCP tools provided:**
+- `memory_search` — semantic search across any collection
+- `memory_store` — persist new learnings at runtime
+- `memory_agent_expertise` — ask "What does [agent] know about X?"
+- `memory_stats` — collection health and counts
+
+**5 Qdrant collections:**
+
+| Collection | Contents | Use Case |
+|------------|----------|----------|
+| `agent-knowledge` | SKILL.md sections indexed by agent | "What does Finn know about React Server Components?" |
+| `decisions` | Architecture Decision Records | "Have we decided on an auth strategy?" |
+| `learnings` | Sprint retrospective insights | "What did we learn about Playwright selectors?" |
+| `code-patterns` | Reusable code templates | "Show me a Spring Boot pagination pattern" |
+| `session-context` | Conversation snapshots | Automatic session continuity across compactions |
+
+**Setup:**
+
+```bash
+# 1. Start Qdrant
+cd claude/rag && docker compose up -d
+
+# 2. Install Python dependencies
+cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -e .
+
+# 3. Initialize collections
+cd .. && mcp-server/.venv/bin/python3 -m management.stats
+
+# 4. Ingest skills into Qdrant
+VOYAGE_API_KEY=<key> mcp-server/.venv/bin/python3 -m ingestion.ingest ~/.claude/skills/
+
+# 5. Register MCP server with Claude Code
+claude mcp add ai-team-memory \
+  -e VOYAGE_API_KEY=<your-key> \
+  -- /path/to/claude/rag/mcp-server/.venv/bin/python3 -m memory_mcp
+```
+
+**Architecture:**
+
+```
+Claude Code ──(stdio)──> MCP Server ──> Qdrant (Docker, port 6333)
+                              │
+                         Voyage AI (voyage-code-3, 1024-dim embeddings)
+```
+
 See: [RAG Setup Guide](docs/rag-setup/setup-guide.md) | [Knowledge Management](docs/knowledge-management-guide.md)
+
+### Context Persistence
+
+Automatic session continuity — decisions, file changes, and error resolutions survive context compaction and are restored in future sessions.
+
+**How it works:**
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| `save_context.py` | PreCompact | Parse transcript → extract decisions, file changes, tasks, discussions, errors → embed → store in Qdrant |
+| `restore_context.py` | SessionStart (compact/resume) | Query Qdrant for relevant session context → inject into system prompt |
+
+**Distillation pipeline** (`distill_context.py`): Promotes raw session context into permanent `learnings` and `agent-knowledge` collections — turning temporary conversation artifacts into long-lived institutional knowledge.
+
+See: [Context Persistence Guide](docs/context-persistence-guide.md)
 
 ### Multi-LLM Consultation (`/all`)
 
@@ -266,67 +329,184 @@ Query GPT-5-2, Gemini 3.1 Pro, Grok 4, and more from within Claude Code. Get con
 /all Review this architecture for scalability issues
 ```
 
+**9 models available** (3 defaults, 6 alternatives):
+
+| Model | Context | Strengths |
+|-------|---------|-----------|
+| GPT-5-2 | 400K | Deepest reasoning, security analysis |
+| Gemini 3.1 Pro | 1M | Large context, performance |
+| Grok 4 | 256K | Parallel reasoning, unique perspectives |
+| DeepSeek Chat | 163K | 90% quality at 1/50 cost |
+| Llama 4 Scout | 10M | Open-source, largest context window |
+| + 4 more | | Fast/Pro variants |
+
+Routes through [OpenRouter](https://openrouter.ai) (single API key for all models) with direct OpenAI fallback.
+
+**Setup:**
+
+```bash
+cd multi-llm/mcp
+python3 -m venv .venv && .venv/bin/pip install -e .
+
+claude mcp add multi-llm \
+  -e OPENROUTER_API_KEY=<your-key> \
+  -- /path/to/multi-llm/mcp/.venv/bin/python3 -m consult_mcp
+```
+
 See: [Multi-LLM Guide](docs/multi-llm-guide.md)
-
-### Context Persistence
-
-Automatic session continuity — decisions, file changes, and error resolutions are saved to Qdrant and restored in future sessions.
-
-See: [Context Persistence Guide](docs/context-persistence-guide.md)
 
 ### Self-Improving Meta-Agent (`/kai`)
 
-Kai detects recurring patterns in accumulated learnings and proposes permanent SKILL.md updates for human review.
+Kai detects recurring patterns in accumulated learnings and proposes permanent SKILL.md updates — with human approval before any changes are applied.
 
 ```bash
-/kai analyze                    # Scan for patterns
-/kai propose                    # Generate update proposals
+/kai analyze                    # Scan learnings for patterns
+/kai propose                    # Generate SKILL.md update proposals
+/kai list --status pending      # Review pending proposals
 /kai approve <ID>               # Approve a proposal
-/kai apply <ID>                 # Apply to SKILL.md
+/kai apply <ID>                 # Apply to SKILL.md files
+/kai status                     # Summary of all proposals
 ```
+
+**Pipeline:** `learnings` → pattern detection → proposal generation → quality validation → human approval → SKILL.md update → re-ingest to Qdrant.
 
 See: [Kai Guide](docs/kai-guide.md)
 
 ---
 
-## Installation Options
+## Migration Between Laptops
 
-### Interactive Installation
-
-```bash
-./install.sh
-```
-
-### Command-Line Options
+Two scripts to move the entire framework (repo + skills + Qdrant data + MCP config) between machines:
 
 ```bash
-./install.sh --merge    # Merge with existing ~/.claude
-./install.sh --replace  # Backup and replace ~/.claude
-./install.sh --link     # Create symlink (for development)
-./install.sh --help     # Show help
+# On source laptop — creates a single archive
+./migrate-pack.sh
+# → ai-dev-team-migration-20260319-143022.tar.gz
+
+# Copy archive to new laptop, then:
+./migrate-unpack.sh ai-dev-team-migration-20260319-143022.tar.gz
+# Installs to current directory by default
+
+# Or specify a target:
+./migrate-unpack.sh archive.tar.gz --repo-dir ~/projects/ai-dev-team
 ```
 
-### Development Mode
+**What `migrate-pack.sh` archives:**
+- The ai-dev-team repository (excluding venvs, caches)
+- `~/.claude/` config (skills, commands, templates, CLAUDE.md, settings)
+- Project memory files
+- Qdrant Docker volume data (if Qdrant is running)
 
-For contributing to this repository:
+**What `migrate-unpack.sh` does:**
+1. Pre-flight check (Docker, Python 3.11+, Claude Code CLI)
+2. Restore repo to target directory
+3. **Merge** skills/commands into `~/.claude/` (keeps your extra agents, updates shared ones)
+4. Start Qdrant and restore data
+5. Create Python venvs and install dependencies
+6. Prompt for API keys and register MCP servers
 
-```bash
-./install.sh --link
-```
-
-This creates a symlink so changes in the repo are immediately reflected.
+Your existing agents on the new laptop are preserved — the unpack script uses `rsync` merge (adds and updates, never deletes).
 
 ---
 
-## Contributing
+## Repository Structure
 
-1. Fork the repository
-2. Create a feature branch
-3. Make changes to skills in `claude/skills/`
-4. Test with `./install.sh --link`
-5. Submit a pull request
+```
+ai-dev-team/
+├── README.md                     # This file
+├── CLAUDE.md                     # Repo-level instructions for Claude Code
+├── install.sh                    # Interactive installer
+├── migrate-pack.sh               # Pack for migration
+├── migrate-unpack.sh             # Unpack on new laptop
+│
+├── claude/                       # Deployable content (installs to ~/.claude/)
+│   ├── CLAUDE.md                 # Global instructions (TDD, approval gates)
+│   ├── TEAM_WORKFLOW.md          # Complete team workflow spec
+│   ├── skills/                   # 40 SKILL.md files across 9 categories
+│   ├── commands/                 # 37 slash command definitions
+│   ├── templates/                # 6 document templates
+│   │
+│   └── rag/                      # RAG Knowledge Base system
+│       ├── docker-compose.yml    # Qdrant v1.13.2
+│       ├── mcp-server/           # Custom MCP server (FastMCP, 4 tools)
+│       ├── ingestion/            # SKILL.md → Qdrant pipeline
+│       ├── context-cache/        # Session persistence (PreCompact/SessionStart hooks)
+│       ├── kai/                  # Self-improving meta-agent
+│       └── management/           # Admin: stats, backup, prune, reindex
+│
+├── multi-llm/                    # Multi-LLM consultation system
+│   └── mcp/                      # MCP server (FastMCP, 3 tools, 9 models)
+│
+└── docs/                         # Extended documentation
+    ├── TEAM_WORKFLOW.md
+    ├── multi-llm-guide.md
+    ├── kai-guide.md
+    ├── context-persistence-guide.md
+    ├── knowledge-management-guide.md
+    ├── skill-extension-guide.md
+    ├── agent-communication.md
+    └── rag-setup/                # Setup, management, embedding providers
+```
 
-See `docs/skill-extension-guide.md` for adding new technologies.
+---
+
+## Extending the Framework
+
+### Adding a New Agent
+
+1. Create a skill directory under the appropriate category:
+   ```
+   claude/skills/development/backend/rust/rust-developer/SKILL.md
+   ```
+
+2. Follow the SKILL.md format (YAML frontmatter + structured Markdown sections):
+   ```yaml
+   ---
+   name: rust-developer
+   description: "Senior Rust Developer with 8+ years systems programming experience"
+   ---
+
+   # Rust Developer
+
+   ## Trigger
+   Use when working with Rust code, systems programming, or performance-critical services.
+
+   ## Context
+   You are a Senior Rust Developer...
+
+   ## Expertise
+   ### Rust 2024 Edition
+   - Ownership, borrowing, lifetimes
+   ...
+
+   ## Anti-Patterns
+   - Never use `unwrap()` in production code
+   ...
+   ```
+
+3. Create a slash command in `claude/commands/rust.md`
+
+4. Re-install: `./install.sh --merge`
+
+See: [Skill Extension Guide](docs/skill-extension-guide.md)
+
+### Adding a New Technology to an Existing Agent
+
+Edit the relevant `SKILL.md` and add a new subsection under `## Expertise`. Skills should contain universal, reusable knowledge — no project-specific references, ticket IDs, or sprint numbers.
+
+---
+
+## Requirements
+
+| Component | Required | Version |
+|-----------|----------|---------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Yes | Latest |
+| Python | For RAG/Multi-LLM only | 3.11+ |
+| Docker | For RAG only | Latest |
+| [Voyage AI API key](https://dash.voyageai.com/) | For RAG only | Free tier works |
+| [OpenRouter API key](https://openrouter.ai/) | For Multi-LLM only | Pay-per-use |
+
+The core framework (40 agents + 37 commands + 6 templates) works with just Claude Code — no additional dependencies.
 
 ---
 
@@ -334,16 +514,37 @@ See `docs/skill-extension-guide.md` for adding new technologies.
 
 | Guide | Description |
 |-------|-------------|
-| [RAG Setup Guide](docs/rag-setup/setup-guide.md) | Install Qdrant, MCP server, ingest skills |
-| [Knowledge Management](docs/knowledge-management-guide.md) | Add knowledge, Qdrant collections, data lifecycle |
+| [Team Workflow](docs/TEAM_WORKFLOW.md) | Complete phase-by-phase development process |
+| [RAG Setup](docs/rag-setup/setup-guide.md) | Install Qdrant, MCP server, ingest skills |
+| [Knowledge Management](docs/knowledge-management-guide.md) | Collections, data lifecycle, search patterns |
 | [Context Persistence](docs/context-persistence-guide.md) | Session hooks, distillation pipeline |
 | [Multi-LLM Guide](docs/multi-llm-guide.md) | `/all` command, model registry, API setup |
-| [Kai Guide](docs/kai-guide.md) | Self-improving meta-agent, proposals |
+| [Kai Guide](docs/kai-guide.md) | Self-improving meta-agent, proposals workflow |
+| [Skill Extension](docs/skill-extension-guide.md) | Adding new technologies and agents |
+| [Agent Communication](docs/agent-communication.md) | Handoff specs, artifact flow between agents |
+| [RAG Management](docs/rag-setup/management.md) | Backup, prune, reindex, troubleshooting |
 | [Embedding Providers](docs/rag-setup/embedding-providers.md) | Voyage AI vs Gemini comparison |
-| [Management](docs/rag-setup/management.md) | Backup, prune, reindex, troubleshooting |
-| [Skill Extension](docs/skill-extension-guide.md) | Adding new technologies |
-| [Agent Communication](docs/agent-communication.md) | Handoff specs, artifact flow |
-| [Team Workflow](docs/TEAM_WORKFLOW.md) | Complete phase-by-phase workflow |
+
+---
+
+## Testing
+
+The RAG platform includes 203+ tests:
+
+```bash
+# Activate the RAG venv
+cd claude/rag/mcp-server && source .venv/bin/activate
+
+# Run all test suites
+pytest                              # 20 MCP server tests
+pytest ../ingestion/tests/          # 20 ingestion pipeline tests
+pytest ../context-cache/tests/      # 75 context persistence tests
+pytest ../kai/tests/                # 88 Kai meta-agent tests
+
+# Multi-LLM tests (separate venv)
+cd ../../../multi-llm/mcp
+source .venv/bin/activate && pytest
+```
 
 ---
 
@@ -351,15 +552,28 @@ See `docs/skill-extension-guide.md` for adding new technologies.
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, context persistence, RAG knowledge base |
-| 4.0.0 | 2025-01-02 | Restructured for easy ~/.claude deployment |
-| 3.1.0 | 2024-12-27 | Added approval gates and Aura design verification |
+| 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, context persistence, RAG knowledge base, migration scripts |
+| 4.0.0 | 2025-01-02 | Restructured for easy `~/.claude` deployment, installer |
+| 3.1.0 | 2024-12-27 | Approval gates, Aura design verification |
 | 3.0.0 | 2024-12-26 | TDD workflow, unified QA agents |
 | 2.0.0 | 2024-12-25 | Performance testing modules |
 | 1.0.0 | 2024-12-23 | Initial release with 15 agents |
 
 ---
 
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Install in dev mode: `./install.sh --link`
+4. Make changes to skills in `claude/skills/`
+5. Run tests if modifying RAG/Multi-LLM code
+6. Submit a pull request
+
+See [Skill Extension Guide](docs/skill-extension-guide.md) for detailed contribution guidelines.
+
+---
+
 ## License
 
-MIT License - See LICENSE file for details.
+MIT License — See [LICENSE](LICENSE) file for details.
