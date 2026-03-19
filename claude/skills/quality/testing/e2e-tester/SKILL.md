@@ -672,6 +672,8 @@ Filament pages often contain **multiple forms** (logout form, main edit form, ac
 #### Page URLs
 Filament pages use kebab-case slugs derived from the class name: `SponsorReportingDashboard` → `/admin/sponsor-reporting-dashboard`. Include these URL patterns in test discovery.
 
+**Resources vs Pages URL difference**: Filament Resources in subdirectories get the directory name as URL prefix (`Content/AiKnowledgeEntryResource` → `/admin/content/ai-knowledge-entries`). However, Filament Pages with explicit `protected static string $slug = 'my-slug'` do NOT get subdirectory prefix — the URL is `/admin/my-slug` regardless of namespace. Always verify actual URLs on staging before hardcoding in tests.
+
 #### Default SelectFilter Hides Records
 Filament `SelectFilter::make('status')->default(Active)` pre-filters the table on page load. Tests searching for non-Active records (Draft, Archived) will fail because they're filtered out. Clear defaults via URL param:
 ```javascript
@@ -687,6 +689,36 @@ await page.evaluate(() => {
     if (btn) btn.click();
 });
 ```
+
+#### Collapsed Section Expand Pattern (CRITICAL — Recurring Issue)
+
+Filament sections with `->collapsed()` / `->collapsible()->collapsed(true)` use Alpine.js `x-on:click="isCollapsed = ! isCollapsed"` on the `<header>` element. Content inside collapsed sections has `invisible absolute h-0 overflow-hidden` classes — elements exist in DOM but Playwright's `toBeVisible()` returns false. **You MUST expand the section BEFORE interacting with ANY elements inside it.**
+
+This applies to ALL collapsed contexts: content editors, settings pages, form fieldsets. Always call `expandCollapsedSection()` before locating toggles, inputs, or buttons inside collapsed sections.
+
+**Click `header.fi-section-header` filtered by `hasText`** — not child buttons (buttons don't contain heading text):
+
+```javascript
+async function expandSection(page, sectionNamePattern) {
+    const header = page.locator('header.fi-section-header')
+        .filter({ hasText: sectionNamePattern }).first();
+    if (await header.count() > 0) {
+        await header.scrollIntoViewIfNeeded();
+        await header.click();
+        await page.waitForTimeout(1500); // Alpine.js toggle
+        return;
+    }
+    // Fallback: scope to section element
+    const section = page.locator('section.fi-section')
+        .filter({ hasText: sectionNamePattern }).first();
+    if (await section.count() > 0) {
+        await section.locator('header').first().click();
+        await page.waitForTimeout(1500);
+    }
+}
+```
+
+**Anti-pattern**: Do NOT look for buttons inside the header filtered by section name text. Buttons (chevron, header actions like "Translate All") don't contain the section heading — only the `h3` does. This silently matches nothing and the section stays collapsed.
 
 ### Scope Assertions to Avoid Related Content
 
@@ -738,6 +770,10 @@ Export features (CSV, Excel) may use **technical English column names** (`campai
 22. **Writing selectors without inspecting HTML**: Always pre-discover actual page structure before writing admin panel tests. Assumed selectors (e.g., `button[role="combobox"]` when it's actually `div.choices[role="combobox"]`) waste deploy-test-fix cycles
 23. **Page-level assertions on pages with related content**: Product/article detail pages have Related Items sections with their own buttons. Scope assertions to the target section using `data-testid` + `.locator('..')`, not page-wide selectors
 24. **Trusting Playwright visibility for Alpine.js modals**: Filament modals use Alpine.js `x-show` transitions. Even with `fi-modal-open` class, `toBeVisible()` may fail because Alpine hasn't set `display: block` yet. Use `page.evaluate()` for modal confirm buttons
+25. **Always-passing assertions**: `expect(count).toBeGreaterThanOrEqual(0)` can NEVER fail (count of non-negative numbers is always >= 0). Use `.toBeGreaterThan(0)` for existence checks. Similarly, `expect(sum).toBeGreaterThanOrEqual(0)` is meaningless for sums of non-negative values. Review all assertions for logical tautologies
+26. **Ukrainian translation regex without checking source files**: Never guess Ukrainian translations — always verify against actual `lang/uk/*.php` files before writing regex assertions. Example: `/очікують.*знань/` fails because actual translation is "Знання на перевірку" (different word order and form)
+27. **Seeder using `create()` instead of `updateOrCreate()`**: Seeders that use `Model::create()` fail with unique constraint violations when the scheduler has already created records for the same date/key. Always use `updateOrCreate()` with the unique key as the match condition for idempotent seeding
+28. **Interacting with elements inside collapsed sections without expanding first**: Elements inside Filament `->collapsed(true)` sections exist in DOM but are invisible. Playwright `toBeVisible()` timeouts result. Always call `expandCollapsedSection()` before any interaction
 
 ---
 

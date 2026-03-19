@@ -282,11 +282,74 @@ Filament pages use kebab-case slugs derived from the class name:
 - `SponsorReportingDashboard` → `/admin/sponsor-reporting-dashboard`
 - `CampaignBudgetOverview` → `/admin/campaign-budget-overview`
 
+**Resources vs Pages URL difference**: Resources in subdirectories get the directory name as URL prefix (`Content/AiKnowledgeEntryResource` → `/admin/content/ai-knowledge-entries`). Pages with explicit `protected static string $slug` do NOT get subdirectory prefix — the URL is `/admin/{slug}` regardless of PHP namespace path.
+
+### DatePicker Reactivity (CRITICAL)
+
+DatePicker fields used for filtering (charts, tables) MUST have `->live()` and `->afterStateUpdated()` to trigger updates when the user selects a date. Without these, custom date range selections are silently ignored.
+
+```php
+DatePicker::make('startDate')
+    ->label(__('admin.start_date'))
+    ->live()
+    ->afterStateUpdated(fn () => $this->dispatch('charts-updated'))
+    ->maxDate(now()),
+```
+
+### Chart Data Must Respect User Filters
+
+When building dashboard pages with charts and date filters, chart data methods must use the same date range as the table. Never hardcode date ranges (e.g., `now()->subDays(30)`) — always reference `$this->startDate` / `$this->endDate` or equivalent filter state.
+
+### Reusable Form Modules Pattern
+
+For admin panels with multiple content types sharing similar form structures, use **static module classes** that return Filament component arrays:
+
+```php
+// Interface — defines the contract
+interface ContentFormModule {
+    public static function schema(string $tabGroupId, array $fields): array;
+    public static function appliesTo(): array;
+}
+
+// Implementation — static class returning spread-able arrays
+class LanguageTabsModule implements ContentFormModule {
+    public static function schema(string $tabGroupId, array $fields): array {
+        return [
+            Tabs::make($tabGroupId)   // unique ID prevents Alpine.js state conflicts
+                ->contained(false)
+                ->tabs([
+                    Tab::make('Ukrainian')->icon('heroicon-m-flag')
+                        ->schema(static::buildFieldsForLocale($fields, 'uk')),
+                    Tab::make('English')->icon('heroicon-m-globe-alt')
+                        ->schema(static::buildFieldsForLocale($fields, 'en')),
+                ]),
+        ];
+    }
+}
+```
+
+**Usage in Resource files** — spread into section schema:
+
+```php
+Forms\Components\Section::make('Content')
+    ->schema([
+        Forms\Components\TextInput::make('slug'),  // language-independent: OUTSIDE tabs
+        ...LanguageTabsModule::schema('content_tabs', $contentFields),
+    ]);
+```
+
+**Key rules:**
+- **`$tabGroupId` must be unique per page** — multiple tab groups on one form (e.g., Product has `product_content_tabs` + `product_additional_tabs`) need distinct IDs or Alpine.js state bleeds between them
+- **Language-independent fields** (slug, SKU, dates, file uploads) go OUTSIDE tabs
+- **Sidebar sections** (Status, Authors, Categories, Image) are NOT tabbed — they stay as regular sections
+- **AI actions** (TranslateAll, TranslateField, etc.) continue to use Filament's `$get()`/`$set()` APIs unchanged — the dot-notation field names (`title.uk`, `title.en`) remain the same
+
 ### Translation Key Checklist
 
-When adding new admin form fields or table columns:
+When adding new admin form fields, table columns, or section headings:
 - [ ] Translation keys added to ALL supported locale files BEFORE implementation is complete
 - [ ] Admin form labels, helper text, and placeholders all use `__()` translation calls
+- [ ] **Section headings** (`Section::make(__('messages.admin.sections.new_key'))`) — add keys to BOTH locale files immediately; raw keys render as literal `messages.admin.sections.xxx` strings on staging
 - [ ] Table column headers use `__()` translation calls
 - [ ] Select/dropdown options use `__()` for each option
 - [ ] Verify translations render correctly (not raw keys) by running the feature locally or on staging
@@ -495,3 +558,5 @@ if (!doc.getElementById('custom-style')) {
 12. **Not updating tests after refactoring**: When renaming methods, extracting composables, or moving classes — update ALL tests in the same commit
 13. **`json_encode()` for Spatie translatable fields**: Produces a string, causing double-encoding — always use plain PHP arrays
 14. **Column migrations without test audit**: When dropping/renaming columns (e.g., `is_active` → `status` enum), grep ALL test files for the old column — factory calls and assertions will break globally, not just in sprint-related tests
+15. **Hardcoded locale strings in services**: All user-facing strings (email bodies, subjects, CSV headers) must use `__()` translation system, even in service classes. Hardcoded text in one language breaks bilingual support and fails code review
+16. **DatePicker without `->live()->afterStateUpdated()`**: Date filters that don't trigger updates are silently ignored by charts and tables — always add both modifiers

@@ -930,6 +930,21 @@ Every sprint folder MUST include a `DECISION_LOG.md` tracking key decisions made
 
 ---
 
+## Multi-Agent Parallel Review (for major features)
+
+After implementation, run **/rev + /rob + /jorge + /all** in parallel for maximum coverage:
+
+| Agent | Catches |
+|-------|---------|
+| `/rev` | NPE risks, code quality, security, style |
+| `/rob` | Assertion deviations, missing test coverage, weak test cases |
+| `/jorge` | Architecture concerns, code duplication, missing utilities |
+| `/all` | External AI perspective, cross-validation of findings |
+
+**Process**: Launch all 4 as parallel agents. Consolidate findings into a prioritized action list (P1: blocking, P2: should fix, P3: nice to have). Then dispatch `/adam` to address all findings in one pass. Cost: ~15 minutes parallel execution. Value: catches issues no single reviewer would find.
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **Passive facilitation**: Don't wait to be asked — proactively trigger the next step
