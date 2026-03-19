@@ -93,6 +93,22 @@ Use `WebSearch` and `WebFetch` for current best practices, version updates, CVEs
 - Environment protection
 - OIDC authentication
 
+#### Jenkins (Self-Hosted in Docker)
+- JCasC (Configuration as Code) for declarative setup
+- Groovy init scripts (`init.groovy.d/`) for complex credential types
+- JNLP inbound agents connecting via Docker network
+- Pipeline (Jenkinsfile) with Declarative syntax
+- Gitea webhook integration (`/gitea-webhook/post`)
+- SSH Agent plugin for deployment credentials
+- Memory-constrained setups (controller ~400MB, agent limit configurable)
+
+#### Gitea (Lightweight Git Hosting)
+- SQLite backend for small teams (~150MB RAM)
+- Docker deployment with persistent volumes
+- Webhook → Jenkins integration
+- Push mirror to GitHub for backup
+- API for repo/org creation and webhook management
+
 ## Extended Skills
 
 Invoke these specialized skills for technology-specific tasks:
@@ -240,7 +256,71 @@ jobs:
 - [ ] Network policies in place
 - [ ] Health checks configured
 
-## Anti-Patterns to Avoid
+## Jenkins + Docker Anti-Patterns
+
+1. **Multiline SSH keys in JCasC env vars**: JCasC cannot handle multiline SSH private keys via environment variable interpolation — content gets corrupted through Docker Compose `.env` → container env → JVM → JCasC YAML. Use Groovy init scripts that read key files from mounted secrets instead.
+2. **JCasC credential persistence assumption**: JCasC **resets ALL credentials on every restart**. Any credential created manually (UI or Script Console) gets wiped. Use two-tier approach: JCasC for simple string/password creds, Groovy init scripts for SSH keys.
+3. **`docker compose restart` for env changes**: `restart` does NOT re-read `.env` file. Must use `docker compose up -d` to pick up environment variable changes.
+4. **Jenkins volume caching old files**: `/usr/share/jenkins/ref/` files only copy to `jenkins_home` on first start. After rebuilding controller image, manually `docker cp` updated files (e.g., `casc.yaml`) into the running volume, or delete the volume for a clean start.
+5. **Groovy filename with hyphens**: Groovy uses filename as Java class name. `setup-credentials.groovy` causes `ClassFormatError`. Always use underscores: `setup_credentials.groovy`.
+6. **Secret file permissions**: Mounted secret files need `644` permissions (not `600`) when Jenkins runs as non-root UID (typically 1000).
+7. **NODE_ENV=production in CI**: Setting `NODE_ENV=production` globally causes `npm ci` to skip devDependencies (including build tools like Vite). Use `npm ci --include=dev` to override.
+8. **APP_KEY as Jenkins environment variable**: Laravel's `key:generate` uses regex to find current APP_KEY in `.env` and replace it. When APP_KEY is set as env var, config reads the env var but `.env` has `APP_KEY=` (empty) — regex mismatch causes "No APP_KEY variable was found" error. Never set APP_KEY in Jenkinsfile environment block.
+9. **Deploy user git safe.directory**: When deploy user (UID 1000) runs git in a directory owned by www-data, git throws "dubious ownership" error. Fix: `sudo -u deploy git config --global --add safe.directory /path/to/app`.
+10. **Fetching from wrong remote during deploy**: Deploy user inside Docker may not have SSH keys for GitHub. When deploying via SSH to host, use the local Gitea remote (`git fetch gitea`) not the upstream (`git fetch origin`).
+
+## Jenkins Credential Architecture (Two-Tier Pattern)
+
+```
+┌─────────────────────────────────────────────┐
+│  Tier 1: JCasC (casc.yaml)                  │
+│  For: username/password, string secrets      │
+│  Mechanism: env var interpolation            │
+│  Example: gitea-creds, telegram-bot-token    │
+├─────────────────────────────────────────────┤
+│  Tier 2: Groovy init script                  │
+│  For: SSH private keys, complex credentials  │
+│  Mechanism: reads files from /run/secrets/   │
+│  Example: staging-ssh-key, production-ssh-key│
+│  File: init.groovy.d/setup_credentials.groovy│
+└─────────────────────────────────────────────┘
+```
+
+Both tiers run on every Jenkins boot, ensuring credentials always survive restarts.
+
+## Jenkins API Authentication Pattern
+
+```bash
+# Step 1: Get CSRF crumb + session cookie
+CRUMB=$(curl -s -c /tmp/j.cookie -u 'admin:PASS' \
+    http://localhost:8080/crumbIssuer/api/json \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['crumb'])")
+
+# Step 2: Use crumb + cookie for API calls
+curl -s -b /tmp/j.cookie -u 'admin:PASS' \
+    -X POST -H "Jenkins-Crumb: $CRUMB" \
+    'http://localhost:8080/job/NAME/buildWithParameters?PARAM=value'
+```
+
+Both crumb AND cookie are required. The cookie must come from the same crumb request.
+
+## Memory-Constrained Jenkins Setup (6GB VPS Example)
+
+| Component | Idle RAM | Build RAM | Config |
+|-----------|----------|-----------|--------|
+| Gitea (SQLite) | ~150 MB | — | `deploy.resources.limits.memory: 256M` |
+| Jenkins Controller | ~400 MB | — | `-Xmx384m -Xms256m` |
+| Jenkins Agent | ~120 MB | ~2-4 GB | `deploy.resources.limits.memory: 4G` |
+| Host PostgreSQL | shared | shared | Reuse host DB for CI tests (saves ~300MB vs container) |
+
+Key optimizations:
+- Use host PostgreSQL for test database instead of a container
+- Single executor on agent to prevent parallel build RAM exhaustion
+- Add 2GB swap as safety net for peak build memory
+- `php -d memory_limit=1G` for large test suites (~5000 tests need >512MB)
+- Disable BlueOcean plugin (saves ~100MB RAM)
+
+## General Anti-Patterns to Avoid
 
 1. **ClickOps**: Never configure manually
 2. **Snowflake Servers**: Use immutable infrastructure
