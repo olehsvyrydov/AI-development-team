@@ -243,40 +243,67 @@ interactive_install() {
     fi
 }
 
-# RAG Knowledge Base setup (optional)
-setup_rag() {
-    local RAG_DIR="$SCRIPT_DIR/claude/rag"
-
-    if [ ! -d "$RAG_DIR" ]; then
-        echo -e "${YELLOW}RAG directory not found, skipping...${NC}"
-        return
-    fi
-
-    echo ""
-    echo -e "${BLUE}=== RAG Knowledge Base (Optional) ===${NC}"
-    echo ""
-    echo "The AI Team Memory provides semantic search across agent expertise,"
-    echo "context persistence across sessions, and self-improving skills (Kai)."
-    echo "Requirements: Docker, Python 3.11+, Voyage AI API key (free tier)"
-    echo ""
-
-    # Check Docker
-    if ! command -v docker &>/dev/null; then
-        echo -e "${YELLOW}Docker not found. Skipping RAG setup.${NC}"
-        echo "Install Docker and re-run, or set up manually: see claude/rag/README.md"
-        return
-    fi
-
-    # Check Python
+# Set up Python virtual environments (NOT optional — MCP servers need these)
+setup_venvs() {
     if ! command -v python3 &>/dev/null; then
-        echo -e "${YELLOW}Python 3 not found. Skipping RAG setup.${NC}"
-        return
+        echo -e "${YELLOW}Python 3 not found. Skipping venv setup.${NC}"
+        echo "Install Python 3.11+ and re-run to enable RAG and Multi-LLM features."
+        return 1
     fi
 
     local PY_MINOR
     PY_MINOR=$(python3 -c 'import sys; print(sys.version_info.minor)')
     if [ "$PY_MINOR" -lt 11 ]; then
-        echo -e "${YELLOW}Python 3.11+ required (found 3.$PY_MINOR). Skipping RAG setup.${NC}"
+        echo -e "${YELLOW}Python 3.11+ required (found 3.$PY_MINOR). Skipping venv setup.${NC}"
+        return 1
+    fi
+
+    local RAG_MCP_DIR="$SCRIPT_DIR/claude/rag/mcp-server"
+    local MLM_DIR="$SCRIPT_DIR/multi-llm/mcp"
+
+    if [ -d "$RAG_MCP_DIR" ]; then
+        echo "  Creating RAG MCP venv..."
+        cd "$RAG_MCP_DIR"
+        python3 -m venv .venv
+        .venv/bin/pip install -q --upgrade pip
+        .venv/bin/pip install -q -e .
+        echo -e "${GREEN}  RAG MCP venv ready: $RAG_MCP_DIR/.venv${NC}"
+    fi
+
+    if [ -d "$MLM_DIR" ]; then
+        echo "  Creating Multi-LLM MCP venv..."
+        cd "$MLM_DIR"
+        python3 -m venv .venv
+        .venv/bin/pip install -q --upgrade pip
+        .venv/bin/pip install -q -e .
+        echo -e "${GREEN}  Multi-LLM MCP venv ready: $MLM_DIR/.venv${NC}"
+    fi
+
+    cd "$SCRIPT_DIR"
+    return 0
+}
+
+# RAG Knowledge Base setup (Qdrant + API key + MCP registration)
+setup_rag() {
+    local RAG_DIR="$SCRIPT_DIR/claude/rag"
+    local RAG_PYTHON="$RAG_DIR/mcp-server/.venv/bin/python3"
+
+    if [ ! -f "$RAG_PYTHON" ]; then
+        echo -e "${YELLOW}RAG venv not found, skipping...${NC}"
+        return
+    fi
+
+    echo ""
+    echo -e "${BLUE}=== RAG Knowledge Base ===${NC}"
+    echo ""
+    echo "Start Qdrant, register MCP server, and ingest skills."
+    echo "Requirements: Docker, Voyage AI API key (free tier)"
+    echo ""
+
+    # Check Docker
+    if ! command -v docker &>/dev/null; then
+        echo -e "${YELLOW}Docker not found. Skipping Qdrant setup.${NC}"
+        echo "Install Docker and re-run, or set up manually: see claude/rag/README.md"
         return
     fi
 
@@ -305,23 +332,13 @@ setup_rag() {
         sleep 1
     done
 
-    # Set up RAG MCP Python venv
-    echo -e "${YELLOW}Setting up RAG MCP Python environment...${NC}"
-    cd "$RAG_DIR/mcp-server"
-    python3 -m venv .venv
-    .venv/bin/pip install -q -e .
-    echo -e "${GREEN}RAG MCP venv ready.${NC}"
-
     # Initialize collections
     echo -e "${YELLOW}Initializing Qdrant collections...${NC}"
-    cd "$RAG_DIR"
-    mcp-server/.venv/bin/python3 -m management.stats 2>/dev/null || true
+    "$RAG_PYTHON" -m management.stats 2>/dev/null || true
 
     # Prompt for Voyage AI key
     echo ""
     read -rp "  Enter VOYAGE_API_KEY (or press Enter to skip): " VOYAGE_KEY
-
-    local RAG_PYTHON="$RAG_DIR/mcp-server/.venv/bin/python3"
 
     if [ -n "$VOYAGE_KEY" ]; then
         # Register MCP server
@@ -352,27 +369,22 @@ setup_rag() {
     cd "$SCRIPT_DIR"
 }
 
-# Multi-LLM Consultation setup (optional)
+# Multi-LLM Consultation setup (API key + MCP registration)
 setup_multi_llm() {
     local MLM_DIR="$SCRIPT_DIR/multi-llm/mcp"
+    local MLM_PYTHON="$MLM_DIR/.venv/bin/python3"
 
-    if [ ! -d "$MLM_DIR" ]; then
-        echo -e "${YELLOW}Multi-LLM directory not found, skipping...${NC}"
+    if [ ! -f "$MLM_PYTHON" ]; then
+        echo -e "${YELLOW}Multi-LLM venv not found, skipping...${NC}"
         return
     fi
 
     echo ""
-    echo -e "${BLUE}=== Multi-LLM Consultation (Optional) ===${NC}"
+    echo -e "${BLUE}=== Multi-LLM Consultation ===${NC}"
     echo ""
-    echo "Query GPT, Gemini, Grok and more from within Claude Code (/all command)."
-    echo "Requirements: Python 3.11+, OpenRouter API key"
+    echo "Register MCP server for /all command (GPT, Gemini, Grok)."
+    echo "Requirements: OpenRouter API key"
     echo ""
-
-    # Check Python
-    if ! command -v python3 &>/dev/null; then
-        echo -e "${YELLOW}Python 3 not found. Skipping Multi-LLM setup.${NC}"
-        return
-    fi
 
     read -p "Set up Multi-LLM Consultation? [y/N] " mlm_choice
     if [ "$mlm_choice" != "y" ] && [ "$mlm_choice" != "Y" ]; then
@@ -381,18 +393,8 @@ setup_multi_llm() {
         return
     fi
 
-    # Set up Python venv
-    echo -e "${YELLOW}Setting up Multi-LLM Python environment...${NC}"
-    cd "$MLM_DIR"
-    python3 -m venv .venv
-    .venv/bin/pip install -q -e .
-    echo -e "${GREEN}Multi-LLM MCP venv ready.${NC}"
-
     # Prompt for OpenRouter key
-    echo ""
     read -rp "  Enter OPENROUTER_API_KEY (or press Enter to skip): " OPENROUTER_KEY
-
-    local MLM_PYTHON="$MLM_DIR/.venv/bin/python3"
 
     if [ -n "$OPENROUTER_KEY" ]; then
         if command -v claude &>/dev/null; then
@@ -537,14 +539,20 @@ TMPL_COUNT=$(ls "$TARGET_DIR/templates"/*.md 2>/dev/null | wc -l)
 echo "Installed: $SKILL_COUNT skills, $CMD_COUNT commands, $TMPL_COUNT templates"
 echo ""
 
-# Offer optional platform setup (all modes, not just interactive)
-echo -e "${BLUE}=== Optional Platform Features ===${NC}"
+# Always create Python venvs — MCP servers need them to run
+echo -e "${BLUE}=== Setting up Python environments ===${NC}"
 echo ""
-echo "The framework includes optional features that require additional setup."
-echo "You can skip all of these now and set them up later."
+setup_venvs
 echo ""
 
-read -p "Configure optional features? [y/N] " optional_choice
+# Offer optional platform setup (API keys, Qdrant, MCP registration)
+echo -e "${BLUE}=== Optional: API Keys & MCP Registration ===${NC}"
+echo ""
+echo "Register MCP servers for RAG memory, Multi-LLM, and Atlassian."
+echo "Requires API keys. You can skip and set up later."
+echo ""
+
+read -p "Configure now? [y/N] " optional_choice
 if [ "$optional_choice" = "y" ] || [ "$optional_choice" = "Y" ]; then
     setup_rag
     setup_multi_llm
