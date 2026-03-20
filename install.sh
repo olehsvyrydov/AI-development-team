@@ -341,9 +341,11 @@ setup_rag() {
     read -rp "  Enter VOYAGE_API_KEY (or press Enter to skip): " VOYAGE_KEY
 
     if [ -n "$VOYAGE_KEY" ]; then
-        # Register MCP server
+        # Register MCP server (cd HOME to avoid project-scoped registration)
         if command -v claude &>/dev/null; then
-            claude mcp add --transport stdio ai-team-memory \
+            cd "$HOME"
+            claude mcp remove ai-team-memory 2>/dev/null || true
+            claude mcp add --scope user --transport stdio ai-team-memory \
                 -e "VOYAGE_API_KEY=$VOYAGE_KEY" \
                 -- "$RAG_PYTHON" -m memory_mcp
             echo -e "${GREEN}ai-team-memory MCP registered.${NC}"
@@ -357,7 +359,7 @@ setup_rag() {
     else
         echo ""
         echo "  Register MCP server later with:"
-        echo "    claude mcp add ai-team-memory \\"
+        echo "    claude mcp add --scope user ai-team-memory \\"
         echo "      -e VOYAGE_API_KEY=your-key \\"
         echo "      -- $RAG_PYTHON -m memory_mcp"
         echo ""
@@ -397,8 +399,11 @@ setup_multi_llm() {
     read -rp "  Enter OPENROUTER_API_KEY (or press Enter to skip): " OPENROUTER_KEY
 
     if [ -n "$OPENROUTER_KEY" ]; then
+        # Register MCP server (cd HOME to avoid project-scoped registration)
         if command -v claude &>/dev/null; then
-            claude mcp add --transport stdio multi-llm \
+            cd "$HOME"
+            claude mcp remove multi-llm 2>/dev/null || true
+            claude mcp add --scope user --transport stdio multi-llm \
                 -e "OPENROUTER_API_KEY=$OPENROUTER_KEY" \
                 -- "$MLM_PYTHON" -m consult_mcp
             echo -e "${GREEN}multi-llm MCP registered.${NC}"
@@ -406,7 +411,7 @@ setup_multi_llm() {
     else
         echo ""
         echo "  Register MCP server later with:"
-        echo "    claude mcp add multi-llm \\"
+        echo "    claude mcp add --scope user multi-llm \\"
         echo "      -e OPENROUTER_API_KEY=your-key \\"
         echo "      -- $MLM_PYTHON -m consult_mcp"
     fi
@@ -425,13 +430,16 @@ setup_atlassian() {
     read -p "Register Atlassian MCP server? [y/N] " atl_choice
     if [ "$atl_choice" != "y" ] && [ "$atl_choice" != "Y" ]; then
         echo "Skipping. Register later with:"
-        echo "  claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp"
+        echo "  claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com/v1/mcp"
         return
     fi
 
     if command -v claude &>/dev/null; then
-        claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp 2>/dev/null || true
+        cd "$HOME"
+        claude mcp remove atlassian 2>/dev/null || true
+        claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com/v1/mcp 2>/dev/null || true
         echo -e "${GREEN}atlassian MCP registered.${NC}"
+        cd "$SCRIPT_DIR"
     else
         echo -e "${YELLOW}Claude Code CLI not found. Register manually after installing Claude Code.${NC}"
     fi
