@@ -232,6 +232,9 @@ echo "  Done."
 echo "[7/7] Registering MCP servers with Claude Code..."
 echo ""
 
+# IMPORTANT: cd to HOME so claude mcp add registers globally, not project-scoped
+cd "$HOME"
+
 RAG_PYTHON="$REPO_DIR/claude/rag/mcp-server/.venv/bin/python3"
 MLM_PYTHON="$REPO_DIR/multi-llm/mcp/.venv/bin/python3"
 
@@ -239,32 +242,37 @@ MLM_PYTHON="$REPO_DIR/multi-llm/mcp/.venv/bin/python3"
 read -rp "  Enter VOYAGE_API_KEY (for AI Team Memory, or press Enter to skip): " VOYAGE_KEY
 read -rp "  Enter OPENROUTER_API_KEY (for Multi-LLM, or press Enter to skip): " OPENROUTER_KEY
 
+# Remove any existing registrations to avoid duplicates
+claude mcp remove ai-team-memory 2>/dev/null || true
+claude mcp remove multi-llm 2>/dev/null || true
+claude mcp remove atlassian 2>/dev/null || true
+
 if [ -n "$VOYAGE_KEY" ]; then
-    claude mcp add --transport stdio ai-team-memory \
+    claude mcp add --scope user --transport stdio ai-team-memory \
         -e "VOYAGE_API_KEY=$VOYAGE_KEY" \
         -- "$RAG_PYTHON" -m memory_mcp
     echo "  ai-team-memory MCP registered."
 else
     echo "  Skipped ai-team-memory. Register later with:"
-    echo "    claude mcp add --transport stdio ai-team-memory \\"
+    echo "    claude mcp add --scope user --transport stdio ai-team-memory \\"
     echo "      -e VOYAGE_API_KEY=<key> \\"
     echo "      -- $RAG_PYTHON -m memory_mcp"
 fi
 
 if [ -n "$OPENROUTER_KEY" ]; then
-    claude mcp add --transport stdio multi-llm \
+    claude mcp add --scope user --transport stdio multi-llm \
         -e "OPENROUTER_API_KEY=$OPENROUTER_KEY" \
         -- "$MLM_PYTHON" -m consult_mcp
     echo "  multi-llm MCP registered."
 else
     echo "  Skipped multi-llm. Register later with:"
-    echo "    claude mcp add --transport stdio multi-llm \\"
+    echo "    claude mcp add --scope user --transport stdio multi-llm \\"
     echo "      -e OPENROUTER_API_KEY=<key> \\"
     echo "      -- $MLM_PYTHON -m consult_mcp"
 fi
 
 # Atlassian MCP (no key needed at registration time)
-claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp 2>/dev/null || true
+claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com/v1/mcp 2>/dev/null || true
 echo "  atlassian MCP registered."
 
 echo ""

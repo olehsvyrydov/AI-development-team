@@ -235,7 +235,7 @@ Creates a structured investigation → reproduction test → TDD fix → code re
 The framework integrates with Atlassian tools via the [Atlassian MCP server](https://mcp.atlassian.com):
 
 ```bash
-claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp
+claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com/v1/mcp
 ```
 
 - **Jira**: Kanban board for issue tracking, ticket lifecycle, sprint management
@@ -290,7 +290,7 @@ cd .. && mcp-server/.venv/bin/python3 -m management.stats
 VOYAGE_API_KEY=<key> mcp-server/.venv/bin/python3 -m ingestion.ingest ~/.claude/skills/
 
 # 5. Register MCP server with Claude Code
-claude mcp add ai-team-memory \
+claude mcp add --scope user ai-team-memory \
   -e VOYAGE_API_KEY=<your-key> \
   -- /path/to/claude/rag/mcp-server/.venv/bin/python3 -m memory_mcp
 ```
@@ -348,7 +348,7 @@ Routes through [OpenRouter](https://openrouter.ai) (single API key for all model
 cd multi-llm/mcp
 python3 -m venv .venv && .venv/bin/pip install -e .
 
-claude mcp add multi-llm \
+claude mcp add --scope user multi-llm \
   -e OPENROUTER_API_KEY=<your-key> \
   -- /path/to/multi-llm/mcp/.venv/bin/python3 -m consult_mcp
 ```
