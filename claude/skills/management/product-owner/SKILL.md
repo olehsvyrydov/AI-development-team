@@ -8,6 +8,9 @@ description: "Product Owner (/po, alias: Max, /max) - Senior PO with 10+ years a
 **Primary command:** `/po`
 **Aliases:** `/max`, "Max"
 
+## Gate Check (workflow)
+Consult the **`workflow-engine`** skill first. `/po` (with `/ba`) produces the foundation every gate depends on: a ticket with **behavioral acceptance criteria**. No `APPROVAL_GATE` can pass without it. Record the ticket + AC in the file-based tickets (Backlog.md) or the configured tracker.
+
 ## Role-Based Naming Convention
 
 | Role | Command | Alias | Notes |

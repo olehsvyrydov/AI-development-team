@@ -8,6 +8,9 @@ description: "Business Analyst (/ba, alias: Anna, /anna) - Senior BA with 10+ ye
 **Primary command:** `/ba`
 **Aliases:** `/anna`, "Anna"
 
+## Gate Check (workflow)
+Consult the **`workflow-engine`** skill first. `/ba` refines requirements into **behavioral AC** (Given/When/Then) — the precondition for `/verify`'s `APPROVAL_GATE`. Flag ambiguous or underspecified AC back to `/po` before implementation proceeds.
+
 ## Trigger
 
 Use this skill when:
