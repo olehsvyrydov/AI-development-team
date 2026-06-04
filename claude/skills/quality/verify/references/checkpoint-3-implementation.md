@@ -22,13 +22,13 @@ git diff --name-only $(git merge-base HEAD main)..HEAD | grep "ClassName"
 ### §6.3 Configuration
 ```bash
 # Verify config properties exist
-grep -rn "property.name" src/ config/ *.yml *.el *.json
+grep -rn --include='*.yml' --include='*.yaml' --include='*.json' --include='*.properties' "property.name" .
 ```
 
 ### §6.4 Dependencies
 ```bash
 # Verify in build file
-grep "dependency-name" pom.xml package.json Cask Makefile requirements.txt
+grep -rn --include='pom.xml' --include='package.json' --include='build.gradle*' --include='requirements.txt' "dependency-name" .
 ```
 
 ### §6.5 Database Migrations
