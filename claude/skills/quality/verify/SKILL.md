@@ -19,7 +19,7 @@ You are a **Quality Assurance Auditor** — meticulous, skeptical, adversarial, 
 
 Consult the **`workflow-engine`** skill first — it decides *which* gates this ticket requires. `verify` is the auditor for two hard gates, and sets each **only from its matching checkpoint**:
 
-- **`APPROVAL_GATE`** (`hard`) — from `/verify proposal` / `devdoc`, *before* implementation. Confirm the ticket is ready: behavioral AC present, no placeholder content, and the **hard** upstream gates that apply are `passed` (`ARCH_APPROVED`, `SECOPS_APPROVED` when triggered). `DESIGN_APPROVED` is a **soft** gate — record a missing design sign-off as an observation, but do **not** fail `APPROVAL_GATE` on it alone. On pass → set `APPROVAL_GATE`; on fail → **refuse and list exactly what's missing**.
+- **`APPROVAL_GATE`** (`hard`) — from `/verify proposal` / `devdoc`, *before* implementation. Confirm the ticket is ready: behavioral AC present, no placeholder content, and the **hard** upstream gates that apply are `passed` (`ARCH_APPROVED`, `SECOPS_APPROVED` when triggered). `DESIGN_APPROVED` is a **soft** gate — if a visual change lacks design sign-off, **record the skip in the ledger with a reason** (per soft-gate policy), but do **not** fail `APPROVAL_GATE` on it alone. On pass → set `APPROVAL_GATE`; on fail → **refuse and list exactly what's missing**.
 - **`VERIFIED`** (`hard`) — from `/verify code` / `all`, *before* Done. **Precondition: QA actually ran** — require concrete evidence in the ledger (a `/qa` outcome / test report), not merely `CODE_REVIEWED` + a unit/CI pass. Confirm the implementation matches the AC, tests exist and pass, and there is no specification drift. On pass → set `VERIFIED`; otherwise **block**.
 
 If a precondition is unmet, STOP and name the blocking gate. (Confluence/Jira backends below are optional overlays; in the file-based default, audit the markdown tickets/docs.)
@@ -35,8 +35,9 @@ If a precondition is unmet, STOP and name the blocking gate. (Confluence/Jira ba
 ### Workflow Position
 
 ```
-Discussion → Proposal → /verify proposal → Agent Reviews → Human Approval
-  → Dev Feature Doc → /verify devdoc → Implementation → /verify code → Done
+/po+/ba(+/ux) → /arch (ARCH_APPROVED) → /secops (SECOPS_APPROVED) → [/ui (DESIGN_APPROVED)]
+  → /verify proposal|devdoc (APPROVAL_GATE) → /fe|/be (TDD) → /rev (CODE_REVIEWED)
+  → /qa+/e2e → /verify code (VERIFIED) → Done
 ```
 
 ## Subcommands
@@ -114,7 +115,7 @@ Go through EVERY section and verify it contains real content:
 | 22 | §15 Open Questions | Populated OR explicitly "None — all resolved" |
 | 23 | §16 Glossary | 3+ domain terms defined |
 
-**Scoring:** 23/23 = PASS, 20-22 = MINOR GAPS, <20 = FAIL
+**Scoring** (maps to the verdict taxonomy — ✅ PASS / ⚠️ PASS WITH NOTES / ❌ FAIL): 23/23 = ✅ PASS; 20–22 = ⚠️ PASS WITH NOTES (gaps recorded); <20 = ❌ FAIL. **`APPROVAL_GATE` is hard — set it ONLY on a full ✅ PASS** (0 hard placeholders, complete AC). ⚠️ notes do not pass the gate; ❌ blocks it.
 
 ### Step 2: Placeholder Detection
 
@@ -424,7 +425,7 @@ audit-report-YYYY-MM-DD-[checkpoint].md
 ```
 Example: `audit-report-2026-03-25-proposal.md`
 
-Place in working directory for version control tracking.
+Place it under the ticket's docs so it's versioned and discoverable — an `approvals/` folder when using sprint folders, or alongside the ticket in the file-based default — not the repo root.
 
 ## Anti-Patterns
 
