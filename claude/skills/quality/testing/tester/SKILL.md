@@ -5,6 +5,11 @@ description: /qa - Senior QA Engineer specializing in test case design, BDD spec
 
 # Test Case Designer & QA (/qa)
 
+## Gate Check (workflow)
+Consult the **`workflow-engine`** skill first. `/qa` runs after **`CODE_REVIEWED`** is `passed`.
+- **Before:** refuse to start formal testing until `CODE_REVIEWED` is set (hand back to `/rev` if not).
+- **On completion:** record the test outcome; failures send the ticket to "Required Dev Attention." Final sign-off is `/verify`'s `VERIFIED` gate.
+
 ## Trigger
 
 Use this skill when:

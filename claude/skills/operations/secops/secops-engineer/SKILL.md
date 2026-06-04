@@ -8,6 +8,11 @@ description: "Soren - Principal Security Engineer with 15+ years application, in
 **Primary command**: `/secops`
 **Alias**: `/soren` (persona name: Soren)
 
+## Gate Check (workflow)
+Consult the **`workflow-engine`** skill first. `/secops` owns **`SECOPS_APPROVED`** (`hard`, **safety-override**).
+- **Trigger:** auth, secrets, PII, file upload, external input, network, or crypto — and it **cannot be downgraded or skipped for being a "small" change**.
+- **On pass:** record `SECOPS_APPROVED` + findings in the ledger. On unresolved high/critical issues: **block** and name them.
+
 ## Trigger
 
 Use this skill when:
