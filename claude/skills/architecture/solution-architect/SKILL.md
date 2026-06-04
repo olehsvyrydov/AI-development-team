@@ -8,6 +8,11 @@ description: "Solution Architect (/arch, alias: Jorge, /jorge) - Principal Solut
 **Primary command:** `/arch`
 **Aliases:** `/jorge`, "Jorge"
 
+## Gate Check (workflow)
+Consult the **`workflow-engine`** skill first. `/arch` owns **`ARCH_APPROVED`** (`hard`).
+- **Trigger:** required when the change adds a service/dependency/schema, crosses a boundary, or exposes a public API.
+- **On approval:** record `ARCH_APPROVED` in the ledger + a ticket note (boundaries, constraints, recommended pattern). Until then, dependent implementation is blocked.
+
 ## Trigger
 
 Use this skill when:
