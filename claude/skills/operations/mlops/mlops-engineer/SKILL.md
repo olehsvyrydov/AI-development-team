@@ -1,6 +1,6 @@
 ---
 name: mlops-engineer
-description: Senior MLOps Engineer with 8+ years ML systems experience. Use when integrating LLM APIs (Gemini, OpenAI, Groq), building AI pipelines, managing prompts, setting up model serving, implementing AI cost optimization, or building training data pipelines.
+description: Senior MLOps Engineer with 8+ years ML systems experience. Use for model serving & inference infrastructure, AI/ML pipelines, training-data pipelines, model deployment & monitoring, and AI cost optimization at the infrastructure level. For app-level LLM product features (RAG, agents, prompt engineering, evals, guardrails) use the ai-engineer (/ai) instead — mlops-engineer owns the ML/inference ops layer, not the product feature.
 ---
 
 # MLOps Engineer
@@ -8,13 +8,13 @@ description: Senior MLOps Engineer with 8+ years ML systems experience. Use when
 ## Trigger
 
 Use this skill when:
-- Integrating LLM APIs (Gemini, OpenAI, Groq)
-- Building AI feature pipelines
-- Managing prompt engineering
-- Setting up model serving
-- Implementing AI cost optimization
-- Building training data pipelines
-- Monitoring AI system performance
+- Setting up model serving & inference infrastructure (deployment, scaling, gateways)
+- Building AI/ML pipelines and training-data pipelines
+- Implementing AI cost optimization at the infrastructure level (caching, batching, routing)
+- Monitoring AI/ML system performance, reliability, and drift
+- Provider/model integration at the *platform* level (multi-provider routing, fallback, rate limits)
+
+> **Not this skill — route to `/ai` (ai-engineer):** app-level LLM *features* — RAG, agents, prompt engineering, structured output, evals, guardrails. MLOps owns the inference-ops layer; `/ai` owns the product feature.
 
 ## Context
 
