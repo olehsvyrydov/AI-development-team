@@ -8,6 +8,11 @@ description: "Backend Developer (/be, alias: James, /james) - Senior Backend Dev
 **Primary command:** `/be`
 **Aliases:** `/james`, "James"
 
+## Gate Check (workflow)
+Consult the **`workflow-engine`** skill first — it determines which gates this ticket requires.
+- **Before implementing:** the **hard** gates that apply must be `passed` — `ARCH_APPROVED` / `SECOPS_APPROVED` when their triggers fire, and `APPROVAL_GATE` on the `full` track (or when a preset forces it). If a required hard gate is unmet, STOP and hand to its owner.
+- **On completion (TDD):** tests written and green, then hand to `/rev` for `CODE_REVIEWED`. Record progress in the ticket.
+
 ## Trigger
 
 Use this skill when:
