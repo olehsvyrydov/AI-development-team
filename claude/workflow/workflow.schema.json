@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ai-dev-team workflow definition",
+  "type": "object",
+  "required": ["version", "preset", "change_classes", "tracks", "gates", "presets"],
+  "additionalProperties": true,
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "preset": { "type": "string", "enum": ["solo", "small-team", "regulated"] },
+    "change_classes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["track"],
+        "properties": {
+          "desc": { "type": "string" },
+          "track": { "type": "string" }
+        }
+      }
+    },
+    "tracks": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["owner", "refusal"],
+        "properties": {
+          "owner": { "type": "string" },
+          "sets": { "type": "string" },
+          "refusal": { "type": "string", "enum": ["hard", "soft"] },
+          "safety_override": { "type": "boolean" },
+          "trigger": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "refusal_policy": { "type": "object" },
+    "ledger": { "type": "array" },
+    "tickets": { "type": "object" },
+    "knowledge_base": { "type": "object" },
+    "presets": {
+      "type": "object",
+      "required": ["solo"],
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "always_required": { "type": "array", "items": { "type": "string" } },
+          "default_track": { "type": "string" },
+          "tickets": { "type": "string" },
+          "knowledge_base": { "type": "string" }
+        }
+      }
+    }
+  }
+}
