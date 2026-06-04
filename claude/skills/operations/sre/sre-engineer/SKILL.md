@@ -10,7 +10,7 @@ description: "SRE / Observability Engineer (/sre) — reliability engineering: S
 ## Gate Check (workflow)
 Consult the **`workflow-engine`** skill first. `/sre` owns **`RELIABILITY_OK`** (`soft`).
 - **Trigger:** production deploys, new services, or SLO-bearing changes.
-- **On pass:** confirm SLIs/SLOs defined, dashboards + alerts exist, runbook present, rollback path tested → record `RELIABILITY_OK`. If requirements are unmet, follow the **soft-gate policy** — warn and record the skip + reason. To make reliability *blocking*, set `gates.RELIABILITY_OK.refusal: hard` in `workflow.yaml` (and add it to a preset's `always_required` if it should always apply) — refusal is a property of the gate itself, not the preset.
+- **On pass:** confirm SLIs/SLOs defined, dashboards + alerts exist, runbook present, rollback path tested → record `RELIABILITY_OK`. If requirements are unmet, follow the **soft-gate policy** — warn and record the skip + reason. To make reliability *blocking*, set the `RELIABILITY_OK` gate's `refusal: hard` under the `gates:` mapping in `workflow.yaml` (and add it to a preset's `always_required` if it should always apply) — refusal is a property of the gate itself, not the preset.
 - Also contributes reliability **NFRs** during `/arch`.
 
 ## When to use (and when not)
