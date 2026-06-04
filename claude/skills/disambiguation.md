@@ -31,4 +31,4 @@ With ~48 agents, several domains overlap. Use this matrix to pick the **right** 
 - **/data vs /dba:** is the database for *analytics* (→ /data) or the *application's live OLTP store* (→ /dba)?
 - **/sre vs /perf:** is the goal *staying up* (→ /sre) or *being fast* (→ /perf)? vs **devops-engineer** = *standing it up*.
 - **/ux vs /ui:** *evidence about users* (→ /ux) vs *the visual design* (→ /ui).
-- **native mobile vs /fe:** *Swift/Kotlin native* (→ /ios·/android) vs *React Native/Flutter cross-platform* (→ /fe / Flutter).
+- **native mobile vs /fe:** *Swift/Kotlin native* (→ /ios·/android) vs *React Native/Flutter cross-platform* (→ /fe / flutter-developer).

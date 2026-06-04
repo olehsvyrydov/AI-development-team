@@ -9,7 +9,7 @@ description: "AI/LLM Application Engineer (/ai) — builds LLM-powered product f
 
 ## Gate Check (workflow)
 Consult the **`workflow-engine`** skill first.
-- **Before implementing:** the hard gates that apply must be `passed` (`ARCH_APPROVED` for new AI subsystems/dependencies; **`SECOPS_APPROVED` is almost always triggered** — LLM features touch external input, secrets/keys, and PII, so treat prompt-injection and data-exfiltration as security triggers).
+- **Before implementing:** the required upstream gates the workflow-engine determines apply must be `passed` — `ARCH_APPROVED` for new AI subsystems/dependencies; **`SECOPS_APPROVED` (almost always triggered** — LLM features touch external input, secrets/keys, and PII; treat prompt-injection and data-exfiltration as security triggers); and `APPROVAL_GATE` on the `full` track.
 - **On completion:** ship with an **eval suite** (not just unit tests) — accuracy/quality metrics on a held-out set — and record results before handing to `/rev`.
 
 ## When to use (and when not)

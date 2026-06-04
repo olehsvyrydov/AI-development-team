@@ -9,7 +9,7 @@ description: "Data Engineer (/data) — designs and builds data pipelines: ETL/E
 
 ## Gate Check (workflow)
 Consult the **`workflow-engine`** skill first.
-- **Before implementing:** `ARCH_APPROVED` when adding a new pipeline/warehouse/streaming dependency or crossing a data boundary; `SECOPS_APPROVED` when handling PII or external data sources.
+- **Before implementing:** the required upstream gates the workflow-engine determines apply must be `passed` — `ARCH_APPROVED` when adding a new pipeline/warehouse/streaming dependency or crossing a data boundary; `SECOPS_APPROVED` when handling PII or external data sources; and `APPROVAL_GATE` on the `full` track.
 - **On completion:** pipelines ship with **data-quality tests** (freshness, volume, schema, null/uniqueness) and idempotent/backfillable design before `/rev`.
 
 ## When to use (and when not)

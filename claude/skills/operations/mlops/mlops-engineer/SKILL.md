@@ -1,6 +1,6 @@
 ---
 name: mlops-engineer
-description: Senior MLOps Engineer with 8+ years ML systems experience. Use when integrating LLM APIs (Gemini, OpenAI, Groq), building AI pipelines, managing prompts, setting up model serving, implementing AI cost optimization, or building training data pipelines.
+description: Senior MLOps Engineer with 8+ years ML systems experience. Use for model serving & inference infrastructure, AI/ML pipelines, training-data pipelines, model deployment & monitoring, and AI cost optimization at the infrastructure level. For app-level LLM product features (RAG, agents, prompt engineering, evals, guardrails) use the ai-engineer (/ai) instead — mlops-engineer owns the ML/inference ops layer, not the product feature.
 ---
 
 # MLOps Engineer

@@ -9,7 +9,7 @@ description: "Native Mobile Developer (/ios, /android) — builds true native ap
 
 ## Gate Check (workflow)
 Consult the **`workflow-engine`** skill first.
-- **Before implementing:** the required upstream gates must be `passed` — `ARCH_APPROVED` (new modules/dependencies) and `SECOPS_APPROVED` (auth, secrets in the keychain/keystore, PII, network) are **hard** when triggered; `DESIGN_APPROVED` for new screens is **soft** (record a skip if absent — don't block on it alone).
+- **Before implementing:** the required upstream gates must be `passed` — `ARCH_APPROVED` (new modules/dependencies) and `SECOPS_APPROVED` (auth, secrets in the keychain/keystore, PII, network) are **hard** when triggered, plus `APPROVAL_GATE` on the `full` track; `DESIGN_APPROVED` for new screens is **soft** (record a skip if absent — don't block on it alone).
 - **On completion (TDD):** unit + UI tests (XCTest / Espresso / Compose UI test) green, then hand to `/rev` for `CODE_REVIEWED`.
 
 ## When to use (and when not)
