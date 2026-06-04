@@ -227,7 +227,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: OSV-Scanner
-        uses: google/osv-scanner-action/osv-scanner-action@v1
+        uses: google/osv-scanner-action@v1
         with:
           scan-args: |-
             --lockfile=pom.xml
