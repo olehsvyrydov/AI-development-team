@@ -24,6 +24,14 @@ description: List all available AI Development Team agents and their specializat
 | `/qa` | `/rob` | Rob | QA Engineer - test cases, manual testing |
 | `/e2e` | `/adam` | Adam | E2E Tester - Playwright, performance |
 | `/mkt` | `/apex` | Apex | Marketing - GTM, positioning |
+| `/verify` | — | — | QA Auditor - completeness + workflow gates |
+| `/ai` | — | — | AI/LLM App Engineer - RAG, agents, evals |
+| `/data` | — | — | Data Engineer - ETL/ELT, dbt, warehouse |
+| `/dba` | — | — | Database Admin - schema, indexing, migrations |
+| `/sre` | — | — | SRE / Observability - SLOs, incidents |
+| `/perf` | — | — | Performance Engineer - Web Vitals, profiling |
+| `/ux` | — | — | UX Researcher - usability, IA, research |
+| `/ios` `/android` | — | — | Native Mobile - Swift/SwiftUI, Kotlin/Compose |
 
 ## Additional Commands
 
@@ -97,6 +105,21 @@ description: List all available AI Development Team agents and their specializat
 | Agent | Expertise | Trigger When |
 |-------|-----------|--------------|
 | **apex** | Go-To-Market, Positioning, Growth Funnels, SEO | Product launches, marketing strategy |
+
+### New Specialist Agents (8)
+
+| Agent | Command | Expertise | Workflow gate |
+|-------|---------|-----------|---------------|
+| **ai-engineer** | `/ai` | RAG, agents, prompts, evals, guardrails | — (SECOPS usually triggered) |
+| **data-engineer** | `/data` | ETL/ELT, dbt, warehouse, streaming, quality | — |
+| **dba** | `/dba` | schema, indexing, query tuning, migrations, replication | ARCH trigger |
+| **sre-engineer** | `/sre` | SLOs, observability, incidents, runbooks | `RELIABILITY_OK` (soft) |
+| **performance-engineer** | `/perf` | Web Vitals, profiling, latency, budgets, load | `PERF_OK` (soft) |
+| **ux-researcher** | `/ux` | interviews, usability, IA, journey maps, synthesis | — |
+| **native-mobile-developer** | `/ios` `/android` | Swift/SwiftUI, Kotlin/Compose | — |
+| **verify** | `/verify` | completeness audit + workflow gates | `APPROVAL_GATE`, `VERIFIED` |
+
+> Overlapping domains? See **`claude/skills/disambiguation.md`** for routing (e.g. `/ai` vs `mlops-engineer`, `/data` vs `/dba`, `/sre` vs `/perf` vs `devops-engineer`, `/ux` vs `/ui`, native vs `/fe`).
 
 ---
 
