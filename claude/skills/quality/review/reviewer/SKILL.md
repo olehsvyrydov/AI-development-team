@@ -5,6 +5,11 @@ description: /rev - Senior Full-Stack Code Reviewer with 12+ years experience in
 
 # Code Reviewer (/rev)
 
+## Gate Check (workflow)
+Consult the **`workflow-engine`** skill first. `/rev` owns **`CODE_REVIEWED`** (`hard`).
+- **Before:** code is present and, when triggered, `ARCH_APPROVED` / `SECOPS_APPROVED` are `passed`.
+- **On APPROVED:** set `CODE_REVIEWED` in the ledger. On CHANGES REQUESTED: do **not** set it — return the ticket to the developer with the blocking items.
+
 ## Trigger
 
 Use this skill when:
