@@ -37,6 +37,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 
 // Custom metrics
 const errorRate = new Rate('errors');
@@ -232,7 +233,7 @@ test.describe('Performance Tests', () => {
     });
 
     const startTime = Date.now();
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'load' });
     const loadTime = Date.now() - startTime;
 
     // Wait for metrics to be collected
@@ -279,7 +280,7 @@ test.describe('Performance Tests', () => {
     });
 
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('load');
 
     const totalJS = resources
       .filter(r => r.name.endsWith('.js'))
