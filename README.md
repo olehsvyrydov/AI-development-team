@@ -62,8 +62,8 @@ Each agent is a Claude Code skill with deep domain expertise, specific technolog
 ### 1. Install
 
 ```bash
-git clone https://github.com/AiDevelopTeam/ai-dev-team.git
-cd ai-dev-team
+git clone https://github.com/olehsvyrydov/AI-development-team.git
+cd AI-development-team
 ./install.sh
 ```
 
