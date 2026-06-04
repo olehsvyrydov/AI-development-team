@@ -248,7 +248,7 @@ jobs:
           format: cyclonedx-json
           output-file: sbom.cdx.json
       - name: Scan with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0  # pin to a release tag or, better, a commit SHA; bump deliberately
         with:
           image-ref: myapp:${{ github.sha }}
           severity: HIGH,CRITICAL
@@ -266,7 +266,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Checkov
-        uses: bridgecrewio/checkov-action@master
+        uses: bridgecrewio/checkov-action@v12  # pin to a release tag or, better, a commit SHA; bump deliberately
         with:
           directory: .
           framework: terraform,kubernetes,dockerfile

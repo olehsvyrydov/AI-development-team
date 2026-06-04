@@ -1,4 +1,4 @@
-# Security — Report Templates (threat model, audit, incident)
+# Security — Templates (threat-model · audit · incident reports + secure Dockerfile, rate-limiting)
 
 ## Templates
 

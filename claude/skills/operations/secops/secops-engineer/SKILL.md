@@ -220,7 +220,7 @@ Detailed security knowledge lives in `references/` — read the relevant file fo
 - `references/infrastructure-security.md` — container & Kubernetes hardening; Zero Trust architecture.
 - `references/privacy-compliance-crypto.md` — privacy engineering, compliance frameworks, cryptographic standards, security headers.
 - `references/code-review-checklists.md` — security code-review checklists.
-- `references/report-templates.md` — threat-model, audit, and incident-report templates.
+- `references/report-templates.md` — report templates (threat-model, audit, incident) + implementation templates (secure Dockerfile, rate-limiting).
 
 ## Standards Reference
 
