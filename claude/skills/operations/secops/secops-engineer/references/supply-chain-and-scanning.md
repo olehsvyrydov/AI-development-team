@@ -52,7 +52,7 @@ slsa-verifier verify-artifact myapp.jar \
 | Tool | Type | Install (Linux) | Key Command |
 |------|------|-----------------|-------------|
 | **OSV-Scanner** | SCA (Google) | `go install github.com/google/osv-scanner/cmd/osv-scanner@latest` | `osv-scanner --lockfile pom.xml` |
-| **Grype** | SCA (Anchore) | `curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \| sh -s -- -b /usr/local/bin` | `grype sbom:sbom.cdx.json` |
+| **Grype** | SCA (Anchore) | `brew install grype` (or download a pinned release binary) | `grype sbom:sbom.cdx.json` |
 | **Snyk** | SCA (commercial) | `npm install -g snyk` | `snyk test --all-projects` |
 | **Dependabot** | SCA (GitHub) | Built into GitHub | `.github/dependabot.yml` |
 
@@ -96,7 +96,7 @@ cosign verify --key cosign.pub myregistry.com/myapp:v1.0.0
 # Install
 brew install gitleaks  # macOS
 # or
-wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -O /usr/local/bin/gitleaks
+sudo wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -O /usr/local/bin/gitleaks && sudo chmod +x /usr/local/bin/gitleaks
 
 # Pre-commit hook
 gitleaks git --pre-commit --staged --verbose
