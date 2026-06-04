@@ -8,13 +8,13 @@ description: Senior MLOps Engineer with 8+ years ML systems experience. Use for 
 ## Trigger
 
 Use this skill when:
-- Integrating LLM APIs (Gemini, OpenAI, Groq)
-- Building AI feature pipelines
-- Managing prompt engineering
-- Setting up model serving
-- Implementing AI cost optimization
-- Building training data pipelines
-- Monitoring AI system performance
+- Setting up model serving & inference infrastructure (deployment, scaling, gateways)
+- Building AI/ML pipelines and training-data pipelines
+- Implementing AI cost optimization at the infrastructure level (caching, batching, routing)
+- Monitoring AI/ML system performance, reliability, and drift
+- Provider/model integration at the *platform* level (multi-provider routing, fallback, rate limits)
+
+> **Not this skill — route to `/ai` (ai-engineer):** app-level LLM *features* — RAG, agents, prompt engineering, structured output, evals, guardrails. MLOps owns the inference-ops layer; `/ai` owns the product feature.
 
 ## Context
 
