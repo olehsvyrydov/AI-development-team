@@ -49,7 +49,7 @@ slsa-verifier verify-artifact myapp.jar \
 
 ### Dependency Scanning
 
-| Tool | Type | Install (Linux) | Key Command |
+| Tool | Type | Install | Key Command |
 |------|------|-----------------|-------------|
 | **OSV-Scanner** | SCA (Google) | `go install github.com/google/osv-scanner/cmd/osv-scanner@latest` | `osv-scanner --lockfile pom.xml` |
 | **Grype** | SCA (Anchore) | `brew install grype` (or download a pinned release binary) | `grype sbom:sbom.cdx.json` |
