@@ -85,14 +85,18 @@ FeatureResponse
 
 ### For file-based documents:
 ```bash
-# Count all placeholder occurrences
-for pattern in '«' '»' '\[Fill here\]' '\[e.g\.' 'TODO' 'TBD' 'FIXME' '\[Replace' 'field1' 'field2' 'EntityA' 'EntityB' 'topic-name' 'TICKET-XXX' 'EPIC-XXX'; do
-  count=$(grep -c "$pattern" document.md 2>/dev/null || echo 0)
-  if [ "$count" -gt 0 ]; then
-    echo "FOUND $count: $pattern"
-    grep -n "$pattern" document.md
+# Count placeholder OCCURRENCES with fixed-string matching (grep -oF | wc -l).
+# Why: `grep -c` counts matching LINES (undercounts >1 per line); plain grep
+# treats `[Fill here]` as a regex character class and miscounts/false-matches.
+for pattern in '«' '»' '[Fill here]' '[Replace' 'TODO' 'TBD' 'FIXME' 'INSTRUCTION:' 'field1' 'field2' 'EntityA' 'EntityB' 'topic-name' 'TICKET-XXX' 'EPIC-XXX'; do
+  count=$(grep -oF "$pattern" document.md 2>/dev/null | wc -l | tr -d ' ')
+  if [ "${count:-0}" -gt 0 ]; then
+    echo "FOUND $count (hard): $pattern"
+    grep -nF "$pattern" document.md
   fi
 done
+# Soft signals — flag for review, do NOT auto-fail:
+grep -nF 'e.g.,' document.md; grep -nF '[e.g.' document.md
 ```
 
 ### For conversation content:
@@ -100,7 +104,10 @@ Scan the full text manually. Count EVERY occurrence. Report section + surroundin
 
 ## Threshold
 
-**0 occurrences across ALL patterns = PASS**
-**Any > 0 = FAIL**
+Patterns fall into two classes:
+- **Hard placeholders** (`«` `»` `[Fill here]` `[Replace` `TODO` `TBD` `FIXME` `INSTRUCTION:` `field1` `field2` `EntityA/B`, etc.) — **any occurrence = FAIL**.
+- **Soft signals** (`e.g.,`, `[e.g.`, and generic `Feature*`/`Existing*` names) — **flag for human judgment, not an automatic FAIL**: legitimate in prose, suspicious in tables/specs. Report them as observations.
+
+A document **PASSES when there are 0 hard placeholders** (soft signals may remain if justified, but must be reported).
 
 No exceptions. No "it's just one placeholder." One placeholder means the document is incomplete.
