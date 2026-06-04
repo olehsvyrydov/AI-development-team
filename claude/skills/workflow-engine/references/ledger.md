@@ -20,6 +20,7 @@ The ledger records which gates a ticket has passed. The workflow-engine uses the
       "SECOPS_APPROVED": { "state": "passed",  "by": "/secops", "at": "2026-06-04T10:20:00Z" },
       "CODE_REVIEWED":   { "state": "pending", "by": null,      "at": null }
     },
+    "qa": { "outcome": "pass", "by": "/qa", "at": "2026-06-04T11:30:00Z", "evidence": "3/3 acceptance scenarios pass; 12 unit tests green" },
     "skips": [
       { "gate": "PERF_OK", "reason": "not a hot path", "by": "/be", "at": "2026-06-04T11:00:00Z" }
     ]
@@ -28,6 +29,7 @@ The ledger records which gates a ticket has passed. The workflow-engine uses the
 ```
 
 - `state`: `passed` | `pending` | `rejected`.
+- `qa`: the recorded QA outcome (`outcome`, `by`, `at`, `evidence`) — `/verify` reads this as proof the `/qa` step actually ran before it sets `VERIFIED`.
 - Every gate decision is appended with `by` (the agent) and `at` (ISO-8601). Soft-gate skips go in `skips[]` with a `reason`.
 - The file is committed with the change, so gate history is diffable in the PR. It is also `.gitignore`-able per project if a team prefers Backlog.md/Jira as the source of truth.
 
