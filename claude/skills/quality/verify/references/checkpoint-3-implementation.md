@@ -40,7 +40,7 @@ find . -name "V*__*" -o -name "*migration*" | grep -v node_modules
 ### §6.6 API Endpoints
 ```bash
 # Verify controller/handler methods
-grep -rn "endpoint-path\|@PostMapping\|@GetMapping\|defun.*handler" src/ *.el
+grep -rn "endpoint-path\|@PostMapping\|@GetMapping\|defun.*handler" src/
 ```
 
 **Report format for each item:**
@@ -127,10 +127,10 @@ For EACH criterion in §3 (Done Criteria):
 
 ```bash
 # 1. Auth on endpoints
-grep -rn "@PreAuthorize\|@Secured\|@RolesAllowed\|auth.*middleware\|:auth" src/ *.el
+grep -rn "@PreAuthorize\|@Secured\|@RolesAllowed\|auth.*middleware\|:auth" src/
 
 # 2. Hardcoded secrets (MUST find 0 results)
-grep -rni "password\s*=\|secret\s*=\|api.key\s*=\|api_key\s*=\|token\s*=" src/ *.el \
+grep -rni "password\s*=\|secret\s*=\|api.key\s*=\|api_key\s*=\|token\s*=" src/ \
   --include="*.java" --include="*.el" --include="*.ts" --include="*.py" \
   | grep -v test | grep -v ".class" | grep -v "node_modules"
 
@@ -138,7 +138,7 @@ grep -rni "password\s*=\|secret\s*=\|api.key\s*=\|api_key\s*=\|token\s*=" src/ *
 grep -rn "@Valid\|@NotNull\|@NotBlank\|@Size\|cl-check-type\|zod\.\|yup\." src/
 
 # 4. SQL injection risk (string concatenation in queries)
-grep -rn "\".*+.*sql\|format.*sql\|concat.*query\|string-append.*sql" src/ *.el
+grep -rn "\".*+.*sql\|format.*sql\|concat.*query\|string-append.*sql" src/
 ```
 
 | Check | Expected | Actual | Status |
@@ -152,12 +152,12 @@ grep -rn "\".*+.*sql\|format.*sql\|concat.*query\|string-append.*sql" src/ *.el
 
 For each metric in §10:
 ```bash
-grep -rn "metric.name" src/ *.el
+grep -rn "metric.name" src/
 ```
 
 For structured logging:
 ```bash
-grep -rn "MDC\|log\.info\|log\.error\|log\.warn\|message.*log" src/ *.el
+grep -rn "MDC\|log\.info\|log\.error\|log\.warn\|message.*log" src/
 ```
 
 | Metric/Log | Expected | Found In Code | Status |

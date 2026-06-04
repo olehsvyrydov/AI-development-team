@@ -11,13 +11,13 @@ Search for these EXACT strings. Any occurrence = finding.
 ```
 These are the primary placeholder markers from the templates. Any remaining = document not complete.
 
-### Template Instruction Leftovers
+### Template Instruction Leftovers (hard)
 ```
 [Fill here]
-[e.g.
 [Replace
 INSTRUCTION:
 ```
+(`[e.g.` is a **soft** signal — see "Example Content in Tables" below.)
 
 ### Deferred Work Markers
 ```

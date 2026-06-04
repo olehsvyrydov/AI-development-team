@@ -341,28 +341,28 @@ For each criterion in §3 Done Criteria, find concrete evidence:
 
 ```bash
 # Auth annotations on controllers
-grep -rn "@PreAuthorize\|@Secured\|@RolesAllowed\|(defun.*auth" src/main/ *.el
+grep -rn "@PreAuthorize\|@Secured\|@RolesAllowed\|(defun.*auth" src/main/
 
 # Hardcoded secrets
-grep -rni "password\|secret\|api.key\|api_key\|token.*=" src/main/ *.el --include="*.java" --include="*.el" --include="*.ts" | grep -v test | grep -v ".class"
+grep -rni "password\|secret\|api.key\|api_key\|token.*=" src/main/ --include="*.java" --include="*.ts" | grep -v test | grep -v ".class"
 
 # Input validation
-grep -rn "@Valid\|@NotNull\|@NotBlank\|@Size\|cl-check-type" src/main/ *.el
+grep -rn "@Valid\|@NotNull\|@NotBlank\|@Size\|cl-check-type" src/main/
 
 # Parameterized queries
-grep -rn "sql.*+\|string.*format.*sql\|concat.*sql" src/main/ *.el
+grep -rn "sql.*+\|string.*format.*sql\|concat.*sql" src/main/
 ```
 
 ### Step 7: Observability Audit
 
 Search for metric names from §10:
 ```bash
-grep -rn "metric.name.from.doc" src/main/ *.el
+grep -rn "metric.name.from.doc" src/main/
 ```
 
 Search for structured logging with MDC:
 ```bash
-grep -rn "MDC\|log.info\|log.error\|message.*format" src/main/ *.el
+grep -rn "MDC\|log.info\|log.error\|message.*format" src/main/
 ```
 
 ### Step 8: Deployment Readiness

@@ -39,14 +39,15 @@
 
 Search for EVERY pattern. Count each occurrence. Report exact location (section + surrounding text).
 
-**Threshold: 0 occurrences = pass. Any > 0 = FAIL.**
+**Threshold: 0 hard placeholders = pass.** Soft signals (`e.g.,`, `[e.g.`) are flagged for judgment, not auto-failed.
 
-Patterns:
+Hard placeholders:
 ```
-«    »    [Fill here]    [e.g.    e.g.,    TODO    TBD    FIXME
+«    »    [Fill here]    TODO    TBD    FIXME    INSTRUCTION:
 [Replace    field1    field2    EntityA    EntityB
 topic-name    TICKET-XXX    EPIC-XXX
 ```
+Soft signals (flag, don't auto-fail): `e.g.,`  `[e.g.`
 
 ## 1.3 Consistency Cross-Check
 
