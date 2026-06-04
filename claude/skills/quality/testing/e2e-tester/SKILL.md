@@ -6,7 +6,7 @@ description: /e2e - Senior QA Automation Engineer with 10+ years E2E testing exp
 # Test Automation Engineer (/e2e)
 
 ## Gate Check (workflow)
-Consult the **`workflow-engine`** skill first. `/e2e` runs after **`CODE_REVIEWED`** (sprint-wide in batch). Author black-box, requirement-driven E2E tests from the AC, then record the outcome to the ledger `qa` field. Passing E2E + `/qa` is the evidence `/verify` needs before `VERIFIED`.
+Consult the **`workflow-engine`** skill first. `/e2e` runs after **`CODE_REVIEWED`** (sprint-wide in batch). Author black-box, requirement-driven E2E tests from the AC. Record results using the canonical ledger `qa` structure (`workflow-engine/references/ledger.md`): if `/qa` has **already** written `qa`, **append** the E2E evidence to `qa.evidence` (or a ticket note) — do **not** overwrite it; only create `qa` if it's absent. Passing E2E + `/qa` is the evidence `/verify` needs before `VERIFIED`.
 
 ## Trigger
 

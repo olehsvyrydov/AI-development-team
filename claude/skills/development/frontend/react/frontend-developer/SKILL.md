@@ -9,8 +9,8 @@ description: "Frontend Developer (/fe, alias: Finn, /finn) - Senior Frontend Dev
 **Aliases:** `/finn`, "Finn"
 
 ## Gate Check (workflow)
-Consult the **`workflow-engine`** skill first.
-- **Before implementing:** require `APPROVAL_GATE` (or, on the lighter tracks, the triggered hard gates `ARCH_APPROVED` / `SECOPS_APPROVED`, plus `DESIGN_APPROVED` for visual work). If a required `hard` gate is unmet, STOP and hand to its owner.
+Consult the **`workflow-engine`** skill first — it determines which gates this ticket requires.
+- **Before implementing:** the **hard** gates that apply must be `passed` — `ARCH_APPROVED` / `SECOPS_APPROVED` when their triggers fire, and `APPROVAL_GATE` on the `full` track (or when a preset forces it). `DESIGN_APPROVED` is **soft** for visual work — proceed if it's skipped with a recorded reason. If a required hard gate is unmet, STOP and hand to its owner.
 - **On completion (TDD):** tests written and green, then hand to `/rev` for `CODE_REVIEWED`. Record progress in the ticket.
 
 ## Trigger
