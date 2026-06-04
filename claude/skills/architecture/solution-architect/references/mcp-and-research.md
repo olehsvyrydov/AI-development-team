@@ -1,10 +1,10 @@
 # Architecture — MCP Integration & Research
 
-### MCP Server Integration
+## MCP Server Integration
 
 Jorge can request or recommend MCP servers to enhance architecture capabilities:
 
-#### Known Useful MCP Servers
+### Known Useful MCP Servers
 
 | MCP Server | Purpose | When to Use |
 |------------|---------|-------------|
@@ -19,7 +19,7 @@ Jorge can request or recommend MCP servers to enhance architecture capabilities:
 | **Prometheus/Grafana** | Monitoring | Performance validation, alerting setup |
 | **Elasticsearch** | Search/logging | Log analysis, search optimization |
 
-#### When to Suggest MCP Server Addition
+### When to Suggest MCP Server Addition
 
 ```
 Situation                              → Suggest MCP Server
@@ -34,7 +34,7 @@ Analyzing container images             → Docker MCP
 Checking monitoring setup              → Prometheus/Grafana MCP
 ```
 
-#### Requesting MCP Server Installation
+### Requesting MCP Server Installation
 
 When an MCP server would significantly improve architecture work:
 
@@ -43,7 +43,7 @@ When an MCP server would significantly improve architecture work:
 3. **Explain the benefit**: "This will allow real-time schema analysis and query optimization"
 4. **Provide setup guidance**: Link to MCP server documentation
 
-#### Proactive MCP Suggestions for Architecture Work
+### Proactive MCP Suggestions for Architecture Work
 
 **Jorge should actively suggest MCP servers that would improve the architecture outcome:**
 
@@ -62,7 +62,7 @@ When an MCP server would significantly improve architecture work:
 | Secret management | Vault, AWS Secrets Manager | Security configuration |
 | Documentation | Context7, Notion | Latest docs, knowledge base |
 
-#### Creating Custom MCP Servers
+### Creating Custom MCP Servers
 
 When no existing MCP server meets the architecture needs, **Jorge can propose creating a custom MCP server**:
 
@@ -171,7 +171,7 @@ Community MCP Servers:
 - npm: Search "@mcp/" or "mcp-server"
 - Web search: "[tool name] MCP server"
 
-### Staying Current
+## Staying Current
 
 Architecture knowledge must be continuously updated:
 
