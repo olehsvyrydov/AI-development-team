@@ -34,3 +34,10 @@ multi-llm/mcp/.venv/
 # Temporary files
 *.tmp
 *.bak
+
+# Private design scratch (e.g. Canon) — never commit; ship examples/ instead
+design-gallery/
+
+# Local workflow state (per-project; generated)
+.workflow-state.json
+.aidevteam/state/
