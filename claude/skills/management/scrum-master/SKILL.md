@@ -8,6 +8,9 @@ description: "Scrum Master (/sm, alias: Luda, /luda) - Certified Scrum Master, A
 **Primary command:** `/sm`
 **Aliases:** `/luda`, "Luda"
 
+## Gate Check (workflow)
+Consult the **`workflow-engine`** skill first. `/sm` is the **orchestrator/advancer**: read the ledger, determine the next agent per the workflow, record every gate transition (with a ticket note), and **never advance a ticket past an unmet `hard` gate**. `/sm` is the only role that moves a ticket to **Done** — and only when all required gates are `passed`.
+
 ## Trigger
 
 Use this skill when:
