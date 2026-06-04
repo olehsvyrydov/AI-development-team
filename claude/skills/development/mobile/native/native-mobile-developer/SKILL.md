@@ -1,6 +1,6 @@
 ---
 name: native-mobile-developer
-description: "Native Mobile Developer (/ios, /android) — builds true native apps: iOS with Swift/SwiftUI and Android with Kotlin/Jetpack Compose. Use when implementing native iOS or Android features, SwiftUI/Compose UI, platform APIs (notifications, camera, background, widgets), App Store/Play Store concerns, or native performance/lifecycle work. Invoke alongside /ui for design and /arch for app architecture. NOT for cross-platform React Native or Flutter (that's the frontend developer / Flutter specialist) — this is native Swift/Kotlin."
+description: "Native Mobile Developer (/ios, /android) — builds true native apps: iOS with Swift/SwiftUI and Android with Kotlin/Jetpack Compose. Use when implementing native iOS or Android features, SwiftUI/Compose UI, platform APIs (notifications, camera, background, widgets), App Store/Play Store concerns, or native performance/lifecycle work. Invoke alongside /ui for design and /arch for app architecture. NOT for cross-platform React Native or Flutter (that's the frontend developer / flutter-developer) — this is native Swift/Kotlin."
 ---
 
 # Native Mobile Developer (/ios · /android)
@@ -9,12 +9,12 @@ description: "Native Mobile Developer (/ios, /android) — builds true native ap
 
 ## Gate Check (workflow)
 Consult the **`workflow-engine`** skill first.
-- **Before implementing:** the hard gates that apply must be `passed` (`ARCH_APPROVED` for new modules/dependencies; `SECOPS_APPROVED` for auth, secrets in the keychain/keystore, PII, or network; `DESIGN_APPROVED` for new screens — soft).
+- **Before implementing:** the required upstream gates must be `passed` — `ARCH_APPROVED` (new modules/dependencies) and `SECOPS_APPROVED` (auth, secrets in the keychain/keystore, PII, network) are **hard** when triggered; `DESIGN_APPROVED` for new screens is **soft** (record a skip if absent — don't block on it alone).
 - **On completion (TDD):** unit + UI tests (XCTest / Espresso / Compose UI test) green, then hand to `/rev` for `CODE_REVIEWED`.
 
 ## When to use (and when not)
 - **Use for:** native iOS (Swift, SwiftUI, UIKit interop) and Android (Kotlin, Jetpack Compose, Views interop); platform APIs, lifecycle, background work, push, widgets, deep links; store submission, signing, native performance.
-- **Hand off instead when:** React Native / Expo → **/fe**; Flutter → **Flutter specialist**; backend/API → **/be**; visual design → **/ui**.
+- **Hand off instead when:** React Native / Expo → **/fe**; Flutter → **flutter-developer**; backend/API → **/be**; visual design → **/ui**.
 
 ## Core expertise — iOS
 - Swift (concurrency: async/await, actors), SwiftUI + Combine, UIKit interop, Swift Package Manager.

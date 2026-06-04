@@ -4,6 +4,6 @@ description: "Invoke the AI/LLM Application Engineer for RAG, agents, prompt eng
 
 # /ai — AI/LLM Application Engineer
 
-Invoke the **ai-engineer** skill (`claude/skills/development/ai/ai-engineer/SKILL.md`). Alias: `/ada`.
+Invoke the **ai-engineer** skill (`claude/skills/development/ai/ai-engineer/SKILL.md`).
 
-Builds LLM-powered product features with an eval-first discipline. Consult the `workflow-engine`; security review is almost always triggered (prompt injection, PII, keys). Hand off to MLOps for training/serving infra.
+Builds LLM-powered product features with an eval-first discipline. Consult the `workflow-engine`; security review is almost always triggered (prompt injection, PII, keys). Hand off to mlops-engineer for training/serving infra.

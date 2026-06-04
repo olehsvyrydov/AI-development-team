@@ -1,6 +1,6 @@
 ---
 name: data-engineer
-description: "Data Engineer (/data) — designs and builds data pipelines: ETL/ELT, dbt transformations, warehouses/lakehouses (BigQuery, Snowflake, DuckDB, Postgres), streaming (Kafka, Flink), orchestration (Airflow, Dagster), and data quality. Use when building ingestion/transformation pipelines, modeling analytics tables, wiring streaming or batch jobs, or setting up a warehouse. Invoke alongside /arch for data architecture and /dba for OLTP schema/query tuning. NOT for application CRUD/business logic (that's /be) and NOT for ML feature serving (that's MLOps)."
+description: "Data Engineer (/data) — designs and builds data pipelines: ETL/ELT, dbt transformations, warehouses/lakehouses (BigQuery, Snowflake, DuckDB, Postgres), streaming (Kafka, Flink), orchestration (Airflow, Dagster), and data quality. Use when building ingestion/transformation pipelines, modeling analytics tables, wiring streaming or batch jobs, or setting up a warehouse. Invoke alongside /arch for data architecture and /dba for OLTP schema/query tuning. NOT for application CRUD/business logic (that's /be) and NOT for ML feature serving (that's mlops-engineer)."
 ---
 
 # Data Engineer (/data)
@@ -14,7 +14,7 @@ Consult the **`workflow-engine`** skill first.
 
 ## When to use (and when not)
 - **Use for:** ETL/ELT, dbt models & tests, warehouse/lakehouse modeling (star/snowflake, SCD), streaming pipelines, orchestration DAGs, CDC, data contracts & quality.
-- **Hand off instead when:** OLTP schema/index/query tuning → **/dba**; app endpoints/business logic → **/be**; embeddings/RAG indexing → **/ai**; cloud infra/IaC for the platform → **DevOps**.
+- **Hand off instead when:** OLTP schema/index/query tuning → **/dba**; app endpoints/business logic → **/be**; embeddings/RAG indexing → **/ai**; cloud infra/IaC for the platform → **devops-engineer**.
 
 ## Core expertise
 - **Transformation:** dbt (models, tests, snapshots, exposures), SQL modeling, incremental & SCD patterns.

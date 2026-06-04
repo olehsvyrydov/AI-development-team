@@ -10,11 +10,11 @@ description: "Performance Engineer (/perf) — measures and optimizes performanc
 ## Gate Check (workflow)
 Consult the **`workflow-engine`** skill first. `/perf` owns **`PERF_OK`** (`soft`).
 - **Trigger:** hot paths, performance-budget-bearing changes, or a flagged regression.
-- **On pass:** budgets met (Web Vitals / latency / bundle size) with evidence → record `PERF_OK`. If a budget is missed, record the skip + reason (soft) or block when a committed budget is breached. Participates in code review (`/rev`) for performance.
+- **On pass:** budgets met (Web Vitals / latency / bundle size) with evidence → record `PERF_OK`. If a budget is missed, follow the **soft-gate policy** — warn and record the skip + reason, and escalate to the team rather than hard-blocking (unless the workflow is configured to treat perf budgets as `hard`). Participates in code review (`/rev`) for performance.
 
 ## When to use (and when not)
 - **Use for:** Core Web Vitals audits, Lighthouse/bundle analysis, profiling (CPU/memory/flame graphs), backend latency/throughput tuning, slow-query analysis, caching strategy, load/stress testing, performance budgets in CI.
-- **Hand off instead when:** uptime/SLO/incident → **/sre**; schema/index design → **/dba**; infra autoscaling → **DevOps**; feature implementation → **/fe** / **/be**.
+- **Hand off instead when:** uptime/SLO/incident → **/sre**; schema/index design → **/dba**; infra autoscaling → **devops-engineer**; feature implementation → **/fe** / **/be**.
 
 ## Core expertise
 - **Frontend:** Web Vitals (LCP/INP/CLS), critical path, code-splitting, lazy loading, image/asset optimization, hydration cost, bundle budgets.

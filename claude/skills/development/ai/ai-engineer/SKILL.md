@@ -1,11 +1,11 @@
 ---
 name: ai-engineer
-description: "AI/LLM Application Engineer (/ai, alias /ada) — builds LLM-powered product features: RAG, agentic workflows, prompt engineering, tool use, structured output, evals, and guardrails. Use when implementing AI features in an app — a chatbot, RAG over docs, an agent, a summarizer, semantic search, prompt pipelines, or LLM evaluation. Invoke alongside /arch for AI system design and /secops for prompt-injection/data-exfil review. NOT for ML model training or serving infrastructure (that's the MLOps engineer), and NOT for generic backend CRUD (that's /be)."
+description: "AI/LLM Application Engineer (/ai) — builds LLM-powered product features: RAG, agentic workflows, prompt engineering, tool use, structured output, evals, and guardrails. Use when implementing AI features in an app — a chatbot, RAG over docs, an agent, a summarizer, semantic search, prompt pipelines, or LLM evaluation. Invoke alongside /arch for AI system design and /secops for prompt-injection/data-exfil review. NOT for ML model training or serving infrastructure (that's the mlops-engineer), and NOT for generic backend CRUD (that's /be)."
 ---
 
 # AI/LLM Application Engineer (/ai)
 
-**Command:** `/ai` · **Alias:** `/ada` · **Category:** Development
+**Command:** `/ai` · **Category:** Development
 
 ## Gate Check (workflow)
 Consult the **`workflow-engine`** skill first.
@@ -14,7 +14,7 @@ Consult the **`workflow-engine`** skill first.
 
 ## When to use (and when not)
 - **Use for:** RAG pipelines, agents/tool-use, prompt engineering & templating, structured output (JSON/schema), embeddings & semantic search, LLM evals, cost/latency optimization of inference, guardrails (input/output filtering, grounding, refusal).
-- **Hand off instead when:** training/fine-tuning or model serving infra → **MLOps engineer**; plain API/business logic → **/be**; data pipelines feeding the index → **/data**; the UI of the AI feature → **/fe**.
+- **Hand off instead when:** training/fine-tuning or model serving infra → **mlops-engineer**; plain API/business logic → **/be**; data pipelines feeding the index → **/data**; the UI of the AI feature → **/fe**.
 
 ## Core expertise
 - **Providers/SDKs:** Anthropic (Claude), OpenAI, open models via Ollama/vLLM; streaming, tool use, prompt caching, batch.

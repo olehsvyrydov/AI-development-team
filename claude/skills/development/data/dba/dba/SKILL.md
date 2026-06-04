@@ -14,7 +14,7 @@ Consult the **`workflow-engine`** skill first.
 
 ## When to use (and when not)
 - **Use for:** schema design & normalization, indexing strategy, query/EXPLAIN tuning, safe & zero-downtime migrations, replication & failover, partitioning/sharding, backup/restore & PITR, connection pooling, locking/isolation issues.
-- **Hand off instead when:** ETL/warehouse/analytics modeling → **/data**; app/ORM business logic → **/be**; latency profiling of the whole request → **/perf**; infra provisioning of the DB host → **DevOps**.
+- **Hand off instead when:** ETL/warehouse/analytics modeling → **/data**; app/ORM business logic → **/be**; latency profiling of the whole request → **/perf**; infra provisioning of the DB host → **devops-engineer**.
 
 ## Core expertise
 - **Design:** normalization vs. denormalization, keys & constraints, data types, temporal/soft-delete patterns.
