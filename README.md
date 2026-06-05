@@ -218,10 +218,12 @@ Every feature follows this pipeline:
 
 ### Approval Gates
 
+Gates are **proportional** — the `workflow-engine` decides which apply per change-class / trigger / preset (a typo isn't a feature). Security gates are a safety override: triggered by risk, never skipped for being "small".
+
 | Gate | Agent | When Required |
 |------|-------|---------------|
-| Architecture | `/arch` | **Always** — all features |
-| Security | `/secops` | **Always** — all features |
+| Architecture | `/arch` | When triggered (new system / dependency / boundary) or forced by preset |
+| Security | `/secops` | When triggered (auth / secrets / PII / external input) — never skipped for size |
 | Finance | `/fin` | Payments, billing, VAT, tax features |
 | Legal | `/legal` | GDPR, privacy, contracts, employment |
 | UI Design | `/ui` | Frontend features |
@@ -243,9 +245,9 @@ All development follows strict Test-Driven Development:
 
 Creates a structured investigation → reproduction test → TDD fix → code review → E2E test.
 
-### Jira & Confluence Integration
+### Jira & Confluence (optional overlay)
 
-The framework integrates with Atlassian tools via the [Atlassian MCP server](https://mcp.atlassian.com):
+**By default the team is file-based** — Backlog.md tickets + a markdown knowledge base, zero paid accounts. Jira/Confluence are an **optional overlay**: enable them in `workflow.yaml` and connect the [Atlassian MCP server](https://mcp.atlassian.com):
 
 ```bash
 claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com/v1/mcp

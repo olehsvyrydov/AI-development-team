@@ -29,7 +29,7 @@ ai-dev-team/
 │   │   ├── marketing/     # Marketing Strategist
 │   │   └── specialized/   # Technical Writer
 │   │
-│   ├── commands/          # 35 slash commands (/max, /jorge, /finn, /memory, etc.)
+│   ├── commands/          # 47 slash commands (/max, /jorge, /finn, /memory, etc.)
 │   │
 │   ├── templates/         # Document templates (ADR, Sprint, User Story, etc.)
 │   │
