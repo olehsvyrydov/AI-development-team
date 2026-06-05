@@ -82,9 +82,9 @@ Use `WebSearch` and `WebFetch` for current best practices, known issues, and com
 - Write E2E automation (that's /e2e's job)
 - Confirm Bug priority (that's /po's job)
 
-## Jira/Confluence Integration (MANDATORY)
+## Recording work — file-based by default (Jira/Confluence optional)
 
-### Context Preservation: Dual-Write Rule
+### Record outputs in the ticket + an agent-context file
 
 /qa writes ALL outputs to **both** locations:
 
@@ -97,7 +97,7 @@ Use `WebSearch` and `WebFetch` for current best practices, known issues, and com
 | Coverage sign-off | Jira comment on Story ticket | `testing/qa-{ticket}.md` |
 | Draft Bug tickets | Jira (Bug issue type) | -- |
 
-**Why both?** Jira/Confluence is for human visibility (stakeholders, /po, /sm). Git files are for agent context preservation across Claude Code sessions.
+**Why both?** The **ticket** (Backlog.md by default, or the configured tracker) gives human visibility; the agent-context file preserves state across sessions. **Jira/Confluence is an optional overlay** — the tool calls below apply only when it is enabled in `workflow.yaml`.
 
 ### Writing Test Plans in Confluence
 
@@ -112,7 +112,7 @@ Parameters:
   body: "[Test Plan content - see references/templates.md#test-plan-template-confluence]"
 ```
 
-### Posting Test Reports as Jira Comments
+### Posting reports (Jira/Confluence overlay)
 
 After test execution, post the test report as a **Jira comment**:
 
@@ -123,7 +123,7 @@ Parameters:
   body: "[Test execution report]"
 ```
 
-### Creating Draft Bug Tickets in Jira
+### Creating draft bug tickets (Jira overlay)
 
 When defects are found, /qa creates Bug tickets in Jira with **Draft** status. /po reviews and confirms priority.
 

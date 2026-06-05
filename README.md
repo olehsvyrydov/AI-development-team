@@ -1,12 +1,25 @@
 # AI Development Team
 
-A complete virtual software development team for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). 29 specialized AI agents (a 15-agent core team plus optional specialists) — from Product Owner to E2E Tester — that collaborate through a structured workflow with approval gates, TDD, and semantic knowledge retrieval.
+![Claude Code](https://img.shields.io/badge/Claude%20Code-ready-6E56CF) ![Cursor](https://img.shields.io/badge/Cursor-ready-111111) ![Kiro](https://img.shields.io/badge/Kiro-ready-9B59B6) ![VS Code](https://img.shields.io/badge/VS%20Code-ready-007ACC) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Stars](https://img.shields.io/github/stars/olehsvyrydov/AI-development-team?style=social)
+
+> **An AI dev team in your editor.** ~29 specialist agents (a 15-agent core team + optional specialists) and an **enforced, proportional workflow** with approval gates — *process, not prompts*. Open-source, no lock-in; works in **Claude Code, Cursor, Kiro & VS Code**, free by default.
 
 ```
-/po → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe | /be → /rev → /qa + /e2e
+/po → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe | /be → /rev → /qa + /e2e → /verify
 ```
 
-Each agent is a Claude Code skill with deep domain expertise, specific technology knowledge, and awareness of its role in the team workflow. Agents hand off work to each other, write to Jira/Confluence, and accumulate institutional knowledge through a RAG-powered memory system.
+- **Process, not prompts.** A versioned `workflow.yaml` + a `workflow-engine` skill that **refuses** to skip a required gate — right-sized to the change (`solo` → `small-team` → `regulated` presets).
+- **Roles, not micro-agents.** Each agent is a lean `SKILL.md` persona that loads deep `references/` on demand; tech stacks (React/Angular/Vue, Java/Kotlin/Python/PHP, …) are references the role *self-routes* to — not separate agents.
+- **OSS-first, no lock-in.** Zero paid accounts by default: file-based tickets + a markdown knowledge base. Jira/Confluence, MCP memory, and design tools are optional overlays.
+
+### vs. a single "do everything" agent
+
+| | One mega-prompt | **AI Dev Team** |
+|---|---|---|
+| Process | hope it remembers | **enforced gates** that can refuse to proceed |
+| Right-sizing | same weight for a typo and a feature | **proportional** (change-class + presets) |
+| Expertise | one generalist | **role specialists** + on-demand stack references |
+| Lock-in | often tool-specific | **vendor-neutral**, 4 editors, free defaults |
 
 ---
 

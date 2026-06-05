@@ -109,9 +109,9 @@ Before implementing, ALWAYS read:
 4. **Domain approvals** — `approvals/fin-finance.md`, `approvals/legal-compliance.md` if applicable
 5. **UI designs** — `approvals/ui-designs/{ticket}.md` for API contract expectations
 
-### Jira Comment Workflow (MANDATORY)
+### Recording work — file-based by default (Jira/Confluence optional)
 
-Document work in Jira ticket comments at key milestones:
+Record work in the **ticket** (Backlog.md by default, or the configured tracker) at key milestones — Jira/Confluence is an optional overlay:
 
 1. **Before Coding — "Developer Vision"**: Post approach, /arch alignment, subtasks planned, risks/assumptions
 2. **After Coding — "Implementation Details"**: Post what was built, key decisions, files changed, tests written, PR link

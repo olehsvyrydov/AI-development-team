@@ -69,9 +69,9 @@ Use `WebSearch` and `WebFetch` for current best practices, security advisories (
 4. Approved -> QA testing (/qa, /e2e)
 5. Changes Requested -> Back to developer with feedback
 
-## Jira/Confluence Integration (MANDATORY)
+## Recording work — file-based by default (Jira/Confluence optional)
 
-### Context Preservation: Dual-Write Rule
+### Record outputs in the ticket + an agent-context file
 
 /rev writes ALL review outputs to **both** locations:
 
@@ -81,9 +81,9 @@ Use `WebSearch` and `WebFetch` for current best practices, security advisories (
 | Blocking issues | Comment on Story ticket | `reviews/rev-{ticket}.md` |
 | Review verdict | Comment on Story ticket | `reviews/rev-{ticket}.md` |
 
-**Why both?** Jira is for human visibility (stakeholders, /po, /sm). Git files are for agent context preservation across Claude Code sessions.
+**Why both?** The **ticket** (Backlog.md by default, or the configured tracker) gives human visibility; the agent-context file preserves state across sessions. **Jira/Confluence is an optional overlay** — the tool calls below apply only when it is enabled in `workflow.yaml`.
 
-### Posting Review Reports as Jira Comments
+### Posting reports (Jira/Confluence overlay)
 
 After completing a code review, post the full review report as a **Jira comment** on the Story ticket using the Atlassian MCP:
 

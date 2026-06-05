@@ -115,9 +115,9 @@ Use `WebSearch` and `WebFetch` for current best practices, version updates, and 
 
 **Rule**: When uncertain about any testing API or pattern -- **search first, implement second**.
 
-## Jira/Confluence Integration (MANDATORY)
+## Recording work — file-based by default (Jira/Confluence optional)
 
-### Context Preservation: Dual-Write Rule
+### Record outputs in the ticket + an agent-context file
 
 /e2e writes ALL test outputs to **both** locations:
 
@@ -127,9 +127,9 @@ Use `WebSearch` and `WebFetch` for current best practices, version updates, and 
 | Test execution results | Jira comment on Story ticket | `testing/e2e-{ticket}.md` |
 | Draft Bug tickets | Jira (Bug issue type) | -- |
 
-**Why both?** Jira is for human visibility (stakeholders, /po, /sm). Git files are for agent context preservation across Claude Code sessions.
+**Why both?** The **ticket** (Backlog.md by default, or the configured tracker) gives human visibility; the agent-context file preserves state across sessions. **Jira/Confluence is an optional overlay** — the tool calls below apply only when it is enabled in `workflow.yaml`.
 
-### Posting Test Reports as Jira Comments
+### Posting reports (Jira/Confluence overlay)
 
 After test execution, post the report as a **Jira comment**:
 
@@ -140,7 +140,7 @@ Parameters:
   body: "[E2E test execution report]"
 ```
 
-### Creating Draft Bug Tickets in Jira
+### Creating draft bug tickets (Jira overlay)
 
 When defects are found during test execution, /e2e creates Bug tickets in Jira with **Draft** status. /po reviews and confirms priority.
 
