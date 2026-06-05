@@ -11,29 +11,37 @@ node hub/server.js [projectDir] [--port 4477]
 
 ## What it shows
 
-- **Workflow gates** — every gate from the active `workflow.yaml`, each with its owner, `hard`/`soft` refusal, whether the active preset makes it **required**, and `safety-override`. State (`pending` / `approved` / `rejected`) comes from the ledger.
-- **Tickets** — markdown tickets from `backlog/` (Backlog.md) or `.aidevteam/tickets/`.
+- **Workflow gates** — every gate from the active `workflow.yaml`, each with its owner, `hard`/`soft` refusal, whether the active preset makes it **required**, and `safety-override`. State (`passed` / `pending` / `rejected`) comes from the ledger.
+- **Tickets** — from the ledger (keyed by id) when present, otherwise markdown ticket files (`backlog/tasks/`, `backlog/`, `.aidevteam/tickets/`).
 - **Knowledge base** — markdown docs from `docs/`.
 
-It **live-updates** over SSE whenever those files change — approve a gate in the ledger and the board moves.
+It **live-updates** over SSE whenever those files change — record a gate as `passed` in the ledger and the board moves.
 
 ## What it reads (all optional; degrades gracefully)
 
 | Input | Resolved from |
 |---|---|
-| Workflow definition | `.aidevteam/workflow.yaml` → `.claude/workflow/workflow.yaml` → the framework default |
+| Workflow definition | `.aidevteam/workflow.yaml` → `~/.aidevteam/workflow.yaml` → `.claude/workflow/workflow.yaml` → the framework default |
 | Gate state (ledger) | `.workflow-state.json` |
-| Tickets | `backlog/tasks/*.md` → `backlog/*.md` → `.aidevteam/tickets/*.md` |
+| Tickets | the ledger's ticket map, else `backlog/tasks/*.md` → `backlog/*.md` → `.aidevteam/tickets/*.md` |
 | Knowledge base | `docs/*.md` |
 
 ### Ledger shape (`.workflow-state.json`)
 
+The Hub reads the **canonical** ledger format (see [`../claude/skills/workflow-engine/references/ledger.md`](../claude/skills/workflow-engine/references/ledger.md)) — a map keyed by ticket id:
+
 ```json
 {
-  "ticket": "LJ-123",
-  "change_class": "feature",
-  "gates": { "ARCH_APPROVED": "approved", "SECOPS_APPROVED": "pending" }
+  "TCK-001": {
+    "title": "Password reset via email",
+    "track": "standard",
+    "stage": "review",
+    "gates": {
+      "ARCH_APPROVED":   { "state": "passed",  "by": "/arch",   "at": "2026-06-04T10:02:00Z" },
+      "SECOPS_APPROVED": { "state": "pending", "by": null,      "at": null }
+    }
+  }
 }
 ```
 
-Gate values: `approved` · `pending` · `rejected`. Any gate not listed shows as `pending`. The Hub is **read-only** — it reflects the workflow; it doesn't change it.
+Gate `state`: `passed` · `pending` · `rejected`. A gate not listed shows as `pending`. When several tickets are present, the **gate board** reflects the first ticket whose `stage` isn't `done` (else the first present); every ticket appears in the Tickets pane. The Hub is **read-only** — it reflects the workflow; it doesn't change it.

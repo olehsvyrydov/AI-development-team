@@ -13,15 +13,19 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 // ---- args ------------------------------------------------------------------
 const argv = process.argv.slice(2);
 let PROJECT = process.cwd();
 let PORT = 4477;
+let HOST = '127.0.0.1';   // serves local paths/state — bind to loopback by default
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--port') PORT = parseInt(argv[++i], 10) || PORT;
+  else if (argv[i] === '--host') HOST = argv[++i] || HOST;
   else if (argv[i] === '--help' || argv[i] === '-h') {
-    console.log('Usage: node hub/server.js [projectDir] [--port N]');
+    console.log('Usage: node hub/server.js [projectDir] [--port N] [--host ADDR]');
+    console.log('  Binds to 127.0.0.1 by default; pass --host 0.0.0.0 to allow LAN access.');
     process.exit(0);
   } else if (!argv[i].startsWith('-')) PROJECT = path.resolve(argv[i]);
 }
@@ -29,8 +33,10 @@ const SELF_DIR = __dirname;
 
 // ---- locate the workflow definition (override cascade) ---------------------
 function findWorkflow() {
+  // same resolution order as the workflow-engine: project override → user override → shipped default
   const candidates = [
     path.join(PROJECT, '.aidevteam', 'workflow.yaml'),
+    path.join(os.homedir(), '.aidevteam', 'workflow.yaml'),
     path.join(PROJECT, '.claude', 'workflow', 'workflow.yaml'),
     path.join(PROJECT, 'claude', 'workflow', 'workflow.yaml'),
     path.join(SELF_DIR, '..', 'claude', 'workflow', 'workflow.yaml'),
@@ -93,10 +99,13 @@ function section(yaml, key) {
 }
 
 // ---- ledger (.workflow-state.json) -----------------------------------------
+// Canonical .workflow-state.json: a map keyed by ticket id, each with
+// { title, track, stage, gates: { GATE: { state: passed|pending|rejected, by, at } } }.
 function readLedger() {
   const p = path.join(PROJECT, '.workflow-state.json');
-  if (!safeExists(p)) return { gates: {} };
-  try { return JSON.parse(safeRead(p)) || { gates: {} }; } catch { return { gates: {}, _error: 'invalid JSON' }; }
+  if (!safeExists(p)) return { tickets: {}, error: null };
+  try { return { tickets: JSON.parse(safeRead(p)) || {}, error: null }; }
+  catch { return { tickets: {}, error: 'invalid JSON' }; }
 }
 
 // ---- tickets (Backlog.md / markdown) ---------------------------------------
@@ -142,23 +151,42 @@ function readKb() {
 function buildState() {
   const wfPath = findWorkflow();
   const wf = wfPath ? parseWorkflow(safeRead(wfPath)) : { preset: 'solo', gates: [], alwaysRequired: [] };
-  const ledger = readLedger();
-  const gates = wf.gates.map(g => ({
-    ...g,
-    required: wf.alwaysRequired.includes(g.name),
-    state: (ledger.gates && ledger.gates[g.name]) || 'pending',
+  const { tickets: ledger, error: ledgerError } = readLedger();
+  const ids = Object.keys(ledger);
+  // tickets come from the ledger (canonical, keyed by id); fall back to markdown files if none
+  let tickets = ids.map(id => ({
+    id,
+    title: ledger[id].title || id,
+    status: ledger[id].stage || ledger[id].track || 'unknown',
+    source: 'ledger',
   }));
+  if (!tickets.length) tickets = readTickets();
+  // the gate board reflects ONE ticket: the first not-yet-done, else the first present
+  const selId = ids.find(id => (ledger[id].stage || '') !== 'done') || ids[0] || null;
+  const sel = selId ? ledger[selId] : null;
+  const selGates = (sel && sel.gates) || {};
+  const gates = wf.gates.map(g => {
+    const e = selGates[g.name] || {};
+    return {
+      ...g,
+      required: wf.alwaysRequired.includes(g.name),
+      state: e.state || 'pending',   // passed | pending | rejected
+      by: e.by || null,
+      at: e.at || null,
+    };
+  });
   return {
     project: PROJECT,
     workflow: wfPath ? path.relative(PROJECT, wfPath) : null,
     preset: wf.preset,
-    ticket: ledger.ticket || null,
-    changeClass: ledger.change_class || ledger.changeClass || null,
-    ledgerError: ledger._error || null,
+    ticket: selId,
+    stage: (sel && sel.stage) || null,
+    track: (sel && sel.track) || null,
+    ticketCount: ids.length,
+    ledgerError,
     gates,
-    tickets: readTickets(),
+    tickets,
     kb: readKb(),
-    at: '', // stamped by client on receipt; avoids server-side clock noise
   };
 }
 
@@ -203,8 +231,9 @@ const server = http.createServer((req, res) => {
 });
 
 startWatchers();
-server.listen(PORT, () => {
-  console.log(`AI Dev Team Hub → http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  const shown = (HOST === '0.0.0.0' || HOST === '::') ? 'localhost' : HOST;
+  console.log(`AI Dev Team Hub → http://${shown}:${PORT}`);
   console.log(`  project: ${PROJECT}`);
   const wf = findWorkflow();
   console.log(`  workflow: ${wf ? path.relative(PROJECT, wf) : '(none found — showing empty board)'}`);

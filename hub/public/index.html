@@ -33,7 +33,7 @@
   .list { padding:10px; display:flex; flex-direction:column; gap:8px; }
   .gate { background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--line);
           border-radius:8px; padding:10px 12px; }
-  .gate.approved { border-left-color:var(--ok); }
+  .gate.passed   { border-left-color:var(--ok); }
   .gate.pending  { border-left-color:var(--pend); }
   .gate.rejected { border-left-color:var(--rej); }
   .gate .row1 { display:flex; align-items:center; gap:8px; }
@@ -41,7 +41,7 @@
   .gate .owner { color:var(--dim); font-size:12px; margin-left:auto; }
   .chips { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
   .chip { font-size:11px; padding:2px 7px; border-radius:6px; border:1px solid var(--line); color:var(--dim); }
-  .chip.state-approved { color:#7ee2a8; background:var(--okbg); border-color:#1f4a2e; }
+  .chip.state-passed { color:#7ee2a8; background:var(--okbg); border-color:#1f4a2e; }
   .chip.state-pending  { color:#e3b341; background:var(--pendbg); border-color:#4a3a13; }
   .chip.state-rejected { color:#ff7b72; background:var(--rejbg); border-color:#4a1f1f; }
   .chip.hard { color:#ff7b72; border-color:#4a1f1f; }
@@ -77,8 +77,8 @@ function render(st) {
   // header meta
   const m = [];
   m.push(`<span class="badge preset">preset: ${esc(st.preset)}</span>`);
-  if (st.ticket) m.push(`<span class="badge">ticket: ${esc(st.ticket)}</span>`);
-  if (st.changeClass) m.push(`<span class="badge">class: ${esc(st.changeClass)}</span>`);
+  if (st.ticket) m.push(`<span class="badge">ticket: ${esc(st.ticket)}${st.ticketCount > 1 ? ` (of ${st.ticketCount})` : ''}</span>`);
+  if (st.stage) m.push(`<span class="badge">stage: ${esc(st.stage)}</span>`);
   if (st.ledgerError) m.push(`<span class="badge" style="color:#ff7b72;border-color:#4a1f1f">ledger: ${esc(st.ledgerError)}</span>`);
   m.push(`<span class="live"><i></i>live</span>`);
   $('#meta').innerHTML = m.join('');
@@ -86,7 +86,7 @@ function render(st) {
   // gates
   $('#g-count').textContent = st.gates.length;
   $('#gates').innerHTML = st.gates.length ? st.gates.map(g => `
-    <div class="gate ${esc(g.state)}">
+    <div class="gate ${esc(g.state)}" title="${g.by ? esc(g.by + (g.at ? ' · ' + g.at : '')) : ''}">
       <div class="row1">
         <span class="name">${esc(g.name)}</span>
         <span class="owner">${esc(g.owner)}</span>
