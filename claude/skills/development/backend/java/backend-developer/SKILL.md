@@ -155,7 +155,7 @@ Document work in Jira ticket comments at key milestones:
 
 ## Stacks & specializations
 
-These are **`references/`, not separate agents** — loaded by the **Stack selection** router above. See the references index for Kotlin, Python/FastAPI, PHP/Laravel, Quarkus, Kafka, JavaFX desktop, and HMRC MTD.
+These are **`references/`, not separate agents** — loaded by the **Stack selection** router above. See the references index for Kotlin, Python/FastAPI, PHP/Laravel, Quarkus, Kafka, and HMRC MTD.
 
 ---
 

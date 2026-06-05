@@ -1,6 +1,6 @@
 # AI Development Team
 
-A complete virtual software development team for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). 40 specialized AI agents — from Product Owner to E2E Tester — that collaborate through a structured workflow with approval gates, TDD, and semantic knowledge retrieval.
+A complete virtual software development team for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). 29 specialized AI agents (a 15-agent core team plus optional specialists) — from Product Owner to E2E Tester — that collaborate through a structured workflow with approval gates, TDD, and semantic knowledge retrieval.
 
 ```
 /po → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe | /be → /rev → /qa + /e2e
@@ -96,7 +96,7 @@ The installer will offer to set up the semantic knowledge base (requires Docker 
 ├── CLAUDE.md                    # Global instructions (TDD workflow, approval gates)
 ├── TEAM_WORKFLOW.md             # Complete team process documentation
 │
-├── skills/                      # 40 agent skill files
+├── skills/                      # 29 agent skill files (15 core + specialists; stacks as references)
 │   ├── management/              # Product Owner, Scrum Master, Business Analyst
 │   ├── architecture/            # Solution Architect, GraphQL Developer
 │   ├── development/
@@ -422,7 +422,7 @@ ai-dev-team/
 ├── claude/                       # Deployable content (installs to ~/.claude/)
 │   ├── CLAUDE.md                 # Global instructions (TDD, approval gates)
 │   ├── TEAM_WORKFLOW.md          # Complete team workflow spec
-│   ├── skills/                   # 40 SKILL.md files across 9 categories
+│   ├── skills/                   # 29 SKILL.md files (15-agent core + specialists; stacks as references)
 │   ├── commands/                 # 37 slash command definitions
 │   ├── templates/                # 6 document templates
 │   │
