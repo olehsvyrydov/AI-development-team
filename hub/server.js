@@ -49,10 +49,26 @@ function findWorkflow() {
 function safeExists(p) { try { return fs.existsSync(p); } catch { return false; } }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
 function norm(s) { return String(s ?? '').replace(/['"]/g, '').trim(); }
+// map gate-state synonyms onto the three canonical, UI-styled values
+function normState(s) {
+  const v = String(s ?? '').toLowerCase().trim();
+  if (['passed', 'approved', 'pass', 'ok', 'done', 'complete'].includes(v)) return 'passed';
+  if (['rejected', 'reject', 'failed', 'fail', 'blocked'].includes(v)) return 'rejected';
+  return 'pending';
+}
+// a non-sensitive label for the active workflow file (don't leak paths outside projectDir)
+function wfLabel(wfPath) {
+  if (!wfPath) return null;
+  const rel = path.relative(PROJECT, wfPath);
+  if (!rel.startsWith('..')) return rel;                                   // inside the project
+  const home = os.homedir();
+  if (wfPath === home || wfPath.startsWith(home + path.sep)) return '~/' + path.relative(home, wfPath);
+  return path.basename(wfPath);                                           // anywhere else — filename only
+}
 
 // ---- tolerant, regex-based YAML reading (only what the board needs) --------
 function parseWorkflow(yaml) {
-  const preset = (yaml.match(/^preset:\s*([A-Za-z-]+)/m) || [])[1] || 'solo';
+  const preset = (yaml.match(/^preset:\s*["']?([A-Za-z-]+)/m) || [])[1] || 'solo';
   // gates: each is a single line `NAME: { owner: "..", refusal: hard, safety_override: true, trigger: [..] }`
   const gates = [];
   const gateBlock = section(yaml, 'gates');
@@ -62,8 +78,9 @@ function parseWorkflow(yaml) {
     const body = m[2];
     gates.push({
       name: m[1],
-      owner: (body.match(/owner:\s*"([^"]+)"/) || [])[1] || '',
-      refusal: (body.match(/refusal:\s*(\w+)/) || [])[1] || 'soft',
+      // tolerate quoted or unquoted values (the schema allows both)
+      owner: norm((body.match(/owner:\s*["']?([^,}"']+)/) || [])[1] || ''),
+      refusal: (body.match(/refusal:\s*["']?(\w+)/) || [])[1] || 'soft',
       safety: /safety_override:\s*true/.test(body),
       trigger: (body.match(/trigger:\s*\[([^\]]*)\]/) || [, ''])[1]
         .split(',').map(s => s.trim()).filter(Boolean),
@@ -72,13 +89,19 @@ function parseWorkflow(yaml) {
   // active preset's always_required — scan the presets block line by line
   let alwaysRequired = [];
   {
+    const list = s => s.split(',').map(x => x.trim()).filter(Boolean);
     let cur = null;
     for (const line of section(yaml, 'presets').split('\n')) {
-      const head = line.match(/^\s{2}([A-Za-z-]+):\s*$/);
-      if (head) { cur = head[1]; continue; }
-      if (cur === preset) {
+      const head = line.match(/^\s{2}([A-Za-z-]+):(.*)$/);
+      if (head) {
+        cur = head[1];
+        const inline = head[2].match(/always_required:\s*\[([^\]]*)\]/);  // `name: { always_required: [...] }`
+        if (cur === preset && inline) { alwaysRequired = list(inline[1]); break; }
+        continue;
+      }
+      if (cur === preset) {                                               // multi-line form
         const ar = line.match(/always_required:\s*\[([^\]]*)\]/);
-        if (ar) { alwaysRequired = ar[1].split(',').map(s => s.trim()).filter(Boolean); break; }
+        if (ar) { alwaysRequired = list(ar[1]); break; }
       }
     }
   }
@@ -108,8 +131,11 @@ function section(yaml, key) {
 function readLedger() {
   const p = path.join(PROJECT, '.workflow-state.json');
   if (!safeExists(p)) return { tickets: {}, error: null };
-  try { return { tickets: JSON.parse(safeRead(p)) || {}, error: null }; }
-  catch { return { tickets: {}, error: 'invalid JSON' }; }
+  try {
+    const v = JSON.parse(safeRead(p));
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return { tickets: {}, error: 'ledger is not a ticket map' };
+    return { tickets: v, error: null };
+  } catch { return { tickets: {}, error: 'invalid JSON' }; }
 }
 
 // ---- tickets (Backlog.md / markdown) ---------------------------------------
@@ -189,14 +215,14 @@ function buildState() {
     return {
       ...g,
       required: wf.alwaysRequired.includes(g.name),
-      state: e.state || 'pending',   // passed | pending | rejected
+      state: normState(e.state),   // canonical: passed | pending | rejected
       by: e.by || null,
       at: e.at || null,
     };
   });
   return {
     project: path.basename(PROJECT),   // dir name only — don't leak the absolute path over the API
-    workflow: wfPath ? path.relative(PROJECT, wfPath) : null,
+    workflow: wfLabel(wfPath),
     preset: wf.preset,
     ticket: selId,
     stage: (sel && sel.stage) || null,
