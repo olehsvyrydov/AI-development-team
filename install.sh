@@ -210,7 +210,7 @@ emit_mcp() {
   [ "$SCOPE" = project ] || return 0
   write_file "$PWD/.mcp.json.example" <<EOF
 {
-  "// note": "Optional MCP overlays — the framework needs none by default. Copy to .mcp.json and fill in. Ready-made per-backend overlays live in $(content_ref)/workflow/adapters/mcp/ (see adapters/README.md).",
+  "// note": "Optional MCP overlays — the framework needs none by default. Copy to .mcp.json and fill in. Ready-made per-backend overlays live in $(content_ref)/workflow/adapters/mcp/ (see $(content_ref)/workflow/adapters/README.md).",
   "mcpServers": {
     "atlassian": { "type": "http", "url": "https://mcp.atlassian.com/v1/mcp" }
   }

@@ -42,7 +42,8 @@ An agent's rule of thumb: *detect the highest-tier available adapter for the tas
 |---|---|---|
 | `adapters/mcp/atlassian.json` | Jira + Confluence | remote MCP; sign in with your Atlassian account |
 | `adapters/mcp/backlog.json` | Backlog.md tickets | local MCP server (MIT); markdown tickets in-repo |
-| `adapters/mcp/openmemory.json` | OpenMemory / mem0 | local memory MCP (OSS) |
+| `adapters/mcp/openmemory.json` | OpenMemory (local mem0 server) | local memory MCP (OSS) |
+| `adapters/mcp/mem0.json` | mem0 (hosted) | managed memory; set `MEM0_API_KEY` |
 | `adapters/mcp/penpot.json` | Penpot design | self-hosted or penpot.app; OSS design |
 | `adapters/mcp/obsidian.json` | Obsidian vault | local KB MCP |
 

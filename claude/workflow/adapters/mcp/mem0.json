@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mem0": {
+      "command": "npx",
+      "args": ["-y", "@mem0/mcp"],
+      "env": { "MEM0_API_KEY": "REPLACE_ME" }
+    }
+  }
+}
