@@ -100,29 +100,29 @@ install_content() {
   fi
   info "Installing framework content → $dest"
   run mkdir -p "$dest"
-  if [ "$LINK" = 1 ]; then
-    for d in skills commands templates; do
-      run rm -rf "$dest/$d"
-      run ln -s "$SOURCE_DIR/claude/$d" "$dest/$d"
-    done
-    # workflow is COPIED (not symlinked) so applying the per-project preset
-    # doesn't mutate the source repo's workflow.yaml
-    run rm -rf "$dest/workflow"
-    run cp -R "$SOURCE_DIR/claude/workflow" "$dest/workflow"
-  else
-    for d in skills commands templates workflow; do
-      run rm -rf "$dest/$d"
-      run cp -R "$SOURCE_DIR/claude/$d" "$dest/$d"
-    done
-  fi
-  # set only the preset VALUE, preserving the inline comment in workflow.yaml
-  run sed -i.bak -E "s/^(preset:[[:space:]]*)[A-Za-z-]+/\\1$PRESET/" "$dest/workflow/workflow.yaml"
-  run rm -f "$dest/workflow/workflow.yaml.bak"
-  ok "Content installed (preset: $PRESET)"
+  for d in skills commands templates workflow; do
+    run rm -rf "$dest/$d"
+    if [ "$LINK" = 1 ]; then run ln -s "$SOURCE_DIR/claude/$d" "$dest/$d"
+    else run cp -R "$SOURCE_DIR/claude/$d" "$dest/$d"; fi
+  done
+  # The active preset is set via the workflow OVERRIDE (workflow-engine reads it first),
+  # NOT the shipped default — so this works even when the content is symlinked.
+  local ov; ov="$(override_path)"
+  run mkdir -p "$(dirname "$ov")"
+  run cp "$SOURCE_DIR/claude/workflow/workflow.yaml" "$ov"
+  # set only the preset VALUE, preserving the inline comment
+  run sed -i.bak -E "s/^(preset:[[:space:]]*)[A-Za-z-]+/\\1$PRESET/" "$ov"
+  run rm -f "$ov.bak"
+  ok "Content installed; preset '$PRESET' written to $(override_ref)"
 }
 
 # relative path from project root to the content dir, for editor configs
 content_ref() { if [ "$SCOPE" = user ]; then printf '~/.claude'; else printf '.claude'; fi; }
+
+# The active workflow override — what workflow-engine resolves FIRST
+# (./.aidevteam/workflow.yaml > ~/.aidevteam/workflow.yaml > the shipped default).
+override_path() { if [ "$SCOPE" = user ]; then printf '%s/.aidevteam/workflow.yaml' "$HOME"; else printf '%s/.aidevteam/workflow.yaml' "$PWD"; fi; }
+override_ref()  { if [ "$SCOPE" = user ]; then printf '~/.aidevteam/workflow.yaml'; else printf '.aidevteam/workflow.yaml'; fi; }
 
 # ---- editor configs --------------------------------------------------------
 write_file() { # path, heredoc-content via stdin
@@ -132,7 +132,7 @@ write_file() { # path, heredoc-content via stdin
 }
 
 instructions_body() {
-  local ref; ref="$(content_ref)"
+  local ref ovref; ref="$(content_ref)"; ovref="$(override_ref)"
   cat <<EOF
 # AI Dev Team — agent & workflow instructions
 
@@ -147,8 +147,9 @@ approval gates apply, and may refuse to proceed past an unmet gate). Preset: **$
 - **Pick the right agent when domains overlap:** \`$ref/skills/disambiguation.md\`
 - **Agent personas:** \`$ref/skills/**/SKILL.md\` — load the relevant one; it self-routes
   to deep \`references/\` (and, for multi-stack roles, to the matching tech reference).
-- Tickets/docs are **file-based by default**; Jira/Confluence/MCP are optional overlays
-  enabled in \`$ref/workflow/workflow.yaml\`.
+- Tickets/docs are **file-based by default**; Jira/Confluence/MCP are optional overlays.
+- The active workflow **and preset** are controlled by the override \`$ovref\`
+  (resolved first; falls back to \`$ref/workflow/workflow.yaml\`).
 EOF
 }
 
@@ -198,8 +199,8 @@ emit_vscode() {
 }
 
 emit_mcp() {
-  local ref; ref="$(content_ref)"
-  # A template; all servers optional. Project scope writes .mcp.json (Claude Code/Cursor read it).
+  # A template of optional MCP overlays (the framework needs none by default).
+  # Written as .mcp.json.example for project scope — copy to .mcp.json to enable.
   [ "$SCOPE" = project ] || return 0
   write_file "$PWD/.mcp.json.example" <<EOF
 {
@@ -217,6 +218,9 @@ do_uninstall() {
   warn "Removing AI Dev Team content + editor configs (scope: $SCOPE)"
   local dest d f; dest="$(content_dir)"
   for d in skills commands templates workflow; do run rm -rf "$dest/$d"; done
+  # the workflow override (+ its dir if now empty)
+  run rm -f "$(override_path)"
+  [ "$DRY_RUN" = 1 ] || rmdir "$(dirname "$(override_path)")" 2>/dev/null || true
   [ "$SCOPE" = user ] && run rm -f "$HOME/.claude/CLAUDE.md"
   # project-level editor configs (clearly ours) — remove regardless of content scope
   run rm -f "$PWD/.cursor/rules/ai-dev-team.mdc" "$PWD/.kiro/steering/ai-dev-team.md" \
@@ -255,7 +259,7 @@ main() {
   has_editor cursor && log "  • Cursor: rules in .cursor/rules/ + AGENTS.md are active on next session."
   has_editor kiro   && log "  • Kiro: steering in .kiro/steering/ + AGENTS.md are active."
   has_editor vscode && log "  • VS Code: .github/copilot-instructions.md + AGENTS.md are active."
-  log "  • Workflow preset is ${BOLD}$PRESET${NC} — edit $(content_ref)/workflow/workflow.yaml to change."
+  log "  • Workflow preset is ${BOLD}$PRESET${NC} — edit $(override_ref) to change."
 }
 
 main "$@"

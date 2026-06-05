@@ -86,7 +86,7 @@ install_merge() {
     if [ -d "$SOURCE_DIR/skills" ]; then
         echo "  - Syncing skills..."
         mkdir -p "$TARGET_DIR/skills"
-        find "$SOURCE_DIR/skills" -name "SKILL.md" | while read src_skill; do
+        find "$SOURCE_DIR/skills" -name "SKILL.md" -print0 | while IFS= read -r -d '' src_skill; do
             rel_path="${src_skill#$SOURCE_DIR/}"
             target_path="$TARGET_DIR/$rel_path"
             target_dir=$(dirname "$target_path")
