@@ -263,7 +263,7 @@ Use `WebSearch` and `WebFetch` for market research, competitive analysis, and cu
 
 ## Deep-dive references (load on demand)
 
-Detailed product-management methodology lives in `references/`:
+Detailed product-management methodology lives in `references/` — read the relevant file when the task calls for it:
 - `references/product-strategy.md` — product vision & strategy, discovery (experiments), roadmap planning.
 - `references/metrics-and-stakeholders.md` — product metrics & analytics, stakeholder management.
 - `references/release-and-specs.md` — release planning, feature specification, customer feedback loop.
