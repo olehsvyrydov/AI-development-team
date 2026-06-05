@@ -33,7 +33,7 @@ VERSION="4.1.0"
 
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════════╗"
-echo "║       AI Development Team Installer v$VERSION        ║"
+echo "║        AI Dev Team — Backend Setup  v$VERSION       ║"
 echo "╚═══════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -320,18 +320,22 @@ setup_rag() {
     cd "$RAG_DIR"
     docker compose up -d
 
-    # Wait for Qdrant
-    echo "Waiting for Qdrant..."
-    for i in $(seq 1 30); do
-        if curl -s http://localhost:6333/healthz > /dev/null 2>&1; then
-            echo -e "${GREEN}Qdrant is running.${NC}"
-            break
-        fi
-        if [ "$i" -eq 30 ]; then
-            echo -e "${YELLOW}Qdrant didn't start in 30s. Check: docker compose logs${NC}"
-        fi
-        sleep 1
-    done
+    # Wait for Qdrant (the health check needs curl)
+    if ! command -v curl > /dev/null 2>&1; then
+        echo -e "${YELLOW}curl not found — skipping the Qdrant health check; allow a few seconds for it to start.${NC}"
+    else
+        echo "Waiting for Qdrant..."
+        for i in $(seq 1 30); do
+            if curl -s http://localhost:6333/healthz > /dev/null 2>&1; then
+                echo -e "${GREEN}Qdrant is running.${NC}"
+                break
+            fi
+            if [ "$i" -eq 30 ]; then
+                echo -e "${YELLOW}Qdrant didn't start in 30s. Check: docker compose logs${NC}"
+            fi
+            sleep 1
+        done
+    fi
 
     # Initialize collections
     echo -e "${YELLOW}Initializing Qdrant collections...${NC}"

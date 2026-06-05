@@ -221,18 +221,20 @@ EOF
 
 # ---- uninstall -------------------------------------------------------------
 do_uninstall() {
-  warn "Removing AI Dev Team content + editor configs (scope: $SCOPE)"
+  warn "This removes AI Dev Team content + editor configs (scope: $SCOPE), incl. $(content_dir)/{skills,commands,templates,workflow} and $(override_ref)."
+  if [ "$DRY_RUN" != 1 ] && [ "$ASSUME_YES" != 1 ]; then
+    read -r -p "Continue? [y/N] " c; case "$c" in y|Y) ;; *) die "Aborted." ;; esac
+  fi
   local dest d f; dest="$(content_dir)"
   for d in skills commands templates workflow; do run rm -rf "$dest/$d"; done
   # the workflow override (+ its dir if now empty)
   run rm -f "$(override_path)"
   [ "$DRY_RUN" = 1 ] || rmdir "$(dirname "$(override_path)")" 2>/dev/null || true
   [ "$SCOPE" = user ] && run rm -f "$HOME/.claude/CLAUDE.md"
-  # project-level editor configs (clearly ours) — remove regardless of content scope
-  run rm -f "$PWD/.cursor/rules/ai-dev-team.mdc" "$PWD/.kiro/steering/ai-dev-team.md" \
-            "$PWD/.github/copilot-instructions.md" "$PWD/.mcp.json.example"
-  # AGENTS.md / project CLAUDE.md — remove only if they carry our header (don't nuke unrelated files)
-  for f in "$PWD/AGENTS.md" "$PWD/CLAUDE.md"; do
+  # ai-dev-team-specific filenames — safe to remove
+  run rm -f "$PWD/.cursor/rules/ai-dev-team.mdc" "$PWD/.kiro/steering/ai-dev-team.md" "$PWD/.mcp.json.example"
+  # generic filenames — remove only if they carry our header (don't nuke unrelated files)
+  for f in "$PWD/AGENTS.md" "$PWD/CLAUDE.md" "$PWD/.github/copilot-instructions.md"; do
     [ -f "$f" ] && grep -q "AI Dev Team — agent & workflow instructions" "$f" 2>/dev/null && run rm -f "$f"
   done
   ok "Uninstalled."
