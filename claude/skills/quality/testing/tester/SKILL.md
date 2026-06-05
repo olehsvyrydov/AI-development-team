@@ -109,7 +109,7 @@ Parameters:
   spaceKey: "{PROJECT_SPACE}"
   title: "Test Plan: {Feature Name}"
   parentPageId: "{TEST_PLANS_SECTION_ID}"
-  body: "[Test Plan content - see Test Plan Template below]"
+  body: "[Test Plan content - see references/templates.md#test-plan-template-confluence]"
 ```
 
 ### Posting Test Reports as Jira Comments
@@ -133,7 +133,7 @@ Parameters:
   projectKey: "{PROJECT_KEY}"
   issueType: "Bug"
   summary: "[Brief defect description]"
-  description: "[Full bug report - see Defect Template below]"
+  description: "[Full bug report - see references/templates.md#defect-template-jira-bug-ticket]"
   parentIssueKey: "{PARENT_STORY}" (if applicable)
 ```
 
@@ -174,154 +174,12 @@ Action Required: [/po + /ba must provide AC / /rev must complete review]
 12. Say "/sm - please update sprint status"
 ```
 
-## Test Plan Template (Confluence)
 
-```markdown
-# Test Plan: [Feature Name]
+## Deep-dive references (load on demand)
 
-**QA Engineer**: /qa
-**Date**: YYYY-MM-DD
-**Jira Story**: [TICKET-ID]
-**Feature Vision**: [Confluence link]
-
-## Scope
-
-### In Scope
-- [What will be tested]
-
-### Out of Scope
-- [What will NOT be tested and why]
-
-## BDD Specs (from Behavioral AC)
-
-### Scenario 1: [Happy path name]
-Given [initial context/state]
-When [action is performed]
-Then [expected outcome]
-And [additional outcome]
-
-### Scenario 2: [Error case name]
-Given [initial context/state]
-When [invalid action is performed]
-Then [error behavior]
-
-### Scenario 3: [Edge case name]
-Given [initial context/state]
-When [boundary action is performed]
-Then [expected boundary behavior]
-
-## Test Cases
-
-| ID | Scenario | Steps | Expected Result | Type | BDD Spec |
-|----|----------|-------|-----------------|------|----------|
-| TC-01 | [scenario] | 1. ... 2. ... | [expected] | Happy path | Scenario 1 |
-| TC-02 | [error scenario] | 1. ... 2. ... | [expected error] | Error path | Scenario 2 |
-| TC-03 | [edge case] | 1. ... 2. ... | [expected boundary] | Edge case | Scenario 3 |
-
-## Test Data Requirements
-- [What test data is needed]
-
-## Environment
-- [Required environment setup]
-```
-
-## Test Execution Report Template (Jira Comment)
-
-```markdown
-# QA Test Report: [Feature Name]
-
-**QA Engineer**: /qa
-**Date**: YYYY-MM-DD
-**Jira Story**: [TICKET-ID]
-**Build/Commit**: [version]
-**Environment**: [staging/dev/prod]
-**Test Plan**: [Confluence link]
-
-## Summary
-
-| Metric | Value |
-|--------|-------|
-| Total Test Cases | X |
-| Passed | Y |
-| Failed | Z |
-| Blocked | W |
-| Pass Rate | Y/X % |
-
-## Acceptance Criteria Results
-
-| AC ID | Description (Given/When/Then) | Status | Notes |
-|-------|-------------------------------|--------|-------|
-| AC-1 | [Behavioral criteria] | PASS/FAIL | [Notes] |
-| AC-2 | [Behavioral criteria] | PASS/FAIL | [Notes] |
-
-## /e2e Test Review
-
-| Test File | Covers TC | AC Coverage | Status | Notes |
-|-----------|-----------|-------------|--------|-------|
-| [test file] | TC-01, TC-02 | AC-1, AC-2 | APPROVED / GAPS | [notes] |
-
-**Coverage Assessment**: X/Y test cases covered by automation. [Gaps identified].
-
-## Defects Found
-
-[Link to Jira Bug tickets created]
-
-### BUG-001: [Defect Title] ([TICKET-ID])
-- **Severity**: Critical / High / Medium / Low
-- **Priority**: Draft (pending /po review)
-- **Jira**: [link to Bug ticket]
-
-## Exploratory Testing Notes
-
-[Any additional findings from exploratory testing]
-
-## Recommendation
-
-- [ ] **PASS** - Feature meets acceptance criteria, ready for release
-- [ ] **FAIL** - Feature requires fixes (see defects above)
-- [ ] **BLOCKED** - Testing blocked by [reason]
-
-## Next Steps
-
-[For PASS]: Tests complete. /sm transition to Done.
-[For FAIL]: Bug tickets created in Jira. /sm to manage fix cycle.
-```
-
-## Defect Template (Jira Bug Ticket)
-
-```markdown
-## Bug Report
-
-**Found By**: /qa
-**Story**: [TICKET-ID]
-**Environment**: [staging/dev]
-**Severity**: Critical / High / Medium / Low
-**Priority**: Draft (pending /po review)
-
-## Description
-[Brief description of the defect]
-
-## Steps to Reproduce
-1. Step 1
-2. Step 2
-3. Step 3
-
-## Expected Result
-[What should happen]
-
-## Actual Result
-[What actually happened]
-
-## Evidence
-[Screenshots, logs, error messages]
-
-## Reproduction Test
-[If applicable: the failing test that reproduces this bug]
-
-## Related
-- Story: [TICKET-ID]
-- Test Plan: [Confluence link]
-```
+Detailed QA material lives in `references/` — read the relevant file when the task calls for it:
+- `references/templates.md` — test plan, test execution report, and defect (bug ticket) templates.
+- `references/methodology.md` — test design before implementation, predictable system behavior, manual testing methodology, advanced QA patterns, cross-reference verification.
 
 ## Reviewing /e2e Tests Against Approved Test Cases (CRITICAL)
 
@@ -467,150 +325,6 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 - [ ] Draft Bug tickets created in Jira for defects
 - [ ] Report saved to Git file (testing/qa-{ticket}.md)
 - [ ] /sm notified to update sprint status
-
-## Test Design Before Implementation (MANDATORY)
-
-/qa **designs test cases first** from behavioral acceptance criteria, then hands off to /e2e for implementation. This workflow runs IN PARALLEL with development:
-
-```
-/po + /ba create Story with behavioral AC
-          |
-    +-----+-----+
-    |             |
-    v             v
-  /be or /fe    /qa writes Test Plan + BDD specs (Confluence)
-  implement     /e2e implements automated tests from specs
-    |             |
-    +-----+-----+
-          |
-          v
-   /rev reviews code
-   /qa reviews /e2e tests against specs
-   /qa executes manual tests
-```
-
-This ensures:
-- Test cases are driven by business requirements, not implementation details
-- Coverage is planned before code is complete
-- Test design documents serve as a contract between QA and automation
-- /qa can review /e2e tests while waiting for dev to finish
-
-## Predictable System Behavior — The Goal of Testing (MANDATORY)
-
-The ultimate goal of /qa is to guarantee **absolutely predictable system behavior**. The system must behave exactly as specified — no surprises, no unintended side effects, no hidden failures. To achieve this, EVERY test case set MUST cover three categories:
-
-### 1. Positive Cases (Happy Path)
-Verify the feature works correctly when used as intended:
-- Expected inputs produce expected outputs
-- All acceptance criteria are satisfied
-- Workflow completes end-to-end as described
-
-### 2. Negative Cases (Error Path)
-Verify the system handles misuse gracefully:
-- Invalid inputs are rejected with clear error messages
-- Missing required fields prevent submission
-- Unauthorized users are denied access
-- Expired or inactive entities cannot be used
-- Concurrent modifications don't corrupt data
-
-### 3. Edge Cases (Boundary Path)
-Verify the system handles extreme or unusual conditions:
-- Empty values, zero-length strings, maximum-length inputs
-- First and last items in lists, pagination boundaries
-- Switching locale mid-flow, refreshing the page mid-operation
-- Very slow network, double-click submissions, browser back button
-- Multiple tabs with the same session
-- Data that existed before the feature was deployed (legacy data)
-
-**Rule: A test plan without all three categories is INCOMPLETE. Do not hand off to /adam until positive, negative, and edge cases are all defined.**
-
-## Manual Testing Methodology (MANDATORY)
-
-When /rob tests manually — whether during QA verification, exploratory testing, or staging validation — the following principles apply. These are universal and technology-agnostic.
-
-### Follow ALL Test Cases
-Manual testing MUST execute every test case scenario from the Test Plan — positive, negative, and edge. Do not skip test cases because they "seem obvious" or "probably work." Execute them all and document results for each.
-
-### Think Like Different Users
-Don't test as a developer who knows how the feature works. Test as different types of users who DON'T:
-
-| User Type | Behavior Pattern | What They Reveal |
-|-----------|-----------------|------------------|
-| **First-time user** | Confused by jargon, clicks wrong buttons, doesn't read instructions | Poor UX, missing guidance, unclear labels |
-| **Impatient user** | Double-clicks everything, navigates away mid-operation, submits forms too fast | Race conditions, incomplete state handling, duplicate submissions |
-| **Malicious user** | Injects scripts in text fields, manipulates URLs, tries to access pages without login | XSS, broken authorization, URL parameter tampering |
-| **Power user** | Uses keyboard shortcuts, opens multiple tabs, performs bulk operations | Concurrency issues, keyboard accessibility, session conflicts |
-| **Mobile user** | Small screen, touch interactions, slow network | Responsive design failures, touch target sizes, loading states |
-| **User with old data** | Has records created before the feature existed, has edge-case data in their profile | Migration issues, null handling, legacy compatibility |
-
-### Actively Try to Break Things
-Your job is NOT to confirm the feature works. Your job is to find every way it can fail:
-
-- **Wrong order**: Perform steps out of the expected sequence
-- **Missing data**: Submit forms with required fields empty
-- **Invalid data**: Enter numbers where text is expected, paste HTML/scripts, use emoji, use extremely long strings
-- **Interrupted flows**: Navigate away mid-operation, close the browser, hit back button
-- **Rapid actions**: Double-click submit, rapid-fire the same action, spam the API
-- **Cross-feature impact**: After using the new feature, verify that adjacent features still work correctly
-- **State manipulation**: Change URL parameters, modify hidden form fields (via browser dev tools), replay old requests
-
-### Document Everything
-Every manual test session must produce:
-- Result for EACH test case (PASS / FAIL / BLOCKED)
-- For failures: exact steps to reproduce, expected vs actual, screenshot or screen recording
-- Any unexpected behavior discovered outside the test cases (exploratory findings)
-- Adjacent features that were spot-checked and their status
-
-## Advanced QA Patterns
-
-### Automated Content Verification
-When testing features with complex data (role matrices, permission tables, configuration grids), use JavaScript evaluation to automate content checks rather than relying on visual inspection alone:
-- Extract text content programmatically and verify counts, labels, and values
-- Run N/N automated checks and report the count (e.g., "14/14 checks PASSED")
-- This catches subtle data mismatches that visual review misses
-
-### Matrix-Based Verification
-For features involving role-to-capability, user-to-resource, or any NxM relationship:
-- Build a matrix of expected access/behavior from AC
-- Test each cell systematically (not just the diagonal)
-- Report results as a matrix table in the QA report
-
-### Protected / Immutable Entity Testing
-When system entities are marked as protected (system roles, default configs, seed data):
-- Verify protected fields are disabled/readonly in the UI
-- Verify bulk operations (delete, update) properly skip protected entities
-- Verify the UI communicates WHY an action is restricted (helper text, disabled state)
-
-### Cross-Locale / i18n Verification
-For bilingual or multilingual features:
-- Test content renders correctly in every supported locale
-- Verify translated content matches the source language in structure and completeness
-- Use automated text extraction to compare content counts across locales
-
-### Self-Action Guard Testing
-When features prevent users from modifying their own records (self-role-change, self-delete, etc.):
-- Verify the guard is active when editing own record
-- Verify the guard is NOT active when editing other records
-- Verify appropriate feedback is shown (helper text, disabled field)
-
-### Navigation Pattern Testing
-For features using non-standard navigation (buttons with JS handlers instead of `<a>` links, SPA routing, dynamic panels):
-- Don't assume URL parameters work -- verify the actual navigation mechanism
-- Use JavaScript evaluation to find and trigger navigation elements when standard selectors don't work
-- Document the navigation pattern in the QA report for future reference
-
-## Cross-Reference Verification (MANDATORY)
-
-Before finalizing test cases, verify that field names, cookie names, API endpoints, and identifiers in test case descriptions **match the actual system**. Ticket descriptions may use placeholder or outdated names.
-
-**Rules:**
-1. When test cases reference specific cookie names, form field names, or API endpoints — verify them against the running staging environment or ask the developer
-2. If /rob's test cases use a name that doesn't match the actual system, /adam's tests will fail silently or test the wrong thing
-3. Document any name mismatches found during review and update test cases immediately
-
-**Example:** Ticket says cookie `apimedicum_consent` but actual cookie is `apimedicum_cookie_consent` — this mismatch causes /adam's entire visitor ID test suite to fail because the cookie parser checks the wrong name.
-
----
 
 ## Anti-Patterns to Avoid
 
