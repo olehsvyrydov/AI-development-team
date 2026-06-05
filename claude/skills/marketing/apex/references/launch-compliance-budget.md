@@ -90,7 +90,7 @@
 | Environmental claims | Must be specific, verifiable (no greenwashing) |
 | Price claims | Must be genuine; reference prices must be recent |
 
-### DMCCA Subscription Advertising (Expected Spring 2026)
+### DMCCA Subscription Advertising (verify current commencement status)
 
 | Requirement | Detail |
 |-------------|--------|

@@ -25,7 +25,7 @@ we [unique differentiator].
 ```
 
 ### Email Sequence (Trial Nurture)
-See expanded sequence in Email Marketing section above.
+See the expanded sequence in `references/channels.md` (Email Marketing).
 
 ---
 
