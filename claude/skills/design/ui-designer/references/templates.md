@@ -25,7 +25,6 @@
 - Loading state (skeleton)
 - Partial data (progressive)
 - Offline state (cached/retry)
-```
 
 
 ## Overview
@@ -77,7 +76,6 @@
 - Screen reader: {announcements}
 - Keyboard: {interactions}
 - Reduced motion: {alternatives}
-```
 
 ## Templates
 
