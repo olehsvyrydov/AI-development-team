@@ -103,9 +103,9 @@ Detailed backend knowledge lives in `references/` — read the relevant file whe
 ### Reading Acceptance Criteria
 
 Before implementing, ALWAYS read:
-1. **Jira ticket** — Read the Story description, behavioral AC, and all comments
-2. **Architecture approval** — Read /arch recommendation comments in Jira AND `approvals/arch-architecture.md`
-3. **Security approval** — Read /secops comments in Jira AND `approvals/secops-security.md`
+1. **The ticket** — Read the Story description, behavioral AC, and all comments
+2. **Architecture approval** — Read /arch recommendation comments in the ticket AND `approvals/arch-architecture.md`
+3. **Security approval** — Read /secops comments in the ticket AND `approvals/secops-security.md`
 4. **Domain approvals** — `approvals/fin-finance.md`, `approvals/legal-compliance.md` if applicable
 5. **UI designs** — `approvals/ui-designs/{ticket}.md` for API contract expectations
 
@@ -123,7 +123,7 @@ Record work in the **ticket** (Backlog.md by default, or the configured tracker)
 
 /arch provides guardrails; /be decides implementation details within those boundaries:
 - **Read** /arch recommendations before coding
-- **Follow OR deviate with justification** — deviations must be documented in Jira comment
+- **Follow OR deviate with justification** — deviations must be documented in a ticket comment
 - If decision **changes system shape or how parts interact** → involve /arch
 - If it's **inside a component** and doesn't affect system shape → developer decides
 

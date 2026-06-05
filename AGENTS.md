@@ -12,7 +12,7 @@ This is a **reusable AI Development Team framework** - a collection of specializ
 ai-dev-team/
 ├── README.md              # Installation & usage guide
 ├── install.sh             # One-command installer
-├── CLAUDE.md              # This file
+├── CLAUDE.md / AGENTS.md   # agent/assistant instructions (this file = AGENTS.md, mirrors CLAUDE.md)
 │
 ├── claude/                # Deployable content (copy to ~/.claude)
 │   ├── CLAUDE.md          # Global instructions for Claude Code
