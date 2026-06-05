@@ -113,6 +113,17 @@ Optional advanced Claude backends (RAG memory, Atlassian, hooks): `scripts/setup
 
 The installer will offer to set up the semantic knowledge base (requires Docker + Python 3.11+). You can also do it manually later — see [RAG Setup](#rag-knowledge-base-ai-team-memory).
 
+### 4. Optional: launch the local Hub
+
+A **zero-dependency** dashboard for the workflow — live gate board, tickets, and knowledge base, straight from the file-based defaults (no `npm install`, no Jira):
+
+```bash
+node hub/server.js /path/to/your/project   # then open http://localhost:4477
+# in a dev container / VM / for LAN access, add: --host 0.0.0.0
+```
+
+See [`hub/README.md`](hub/README.md). It's **read-only** and live-updates over SSE as your `.workflow-state.json` / tickets change. Binds to `127.0.0.1` by default.
+
 ---
 
 ## What Gets Installed
