@@ -1,8 +1,8 @@
 # HMRC API — Self Assessment Integration, Error Handling, Sandbox Testing & Configuration
 
-### Self Assessment API Integration
+## Self Assessment API Integration
 
-#### API Client
+### API Client
 
 ```java
 @RegisterRestClient(configKey = "hmrc-api")
@@ -58,7 +58,7 @@ public interface SelfAssessmentApiClient {
 }
 ```
 
-#### Service Layer
+### Service Layer
 
 ```java
 @ApplicationScoped
@@ -194,7 +194,7 @@ public class HmrcSubmissionService {
 }
 ```
 
-### Error Handling
+## Error Handling
 
 ```java
 public record HmrcErrorResponse(
@@ -226,7 +226,7 @@ public enum HmrcErrorCode {
 }
 ```
 
-### Testing with Sandbox
+## Testing with Sandbox
 
 ```java
 @QuarkusTest
@@ -267,7 +267,7 @@ public class HmrcSandboxProfile implements QuarkusTestProfile {
 }
 ```
 
-### Configuration
+## Configuration
 
 ```properties
 # application.properties
