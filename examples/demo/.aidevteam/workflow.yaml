@@ -1,0 +1,94 @@
+# ============================================================================
+# ai-dev-team — canonical workflow definition
+# ----------------------------------------------------------------------------
+# This file is the single source of truth for HOW the team works. It is loaded
+# on demand by the `workflow-engine` skill (kept out of always-on context so
+# CLAUDE.md/AGENTS.md stay lean). Edit this file to customize the workflow.
+#
+# Resolution order (first found wins):
+#   1. ./.aidevteam/workflow.yaml      (this project)
+#   2. ~/.aidevteam/workflow.yaml      (your user default)
+#   3. <framework>/claude/workflow/workflow.yaml   (shipped default — this file)
+#
+# The default is `solo`: proportional, file-based, zero paid accounts.
+# ============================================================================
+version: 1
+preset: regulated
+
+# --- 1. Proportionality: right-size process to the change -------------------
+# The agent FIRST classifies the change, then runs the matching track. This is
+# the fix for "the workflow gets ignored": a trivial fix should not drag a
+# story through arch + security + approval.
+change_classes:
+  trivial:     { desc: "typo, comment, doc tweak, rename, formatting",                track: floor_min }
+  small:       { desc: "localized change; one file/function; no new deps/interfaces", track: floor }
+  standard:    { desc: "a feature/story; new logic spanning files",                   track: standard }
+  significant: { desc: "new service/dependency/schema/boundary, or security-sensitive", track: full }
+
+tracks:
+  floor_min: [implement, self_review]
+  floor:     [state_behavior, write_test, implement, self_review]
+  standard:  [state_behavior, write_test, implement, self_review, code_review]
+  full:      [vision, architecture, security, design, approval_gate, tdd, code_review, design_qa, qa, reliability, verify, done]
+
+# --- 2. Gates: a gate must be PASSED before work crosses it -----------------
+# `trigger` lists conditions that REQUIRE the gate (regardless of change-class).
+# `refusal: hard` => the agent must not proceed and must name the gate.
+# `safety_override: true` => HARD even on a trivial change (cannot be downsized).
+gates:
+  ARCH_APPROVED:   { owner: "/arch",   sets: "after architecture agreed",   refusal: hard, trigger: [new_service, new_dependency, schema_change, cross_boundary, public_api] }
+  SECOPS_APPROVED: { owner: "/secops", sets: "after security review",       refusal: hard, safety_override: true, trigger: [auth, secrets, pii, file_upload, external_input, network, crypto] }
+  DESIGN_APPROVED: { owner: "/ui",     sets: "after design approved",       refusal: soft, trigger: [visual_change, new_screen] }
+  APPROVAL_GATE:   { owner: "/verify", sets: "ticket ready to implement",   refusal: hard, trigger: [track:full] }
+  CODE_REVIEWED:   { owner: "/rev",    sets: "after code review",           refusal: hard, trigger: [track:standard, track:full] }
+  PERF_OK:         { owner: "/perf",   sets: "after perf budgets met",      refusal: soft, trigger: [perf_budget, hot_path] }
+  VERIFIED:        { owner: "/verify", sets: "final completeness audit",     refusal: hard, trigger: [track:full] }
+  RELIABILITY_OK:  { owner: "/sre",    sets: "reliability/observability ok", refusal: soft, trigger: [prod_deploy, slo, new_service] }
+
+refusal_policy:
+  hard: "Do NOT proceed. State which gate is unmet and invoke its owner agent to resolve it."
+  soft: "Warn and record the skip with a reason; you MAY proceed (escape hatch: note `--skip-gate <GATE> --reason=...`)."
+  security_safety_override: "Any security trigger makes SECOPS_APPROVED hard regardless of change-class. Never downgrade it for being a 'small' change."
+
+# --- 3. Ledger: where gate state is recorded (first available wins) ---------
+ledger:
+  - file: ".workflow-state.json"   # zero-tool default, lives in the repo
+  - backlog_md                     # if Backlog.md is present, use its task statuses
+  - mcp: "workflow"                # optional stateful workflow MCP (refuses out-of-order)
+  - jira                           # optional; used by the `regulated` preset
+
+# --- 4. Tickets & knowledge base (the Jira/Confluence replacement) ----------
+tickets:
+  default: backlog_md              # markdown tickets in the repo (Backlog.md). Fallback: .aidevteam/tickets/*.md
+  optional_mcp: [jira]
+knowledge_base:
+  default: markdown                # docs/ or an Obsidian-compatible vault
+  optional_mcp: [obsidian, kgb_canon]
+memory:
+  default: files                   # native files under memory/ (no backend required)
+  optional_mcp: [openmemory, mem0]
+design:
+  default: local                   # Claude-generated HTML + headless-Chrome screenshots
+  optional_mcp: [penpot, figma, canva]
+# Every backend above is a pluggable adapter. See adapters/README.md for the contract
+# (capabilities / health-check / fallback / data-residency) + ready .mcp.json overlays.
+
+# --- 5. Presets: pick one via `preset:` above -------------------------------
+# A preset only changes WHICH gates are always required + the default backends.
+# Everything else (triggers, tracks) is shared, so behavior stays predictable.
+presets:
+  solo:
+    always_required: []                     # nothing forced; gates fire on trigger/change-class only
+    default_track: by_change_class
+    tickets: backlog_md
+    knowledge_base: markdown
+  small-team:
+    always_required: [CODE_REVIEWED]        # peer review always
+    default_track: by_change_class
+    tickets: backlog_md
+    knowledge_base: markdown
+  regulated:
+    always_required: [ARCH_APPROVED, SECOPS_APPROVED, APPROVAL_GATE, CODE_REVIEWED, VERIFIED, RELIABILITY_OK]
+    default_track: full
+    tickets: jira
+    knowledge_base: confluence

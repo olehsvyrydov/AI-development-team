@@ -41,6 +41,8 @@ design-gallery/
 # Local workflow state (per-project; generated)
 .workflow-state.json
 .aidevteam/state/
+# …but keep the bundled demo fixture tracked
+!examples/demo/.workflow-state.json
 
 # Build/migration artifacts (never commit binaries)
 *.zip

@@ -1,0 +1,35 @@
+{
+  "ADT-118": {
+    "title": "Email/password sign-up",
+    "track": "standard",
+    "stage": "done",
+    "gates": {
+      "ARCH_APPROVED":   { "state": "passed", "by": "/arch",   "at": "2026-06-02T09:10:00Z" },
+      "SECOPS_APPROVED": { "state": "passed", "by": "/secops", "at": "2026-06-02T11:30:00Z" },
+      "CODE_REVIEWED":   { "state": "passed", "by": "/rev",    "at": "2026-06-03T15:40:00Z" },
+      "VERIFIED":        { "state": "passed", "by": "/verify", "at": "2026-06-03T16:20:00Z" }
+    }
+  },
+  "ADT-124": {
+    "title": "Password reset via email",
+    "track": "standard",
+    "stage": "review",
+    "gates": {
+      "ARCH_APPROVED":   { "state": "passed",   "by": "/arch",   "at": "2026-06-04T10:02:00Z", "note": "Time-boxed token; no saga needed." },
+      "SECOPS_APPROVED": { "state": "passed",   "by": "/secops", "at": "2026-06-04T10:20:00Z" },
+      "DESIGN_APPROVED": { "state": "passed",   "by": "/ui",     "at": "2026-06-04T11:05:00Z" },
+      "CODE_REVIEWED":   { "state": "rejected", "by": "/rev",    "at": "2026-06-04T14:05:00Z", "note": "Token TTL too long; add rate limiting before re-review." },
+      "VERIFIED":        { "state": "pending",  "by": null,      "at": null },
+      "RELIABILITY_OK":  { "state": "pending",  "by": null,      "at": null }
+    }
+  },
+  "ADT-130": {
+    "title": "Rate-limit auth endpoints",
+    "track": "standard",
+    "stage": "dev",
+    "gates": {
+      "ARCH_APPROVED":   { "state": "passed",  "by": "/arch", "at": "2026-06-05T09:00:00Z" },
+      "SECOPS_APPROVED": { "state": "pending", "by": null,    "at": null }
+    }
+  }
+}
