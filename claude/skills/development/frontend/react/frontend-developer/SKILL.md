@@ -1,6 +1,6 @@
 ---
 name: frontend-developer
-description: "Frontend Developer (/fe, alias: Finn, /finn) - Senior Frontend Developer with 10+ years web and mobile experience. Covers React/Next.js (default), Angular, Vue/Nuxt, and Flutter/Dart - detects the project's framework and loads the matching stack reference. Use when implementing UI components, state management, data fetching, styling, forms, or any web/cross-platform frontend feature in any of these stacks."
+description: "Frontend Developer (/fe, alias: Finn, /finn) - Senior Frontend Developer with 10+ years web and mobile experience. Covers React/Next.js (default), Angular, Vue/Nuxt, Flutter/Dart, and JavaFX desktop - detects the project's framework and loads the matching stack reference. Use when implementing UI components, state management, data fetching, styling, forms, or any web/cross-platform frontend feature in any of these stacks."
 ---
 
 # Frontend Developer (/fe)
@@ -99,6 +99,7 @@ Use WebSearch and WebFetch tools to:
 | **Angular** | `angular.json`, `@angular/*` | `references/angular.md` |
 | **Vue / Nuxt** | `vue`, `nuxt` | `references/vue.md` |
 | **Flutter** (cross-platform mobile) | `pubspec.yaml`, Dart | `references/flutter.md` |
+| **JavaFX desktop** | JavaFX deps, `.fxml` files | `references/javafx-desktop/overview.md` |
 
 If the stack is ambiguous, ask; otherwise default to React/Next.js. (Native iOS/Android → `native-mobile-developer`.)
 

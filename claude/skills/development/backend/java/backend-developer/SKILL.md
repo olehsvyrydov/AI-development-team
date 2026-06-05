@@ -81,6 +81,7 @@ Use WebSearch and WebFetch tools to:
 | **PHP / Laravel** | `composer.json`, Laravel | `references/laravel.md` |
 | **Quarkus** | Quarkus deps | `references/quarkus.md` |
 | **Kafka / messaging** | Kafka in the feature | `references/spring-kafka.md` |
+| **HMRC MTD** (UK tax API) | HMRC / Making Tax Digital in the feature | `references/hmrc-api/overview.md` |
 
 If ambiguous, ask; otherwise default to Java/Spring Boot.
 
