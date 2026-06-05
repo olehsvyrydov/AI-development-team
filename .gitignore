@@ -41,3 +41,8 @@ design-gallery/
 # Local workflow state (per-project; generated)
 .workflow-state.json
 .aidevteam/state/
+
+# Build/migration artifacts (never commit binaries)
+*.zip
+*.tar.gz
+*.tgz
