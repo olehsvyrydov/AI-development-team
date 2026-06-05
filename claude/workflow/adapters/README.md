@@ -36,7 +36,7 @@ An agent's rule of thumb: *detect the highest-tier available adapter for the tas
    design:         { default: penpot }
    ```
    (or just switch `preset:` — `regulated` selects Jira + Confluence.)
-2. **Add the MCP overlay** — copy the matching snippet from `adapters/mcp/` into your project's `.mcp.json` (the installer writes a `.mcp.json.example` to start from). Fill in URLs/keys.
+2. **Add the MCP overlay** — copy the matching snippet from `adapters/mcp/` into your project's `.mcp.json` (the installer writes a `.mcp.json.example` to start from). Fill in URLs/keys. *(Some overlays cover more than one backend — **Jira** and **Confluence** both come from `atlassian.json`.)*
 
 | Overlay file | Backend | Notes |
 |---|---|---|
