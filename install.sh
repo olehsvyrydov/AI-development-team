@@ -35,8 +35,8 @@ ok()   { printf '%s✓%s %s\n' "$GREEN" "$NC" "$*"; }
 warn() { printf '%s!%s %s\n' "$YELLOW" "$NC" "$*"; }
 die()  { printf '%s✗ %s%s\n' "$RED" "$*" "$NC" >&2; exit 1; }
 
-# run a mutating command (or just print it under --dry-run)
-run() { if [ "$DRY_RUN" = 1 ]; then printf '%s[dry-run]%s %s\n' "$DIM" "$NC" "$*"; else eval "$@"; fi; }
+# run a mutating command (or just print it under --dry-run). Args passed directly — no eval.
+run() { if [ "$DRY_RUN" = 1 ]; then printf '%s[dry-run]%s %s\n' "$DIM" "$NC" "$*"; else "$@"; fi; }
 
 show_help() { sed -n '3,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
@@ -57,6 +57,11 @@ parse_args() {
   [ "$EDITORS" = "all" ] && EDITORS="claude,cursor,kiro,vscode"
   case "$SCOPE" in project|user) ;; *) die "--scope must be project or user" ;; esac
   case "$PRESET" in solo|small-team|regulated) ;; *) die "--preset must be solo, small-team, or regulated" ;; esac
+  # fail fast on unknown editor names (typos)
+  local e
+  for e in ${EDITORS//,/ }; do
+    case "$e" in claude|cursor|kiro|vscode) ;; *) die "Unknown editor: '$e' (valid: claude, cursor, kiro, vscode, all)" ;; esac
+  done
 }
 
 has_editor() { case ",$EDITORS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
@@ -83,25 +88,35 @@ content_dir() {
 
 install_content() {
   local dest; dest="$(content_dir)"
+  # Guard: don't silently wipe existing content (especially ~/.claude in user scope)
+  if [ "$DRY_RUN" != 1 ] && [ "$ASSUME_YES" != 1 ]; then
+    local existing="" d
+    for d in skills commands templates workflow; do [ -e "$dest/$d" ] && existing="$existing $d"; done
+    if [ -n "$existing" ]; then
+      warn "Existing framework content in $dest:$existing — it will be replaced."
+      read -r -p "Continue? [y/N] " c; case "$c" in y|Y) ;; *) die "Aborted." ;; esac
+    fi
+  fi
   info "Installing framework content → $dest"
-  run "mkdir -p '$dest'"
+  run mkdir -p "$dest"
   if [ "$LINK" = 1 ]; then
     for d in skills commands templates; do
-      run "rm -rf '$dest/$d'"
-      run "ln -s '$SOURCE_DIR/claude/$d' '$dest/$d'"
+      run rm -rf "$dest/$d"
+      run ln -s "$SOURCE_DIR/claude/$d" "$dest/$d"
     done
     # workflow is COPIED (not symlinked) so applying the per-project preset
     # doesn't mutate the source repo's workflow.yaml
-    run "rm -rf '$dest/workflow'"
-    run "cp -R '$SOURCE_DIR/claude/workflow' '$dest/workflow'"
+    run rm -rf "$dest/workflow"
+    run cp -R "$SOURCE_DIR/claude/workflow" "$dest/workflow"
   else
     for d in skills commands templates workflow; do
-      run "rm -rf '$dest/$d'"
-      run "cp -R '$SOURCE_DIR/claude/$d' '$dest/$d'"
+      run rm -rf "$dest/$d"
+      run cp -R "$SOURCE_DIR/claude/$d" "$dest/$d"
     done
   fi
-  # apply the chosen preset to the (always-copied) workflow definition
-  run "sed -i.bak 's/^preset:.*/preset: $PRESET/' '$dest/workflow/workflow.yaml' && rm -f '$dest/workflow/workflow.yaml.bak'"
+  # set only the preset VALUE, preserving the inline comment in workflow.yaml
+  run sed -i.bak -E "s/^(preset:[[:space:]]*)[A-Za-z-]+/\\1$PRESET/" "$dest/workflow/workflow.yaml"
+  run rm -f "$dest/workflow/workflow.yaml.bak"
   ok "Content installed (preset: $PRESET)"
 }
 
@@ -137,8 +152,9 @@ EOF
 }
 
 emit_agents_and_claude() {
-  # AGENTS.md (root) — read by Cursor/Kiro/VS Code; mirrors CLAUDE.md
-  if [ "$SCOPE" = project ]; then
+  # AGENTS.md (project root) — read by Cursor/Kiro/VS Code; mirrors CLAUDE.md.
+  # Emit it for any of those editors, or for a project-scoped install.
+  if [ "$SCOPE" = project ] || has_editor cursor || has_editor kiro || has_editor vscode; then
     instructions_body | write_file "$PWD/AGENTS.md"
     ok "AGENTS.md (project root)"
   fi
@@ -188,14 +204,16 @@ EOF
 # ---- uninstall -------------------------------------------------------------
 do_uninstall() {
   warn "Removing AI Dev Team content + editor configs (scope: $SCOPE)"
-  local dest; dest="$(content_dir)"
-  for d in skills commands templates workflow; do run "rm -rf '$dest/$d'"; done
-  if [ "$SCOPE" = project ]; then
-    run "rm -f '$PWD/AGENTS.md' '$PWD/CLAUDE.md' '$PWD/.mcp.json.example'"
-    run "rm -f '$PWD/.cursor/rules/ai-dev-team.mdc' '$PWD/.kiro/steering/ai-dev-team.md' '$PWD/.github/copilot-instructions.md'"
-  else
-    run "rm -f '$HOME/.claude/CLAUDE.md'"
-  fi
+  local dest d f; dest="$(content_dir)"
+  for d in skills commands templates workflow; do run rm -rf "$dest/$d"; done
+  [ "$SCOPE" = user ] && run rm -f "$HOME/.claude/CLAUDE.md"
+  # project-level editor configs (clearly ours) — remove regardless of content scope
+  run rm -f "$PWD/.cursor/rules/ai-dev-team.mdc" "$PWD/.kiro/steering/ai-dev-team.md" \
+            "$PWD/.github/copilot-instructions.md" "$PWD/.mcp.json.example"
+  # AGENTS.md / project CLAUDE.md — remove only if they carry our header (don't nuke unrelated files)
+  for f in "$PWD/AGENTS.md" "$PWD/CLAUDE.md"; do
+    [ -f "$f" ] && grep -q "AI Dev Team — agent & workflow instructions" "$f" 2>/dev/null && run rm -f "$f"
+  done
   ok "Uninstalled."
 }
 

@@ -339,7 +339,7 @@ setup_rag() {
 
     # Prompt for Voyage AI key
     echo ""
-    read -rp "  Enter VOYAGE_API_KEY (or press Enter to skip): " VOYAGE_KEY
+    read -rsp "  Enter VOYAGE_API_KEY (or press Enter to skip): " VOYAGE_KEY; echo
 
     if [ -n "$VOYAGE_KEY" ]; then
         # Register MCP server (cd HOME to avoid project-scoped registration)
@@ -397,7 +397,7 @@ setup_multi_llm() {
     fi
 
     # Prompt for OpenRouter key
-    read -rp "  Enter OPENROUTER_API_KEY (or press Enter to skip): " OPENROUTER_KEY
+    read -rsp "  Enter OPENROUTER_API_KEY (or press Enter to skip): " OPENROUTER_KEY; echo
 
     if [ -n "$OPENROUTER_KEY" ]; then
         # Register MCP server (cd HOME to avoid project-scoped registration)
