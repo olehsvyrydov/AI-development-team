@@ -605,4 +605,5 @@ Tier 3: Component Tokens (scoped)
 | Heuristic evaluation | Redesign projects | Usability issues list |
 
 #### User Flow Documentation
-```markdown
+
+See **`references/templates.md`** for the User Flow template.
