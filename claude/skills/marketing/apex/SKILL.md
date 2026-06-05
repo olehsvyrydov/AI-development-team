@@ -108,7 +108,7 @@ Detailed marketing playbooks (the auto-activated skill modules) live in `referen
 - `references/gtm-and-growth.md` — go-to-market strategy, product-led growth, AI-powered marketing & GEO, community-led growth.
 - `references/channels.md` — pricing, LinkedIn/B2B social, email marketing, competitive intelligence (battlecards), paid acquisition.
 - `references/launch-compliance-budget.md` — startup launch playbook, UK/EU marketing compliance, budget allocation, scenario examples.
-- `references/templates.md` — positioning statement, landing-page structure, and email-sequence templates. (The strategic-brief template lives in the Plan-Mode Protocol below.)
+- `references/templates.md` — positioning-statement and landing-page templates. (The strategic-brief template is in the Plan-Mode Protocol below; the full trial-nurture email sequence is in `channels.md`.)
 
 ## Mandatory Plan Mode Protocol
 
