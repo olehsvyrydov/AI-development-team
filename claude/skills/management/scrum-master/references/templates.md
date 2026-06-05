@@ -73,7 +73,7 @@
 
 ### Ticket Template
 
-```markdown
+````markdown
 # {TICKET-ID}: {Title}
 
 **Priority**: P0/P1/P2
@@ -132,7 +132,7 @@
 - [ ] /rev code review passed
 - [ ] /qa test cases pass
 - [ ] /e2e automated tests pass
-```
+````
 
 ---
 

@@ -244,7 +244,7 @@ Every sprint folder MUST include a `DECISION_LOG.md` tracking key decisions made
 - [ ] All tests pass
 - [ ] Sprint status is final
 - [ ] Decision log is complete
-- [ ] Knowledge capture completed (see Sprint Knowledge Capture)
+- [ ] Knowledge capture completed (see `references/knowledge-and-retro.md`)
 - [ ] Skill update proposals written
 - [ ] Retrospective scheduled/completed
 - [ ] Sprint report generated
@@ -311,7 +311,7 @@ Every sprint folder MUST include a `DECISION_LOG.md` tracking key decisions made
 ```
 1. Finalize all ticket statuses
 2. Run retrospective analysis:
-   Level 1 — Collect sprint learnings, update agent skills (Knowledge Capture Steps 1-5)
+   Level 1 — Collect sprint learnings, update agent skills (Knowledge Capture Steps 1-5, in `references/knowledge-and-retro.md`)
    Level 2 — Analyze workflow effectiveness, update TEAM_WORKFLOW.md and CLAUDE.md
    Level 3 — Self-assess orchestration quality, update this skill file
 3. Write consolidated retrospective report (all three levels)

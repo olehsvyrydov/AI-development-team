@@ -37,7 +37,7 @@ For each ticket completed in the sprint, extract:
 
 For each learning, create a structured update proposal:
 
-```markdown
+````markdown
 ## Skill Update Proposal - Sprint {N}
 
 **Agent**: /be (Backend Developer)
@@ -54,7 +54,7 @@ For each learning, create a structured update proposal:
 
 ### Rationale
 {Why this should be a permanent part of the agent's knowledge}
-```
+````
 
 #### Step 4: Apply Updates
 
