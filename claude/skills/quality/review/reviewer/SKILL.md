@@ -91,7 +91,7 @@ After completing a code review, post the full review report as a **Jira comment*
 Tool: addCommentToJiraIssue
 Parameters:
   issueIdOrKey: "{TICKET-ID}"
-  body: "[Full review report - see Review Report Template below]"
+  body: "[Full review report - see references/feedback-and-reports.md]"
 ```
 
 This ensures the Jira ticket shows the complete dev process journey when read top-to-bottom.
