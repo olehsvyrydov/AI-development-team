@@ -89,6 +89,11 @@ content_dir() {
 
 install_content() {
   local dest; dest="$(content_dir)"
+  # Prerequisite: the framework content must be present next to this script
+  local d
+  for d in skills commands templates workflow; do
+    [ -d "$SOURCE_DIR/claude/$d" ] || die "Framework content not found: $SOURCE_DIR/claude/$d — run install.sh from a full checkout of the repo."
+  done
   # Guard: don't silently wipe existing content (especially ~/.claude in user scope)
   if [ "$DRY_RUN" != 1 ] && [ "$ASSUME_YES" != 1 ]; then
     local existing="" d
@@ -194,7 +199,8 @@ emit_kiro() {
 
 emit_vscode() {
   has_editor vscode || return 0
-  instructions_body | write_file "$PWD/.github/copilot-instructions.md"
+  # copilot-instructions.md is a generic filename — don't clobber a non-managed one
+  write_instructions "$PWD/.github/copilot-instructions.md"
   ok ".github/copilot-instructions.md"
 }
 

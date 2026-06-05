@@ -91,7 +91,7 @@ config for each — no lock-in:
 | **VS Code (Copilot)** | `.github/copilot-instructions.md` + `AGENTS.md` |
 
 ```bash
-./install.sh --editors=all --preset=solo     # non-interactive (solo|small-team|regulated)
+./install.sh --editors=all --preset=solo --yes  # non-interactive (preset: solo|small-team|regulated)
 ./install.sh --editors=claude --scope=user    # global ~/.claude (Claude Code)
 ./install.sh --dry-run                        # preview, change nothing
 ./install.sh --link                           # symlink content (dev mode)

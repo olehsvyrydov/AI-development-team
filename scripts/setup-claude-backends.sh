@@ -267,7 +267,7 @@ setup_venvs() {
         cd "$RAG_MCP_DIR"
         python3 -m venv .venv
         .venv/bin/pip install -q --upgrade pip
-        .venv/bin/pip install -q -e .
+        .venv/bin/pip install -q -e . || return 1
         echo -e "${GREEN}  RAG MCP venv ready: $RAG_MCP_DIR/.venv${NC}"
     fi
 
@@ -276,7 +276,7 @@ setup_venvs() {
         cd "$MLM_DIR"
         python3 -m venv .venv
         .venv/bin/pip install -q --upgrade pip
-        .venv/bin/pip install -q -e .
+        .venv/bin/pip install -q -e . || return 1
         echo -e "${GREEN}  Multi-LLM MCP venv ready: $MLM_DIR/.venv${NC}"
     fi
 
