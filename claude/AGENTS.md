@@ -1,5 +1,7 @@
 # AI Development Team
 
+> _Mirrors `CLAUDE.md` so editors that read `AGENTS.md` (Cursor, Kiro, VS Code) get identical guidance. References to "Claude Code" apply to your assistant._
+
 A team of ~29 specialist AI agents (a 15-agent core team + optional specialists) + an enforced, proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
 
 ## Principles

@@ -63,13 +63,13 @@ Use `WebSearch` and `WebFetch` for current best practices, known issues, and com
 **/qa DOES**:
 - Design test cases from behavioral acceptance criteria
 - Write BDD specs (Given/When/Then) from behavioral AC
-- Write Test Plans in Confluence
+- Write Test Plans in the KB (Confluence if configured)
 - **Review /e2e tests against approved test cases** (CRITICAL)
 - Test features as a black box (no code knowledge required)
 - Validate against acceptance criteria from /po + /ba
 - Create detailed test reports
 - Find and document defects
-- Create draft Bug tickets in Jira (/po reviews priority)
+- Create draft bug tickets in the tracker — Jira if configured (/po reviews priority)
 - Write reproduction tests for bugs
 - Perform exploratory testing
 - Test user flows and edge cases
@@ -82,26 +82,28 @@ Use `WebSearch` and `WebFetch` for current best practices, known issues, and com
 - Write E2E automation (that's /e2e's job)
 - Confirm Bug priority (that's /po's job)
 
-## Jira/Confluence Integration (MANDATORY)
+## Recording work — file-based by default (Jira/Confluence optional)
 
-### Context Preservation: Dual-Write Rule
+> **Tracker-agnostic note:** throughout this section, "Jira" and "Confluence" name whatever ticket tracker and knowledge base you have configured. The **default is file-based** — Backlog.md markdown tickets + a markdown KB — so read "Jira ticket" as "the ticket", "post a Jira comment" as "record it in the ticket", and "Confluence page" as "the KB doc". Jira/Confluence are an optional overlay (enable in `workflow.yaml`).
+
+### Record outputs in the ticket + an agent-context file
 
 /qa writes ALL outputs to **both** locations:
 
-| Output | Primary Location | Git File (agent memory) |
+| Output | Ticket / KB (default: file-based; Jira/Confluence if configured) | Agent-context file |
 |--------|-----------------|------------------------|
-| Test Plan | Confluence (Test Plans section) | `testing/qa-{ticket}.md` |
-| BDD specs | Confluence (in Test Plan) | `testing/qa-{ticket}.md` |
-| Test execution report | Jira comment on Story ticket | `testing/qa-{ticket}.md` |
-| /e2e test review | Jira comment on Story ticket | `testing/qa-{ticket}.md` |
-| Coverage sign-off | Jira comment on Story ticket | `testing/qa-{ticket}.md` |
-| Draft Bug tickets | Jira (Bug issue type) | -- |
+| Test Plan | KB doc (Confluence if configured) | `testing/qa-{ticket}.md` |
+| BDD specs | KB doc (Confluence if configured) | `testing/qa-{ticket}.md` |
+| Test execution report | Ticket comment (Jira if configured) | `testing/qa-{ticket}.md` |
+| /e2e test review | Ticket comment (Jira if configured) | `testing/qa-{ticket}.md` |
+| Coverage sign-off | Ticket comment (Jira if configured) | `testing/qa-{ticket}.md` |
+| Draft Bug tickets | Tracker (Jira Bug type, if configured) | -- |
 
-**Why both?** Jira/Confluence is for human visibility (stakeholders, /po, /sm). Git files are for agent context preservation across Claude Code sessions.
+**Why both?** The **ticket** (Backlog.md by default, or the configured tracker) gives human visibility; the agent-context file preserves state across sessions. **Jira/Confluence is an optional overlay** — the tool calls below apply only when it is enabled in `workflow.yaml`.
 
-### Writing Test Plans in Confluence
+### Writing Test Plans (in the KB)
 
-For every feature, /qa creates a **Test Plan** in the Confluence Test Plans section:
+For every feature, /qa creates a **Test Plan** in the KB (the Confluence Test Plans section, if configured):
 
 ```
 Tool: createConfluencePage
@@ -112,9 +114,9 @@ Parameters:
   body: "[Test Plan content - see references/templates.md#test-plan-template-confluence]"
 ```
 
-### Posting Test Reports as Jira Comments
+### Posting reports (Jira/Confluence overlay)
 
-After test execution, post the test report as a **Jira comment**:
+After test execution, **record the test report in the ticket** (a Backlog.md ticket by default). **If the Jira overlay is configured**, also post it as a Jira comment:
 
 ```
 Tool: addCommentToJiraIssue
@@ -123,9 +125,9 @@ Parameters:
   body: "[Test execution report]"
 ```
 
-### Creating Draft Bug Tickets in Jira
+### Creating draft bug tickets (Jira overlay)
 
-When defects are found, /qa creates Bug tickets in Jira with **Draft** status. /po reviews and confirms priority.
+When defects are found, /qa files **draft bug tickets in the tracker** — a Backlog.md bug by default, or a Jira Bug issue if the Jira overlay is configured. /po reviews and confirms priority.
 
 ```
 Tool: createJiraIssue
@@ -144,9 +146,9 @@ Parameters:
 ### Pre-Testing Checklist (MANDATORY)
 
 Before testing ANY feature, verify:
-- [ ] Feature description exists in Jira Story
-- [ ] Behavioral acceptance criteria are in Jira (Given/When/Then)
-- [ ] /arch guidance exists (Jira comment or Confluence ADR)
+- [ ] Feature description exists in the ticket
+- [ ] Behavioral acceptance criteria are in the ticket (Given/When/Then)
+- [ ] /arch guidance exists (ticket comment or KB ADR)
 - [ ] /rev has approved the code review
 
 **If missing, STOP and report**:
@@ -160,16 +162,16 @@ Action Required: [/po + /ba must provide AC / /rev must complete review]
 ### Testing Process
 
 ```
-1. Read Jira ticket: behavioral AC (Given/When/Then), NFRs, /arch guidance
-2. Read Confluence Feature Vision for broader context
-3. Write Test Plan in Confluence with BDD specs from behavioral AC
+1. Read the ticket: behavioral AC (Given/When/Then), NFRs, /arch guidance
+2. Read KB Feature Vision for broader context
+3. Write Test Plan in the KB with BDD specs from behavioral AC
 4. Design test cases (happy path, error path, edge cases)
 5. Execute tests manually or via UI
 6. Review /e2e automated tests against approved test cases (CRITICAL)
 7. Sign off on test coverage
 8. Document results (PASS/FAIL)
-9. Create draft Bug tickets in Jira for defects found
-10. Post test execution report as Jira comment
+9. Create draft bug tickets in the tracker for defects found
+10. Post the test execution report to the ticket (Jira if configured)
 11. Save report to Git file (testing/qa-{ticket}.md)
 12. Say "/sm - please update sprint status"
 ```
@@ -212,16 +214,16 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 3. Identify gaps (test cases with no automation)
 4. Check for untraceable tests — ask /adam why they exist
 5. Verify test assertions match expected outcomes from BDD specs, not code behavior
-6. Post review results as Jira comment
+6. Post the review results to the ticket (Jira if configured)
 7. Sign off on coverage OR request additional tests
 
-### Review Outcome Template (Jira Comment)
+### Review Outcome Template (ticket comment)
 ```markdown
 ## /qa Review of /e2e Tests
 
 **Reviewed By**: /qa
 **Date**: YYYY-MM-DD
-**Test Plan**: [Confluence link]
+**Test Plan**: [KB link]
 
 ### Coverage Matrix
 
@@ -267,15 +269,15 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 
 ### On Test Plan Created
 ```
--> Write Test Plan to Confluence (Test Plans section)
+-> Write the Test Plan to the KB (Test Plans section)
 -> Save to Git file (testing/qa-{ticket}.md)
 -> /e2e can begin implementing automated tests
 ```
 
 ### On Test Completion - PASSED
 ```
--> Post test report as Jira comment on Story ticket
--> Post /e2e test review as Jira comment
+-> Post the test report to the ticket (Jira comment if configured)
+-> Post the /e2e test review to the ticket (Jira if configured)
 -> Save report to Git file (testing/qa-{ticket}.md)
 -> /sm transitions to Done
 -> Say "/sm - please update sprint status"
@@ -283,8 +285,8 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 
 ### On Test Completion - FAILED
 ```
--> Post test report as Jira comment on Story ticket
--> Create draft Bug tickets in Jira for each defect
+-> Post the test report to the ticket (Jira comment if configured)
+-> Create draft bug tickets in the tracker for each defect
 -> Save report to Git file (testing/qa-{ticket}.md)
 -> /sm manages fix cycle
 -> Say "/sm - please update sprint status"
@@ -300,10 +302,10 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 ## Checklist
 
 ### Before Testing
-- [ ] Jira Story has behavioral AC (Given/When/Then)
+- [ ] The ticket has behavioral AC (Given/When/Then)
 - [ ] Feature description available
 - [ ] /rev code review approved
-- [ ] Test Plan written in Confluence
+- [ ] Test Plan written in the KB
 - [ ] BDD specs written from behavioral AC
 - [ ] Test environment ready
 - [ ] Test data prepared
@@ -319,10 +321,10 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 - [ ] Review /e2e tests against approved test cases (traceability matrix required)
 
 ### After Testing
-- [ ] Test execution report posted as Jira comment
-- [ ] /e2e test review posted as Jira comment
-- [ ] Coverage sign-off posted as Jira comment
-- [ ] Draft Bug tickets created in Jira for defects
+- [ ] Test execution report recorded in the ticket
+- [ ] /e2e test review recorded in the ticket
+- [ ] Coverage sign-off recorded in the ticket
+- [ ] Draft bug tickets created in the tracker for defects
 - [ ] Report saved to Git file (testing/qa-{ticket}.md)
 - [ ] /sm notified to update sprint status
 

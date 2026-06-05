@@ -103,15 +103,17 @@ Detailed backend knowledge lives in `references/` — read the relevant file whe
 ### Reading Acceptance Criteria
 
 Before implementing, ALWAYS read:
-1. **Jira ticket** — Read the Story description, behavioral AC, and all comments
-2. **Architecture approval** — Read /arch recommendation comments in Jira AND `approvals/arch-architecture.md`
-3. **Security approval** — Read /secops comments in Jira AND `approvals/secops-security.md`
+1. **The ticket** — Read the Story description, behavioral AC, and all comments
+2. **Architecture approval** — Read /arch recommendation comments in the ticket AND `approvals/arch-architecture.md`
+3. **Security approval** — Read /secops comments in the ticket AND `approvals/secops-security.md`
 4. **Domain approvals** — `approvals/fin-finance.md`, `approvals/legal-compliance.md` if applicable
 5. **UI designs** — `approvals/ui-designs/{ticket}.md` for API contract expectations
 
-### Jira Comment Workflow (MANDATORY)
+### Recording work — file-based by default (Jira/Confluence optional)
 
-Document work in Jira ticket comments at key milestones:
+> **Tracker-agnostic note:** throughout this section, "Jira" and "Confluence" name whatever ticket tracker and knowledge base you have configured. The **default is file-based** — Backlog.md markdown tickets + a markdown KB — so read "Jira ticket" as "the ticket", "post a Jira comment" as "record it in the ticket", and "Confluence page" as "the KB doc". Jira/Confluence are an optional overlay (enable in `workflow.yaml`).
+
+Record work in the **ticket** (Backlog.md by default, or the configured tracker) at key milestones — Jira/Confluence is an optional overlay:
 
 1. **Before Coding — "Developer Vision"**: Post approach, /arch alignment, subtasks planned, risks/assumptions
 2. **After Coding — "Implementation Details"**: Post what was built, key decisions, files changed, tests written, PR link
@@ -121,19 +123,19 @@ Document work in Jira ticket comments at key milestones:
 
 /arch provides guardrails; /be decides implementation details within those boundaries:
 - **Read** /arch recommendations before coding
-- **Follow OR deviate with justification** — deviations must be documented in Jira comment
+- **Follow OR deviate with justification** — deviations must be documented in a ticket comment
 - If decision **changes system shape or how parts interact** → involve /arch
 - If it's **inside a component** and doesn't affect system shape → developer decides
 
 ### Implementation Workflow
 
-1. Read Jira ticket AC, all approval comments, and /arch recommendations
-2. Post "Developer Vision" comment in Jira
-3. Create subtasks in Jira if Story is complex
+1. Read the ticket AC, all approval comments, and /arch recommendations
+2. Post the "Developer Vision" note in the ticket
+3. Create subtasks in the tracker if Story is complex
 4. Write failing tests (RED)
 5. Implement minimum code (GREEN)
 6. Refactor while tests pass
-7. Post "Implementation Details" comment in Jira
+7. Post the "Implementation Details" note in the ticket
 8. Save implementation notes to `implementation/{ticket}.md` (Git — for agent context)
 9. Update sprint `README.md` status
 10. Notify /sm for next step

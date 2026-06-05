@@ -1,6 +1,6 @@
-# CLAUDE.md - AI Development Team Framework
+# AGENTS.md — AI Development Team Framework
 
-This file provides context to Claude Code when working in this repository.
+This file mirrors CLAUDE.md and provides context to AI coding assistants (Claude Code, Cursor, Kiro, VS Code) working in this repository — editors read whichever filename they support.
 
 ## Project Purpose
 
@@ -12,7 +12,7 @@ This is a **reusable AI Development Team framework** - a collection of specializ
 ai-dev-team/
 ├── README.md              # Installation & usage guide
 ├── install.sh             # One-command installer
-├── CLAUDE.md              # This file
+├── CLAUDE.md / AGENTS.md   # agent/assistant instructions (this file = AGENTS.md, mirrors CLAUDE.md)
 │
 ├── claude/                # Deployable content (copy to ~/.claude)
 │   ├── CLAUDE.md          # Global instructions for Claude Code
