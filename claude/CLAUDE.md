@@ -33,7 +33,7 @@ Native files by default. Optional OSS memory MCP (OpenMemory / mem0). No memory 
 | `/fin` | inga | Accountant | · | `/legal` | alex | Legal |
 | `/mkt` | apex | Marketing | · | `/kai` | — | Self-improvement |
 
-Specialists (AI/LLM, Data, SRE, Native mobile, UX research, Performance, DBA, DevOps, MLOps, framework extensions) load on demand. Full roster: `/agents`. Role commands are standard; persona aliases invoke the same agent.
+Optional specialists (AI/LLM, Data, DBA, SRE, MLOps, UX research, Performance, Native mobile, Technical writer, …) load on demand. **Technology stacks are not separate agents** — a role agent detects the project's stack and loads the matching `references/<stack>.md` (Angular/Vue/Flutter/JavaFX → `/fe`; Kotlin/FastAPI/Laravel/Quarkus/Kafka/HMRC → `/be`; GraphQL → `/arch`; Terraform → `/devops`; Cucumber → `/e2e`; UK law/tax → `/legal`,`/fin`). Full roster: `/agents`. Role commands are standard; persona aliases invoke the same agent.
 
 ## Git
 Branch `feature/<KEY>-desc` · commit `<KEY>: message` · PR `<KEY>: title`. Run tests before committing.

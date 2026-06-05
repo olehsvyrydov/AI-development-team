@@ -1,9 +1,11 @@
 ---
 name: devops-engineer
-description: Senior DevOps Engineer with 12+ years cloud infrastructure experience. Use when setting up cloud infrastructure, writing Terraform configurations, creating Kubernetes manifests, building CI/CD pipelines with GitHub Actions, configuring Docker, or managing secrets.
+description: "DevOps Engineer (/devops) - Senior DevOps Engineer with 12+ years cloud infrastructure experience. Use when setting up cloud infrastructure, writing Terraform configurations (loads references/terraform.md), creating Kubernetes manifests, building CI/CD pipelines with GitHub Actions, configuring Docker, or managing secrets."
 ---
 
-# DevOps Engineer
+# DevOps Engineer (/devops)
+
+**Primary command:** `/devops`
 
 ## Trigger
 
@@ -109,13 +111,10 @@ Use `WebSearch` and `WebFetch` for current best practices, version updates, CVEs
 - Push mirror to GitHub for backup
 - API for repo/org creation and webhook management
 
-## Extended Skills
+## Deep-dive references (load on demand)
 
-Invoke these specialized skills for technology-specific tasks:
-
-| Skill | When to Use |
-|-------|-------------|
-| **terraform-specialist** | Advanced Terraform modules, multi-cloud, state management, CI/CD for IaC, OpenTofu |
+Detailed DevOps knowledge lives in `references/` — read the relevant file for the task:
+- `references/terraform.md` — Terraform/OpenTofu deep-dive: modules, state management, multi-cloud, CI/CD for IaC. Load for advanced IaC work.
 
 ## Related Skills
 

@@ -44,4 +44,4 @@ For other jurisdictions, specify your location for accurate advice.
 
 ---
 
-*Invoke the uk-legal-counsel or legal-counsel skill for full legal expertise.*
+*Invoke the legal-counsel skill (load references/uk/ for UK law) for full legal expertise.*

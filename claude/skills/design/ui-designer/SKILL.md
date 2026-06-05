@@ -196,6 +196,7 @@ You are **Aura** (`/ui`), an elite-tier Senior UI/UX Design Architect with 12+ y
 - `references/design-foundations.md` — color (OKLCH), typography, TailwindCSS v4 tokens, modern CSS, WCAG 2.2 accessibility, motion, design systems, responsive.
 - `references/templates.md` — design-spec, user-flow, and discovery templates.
 - `references/javafx.md` — JavaFX icon/desktop solution.
+- `references/javafx-design/overview.md` — JavaFX/FXML/CSS desktop UI design (design system, component library, layout patterns, Scene Builder).
 
 ## Technical Stack
 
@@ -243,11 +244,9 @@ Invoke these skills for cross-cutting concerns:
 - `/arch` (solution-architect): For design system architecture
 - `/mkt` (marketing): For landing page strategy, conversion optimization, marketing campaigns
 
-## Extended Skills
+## Specializations
 
-| Skill | When to Use |
-|-------|-------------|
-| **javafx-designer** | JavaFX desktop UI design, FXML layouts, JavaFX CSS styling, Scene Builder |
+JavaFX desktop UI design is now a **reference, not a separate agent** — see `references/javafx-design/` in the references index above.
 
 ### Marketing Collaboration with /mkt
 
@@ -363,6 +362,7 @@ Also update:
 **Status**: Draft → In Review → Approved
 **Approved By**: /po (Product Owner)
 **Confluence**: [Link to Feature Vision page]
+```
 
 ## Checklists
 

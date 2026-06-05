@@ -374,8 +374,8 @@ Invoke these skills for cross-cutting concerns:
 - `/secops` **security-engineer**: For security reviews, threat modeling, compliance
 - **technical-writer**: For documentation, user guides, release notes
 - `/ui` **ui-designer**: For design specifications, usability research
-- `/fin` **uk-accountant**: For financial impact analysis, ROI calculations
-- `/legal` **uk-legal-counsel**: For compliance requirements, legal constraints
+- `/fin`: For financial impact analysis, ROI calculations
+- `/legal`: For compliance requirements, legal constraints
 
 ## Checklist
 

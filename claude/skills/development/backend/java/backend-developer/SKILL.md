@@ -1,6 +1,6 @@
 ---
 name: backend-developer
-description: "Backend Developer (/be, alias: James, /james) - Senior Backend Developer with 10+ years Java and 5+ years Spring Boot experience. Use when implementing Spring Boot features, writing Java code, creating REST APIs, working with databases (R2DBC, JPA), implementing business logic, or writing unit/integration tests. Documents work in Jira comments (Developer Vision, Implementation Details, Fix Resolution)."
+description: "Backend Developer (/be, alias: James, /james) - Senior Backend Developer with 10+ years experience. Covers Java/Spring Boot (default), Kotlin, Python/FastAPI, PHP/Laravel, Quarkus, and Kafka/messaging - detects the project's stack and loads the matching reference. Use when implementing server features, REST APIs, business logic, persistence, messaging, or unit/integration tests in any of these stacks."
 ---
 
 # Backend Developer (/be)
@@ -69,12 +69,34 @@ Use WebSearch and WebFetch tools to:
 ---
 
 
+## Stack selection (read first)
+
+`/be` covers multiple backend stacks. **Detect the project's stack** (build files / deps / the request) and load the matching reference; the gate check, workflow, and standards below are stack-agnostic.
+
+| Stack | Detect | Load |
+|---|---|---|
+| **Java / Spring Boot** (default) | `pom.xml`/`build.gradle` + Spring | `references/java-expertise.md` (+ `templates.md`, `external-api.md`) |
+| **Kotlin** | Kotlin sources, `build.gradle.kts` | `references/kotlin.md` |
+| **Python / FastAPI** | `pyproject.toml`/`requirements.txt`, FastAPI | `references/fastapi.md` |
+| **PHP / Laravel** | `composer.json`, Laravel | `references/laravel.md` |
+| **Quarkus** | Quarkus deps | `references/quarkus.md` |
+| **Kafka / messaging** | Kafka in the feature | `references/spring-kafka.md` |
+| **HMRC MTD** (UK tax API) | HMRC / Making Tax Digital in the feature | `references/hmrc-api/overview.md` |
+
+If ambiguous, ask; otherwise default to Java/Spring Boot.
+
 ## Deep-dive references (load on demand)
 
 Detailed backend knowledge lives in `references/` — read the relevant file when the task calls for it:
 - `references/java-expertise.md` — Spring Boot/WebFlux, Java, REST APIs, persistence (JPA/R2DBC), business logic, security, testing (the ~510-line Expertise block).
 - `references/templates.md` — controller, hexagonal-architecture, saga-orchestrator, and test templates.
 - `references/external-api.md` — external API integration best practices.
+- `references/kotlin.md` — Kotlin (coroutines, Ktor, KMP) — the full Kotlin playbook.
+- `references/fastapi.md` — Python/FastAPI (async, Pydantic, SQLAlchemy) — the full FastAPI playbook.
+- `references/laravel.md` — PHP/Laravel (Eloquent, Filament, Livewire) — the full Laravel playbook.
+- `references/quarkus.md` — Quarkus (cloud-native Java, native builds) — the full Quarkus playbook.
+- `references/spring-kafka.md` — Kafka producers/consumers, DLT, transactional outbox.
+- `references/hmrc-api/overview.md` — HMRC Making Tax Digital (MTD) API integration (OAuth 2.0, fraud-prevention headers, Self Assessment). Load for UK gov tax-API work.
 
 ## Workflow Integration
 
@@ -132,18 +154,9 @@ Document work in Jira ticket comments at key milestones:
 
 ---
 
-## Extended Skills
+## Stacks & specializations
 
-Invoke these specialized skills for technology-specific tasks:
-
-| Skill | When to Use |
-|-------|-------------|
-| **kotlin-developer** | Kotlin 2.1, Coroutines, Ktor, KMP, kotlinx.serialization |
-| **spring-kafka-integration** | Kafka producers/consumers, Reactor Kafka, DLT, outbox pattern |
-| **quarkus-developer** | Quarkus projects, native builds, Panache ORM, GraalVM |
-| **fastapi-developer** | Python backend projects, async APIs, Pydantic, SQLAlchemy |
-| **javafx-developer** | JavaFX 21+ desktop apps, FXML, MVVM, jpackage |
-| **hmrc-api-specialist** | HMRC MTD APIs, Government Gateway OAuth2, fraud headers |
+These are **`references/`, not separate agents** — loaded by the **Stack selection** router above. See the references index for Kotlin, Python/FastAPI, PHP/Laravel, Quarkus, Kafka, and HMRC MTD.
 
 ---
 

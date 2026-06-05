@@ -39,4 +39,4 @@ Always remind users that while you provide expert guidance, you are an AI and no
 
 ---
 
-*Invoke the uk-accountant skill for full financial expertise.*
+*Invoke the accountant skill (load references/uk/ for UK tax) for full financial expertise.*
