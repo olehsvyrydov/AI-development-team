@@ -135,6 +135,19 @@ function readTickets() {
     }
     if (out.length) break; // first dir that has tickets wins
   }
+  // Fallback: a single Backlog.md file at the project root (checkbox task list)
+  if (!out.length) {
+    const bf = path.join(PROJECT, 'Backlog.md');
+    if (safeExists(bf)) {
+      const re = /^[-*]\s+\[([ xX])\]\s+(.+)$/gm;
+      let m;
+      while ((m = re.exec(safeRead(bf)))) {
+        const title = m[2].trim();
+        const id = (title.match(/\b([A-Z][A-Z0-9]+-\d+)\b/) || [])[1] || `#${out.length + 1}`;
+        out.push({ id, title, status: /[xX]/.test(m[1]) ? 'done' : 'todo', file: 'Backlog.md' });
+      }
+    }
+  }
   return out;
 }
 
@@ -180,7 +193,7 @@ function buildState() {
     };
   });
   return {
-    project: PROJECT,
+    project: path.basename(PROJECT),   // dir name only — don't leak the absolute path over the API
     workflow: wfPath ? path.relative(PROJECT, wfPath) : null,
     preset: wf.preset,
     ticket: selId,
@@ -196,17 +209,22 @@ function buildState() {
 
 // ---- SSE: watch the inputs, push on change ---------------------------------
 const clients = new Set();
+const watched = new Set();
 function broadcast() {
   const payload = `event: update\ndata: ${JSON.stringify(buildState())}\n\n`;
   for (const res of clients) { try { res.write(payload); } catch {} }
 }
 let debounce = null;
-function onChange() { clearTimeout(debounce); debounce = setTimeout(broadcast, 150); }
+// on any change, re-scan for newly-created targets (idempotent) then push
+function onChange() { clearTimeout(debounce); debounce = setTimeout(() => { startWatchers(); broadcast(); }, 150); }
 function watch(p) {
-  if (!safeExists(p)) return;
-  try { fs.watch(p, { persistent: true }, onChange); } catch {}
+  if (watched.has(p) || !safeExists(p)) return;
+  try { fs.watch(p, { persistent: true }, onChange); watched.add(p); } catch {}
 }
 function startWatchers() {
+  // watch the project root too, so creating .aidevteam/, docs/, backlog/, etc.
+  // AFTER startup is caught (then re-scanned for deeper watchers on the next tick)
+  watch(PROJECT);
   ['.workflow-state.json', '.aidevteam', '.claude/workflow', 'claude/workflow', 'backlog', 'backlog/tasks', 'docs']
     .forEach(rel => watch(path.join(PROJECT, rel)));
   watch(path.join(os.homedir(), '.aidevteam'));   // user-level workflow override
