@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "backlog": {
+      "command": "npx",
+      "args": ["-y", "backlog.md", "mcp"]
+    }
+  }
+}
