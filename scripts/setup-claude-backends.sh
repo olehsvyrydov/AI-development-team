@@ -2,14 +2,15 @@
 #
 # AI Dev Team — Claude Code advanced backend setup (venvs, RAG, Atlassian, hooks)
 # ==============================
-# Installs the AI Development Team framework to ~/.claude
+# Optional setup beyond the core install: Python venvs, the RAG memory MCP,
+# Multi-LLM MCP, the Atlassian MCP, and Claude Code hooks. Run after ./install.sh.
 #
 # Usage:
-#   ./install.sh           # Interactive installation
-#   ./install.sh --merge   # Merge without prompting
-#   ./install.sh --replace # Replace without prompting
-#   ./install.sh --link    # Create symlink to source (for development)
-#   ./install.sh --help    # Show this help
+#   scripts/setup-claude-backends.sh            # interactive
+#   scripts/setup-claude-backends.sh --merge    # merge content into ~/.claude without prompting
+#   scripts/setup-claude-backends.sh --replace  # replace content in ~/.claude
+#   scripts/setup-claude-backends.sh --link     # symlink content (dev)
+#   scripts/setup-claude-backends.sh --help     # show help
 #
 
 set -e
@@ -21,8 +22,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Repo root (this script lives in scripts/, so go up one level)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_DIR="$SCRIPT_DIR/claude"
 TARGET_DIR="$HOME/.claude"
 BACKUP_DIR="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"

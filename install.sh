@@ -84,23 +84,24 @@ content_dir() {
 install_content() {
   local dest; dest="$(content_dir)"
   info "Installing framework content → $dest"
+  run "mkdir -p '$dest'"
   if [ "$LINK" = 1 ]; then
-    run "mkdir -p '$dest'"
-    for d in skills commands templates workflow; do
+    for d in skills commands templates; do
       run "rm -rf '$dest/$d'"
       run "ln -s '$SOURCE_DIR/claude/$d' '$dest/$d'"
     done
+    # workflow is COPIED (not symlinked) so applying the per-project preset
+    # doesn't mutate the source repo's workflow.yaml
+    run "rm -rf '$dest/workflow'"
+    run "cp -R '$SOURCE_DIR/claude/workflow' '$dest/workflow'"
   else
-    run "mkdir -p '$dest'"
     for d in skills commands templates workflow; do
       run "rm -rf '$dest/$d'"
       run "cp -R '$SOURCE_DIR/claude/$d' '$dest/$d'"
     done
   fi
-  # apply the chosen preset to the workflow definition
-  if [ "$LINK" != 1 ]; then
-    run "sed -i.bak 's/^preset:.*/preset: $PRESET/' '$dest/workflow/workflow.yaml' && rm -f '$dest/workflow/workflow.yaml.bak'"
-  fi
+  # apply the chosen preset to the (always-copied) workflow definition
+  run "sed -i.bak 's/^preset:.*/preset: $PRESET/' '$dest/workflow/workflow.yaml' && rm -f '$dest/workflow/workflow.yaml.bak'"
   ok "Content installed (preset: $PRESET)"
 }
 
@@ -203,7 +204,7 @@ main() {
   parse_args "$@"
   log "${BOLD}AI Dev Team installer${NC}  ${DIM}(source: $SOURCE_DIR)${NC}"
   [ "$DRY_RUN" = 1 ] && warn "DRY RUN — no changes will be made"
-  [ "$UNINSTALL" = 1 ] && { prompt_editors; do_uninstall; exit 0; }
+  [ "$UNINSTALL" = 1 ] && { do_uninstall; exit 0; }
 
   prompt_editors
   info "Editors: ${EDITORS:-none}   Scope: $SCOPE   Preset: $PRESET   Mode: $([ "$LINK" = 1 ] && echo symlink || echo copy)"
