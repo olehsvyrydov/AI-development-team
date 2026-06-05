@@ -38,7 +38,8 @@ die()  { printf '%s✗ %s%s\n' "$RED" "$*" "$NC" >&2; exit 1; }
 # run a mutating command (or just print it under --dry-run). Args passed directly — no eval.
 run() { if [ "$DRY_RUN" = 1 ]; then printf '%s[dry-run]%s %s\n' "$DIM" "$NC" "$*"; else "$@"; fi; }
 
-show_help() { sed -n '3,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+# print the leading comment block (after the shebang), stripping the '# ' prefix
+show_help() { awk 'NR==1{next} /^#/{sub(/^# ?/,"");print;next} {exit}' "${BASH_SOURCE[0]}"; }
 
 parse_args() {
   for arg in "$@"; do
@@ -151,18 +152,28 @@ approval gates apply, and may refuse to proceed past an unmet gate). Preset: **$
 EOF
 }
 
+# write the instructions file, but don't clobber a pre-existing file that isn't ours
+write_instructions() {
+  local path="$1"
+  if [ "$DRY_RUN" != 1 ] && [ "$ASSUME_YES" != 1 ] && [ -f "$path" ] \
+     && ! grep -q "AI Dev Team — agent & workflow instructions" "$path" 2>/dev/null; then
+    warn "$path exists and isn't AI Dev Team-managed."
+    read -r -p "Overwrite it? [y/N] " c; case "$c" in y|Y) ;; *) warn "Kept your $path (skipped)."; return 0 ;; esac
+  fi
+  instructions_body | write_file "$path"
+}
+
 emit_agents_and_claude() {
   # AGENTS.md (project root) — read by Cursor/Kiro/VS Code; mirrors CLAUDE.md.
   # Emit it for any of those editors, or for a project-scoped install.
   if [ "$SCOPE" = project ] || has_editor cursor || has_editor kiro || has_editor vscode; then
-    instructions_body | write_file "$PWD/AGENTS.md"
-    ok "AGENTS.md (project root)"
+    write_instructions "$PWD/AGENTS.md"; ok "AGENTS.md (project root)"
   fi
   if has_editor claude; then
     if [ "$SCOPE" = user ]; then
-      instructions_body | write_file "$HOME/.claude/CLAUDE.md"; ok "~/.claude/CLAUDE.md"
+      write_instructions "$HOME/.claude/CLAUDE.md"; ok "~/.claude/CLAUDE.md"
     else
-      instructions_body | write_file "$PWD/CLAUDE.md"; ok "CLAUDE.md (project root)"
+      write_instructions "$PWD/CLAUDE.md"; ok "CLAUDE.md (project root)"
     fi
   fi
 }

@@ -551,7 +551,7 @@ echo ""
 # Always create Python venvs — MCP servers need them to run
 echo -e "${BLUE}=== Setting up Python environments ===${NC}"
 echo ""
-setup_venvs
+setup_venvs || true   # tolerate a skip (e.g. Python missing) without aborting the script
 echo ""
 
 # Offer optional platform setup (API keys, Qdrant, MCP registration)
@@ -581,4 +581,4 @@ echo "  3. Try: /po, /arch, /fe, /be for specific agents"
 echo "  4. Try: /memory for semantic knowledge search (requires RAG)"
 echo "  5. Try: /all for multi-LLM consultation (requires Multi-LLM)"
 echo ""
-echo "Documentation: https://github.com/AiDevelopTeam/ai-dev-team"
+echo "Documentation: https://github.com/olehsvyrydov/AI-development-team"
