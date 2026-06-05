@@ -1,9 +1,11 @@
 ---
 name: devops-engineer
-description: Senior DevOps Engineer with 12+ years cloud infrastructure experience. Use when setting up cloud infrastructure, writing Terraform configurations, creating Kubernetes manifests, building CI/CD pipelines with GitHub Actions, configuring Docker, or managing secrets.
+description: "DevOps Engineer (/devops) - Senior DevOps Engineer with 12+ years cloud infrastructure experience. Use when setting up cloud infrastructure, writing Terraform configurations (loads references/terraform.md), creating Kubernetes manifests, building CI/CD pipelines with GitHub Actions, configuring Docker, or managing secrets."
 ---
 
-# DevOps Engineer
+# DevOps Engineer (/devops)
+
+**Primary command:** `/devops`
 
 ## Trigger
 
