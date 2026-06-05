@@ -119,9 +119,10 @@ A **zero-dependency** dashboard for the workflow — live gate board, tickets, a
 
 ```bash
 node hub/server.js /path/to/your/project   # then open http://localhost:4477
+# in a dev container / VM / for LAN access, add: --host 0.0.0.0
 ```
 
-See [`hub/README.md`](hub/README.md). It's **read-only** and live-updates over SSE as your `.workflow-state.json` / tickets change.
+See [`hub/README.md`](hub/README.md). It's **read-only** and live-updates over SSE as your `.workflow-state.json` / tickets change. Binds to `127.0.0.1` by default.
 
 ---
 

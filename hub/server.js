@@ -89,7 +89,7 @@ function parseWorkflow(yaml) {
   // active preset's always_required — scan the presets block line by line
   let alwaysRequired = [];
   {
-    const list = s => s.split(',').map(x => x.trim()).filter(Boolean);
+    const list = s => s.split(',').map(norm).filter(Boolean);   // norm de-quotes + trims each item
     let cur = null;
     for (const line of section(yaml, 'presets').split('\n')) {
       const head = line.match(/^\s{2}([A-Za-z-]+):(.*)$/);
@@ -114,7 +114,7 @@ function section(yaml, key) {
   const lines = yaml.split('\n');
   let start = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (new RegExp('^' + key + ':\\s*$').test(lines[i])) { start = i + 1; break; }
+    if (new RegExp('^' + key + ':\\s*(#.*)?$').test(lines[i])) { start = i + 1; break; }  // allow trailing comment
   }
   if (start < 0) return '';
   const out = [];
@@ -286,6 +286,10 @@ const server = http.createServer((req, res) => {
   }
   // static: index.html
   const file = path.join(SELF_DIR, 'public', 'index.html');
+  if (!safeExists(file)) {
+    res.writeHead(500, { 'content-type': 'text/plain' });
+    return res.end('Hub UI not found: ' + file);
+  }
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   res.end(safeRead(file));
 });

@@ -3,11 +3,11 @@
 A **zero-dependency** dashboard for the proportional workflow. Point it at any project and watch the **gate board**, **tickets**, and **knowledge base** live — straight from the file-based defaults, no Jira/Confluence/MCP and no `npm install`.
 
 ```bash
-node hub/server.js [projectDir] [--port 4477]
+node hub/server.js [projectDir] [--port 4477] [--host 0.0.0.0]
 # then open http://localhost:4477
 ```
 
-`projectDir` defaults to the current directory. Requires only Node (≥ 18).
+`projectDir` defaults to the current directory. Requires only Node (≥ 18). Binds to `127.0.0.1` by default; pass `--host 0.0.0.0` to reach it from a **dev container / VM / LAN** (it serves local project metadata, so only do this on a trusted network).
 
 ## What it shows
 
