@@ -33,9 +33,10 @@ const SELF_DIR = __dirname;
 
 // ---- locate the workflow definition (override cascade) ---------------------
 function findWorkflow() {
-  // Resolve like the engine: project override → user override → the shipped default.
-  // The "default" lives at .claude/workflow/ in an installed project, or claude/workflow/
-  // when the Hub runs from the framework checkout (and finally the Hub's own copy).
+  // The Hub's workflow resolution order (first found wins). Project + user overrides
+  // match the engine contract; the "default" additionally covers a project-scope
+  // install (.claude/workflow/) and running from the framework checkout (claude/workflow/),
+  // ending at the Hub's own copy.
   const candidates = [
     path.join(PROJECT, '.aidevteam', 'workflow.yaml'),
     path.join(os.homedir(), '.aidevteam', 'workflow.yaml'),
@@ -47,6 +48,7 @@ function findWorkflow() {
 }
 function safeExists(p) { try { return fs.existsSync(p); } catch { return false; } }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+function norm(s) { return String(s ?? '').replace(/['"]/g, '').trim(); }
 
 // ---- tolerant, regex-based YAML reading (only what the board needs) --------
 function parseWorkflow(yaml) {
@@ -125,11 +127,11 @@ function readTickets() {
     for (const f of files) {
       const txt = safeRead(path.join(dir, f));
       out.push({
-        id: (txt.match(/^id:\s*(.+)$/m) || [])[1]
-          || (f.match(/^([A-Za-z]+-?\d+)/) || [])[1] || f.replace(/\.md$/, ''),
-        title: (txt.match(/^title:\s*(.+)$/m) || [])[1]
-          || (txt.match(/^#\s+(.+)$/m) || [])[1] || f.replace(/\.md$/, ''),
-        status: ((txt.match(/^status:\s*(.+)$/m) || [])[1] || 'unknown').replace(/['"]/g, '').trim(),
+        id: norm((txt.match(/^id:\s*(.+)$/m) || [])[1]
+          || (f.match(/^([A-Za-z]+-?\d+)/) || [])[1] || f.replace(/\.md$/, '')),
+        title: norm((txt.match(/^title:\s*(.+)$/m) || [])[1]
+          || (txt.match(/^#\s+(.+)$/m) || [])[1] || f.replace(/\.md$/, '')),
+        status: norm((txt.match(/^status:\s*(.+)$/m) || [])[1] || 'unknown'),
         file: path.relative(PROJECT, path.join(dir, f)),
       });
     }
@@ -212,7 +214,7 @@ const clients = new Set();
 const watched = new Set();
 function broadcast() {
   const payload = `event: update\ndata: ${JSON.stringify(buildState())}\n\n`;
-  for (const res of clients) { try { res.write(payload); } catch {} }
+  for (const res of clients) { try { res.write(payload); } catch { clients.delete(res); } }
 }
 let debounce = null;
 // on any change, re-scan for newly-created targets (idempotent) then push
@@ -233,7 +235,9 @@ function startWatchers() {
 
 // ---- HTTP ------------------------------------------------------------------
 const server = http.createServer((req, res) => {
-  const pathname = new URL(req.url, 'http://localhost').pathname;
+  let pathname;
+  try { pathname = new URL(req.url, 'http://localhost').pathname; }
+  catch { res.writeHead(400, { 'content-type': 'text/plain' }); return res.end('Bad Request'); }
   if (pathname === '/api/state') {
     res.writeHead(200, { 'content-type': 'application/json' });
     return res.end(JSON.stringify(buildState()));

@@ -13,7 +13,7 @@ node hub/server.js [projectDir] [--port 4477]
 
 - **Workflow gates** — every gate from the active `workflow.yaml`, each with its owner, `hard`/`soft` refusal, whether the active preset makes it **required**, and `safety-override`. State (`passed` / `pending` / `rejected`) comes from the ledger.
 - **Tickets** — from the ledger (keyed by id) when present, otherwise markdown ticket files (`backlog/tasks/`, `backlog/`, `.aidevteam/tickets/`).
-- **Knowledge base** — markdown docs from `docs/`.
+- **Knowledge base** — markdown docs from `docs/` (or `kb/` / `.aidevteam/kb/`).
 
 It **live-updates** over SSE whenever those files change — record a gate as `passed` in the ledger and the board moves.
 
@@ -24,7 +24,7 @@ It **live-updates** over SSE whenever those files change — record a gate as `p
 | Workflow definition | `.aidevteam/workflow.yaml` → `~/.aidevteam/workflow.yaml` → `.claude/workflow/workflow.yaml` → `claude/workflow/workflow.yaml` → the framework default |
 | Gate state (ledger) | `.workflow-state.json` |
 | Tickets | the ledger's ticket map, else `backlog/tasks/*.md` → `backlog/*.md` → `.aidevteam/tickets/*.md` |
-| Knowledge base | `docs/*.md` |
+| Knowledge base | `docs/*.md` → `kb/*.md` → `.aidevteam/kb/*.md` |
 
 ### Ledger shape (`.workflow-state.json`)
 
