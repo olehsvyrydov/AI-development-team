@@ -33,7 +33,9 @@ const SELF_DIR = __dirname;
 
 // ---- locate the workflow definition (override cascade) ---------------------
 function findWorkflow() {
-  // same resolution order as the workflow-engine: project override → user override → shipped default
+  // Resolve like the engine: project override → user override → the shipped default.
+  // The "default" lives at .claude/workflow/ in an installed project, or claude/workflow/
+  // when the Hub runs from the framework checkout (and finally the Hub's own copy).
   const candidates = [
     path.join(PROJECT, '.aidevteam', 'workflow.yaml'),
     path.join(os.homedir(), '.aidevteam', 'workflow.yaml'),
@@ -152,18 +154,20 @@ function buildState() {
   const wfPath = findWorkflow();
   const wf = wfPath ? parseWorkflow(safeRead(wfPath)) : { preset: 'solo', gates: [], alwaysRequired: [] };
   const { tickets: ledger, error: ledgerError } = readLedger();
+  const valid = id => ledger[id] && typeof ledger[id] === 'object';
+  const obj = id => (valid(id) ? ledger[id] : {});
   const ids = Object.keys(ledger);
   // tickets come from the ledger (canonical, keyed by id); fall back to markdown files if none
-  let tickets = ids.map(id => ({
-    id,
-    title: ledger[id].title || id,
-    status: ledger[id].stage || ledger[id].track || 'unknown',
-    source: 'ledger',
-  }));
+  let tickets = ids.map(id => {
+    const t = obj(id);
+    return { id, title: t.title || id, status: t.stage || t.track || 'unknown', source: 'ledger' };
+  });
   if (!tickets.length) tickets = readTickets();
-  // the gate board reflects ONE ticket: the first not-yet-done, else the first present
-  const selId = ids.find(id => (ledger[id].stage || '') !== 'done') || ids[0] || null;
-  const sel = selId ? ledger[selId] : null;
+  // the gate board reflects ONE *valid* ticket: first not-yet-done, else the first valid one
+  const selId = ids.find(id => valid(id) && (ledger[id].stage || '') !== 'done')
+    || ids.find(valid) || null;
+  const sel = selId ? obj(selId) : null;
+  const malformed = ids.filter(id => !valid(id));
   const selGates = (sel && sel.gates) || {};
   const gates = wf.gates.map(g => {
     const e = selGates[g.name] || {};
@@ -183,7 +187,7 @@ function buildState() {
     stage: (sel && sel.stage) || null,
     track: (sel && sel.track) || null,
     ticketCount: ids.length,
-    ledgerError,
+    ledgerError: ledgerError || (malformed.length ? `${malformed.length} malformed ticket entr${malformed.length > 1 ? 'ies' : 'y'}` : null),
     gates,
     tickets,
     kb: readKb(),
@@ -203,17 +207,20 @@ function watch(p) {
   try { fs.watch(p, { persistent: true }, onChange); } catch {}
 }
 function startWatchers() {
-  ['.workflow-state.json', '.aidevteam', '.claude/workflow', 'backlog', 'backlog/tasks', 'docs']
+  ['.workflow-state.json', '.aidevteam', '.claude/workflow', 'claude/workflow', 'backlog', 'backlog/tasks', 'docs']
     .forEach(rel => watch(path.join(PROJECT, rel)));
+  watch(path.join(os.homedir(), '.aidevteam'));   // user-level workflow override
+  const wf = findWorkflow(); if (wf) watch(wf);    // the active workflow file directly
 }
 
 // ---- HTTP ------------------------------------------------------------------
 const server = http.createServer((req, res) => {
-  if (req.url.startsWith('/api/state')) {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  if (pathname === '/api/state') {
     res.writeHead(200, { 'content-type': 'application/json' });
     return res.end(JSON.stringify(buildState()));
   }
-  if (req.url.startsWith('/api/events')) {
+  if (pathname === '/api/events') {
     res.writeHead(200, {
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache',
