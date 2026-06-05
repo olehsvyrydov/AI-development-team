@@ -40,6 +40,8 @@
     "ledger": { "type": "array" },
     "tickets": { "type": "object" },
     "knowledge_base": { "type": "object" },
+    "memory": { "type": "object" },
+    "design": { "type": "object" },
     "presets": {
       "type": "object",
       "required": ["solo"],

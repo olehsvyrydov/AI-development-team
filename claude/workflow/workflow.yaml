@@ -64,6 +64,14 @@ tickets:
 knowledge_base:
   default: markdown                # docs/ or an Obsidian-compatible vault
   optional_mcp: [obsidian, kgb_canon]
+memory:
+  default: files                   # native files under memory/ (no backend required)
+  optional_mcp: [openmemory, mem0]
+design:
+  default: local                   # Claude-generated HTML + headless-Chrome screenshots
+  optional_mcp: [penpot, figma, canva]
+# Every backend above is a pluggable adapter. See adapters/README.md for the contract
+# (capabilities / health-check / fallback / data-residency) + ready .mcp.json overlays.
 
 # --- 5. Presets: pick one via `preset:` above -------------------------------
 # A preset only changes WHICH gates are always required + the default backends.

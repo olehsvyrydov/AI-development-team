@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "openmemory": {
+      "command": "npx",
+      "args": ["-y", "@openmemory/mcp"],
+      "env": { "OPENMEMORY_BASE_URL": "http://localhost:8765" }
+    }
+  }
+}
