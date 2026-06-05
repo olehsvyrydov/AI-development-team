@@ -46,3 +46,7 @@ design-gallery/
 *.zip
 *.tar.gz
 *.tgz
+.claude/
+.mcp.json
+.cursor/
+.kiro/
