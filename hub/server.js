@@ -29,20 +29,25 @@ for (let i = 0; i < argv.length; i++) {
     process.exit(0);
   } else if (!argv[i].startsWith('-')) PROJECT = path.resolve(argv[i]);
 }
+// fail fast on a bad projectDir rather than silently showing an empty board
+try {
+  if (!fs.statSync(PROJECT).isDirectory()) throw new Error('not a directory');
+} catch {
+  console.error(`Error: projectDir is not a directory: ${PROJECT}`);
+  process.exit(1);
+}
 const SELF_DIR = __dirname;
 
 // ---- locate the workflow definition (override cascade) ---------------------
 function findWorkflow() {
-  // The Hub's workflow resolution order (first found wins). Project + user overrides
-  // match the engine contract; the "default" additionally covers a project-scope
-  // install (.claude/workflow/) and running from the framework checkout (claude/workflow/),
-  // ending at the Hub's own copy.
+  // Workflow resolution (first found wins), matching the engine's documented cascade:
+  // project override (.aidevteam) → user override (~/.aidevteam) → the shipped framework
+  // default (a project-scope install's .claude/workflow/, else the Hub's bundled copy).
   const candidates = [
-    path.join(PROJECT, '.aidevteam', 'workflow.yaml'),
-    path.join(os.homedir(), '.aidevteam', 'workflow.yaml'),
-    path.join(PROJECT, '.claude', 'workflow', 'workflow.yaml'),
-    path.join(PROJECT, 'claude', 'workflow', 'workflow.yaml'),
-    path.join(SELF_DIR, '..', 'claude', 'workflow', 'workflow.yaml'),
+    path.join(PROJECT, '.aidevteam', 'workflow.yaml'),                  // project override
+    path.join(os.homedir(), '.aidevteam', 'workflow.yaml'),             // user override
+    path.join(PROJECT, '.claude', 'workflow', 'workflow.yaml'),         // installed-framework default
+    path.join(SELF_DIR, '..', 'claude', 'workflow', 'workflow.yaml'),  // the Hub's bundled framework default
   ];
   return candidates.find(p => safeExists(p)) || null;
 }
@@ -80,7 +85,7 @@ function parseWorkflow(yaml) {
       name: m[1],
       // tolerate quoted or unquoted values (the schema allows both)
       owner: norm((body.match(/owner:\s*["']?([^,}"']+)/) || [])[1] || ''),
-      refusal: (body.match(/refusal:\s*["']?(\w+)/) || [])[1] || 'soft',
+      refusal: ((body.match(/refusal:\s*["']?(\w+)/) || [])[1] || '').toLowerCase() === 'hard' ? 'hard' : 'soft',
       safety: /safety_override:\s*true/.test(body),
       trigger: (body.match(/trigger:\s*\[([^\]]*)\]/) || [, ''])[1]
         .split(',').map(s => s.trim()).filter(Boolean),
@@ -205,7 +210,7 @@ function buildState() {
   });
   if (!tickets.length) tickets = readTickets();
   // the gate board reflects ONE *valid* ticket: first not-yet-done, else the first valid one
-  const selId = ids.find(id => valid(id) && (ledger[id].stage || '') !== 'done')
+  const selId = ids.find(id => valid(id) && String(ledger[id].stage || '').toLowerCase() !== 'done')
     || ids.find(valid) || null;
   const sel = selId ? obj(selId) : null;
   const malformed = ids.filter(id => !valid(id));
@@ -254,7 +259,7 @@ function startWatchers() {
   // AFTER startup is caught (then re-scanned for deeper watchers on the next tick)
   watch(PROJECT);
   ['.workflow-state.json', 'Backlog.md',
-   '.aidevteam', '.aidevteam/tickets', '.aidevteam/kb', '.claude/workflow', 'claude/workflow',
+   '.aidevteam', '.aidevteam/tickets', '.aidevteam/kb', '.claude/workflow',
    'backlog', 'backlog/tasks', 'docs', 'kb']
     .forEach(rel => watch(path.join(PROJECT, rel)));
   watch(path.join(os.homedir(), '.aidevteam'));   // user-level workflow override

@@ -21,7 +21,7 @@ It **live-updates** over SSE whenever those files change — record a gate as `p
 
 | Input | Resolved from |
 |---|---|
-| Workflow definition | `.aidevteam/workflow.yaml` → `~/.aidevteam/workflow.yaml` → `.claude/workflow/workflow.yaml` → `claude/workflow/workflow.yaml` → the framework default |
+| Workflow definition | `.aidevteam/workflow.yaml` → `~/.aidevteam/workflow.yaml` → `.claude/workflow/workflow.yaml` → the Hub's bundled framework default |
 | Gate state (ledger) | `.workflow-state.json` |
 | Tickets | the ledger's ticket map, else `backlog/tasks/*.md` → `backlog/*.md` → `.aidevteam/tickets/*.md` |
 | Knowledge base | `docs/*.md` → `kb/*.md` → `.aidevteam/kb/*.md` |
