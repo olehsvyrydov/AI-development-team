@@ -116,7 +116,7 @@ Parameters:
 
 ### Posting reports (Jira/Confluence overlay)
 
-After test execution, post the test report as a **Jira comment**:
+After test execution, **record the test report in the ticket** (a Backlog.md ticket by default). **If the Jira overlay is configured**, also post it as a Jira comment:
 
 ```
 Tool: addCommentToJiraIssue
@@ -127,7 +127,7 @@ Parameters:
 
 ### Creating draft bug tickets (Jira overlay)
 
-When defects are found, /qa creates Bug tickets in Jira with **Draft** status. /po reviews and confirms priority.
+When defects are found, /qa files **draft bug tickets in the tracker** — a Backlog.md bug by default, or a Jira Bug issue if the Jira overlay is configured. /po reviews and confirms priority.
 
 ```
 Tool: createJiraIssue

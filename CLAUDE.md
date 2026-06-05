@@ -92,16 +92,16 @@ ai-dev-team/
 ## Workflow
 
 ```
-/max → /luda → /jorge → [/inga] → [/alex] → [/aura] → /finn|/james → /rev → /rob + /adam
+/po+/ba → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe|/be → /rev → /qa+/e2e → /verify
 ```
 
-All features require `/jorge` architecture approval before implementation.
+Gates fire **proportionally** (by change-class / trigger / preset) via the `workflow-engine` — `/arch` and `/secops` apply when triggered, not on every change.
 
 ## Version
 
 - **Version**: 4.1.0
 - **Release Date**: 2026-02-23
-- **Skills**: 33 (categorized by technology)
-- **Commands**: 35 slash commands
-- **Templates**: 5 document templates
+- **Skills**: 29 (15-agent core team + optional specialists; tech stacks as references)
+- **Commands**: 47 slash commands
+- **Templates**: 6 document templates
 - **RAG**: AI Team Memory (Qdrant + voyage-code-3)

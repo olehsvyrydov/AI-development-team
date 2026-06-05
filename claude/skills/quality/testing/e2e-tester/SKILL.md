@@ -133,7 +133,7 @@ Use `WebSearch` and `WebFetch` for current best practices, version updates, and 
 
 ### Posting reports (Jira/Confluence overlay)
 
-After test execution, post the report as a **Jira comment**:
+After test execution, **record the report in the ticket** (Backlog.md by default). **If the Jira overlay is configured**, also post it as a Jira comment:
 
 ```
 Tool: addCommentToJiraIssue
@@ -144,7 +144,7 @@ Parameters:
 
 ### Creating draft bug tickets (Jira overlay)
 
-When defects are found during test execution, /e2e creates Bug tickets in Jira with **Draft** status. /po reviews and confirms priority.
+When defects are found, /e2e files **draft bug tickets in the tracker** — a Backlog.md bug by default, or a Jira Bug issue if the Jira overlay is configured. /po reviews and confirms priority.
 
 ```
 Tool: createJiraIssue

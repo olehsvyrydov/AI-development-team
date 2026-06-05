@@ -87,7 +87,7 @@ Use `WebSearch` and `WebFetch` for current best practices, security advisories (
 
 ### Posting reports (Jira/Confluence overlay)
 
-After completing a code review, post the full review report as a **Jira comment** on the Story ticket using the Atlassian MCP:
+After completing a code review, **record the full review report in the ticket** (Backlog.md by default). **If the Jira overlay is configured**, also post it as a Jira comment on the Story ticket via the Atlassian MCP:
 
 ```
 Tool: addCommentToJiraIssue
