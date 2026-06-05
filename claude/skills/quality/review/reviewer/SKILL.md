@@ -71,6 +71,8 @@ Use `WebSearch` and `WebFetch` for current best practices, security advisories (
 
 ## Recording work — file-based by default (Jira/Confluence optional)
 
+> **Tracker-agnostic note:** throughout this section, "Jira" and "Confluence" name whatever ticket tracker and knowledge base you have configured. The **default is file-based** — Backlog.md markdown tickets + a markdown KB — so read "Jira ticket" as "the ticket", "post a Jira comment" as "record it in the ticket", and "Confluence page" as "the KB doc". Jira/Confluence are an optional overlay (enable in `workflow.yaml`).
+
 ### Record outputs in the ticket + an agent-context file
 
 /rev writes ALL review outputs to **both** locations:

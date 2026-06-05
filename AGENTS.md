@@ -1,6 +1,6 @@
-# CLAUDE.md - AI Development Team Framework
+# AGENTS.md — AI Development Team Framework
 
-This file provides context to Claude Code when working in this repository.
+This file mirrors CLAUDE.md and provides context to AI coding assistants (Claude Code, Cursor, Kiro, VS Code) working in this repository — editors read whichever filename they support.
 
 ## Project Purpose
 

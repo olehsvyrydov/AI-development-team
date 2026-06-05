@@ -117,15 +117,17 @@ Use `WebSearch` and `WebFetch` for current best practices, version updates, and 
 
 ## Recording work — file-based by default (Jira/Confluence optional)
 
+> **Tracker-agnostic note:** throughout this section, "Jira" and "Confluence" name whatever ticket tracker and knowledge base you have configured. The **default is file-based** — Backlog.md markdown tickets + a markdown KB — so read "Jira ticket" as "the ticket", "post a Jira comment" as "record it in the ticket", and "Confluence page" as "the KB doc". Jira/Confluence are an optional overlay (enable in `workflow.yaml`).
+
 ### Record outputs in the ticket + an agent-context file
 
 /e2e writes ALL test outputs to **both** locations:
 
-| Output | Primary Location | Git File (agent memory) |
+| Output | Ticket / KB (default: file-based; Jira/Confluence if configured) | Agent-context file |
 |--------|-----------------|------------------------|
-| E2E test report | Jira comment on Story ticket | `testing/e2e-{ticket}.md` |
-| Test execution results | Jira comment on Story ticket | `testing/e2e-{ticket}.md` |
-| Draft Bug tickets | Jira (Bug issue type) | -- |
+| E2E test report | Ticket comment (Jira if configured) | `testing/e2e-{ticket}.md` |
+| Test execution results | Ticket comment (Jira if configured) | `testing/e2e-{ticket}.md` |
+| Draft Bug tickets | Tracker (Jira Bug type, if configured) | -- |
 
 **Why both?** The **ticket** (Backlog.md by default, or the configured tracker) gives human visibility; the agent-context file preserves state across sessions. **Jira/Confluence is an optional overlay** — the tool calls below apply only when it is enabled in `workflow.yaml`.
 

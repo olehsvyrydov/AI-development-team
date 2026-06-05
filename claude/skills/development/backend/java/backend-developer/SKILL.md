@@ -111,6 +111,8 @@ Before implementing, ALWAYS read:
 
 ### Recording work — file-based by default (Jira/Confluence optional)
 
+> **Tracker-agnostic note:** throughout this section, "Jira" and "Confluence" name whatever ticket tracker and knowledge base you have configured. The **default is file-based** — Backlog.md markdown tickets + a markdown KB — so read "Jira ticket" as "the ticket", "post a Jira comment" as "record it in the ticket", and "Confluence page" as "the KB doc". Jira/Confluence are an optional overlay (enable in `workflow.yaml`).
+
 Record work in the **ticket** (Backlog.md by default, or the configured tracker) at key milestones — Jira/Confluence is an optional overlay:
 
 1. **Before Coding — "Developer Vision"**: Post approach, /arch alignment, subtasks planned, risks/assumptions
@@ -127,13 +129,13 @@ Record work in the **ticket** (Backlog.md by default, or the configured tracker)
 
 ### Implementation Workflow
 
-1. Read Jira ticket AC, all approval comments, and /arch recommendations
-2. Post "Developer Vision" comment in Jira
-3. Create subtasks in Jira if Story is complex
+1. Read the ticket AC, all approval comments, and /arch recommendations
+2. Post the "Developer Vision" note in the ticket
+3. Create subtasks in the tracker if Story is complex
 4. Write failing tests (RED)
 5. Implement minimum code (GREEN)
 6. Refactor while tests pass
-7. Post "Implementation Details" comment in Jira
+7. Post the "Implementation Details" note in the ticket
 8. Save implementation notes to `implementation/{ticket}.md` (Git — for agent context)
 9. Update sprint `README.md` status
 10. Notify /sm for next step

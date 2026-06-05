@@ -17,7 +17,7 @@
 - [ ] Skill knowledge is **universal/reusable** (no project/ticket/sprint specifics)
 - [ ] Code fences are balanced and non-nested
 - [ ] `description` is sharp and disambiguating (right agent triggers)
-- [ ] `agents.md` / `disambiguation.md` updated if the roster or routing changed
+- [ ] `claude/commands/agents.md` / `claude/skills/disambiguation.md` updated if the roster or routing changed
 - [ ] No AI co-author trailer in commits
 
 ## Notes for reviewers
