@@ -69,23 +69,25 @@ Use `WebSearch` and `WebFetch` for current best practices, security advisories (
 4. Approved -> QA testing (/qa, /e2e)
 5. Changes Requested -> Back to developer with feedback
 
-## Jira/Confluence Integration (MANDATORY)
+## Recording work — file-based by default (Jira/Confluence optional)
 
-### Context Preservation: Dual-Write Rule
+> **Tracker-agnostic note:** throughout this section, "Jira" and "Confluence" name whatever ticket tracker and knowledge base you have configured. The **default is file-based** — Backlog.md markdown tickets + a markdown KB — so read "Jira ticket" as "the ticket", "post a Jira comment" as "record it in the ticket", and "Confluence page" as "the KB doc". Jira/Confluence are an optional overlay (enable in `workflow.yaml`).
+
+### Record outputs in the ticket + an agent-context file
 
 /rev writes ALL review outputs to **both** locations:
 
-| Output | Jira | Git File |
+| Output | Ticket / KB (default: file-based; Jira/Confluence if configured) | Agent-context file |
 |--------|------|----------|
 | Code review report | Comment on Story ticket | `reviews/rev-{ticket}.md` |
 | Blocking issues | Comment on Story ticket | `reviews/rev-{ticket}.md` |
 | Review verdict | Comment on Story ticket | `reviews/rev-{ticket}.md` |
 
-**Why both?** Jira is for human visibility (stakeholders, /po, /sm). Git files are for agent context preservation across Claude Code sessions.
+**Why both?** The **ticket** (Backlog.md by default, or the configured tracker) gives human visibility; the agent-context file preserves state across sessions. **Jira/Confluence is an optional overlay** — the tool calls below apply only when it is enabled in `workflow.yaml`.
 
-### Posting Review Reports as Jira Comments
+### Posting reports (Jira/Confluence overlay)
 
-After completing a code review, post the full review report as a **Jira comment** on the Story ticket using the Atlassian MCP:
+After completing a code review, **record the full review report in the ticket** (Backlog.md by default). **If the Jira overlay is configured**, also post it as a Jira comment on the Story ticket via the Atlassian MCP:
 
 ```
 Tool: addCommentToJiraIssue
@@ -94,15 +96,15 @@ Parameters:
   body: "[Full review report - see references/feedback-and-reports.md]"
 ```
 
-This ensures the Jira ticket shows the complete dev process journey when read top-to-bottom.
+This ensures the ticket shows the complete dev process journey when read top-to-bottom.
 
 ## Review Navigation Strategy
 
 Follow this structured approach for every review (based on Google's engineering practices):
 
 ### Step 1: Context Gathering (Before Reading Code)
-- **Read the Jira ticket** -- behavioral AC (Given/When/Then), NFRs, links to Confluence
-- **Read /arch architecture guidance** (Jira comment on ticket or Confluence ADR)
+- **Read the ticket** -- behavioral AC (Given/When/Then), NFRs, links to the KB
+- **Read /arch architecture guidance** (ticket comment or KB ADR, if configured)
 - **Read any /fin, /legal, or /ui approvals** relevant to the feature
 - **Read the PR/commit description** -- does this change make sense?
 - If the change direction is fundamentally wrong, provide immediate feedback before detailed review
@@ -135,8 +137,8 @@ Follow this structured approach for every review (based on Google's engineering 
 
 During code review, /rev MUST verify the relationship between /arch recommendations and the actual implementation:
 
-1. **Read /arch's Jira comment** on the Story (architecture guidance, patterns, constraints, boundaries)
-2. **Read /arch's Confluence ADR** if one exists for this feature
+1. **Read /arch's note** on the Story (architecture guidance, patterns, constraints, boundaries)
+2. **Read /arch's KB ADR** if one exists for this feature
 3. **Check implementation** against architectural constraints:
    - Are the recommended patterns followed?
    - Are service boundaries respected?
@@ -144,9 +146,9 @@ During code review, /rev MUST verify the relationship between /arch recommendati
 
 4. **If developer followed /arch guidance**: Note compliance in review report
 5. **If developer deviated from /arch guidance**:
-   - Check if the developer documented their reasoning in a **Jira comment**
+   - Check if the developer documented their reasoning in a **ticket comment**
    - If reasoning IS documented and sound: Accept the deviation, note in review
-   - If reasoning is NOT documented: **BLOCKING** -- developer must add a Jira comment explaining why they deviated before review can proceed
+   - If reasoning is NOT documented: **BLOCKING** -- developer must add a ticket comment explaining why they deviated before review can proceed
    - If reasoning is documented but unsound: **BLOCKING** -- escalate to /arch for decision
 
 ```markdown
@@ -154,7 +156,7 @@ During code review, /rev MUST verify the relationship between /arch recommendati
 
 | /arch Recommendation | Implementation | Status |
 |---------------------|----------------|--------|
-| Use token-based auth with TTL | Used Redis TTL (developer explained in Jira) | COMPLIANT (deviation documented) |
+| Use token-based auth with TTL | Used Redis TTL (developer explained in the ticket) | COMPLIANT (deviation documented) |
 | Async email via events | Used Spring Events | COMPLIANT |
 | Rate limiting at 3/hour | @RateLimiter annotation | COMPLIANT |
 ```
@@ -168,13 +170,13 @@ During code review, /rev MUST verify the relationship between /arch recommendati
 #### Where to Find Requirements
 | Source | Location | What to Check |
 |--------|----------|---------------|
-| Story AC | Jira ticket description | Given/When/Then behavioral scenarios |
-| Architecture guidance | Jira comment from /arch | Patterns, constraints, boundaries, NFRs |
-| Architecture decision | Confluence ADR | C4 diagrams, design rationale |
-| Finance approval | Confluence Approval Checklist | Calculation logic, VAT rules, rounding |
-| Legal approval | Confluence Approval Checklist | GDPR handling, consent flows, data retention |
-| UI design specs | Confluence Feature Vision | Component structure, states, interactions |
-| Bug investigation | Jira Bug ticket | Root cause, reproduction steps |
+| Story AC | the ticket description | Given/When/Then behavioral scenarios |
+| Architecture guidance | ticket comment from /arch | Patterns, constraints, boundaries, NFRs |
+| Architecture decision | KB ADR | C4 diagrams, design rationale |
+| Finance approval | KB Approval Checklist | Calculation logic, VAT rules, rounding |
+| Legal approval | KB Approval Checklist | GDPR handling, consent flows, data retention |
+| UI design specs | KB Feature Vision | Component structure, states, interactions |
+| Bug investigation | tracker bug ticket | Root cause, reproduction steps |
 
 #### AC Validation Checklist
 - [ ] Every behavioral acceptance criterion has corresponding implementation
@@ -182,7 +184,7 @@ During code review, /rev MUST verify the relationship between /arch recommendati
 - [ ] Edge cases mentioned in AC are handled
 - [ ] Error scenarios from AC have proper error handling
 - [ ] Business rules match domain expert approvals (/fin, /legal)
-- [ ] Architecture follows /arch guidance (or deviation documented in Jira)
+- [ ] Architecture follows /arch guidance (or deviation documented in the ticket)
 - [ ] UI implementation matches /ui specifications (if frontend)
 - [ ] No gold-plating -- implementation doesn't exceed what AC requires
 
@@ -314,19 +316,19 @@ Detailed review material lives in `references/` — read the relevant file when 
 
 ### On Review Start
 ```
-1. Read Jira ticket for behavioral AC, /arch guidance, and approval comments
-2. Read Confluence ADR (if exists) for architecture decisions
+1. Read the ticket for behavioral AC, /arch guidance, and approval comments
+2. Read KB ADR (if exists) for architecture decisions
 3. Read test files first to understand intent
 4. Review major implementation files
 5. Review remaining files
 6. Cross-reference with requirements (behavioral AC)
-7. Verify /arch compliance (check for deviation documentation in Jira)
+7. Verify /arch compliance (check for deviation documentation in the ticket)
 8. Write review report
 ```
 
 ### On Review Approved
 ```
--> Post review report as Jira comment on the Story ticket
+-> Post the review report to the ticket (Jira comment if configured)
 -> Save report to sprint-{N}/reviews/rev-{ticket}.md (Git)
 -> Update sprint README.md status
 -> /qa + /e2e can begin testing
@@ -335,10 +337,10 @@ Detailed review material lives in `references/` — read the relevant file when 
 
 ### On Changes Requested
 ```
--> Post review report as Jira comment on the Story ticket
+-> Post the review report to the ticket (Jira comment if configured)
 -> Save report to sprint-{N}/reviews/rev-{ticket}.md (Git)
 -> Update sprint README.md status
--> Developer fixes issues, adds Jira comment explaining changes, and re-submits
+-> Developer fixes issues, adds a ticket comment explaining changes, and re-submits
 ```
 
 ## Anti-Patterns /rev Must Avoid
