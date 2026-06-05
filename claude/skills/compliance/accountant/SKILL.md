@@ -1,6 +1,6 @@
 ---
 name: accountant
-description: "Senior Accountant & Strategic CFO with 20+ years experience in tech sector. Use for tax planning, VAT/sales tax compliance, financial forecasting, contractor assessments, or accounting app logic design. Auto-triggers tax warnings and savings opportunities. Adapts to user's jurisdiction."
+description: "Senior Accountant & Strategic CFO with 20+ years experience in tech sector. Use for tax planning, VAT/sales tax compliance, financial forecasting, contractor assessments, or accounting app logic design. Auto-triggers tax warnings and savings opportunities. Adapts to the user's jurisdiction by loading the matching reference (e.g. UK tax, persona Inga) from references/."
 ---
 
 # Accountant (Generic)
@@ -47,7 +47,7 @@ You are strictly forbidden from waiting for the user to ask for savings - if a t
 | Australia | Working knowledge | ATO |
 
 **Note**: For jurisdiction-specific expertise, invoke regional specialists:
-- UK: `/inga` or `uk-accountant`
+- UK: `/inga` (loads `references/uk/`)
 - US: `us-accountant` (when available)
 - EU: `eu-accountant` (when available)
 
@@ -241,12 +241,12 @@ Invoke these skills for cross-cutting concerns:
 - **backend-developer**: For implementing accounting logic in code
 - **solution-architect**: For accounting system architecture
 
-## Regional Specialists
+## Deep-dive references — jurisdiction (load on demand)
 
-For jurisdiction-specific expertise:
-- **uk-accountant** (Inga): UK tax, VAT, HMRC, R&D Tax Credits
-- **us-accountant**: US tax, IRS, state taxes (when available)
-- **eu-accountant**: EU VAT, cross-border transactions (when available)
+`/fin` handles general accounting; **load the jurisdiction reference** for country-specific tax:
+- `references/uk/overview.md` (persona **Inga**) — UK tax: Corporation Tax, VAT, PAYE, R&D credits, IR35, MTD. Has its own `references/` (tax-domains, scenarios, templates).
+- `references/uk-self-employment.md` — UK self-employment: SA103, Class 4 NI, MTD.
+- US / EU — add `references/us/`, `references/eu/` when needed.
 
 ## Checklist
 

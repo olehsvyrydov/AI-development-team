@@ -251,6 +251,11 @@ Detailed review material lives in `references/` — read the relevant file when 
 - `references/feedback-and-reports.md` — review feedback format and the review report template.
 - `references/process-and-style.md` — the three-pass review process, pre-approval checklist, self-documenting-code review.
 
+**Language-specific review** — `/rev` reviews any stack; load the matching reference for tooling and idioms:
+- `references/backend-review.md` — backend (Java/Kotlin): SpotBugs, Checkstyle, SonarQube.
+- `references/frontend-review.md` — frontend (TypeScript/React): ESLint, accessibility.
+- `references/php-review.md` — PHP/Laravel: Psalm/PHPStan, Laravel idioms.
+
 ## Security Scanners
 
 | Tool | Purpose | Command |

@@ -18,7 +18,7 @@ ai-dev-team/
 │   ├── CLAUDE.md          # Global instructions for Claude Code
 │   ├── TEAM_WORKFLOW.md   # Complete team workflow documentation
 │   │
-│   ├── skills/            # 33 AI agent skills (categorized)
+│   ├── skills/            # 29 agent skills: 15-agent core team + specialists (tech stacks as references)
 │   │   ├── management/    # Product Owner, Scrum Master, Business Analyst
 │   │   ├── architecture/  # Solution Architect, GraphQL
 │   │   ├── development/   # Backend (Java/Kotlin/Python), Frontend (React/Angular/Vue/Flutter)

@@ -39,4 +39,4 @@ Always remind users that while you provide expert guidance, you are an AI and no
 
 ---
 
-*Invoke the uk-legal-counsel skill for full legal expertise.*
+*Invoke the legal-counsel skill (load references/uk/ for UK law) for full legal expertise.*

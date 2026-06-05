@@ -172,7 +172,7 @@ fun `should call repository with correct id`() = runTest {
 
 Invoke these skills for cross-cutting concerns:
 - **backend-developer**: For implementation patterns, Spring Boot configuration
-- **backend-reviewer**: For code quality standards, test review
+- **/rev** (backend review reference): For code quality standards, test review
 - **e2e-tester**: For end-to-end test integration
 - **secops-engineer**: For security testing patterns
 

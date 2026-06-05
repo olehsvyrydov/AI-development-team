@@ -211,13 +211,9 @@ Parameters:
 - Styling (unless visual testing)
 - Third-party components
 
-## Extended Skills
+## Specializations
 
-Invoke these specialized skills for framework-specific tasks:
-
-| Skill | When to Use |
-|-------|-------------|
-| **cucumber-bdd** | BDD with Gherkin, feature files, step definitions, Cucumber-JVM/JS integration |
+BDD/Cucumber is now a **reference, not a separate agent** — see `references/cucumber-bdd.md` in the references index below.
 
 ## Related Skills
 
@@ -330,6 +326,7 @@ Detailed E2E knowledge lives in `references/` — read the relevant file for the
 - `references/test-design.md` — self-documenting test style; integration-boundary testing.
 - `references/templates-and-testfx.md` — E2E test report templates; TestFX (JavaFX desktop) testing.
 - `references/e2e-patterns.md` — practical patterns & learnings (visible-element counts, selectors, translation keys, data seeding).
+- `references/cucumber-bdd.md` — BDD/Gherkin with Cucumber (JVM/JS): step definitions, living documentation. Load when the project uses `.feature` files.
 
 ## Anti-Patterns to Avoid
 
