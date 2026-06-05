@@ -73,7 +73,7 @@ Use WebSearch and WebFetch tools to:
 
 Detailed backend knowledge lives in `references/` — read the relevant file when the task calls for it:
 - `references/java-expertise.md` — Spring Boot/WebFlux, Java, REST APIs, persistence (JPA/R2DBC), business logic, security, testing (the ~510-line Expertise block).
-- `references/templates.md` — service, controller, entity, and test templates.
+- `references/templates.md` — controller, hexagonal-architecture, saga-orchestrator, and test templates.
 - `references/external-api.md` — external API integration best practices.
 
 ## Workflow Integration

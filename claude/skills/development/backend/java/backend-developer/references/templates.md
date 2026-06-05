@@ -1,4 +1,4 @@
-# Backend — Templates (service · controller · entity · test)
+# Backend — Templates (controller · hexagonal architecture · saga orchestrator · test)
 
 ## Templates
 
