@@ -77,15 +77,28 @@
 ```bash
 git clone https://github.com/olehsvyrydov/AI-development-team.git
 cd AI-development-team
-./install.sh
+./install.sh                       # interactive: pick your editor(s)
 ```
 
-The installer detects existing `~/.claude` configuration and offers:
-- **Merge** — add new skills, keep your existing ones (recommended)
-- **Replace** — backup existing `~/.claude` and install fresh
-- **Link** — symlink for development (changes in repo reflect immediately)
+The **universal installer** wires up whichever editors you choose and emits the right
+config for each — no lock-in:
 
-Or use flags directly: `./install.sh --merge`, `./install.sh --replace`, `./install.sh --link`
+| Editor | What it installs |
+|--------|------------------|
+| **Claude Code** | `.claude/skills` + `.claude/commands` + `CLAUDE.md` |
+| **Cursor** | `.cursor/rules/ai-dev-team.mdc` + `AGENTS.md` |
+| **Kiro** | `.kiro/steering/ai-dev-team.md` + `AGENTS.md` |
+| **VS Code (Copilot)** | `.github/copilot-instructions.md` + `AGENTS.md` |
+
+```bash
+./install.sh --editors=all --preset=solo --yes  # non-interactive (preset: solo|small-team|regulated)
+./install.sh --editors=claude --scope=user    # global ~/.claude (Claude Code)
+./install.sh --dry-run                        # preview, change nothing
+./install.sh --link                           # symlink content (dev mode)
+./install.sh --uninstall                      # remove what it installed
+```
+
+Optional advanced Claude backends (RAG memory, Atlassian, hooks): `scripts/setup-claude-backends.sh`.
 
 ### 2. Verify
 
@@ -125,7 +138,7 @@ The installer will offer to set up the semantic knowledge base (requires Docker 
 │   ├── marketing/               # Product Marketing Strategist
 │   └── specialized/             # Technical Writer, Kai (self-improving meta-agent)
 │
-├── commands/                    # 37 slash commands
+├── commands/                    # 47 slash commands
 │   ├── [14 role-based]          # /po, /sm, /ba, /arch, /fe, /be, /rev, /qa, /e2e ...
 │   ├── [13 persona aliases]     # /max, /luda, /jorge, /finn, /james, /adam ...
 │   └── [10 utility]             # /agents, /bug, /issue, /memory, /all, /kai ...
@@ -501,7 +514,7 @@ ai-dev-team/
 
 3. Create a slash command in `claude/commands/rust.md`
 
-4. Re-install: `./install.sh --merge`
+4. Re-install / update: `./install.sh` (idempotent)
 
 See: [Skill Extension Guide](docs/skill-extension-guide.md)
 
