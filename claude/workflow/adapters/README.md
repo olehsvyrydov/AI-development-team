@@ -45,6 +45,8 @@ An agent's rule of thumb: *detect the highest-tier available adapter for the tas
 | `adapters/mcp/openmemory.json` | OpenMemory (local mem0 server) | local memory MCP (OSS) |
 | `adapters/mcp/mem0.json` | mem0 (hosted) | managed memory; set `MEM0_API_KEY` |
 | `adapters/mcp/penpot.json` | Penpot design | self-hosted or penpot.app; OSS design |
+| `adapters/mcp/figma.json` | Figma (Dev Mode MCP) | local server from the Figma desktop app (port 3845) |
+| `adapters/mcp/canva.json` | Canva | hosted MCP; sign in with your Canva account |
 | `adapters/mcp/obsidian.json` | Obsidian vault | local KB MCP |
 
 ## Adding a new adapter
