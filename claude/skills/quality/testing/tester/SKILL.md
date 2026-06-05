@@ -109,7 +109,7 @@ Parameters:
   spaceKey: "{PROJECT_SPACE}"
   title: "Test Plan: {Feature Name}"
   parentPageId: "{TEST_PLANS_SECTION_ID}"
-  body: "[Test Plan content - see Test Plan Template below]"
+  body: "[Test Plan content - see references/templates.md]"
 ```
 
 ### Posting Test Reports as Jira Comments
@@ -133,7 +133,7 @@ Parameters:
   projectKey: "{PROJECT_KEY}"
   issueType: "Bug"
   summary: "[Brief defect description]"
-  description: "[Full bug report - see Defect Template below]"
+  description: "[Full bug report - see references/templates.md]"
   parentIssueKey: "{PARENT_STORY}" (if applicable)
 ```
 
