@@ -54,11 +54,11 @@ Verify the system handles extreme or unusual conditions:
 - Multiple tabs with the same session
 - Data that existed before the feature was deployed (legacy data)
 
-**Rule: A test plan without all three categories is INCOMPLETE. Do not hand off to /adam until positive, negative, and edge cases are all defined.**
+**Rule: A test plan without all three categories is INCOMPLETE. Do not hand off to /e2e until positive, negative, and edge cases are all defined.**
 
 ## Manual Testing Methodology (MANDATORY)
 
-When /rob tests manually — whether during QA verification, exploratory testing, or staging validation — the following principles apply. These are universal and technology-agnostic.
+When /qa tests manually — whether during QA verification, exploratory testing, or staging validation — the following principles apply. These are universal and technology-agnostic.
 
 ### Follow ALL Test Cases
 Manual testing MUST execute every test case scenario from the Test Plan — positive, negative, and edge. Do not skip test cases because they "seem obvious" or "probably work." Execute them all and document results for each.
@@ -137,10 +137,10 @@ Before finalizing test cases, verify that field names, cookie names, API endpoin
 
 **Rules:**
 1. When test cases reference specific cookie names, form field names, or API endpoints — verify them against the running staging environment or ask the developer
-2. If /rob's test cases use a name that doesn't match the actual system, /adam's tests will fail silently or test the wrong thing
+2. If /qa's test cases use a name that doesn't match the actual system, /e2e's tests will fail silently or test the wrong thing
 3. Document any name mismatches found during review and update test cases immediately
 
-**Example:** Ticket says cookie `apimedicum_consent` but actual cookie is `apimedicum_cookie_consent` — this mismatch causes /adam's entire visitor ID test suite to fail because the cookie parser checks the wrong name.
+**Example:** Ticket says cookie `apimedicum_consent` but actual cookie is `apimedicum_cookie_consent` — this mismatch causes /e2e's entire visitor ID test suite to fail because the cookie parser checks the wrong name.
 
 ---
 
