@@ -227,7 +227,9 @@ function startWatchers() {
   // watch the project root too, so creating .aidevteam/, docs/, backlog/, etc.
   // AFTER startup is caught (then re-scanned for deeper watchers on the next tick)
   watch(PROJECT);
-  ['.workflow-state.json', '.aidevteam', '.claude/workflow', 'claude/workflow', 'backlog', 'backlog/tasks', 'docs']
+  ['.workflow-state.json', 'Backlog.md',
+   '.aidevteam', '.aidevteam/tickets', '.aidevteam/kb', '.claude/workflow', 'claude/workflow',
+   'backlog', 'backlog/tasks', 'docs', 'kb']
     .forEach(rel => watch(path.join(PROJECT, rel)));
   watch(path.join(os.homedir(), '.aidevteam'));   // user-level workflow override
   const wf = findWorkflow(); if (wf) watch(wf);    // the active workflow file directly
@@ -248,6 +250,9 @@ const server = http.createServer((req, res) => {
       'cache-control': 'no-cache',
       connection: 'keep-alive',
     });
+    // keep the stream open: disable request/socket idle timeouts for SSE
+    res.setTimeout(0);
+    if (req.socket) req.socket.setTimeout(0);
     res.write(`event: update\ndata: ${JSON.stringify(buildState())}\n\n`);
     clients.add(res);
     req.on('close', () => clients.delete(res));
@@ -261,7 +266,8 @@ const server = http.createServer((req, res) => {
 
 startWatchers();
 server.listen(PORT, HOST, () => {
-  const shown = (HOST === '0.0.0.0' || HOST === '::') ? 'localhost' : HOST;
+  const isAny = (HOST === '0.0.0.0' || HOST === '::');
+  const shown = isAny ? 'localhost' : (HOST.includes(':') ? `[${HOST}]` : HOST);  // bracket IPv6 literals
   console.log(`AI Dev Team Hub → http://${shown}:${PORT}`);
   console.log(`  project: ${PROJECT}`);
   const wf = findWorkflow();
