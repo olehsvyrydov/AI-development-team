@@ -136,6 +136,14 @@
 | Trivy | PASS/FAIL | X findings |
 | npm audit | PASS/FAIL | X vulnerabilities |
 
+## Static Analysis Results
+
+| Tool | Status | Findings |
+|------|--------|----------|
+| SpotBugs / PMD | PASS/FAIL | X issues |
+| Checkstyle / ESLint | PASS/FAIL | X warnings |
+| SonarQube | PASS/FAIL | X code smells, Y bugs |
+
 ## Review Assumptions
 
 - [What I assumed about the AC's correctness]

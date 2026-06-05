@@ -4,7 +4,7 @@
 
 ### Code Quality
 - [ ] Follows style guide (Google Java Style / Google TS Style)
-- [ ] No code smells (see detection table)
+- [ ] No code smells (see the Code Smells detection table in the main reviewer SKILL)
 - [ ] Methods are focused and concise (<20 lines preferred)
 - [ ] Classes have single responsibility (<200 lines preferred)
 - [ ] SOLID principles followed
@@ -23,7 +23,7 @@
 
 ### Functionality
 - [ ] Code does what the developer intended
-- [ ] Code does what the behavioral AC requires (see AC Validation above)
+- [ ] Code does what the behavioral AC requires (see the AC Validation section in the main reviewer SKILL)
 - [ ] Edge cases are handled
 - [ ] Concurrency issues considered
 - [ ] Error paths are handled gracefully
