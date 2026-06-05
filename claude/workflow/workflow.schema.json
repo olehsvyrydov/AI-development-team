@@ -38,8 +38,10 @@
     },
     "refusal_policy": { "type": "object" },
     "ledger": { "type": "array" },
-    "tickets": { "type": "object" },
-    "knowledge_base": { "type": "object" },
+    "tickets": { "$ref": "#/definitions/adapterConfig" },
+    "knowledge_base": { "$ref": "#/definitions/adapterConfig" },
+    "memory": { "$ref": "#/definitions/adapterConfig" },
+    "design": { "$ref": "#/definitions/adapterConfig" },
     "presets": {
       "type": "object",
       "required": ["solo"],
@@ -52,6 +54,17 @@
           "knowledge_base": { "type": "string" }
         }
       }
+    }
+  },
+  "definitions": {
+    "adapterConfig": {
+      "type": "object",
+      "required": ["default"],
+      "properties": {
+        "default": { "type": "string" },
+        "optional_mcp": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
     }
   }
 }

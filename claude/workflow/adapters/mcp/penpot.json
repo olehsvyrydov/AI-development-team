@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "penpot": {
+      "command": "npx",
+      "args": ["-y", "penpot-mcp"],
+      "env": { "PENPOT_BASE_URL": "https://design.penpot.app", "PENPOT_API_TOKEN": "REPLACE_ME" }
+    }
+  }
+}

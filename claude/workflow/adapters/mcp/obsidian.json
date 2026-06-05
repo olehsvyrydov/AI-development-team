@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "obsidian": {
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp"],
+      "env": { "OBSIDIAN_VAULT_PATH": "./docs" }
+    }
+  }
+}
