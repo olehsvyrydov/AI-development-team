@@ -213,7 +213,7 @@ Parameters:
 
 ## Specializations
 
-BDD/Cucumber is now a **reference, not a separate agent** — see `references/cucumber-bdd.md` in the references index above.
+BDD/Cucumber is now a **reference, not a separate agent** — see `references/cucumber-bdd.md` in the references index below.
 
 ## Related Skills
 
