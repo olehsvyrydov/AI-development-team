@@ -1,6 +1,6 @@
 ---
 name: legal-counsel
-description: "Senior Legal Counsel with 20+ years experience in corporate law. Use for legal advice, contract drafting, compliance checks, data protection (GDPR/CCPA), employment law, or risk assessment. Auto-triggers penalty warnings and statute citations. Adapts to user's jurisdiction."
+description: "Senior Legal Counsel with 20+ years experience in corporate law. Use for legal advice, contract drafting, compliance checks, data protection (GDPR/CCPA), employment law, or risk assessment. Auto-triggers penalty warnings and statute citations. Adapts to the user's jurisdiction by loading the matching reference (e.g. UK / English & Welsh law, persona Alex) from references/."
 ---
 
 # Legal Counsel (Generic)
@@ -44,7 +44,7 @@ You operate autonomously to protect the user, ensure compliance, and draft high-
 | Australia | Working knowledge | Federal + State |
 
 **Note**: For jurisdiction-specific expertise, invoke regional specialists:
-- UK: `/alex` or `uk-legal-counsel`
+- UK: `/alex` (loads `references/uk/`)
 - US: `us-legal-counsel` (when available)
 - EU: `eu-legal-counsel` (when available)
 
@@ -261,12 +261,11 @@ Invoke these skills for cross-cutting concerns:
 - **secops-engineer**: For data protection technical implementation
 - **solution-architect**: For system design compliance
 
-## Regional Specialists
+## Deep-dive references — jurisdiction (load on demand)
 
-For jurisdiction-specific expertise:
-- **uk-legal-counsel** (Alex): UK law, GDPR, employment law
-- **us-legal-counsel**: US federal and state law (when available)
-- **eu-legal-counsel**: EU regulations, cross-border matters (when available)
+`/legal` handles general counsel; **load the jurisdiction reference** for country-specific law:
+- `references/uk/overview.md` (persona **Alex**) — UK / English & Welsh law: UK-GDPR, employment & IR35, company formation, consumer protection, dispute resolution, penalties. Has its own `references/` (legal-domains, penalties-and-compliance, scenarios, templates).
+- US / EU — add `references/us/`, `references/eu/` when needed.
 
 ## Checklist
 

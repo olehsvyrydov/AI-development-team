@@ -78,7 +78,7 @@ Or use flags directly: `./install.sh --merge`, `./install.sh --replace`, `./inst
 
 ```bash
 # In Claude Code:
-/agents         # List all 40 agents
+/agents         # List the team (15 core + specialists)
 /po             # Start with Product Owner
 /arch           # Get architecture review
 ```
@@ -506,7 +506,7 @@ Edit the relevant `SKILL.md` and add a new subsection under `## Expertise`. Skil
 | [Voyage AI API key](https://dash.voyageai.com/) | For RAG only | Free tier works |
 | [OpenRouter API key](https://openrouter.ai/) | For Multi-LLM only | Pay-per-use |
 
-The core framework (40 agents + 37 commands + 6 templates) works with just Claude Code — no additional dependencies.
+The core framework (15-agent core team + optional specialists) works with just Claude Code — no additional dependencies.
 
 ---
 

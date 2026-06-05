@@ -1,6 +1,6 @@
 ---
 name: frontend-developer
-description: "Frontend Developer (/fe, alias: Finn, /finn) - Senior Frontend Developer with 10+ years web and mobile experience. Use when implementing React/Next.js features, building React Native/Expo apps, writing TypeScript, creating UI components, implementing state management, or styling with TailwindCSS. Documents work in Jira comments (Developer Vision, Implementation Details, Fix Resolution)."
+description: "Frontend Developer (/fe, alias: Finn, /finn) - Senior Frontend Developer with 10+ years web and mobile experience. Covers React/Next.js (default), Angular, Vue/Nuxt, and Flutter/Dart - detects the project's framework and loads the matching stack reference. Use when implementing UI components, state management, data fetching, styling, forms, or any web/cross-platform frontend feature in any of these stacks."
 ---
 
 # Frontend Developer (/fe)
@@ -89,12 +89,29 @@ Use WebSearch and WebFetch tools to:
 ---
 
 
+## Stack selection (read first)
+
+`/fe` covers multiple frontend stacks. **Detect the project's framework** (build files / deps / the request) and load the matching stack reference; the rest of this skill (gate check, workflow, standards) is stack-agnostic.
+
+| Stack | Detect | Load |
+|---|---|---|
+| **React / Next.js** (default) | `next`, `react` in package.json | `references/react-expertise.md` (+ `templates.md`, `patterns.md`) |
+| **Angular** | `angular.json`, `@angular/*` | `references/angular.md` |
+| **Vue / Nuxt** | `vue`, `nuxt` | `references/vue.md` |
+| **Flutter** (cross-platform mobile) | `pubspec.yaml`, Dart | `references/flutter.md` |
+
+If the stack is ambiguous, ask; otherwise default to React/Next.js. (Native iOS/Android → `native-mobile-developer`.)
+
 ## Deep-dive references (load on demand)
 
 Detailed frontend knowledge lives in `references/` — read the relevant file when the task calls for it:
 - `references/react-expertise.md` — React 19/Next.js, TypeScript, state management, data fetching, styling (Tailwind v4), forms, performance, testing, accessibility.
 - `references/templates.md` — component, hook, and feature templates.
 - `references/patterns.md` — same-origin iframe embedding; self-documenting code style.
+- `references/angular.md` — Angular (Signals, NgRx SignalStore, zoneless) — the full Angular playbook.
+- `references/vue.md` — Vue 3 (Composition API, Pinia, Nuxt 3) — the full Vue playbook.
+- `references/flutter.md` — Flutter/Dart cross-platform mobile — the full Flutter playbook.
+- `references/javafx-desktop/overview.md` — JavaFX desktop apps (FXML, MVVM, Scene Builder, jpackage) — load for desktop UIs (not web).
 
 ## Visual Inspection (MCP Browser Tools)
 
@@ -183,15 +200,9 @@ Document work in Jira ticket comments at key milestones:
 
 ---
 
-## Extended Skills
+## Stacks & specializations
 
-Invoke these specialized skills for framework-specific tasks:
-
-| Skill | When to Use |
-|-------|-------------|
-| **angular-developer** | Angular 21 projects, Signals, zoneless, NgRx, standalone components |
-| **vue-developer** | Vue 3 projects, Composition API, Pinia, Nuxt 3 SSR |
-| **flutter-developer** | Flutter/Dart mobile apps, Riverpod, cross-platform |
+These are **`references/`, not separate agents** — loaded by the **Stack selection** router above. See the references index for Angular, Vue, Flutter, and JavaFX desktop.
 
 ---
 

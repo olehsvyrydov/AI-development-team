@@ -133,7 +133,7 @@ docs/
 
 ### README Template
 
-```markdown
+````markdown
 # {Project Name}
 
 {One-line description}
@@ -166,7 +166,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 ## License
 
 {License type}
-```
+````
 
 ### Changelog Entry
 
@@ -202,7 +202,7 @@ C4Context
 
 ### API Endpoint Documentation
 
-```markdown
+````markdown
 ## {METHOD} {/path}
 
 {Brief description}
@@ -237,7 +237,7 @@ C4Context
   "error": "description"
 }
 ```
-```
+````
 
 ## Checklist
 

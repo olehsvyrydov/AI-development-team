@@ -1,6 +1,6 @@
 ---
 name: native-mobile-developer
-description: "Native Mobile Developer (/ios, /android) — builds true native apps: iOS with Swift/SwiftUI and Android with Kotlin/Jetpack Compose. Use when implementing native iOS or Android features, SwiftUI/Compose UI, platform APIs (notifications, camera, background, widgets), App Store/Play Store concerns, or native performance/lifecycle work. Invoke alongside /ui for design and /arch for app architecture. NOT for cross-platform React Native or Flutter (that's the frontend developer / flutter-developer) — this is native Swift/Kotlin."
+description: "Native Mobile Developer (/ios, /android) — builds true native apps: iOS with Swift/SwiftUI and Android with Kotlin/Jetpack Compose. Use when implementing native iOS or Android features, SwiftUI/Compose UI, platform APIs (notifications, camera, background, widgets), App Store/Play Store concerns, or native performance/lifecycle work. Invoke alongside /ui for design and /arch for app architecture. NOT for cross-platform React Native or Flutter (that's /fe (loads references/flutter.md)) — this is native Swift/Kotlin."
 ---
 
 # Native Mobile Developer (/ios · /android)
@@ -14,7 +14,7 @@ Consult the **`workflow-engine`** skill first.
 
 ## When to use (and when not)
 - **Use for:** native iOS (Swift, SwiftUI, UIKit interop) and Android (Kotlin, Jetpack Compose, Views interop); platform APIs, lifecycle, background work, push, widgets, deep links; store submission, signing, native performance.
-- **Hand off instead when:** React Native / Expo → **/fe**; Flutter → **flutter-developer**; backend/API → **/be**; visual design → **/ui**.
+- **Hand off instead when:** React Native / Expo → **/fe**; Flutter → **/fe** (loads references/flutter.md); backend/API → **/be**; visual design → **/ui**.
 
 ## Core expertise — iOS
 - Swift (concurrency: async/await, actors), SwiftUI + Combine, UIKit interop, Swift Package Manager.

@@ -93,7 +93,7 @@ Use `WebSearch` and `WebFetch` for current best practices, version updates, CVEs
 
 Invoke these skills for cross-cutting concerns:
 - **frontend-developer**: For React/TypeScript implementation patterns
-- **frontend-reviewer**: For code quality standards, test review
+- **/rev** (frontend review reference): For code quality standards, test review
 - **e2e-tester**: For end-to-end test integration
 - **secops-engineer**: For security testing patterns
 

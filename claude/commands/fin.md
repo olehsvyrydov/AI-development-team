@@ -45,4 +45,4 @@ For other jurisdictions, specify your location for accurate advice.
 
 ---
 
-*Invoke the uk-accountant or accountant skill for full financial expertise.*
+*Invoke the accountant skill (load references/uk/ for UK tax) for full financial expertise.*

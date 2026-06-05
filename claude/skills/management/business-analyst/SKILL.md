@@ -223,8 +223,8 @@ Invoke these skills for cross-cutting concerns:
 - **solution-architect**: For technical feasibility assessment
 - **technical-writer**: For documentation, requirements formatting
 - **scrum-master**: For sprint planning integration
-- **uk-accountant**: For financial compliance, tax implications
-- **uk-legal-counsel**: For legal requirements, compliance
+- **/fin**: For financial compliance, tax implications
+- **/legal**: For legal requirements, compliance
 - **ui-designer**: For user research collaboration, UX analysis
 
 ## Templates

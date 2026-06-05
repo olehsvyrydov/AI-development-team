@@ -2,192 +2,83 @@
 description: List all available AI Development Team agents and their specializations
 ---
 
-# AI Development Team - Agent Directory
+# AI Development Team — Agent Directory
 
-> **Both naming conventions are supported.** Role-based commands (`/arch`, `/be`, `/fe`) are the standard. Persona aliases (`/jorge`, `/james`, `/finn`) are team-specific names that invoke the same agent.
+> **Two-tier roster.** A **core team** (15) you'll use on most work, plus **optional specialists** loaded when a task needs them. **Technology stacks are not separate agents** — a role agent (e.g. `/be`) detects the project's stack and loads the matching `references/<stack>.md`. So "build a FastAPI endpoint" still routes to `/be`.
+>
+> **Naming:** role commands (`/arch`, `/be`, `/fe`) are standard; persona aliases (`/jorge`, `/james`, `/finn`) invoke the same agent.
 
-## Quick Reference
+## Core team (15)
 
-| Role Command | Alias | Name | Role |
-|-------------|-------|------|------|
-| `/po` | `/max` | Max | Product Owner - vision, backlog, Epics |
-| `/sm` | `/luda` | Luda | Scrum Master - orchestration, ceremonies |
-| `/ba` | `/anna` | Anna | Business Analyst - research, requirements |
-| `/arch` | `/jorge` | Jorge | Solution Architect - architecture (**MANDATORY**) |
-| `/secops` | `/soren` | Soren | Security Engineer - security (**MANDATORY**) |
-| `/fin` | `/inga` | Inga | UK Accountant - finance, tax, VAT |
-| `/legal` | `/alex` | Alex | UK Legal Counsel - compliance, GDPR |
-| `/ui` | `/aura` | Aura | UI/UX Designer - design systems |
-| `/fe` | `/finn` | Finn | Frontend Dev - React/TS/Next.js |
-| `/be` | `/james` | James | Backend Dev - Java/Spring Boot |
-| `/rev` | — | Rev | Code Reviewer - quality, security |
-| `/qa` | `/rob` | Rob | QA Engineer - test cases, manual testing |
-| `/e2e` | `/adam` | Adam | E2E Tester - Playwright, performance |
-| `/mkt` | `/apex` | Apex | Marketing - GTM, positioning |
-| `/verify` | — | — | QA Auditor - completeness + workflow gates |
-| `/ai` | — | — | AI/LLM App Engineer - RAG, agents, evals |
-| `/data` | — | — | Data Engineer - ETL/ELT, dbt, warehouse |
-| `/dba` | — | — | Database Admin - schema, indexing, migrations |
-| `/sre` | — | — | SRE / Observability - SLOs, incidents |
-| `/perf` | — | — | Performance Engineer - Web Vitals, profiling |
-| `/ux` | — | — | UX Researcher - usability, IA, research |
-| `/ios` `/android` | — | — | Native Mobile - Swift/SwiftUI, Kotlin/Compose |
+| Role Command | Alias | Name | Role | Stacks / specializations (as references) |
+|---|---|---|---|---|
+| `/po` | `/max` | Max | Product Owner — vision, backlog, Epics | — |
+| `/ba` | `/anna` | Anna | Business Analyst — research, requirements | — |
+| `/sm` | `/luda` | Luda | Scrum Master — orchestration, ceremonies | — |
+| `/arch` | `/jorge` | Jorge | Solution Architect (**MANDATORY** gate) | GraphQL |
+| `/secops` | `/soren` | Soren | Security Engineer (**MANDATORY** gate) | — |
+| `/fe` | `/finn` | Finn | Frontend Developer | React/Next (default), Angular, Vue, Flutter, JavaFX desktop |
+| `/be` | `/james` | James | Backend Developer | Java/Spring (default), Kotlin, Python/FastAPI, PHP/Laravel, Quarkus, Kafka, HMRC MTD |
+| `/rev` | — | Rev | Code Reviewer | backend (Java/Kotlin), frontend (TS/React), PHP |
+| `/qa` | `/rob` | Rob | Test Designer — test cases, BDD specs | — |
+| `/e2e` | `/adam` | Adam | E2E Automation — Playwright | Cucumber/BDD |
+| `/ui` | `/aura` | Aura | UI/UX Designer — design systems | JavaFX desktop design |
+| `/devops` | — | — | DevOps Engineer — IaC, CI/CD, K8s | Terraform/OpenTofu |
+| `/legal` | `/alex` | Alex | Legal Counsel — contracts, GDPR, risk | UK / English & Welsh law (persona Alex) |
+| `/fin` | `/inga` | Inga | Accountant & CFO — tax, VAT, forecasting | UK tax (persona Inga), UK self-employment |
+| `/mkt` | `/apex` | Apex | Marketing — GTM, positioning | — |
+
+## Optional specialists (load on demand)
+
+| Command | Agent | Domain |
+|---|---|---|
+| `/ai` | ai-engineer | LLM product features: RAG, agents, prompts, evals, guardrails |
+| `/data` | data-engineer | Analytics pipelines: ETL/ELT, dbt, warehouse, streaming |
+| `/dba` | dba | OLTP databases: schema, indexing, query tuning, migrations |
+| `/sre` | sre-engineer | Reliability: SLOs, observability, incidents (owns `RELIABILITY_OK`) |
+| — | mlops-engineer | ML/inference infra: model serving, pipelines, cost |
+| `/ux` | ux-researcher | User research: interviews, usability, IA, personas |
+| `/perf` | performance-engineer | Web Vitals, profiling, budgets, load testing (owns `PERF_OK`) |
+| `/ios` `/android` | native-mobile-developer | Native iOS (Swift/SwiftUI) & Android (Kotlin/Compose) |
+| `/verify` | verify | QA Auditor — completeness + workflow gates (`APPROVAL_GATE`, `VERIFIED`) |
+| `/kai` | kai | Self-improving meta-agent (`/retro` learnings → skill updates) |
+| — | technical-writer | C4 diagrams, ADRs, API docs, READMEs |
+| — | backend-tester | Backend unit/integration TDD (JUnit, Testcontainers) |
+| — | frontend-tester | Frontend unit/integration (Vitest, RTL) |
+
+## Stacks & specializations live as references (not agents)
+
+Folded into their parent role's `references/` — the role agent self-routes to them:
+
+| Parent | References |
+|---|---|
+| `/fe` | `angular.md`, `vue.md`, `flutter.md`, `javafx-desktop/` |
+| `/be` | `kotlin.md`, `fastapi.md`, `laravel.md`, `quarkus.md`, `spring-kafka.md`, `hmrc-api/` |
+| `/rev` | `backend-review.md`, `frontend-review.md`, `php-review.md` |
+| `/e2e` | `cucumber-bdd.md` |
+| `/arch` | `graphql.md` |
+| `/devops` | `terraform.md` |
+| `/ui` | `javafx-design/` |
+| `/legal` | `uk/` |
+| `/fin` | `uk/`, `uk-self-employment.md` |
 
 ## Additional Commands
 
 | Command | Description |
-|---------|-------------|
+|---|---|
 | `/bug` or `/issue` | Report a bug — triggers investigation workflow |
-| `/design-sprint` | Orchestrate UI design -> frontend implementation |
-| `/reviewer` | Alias for `/rev` |
-| `/tester` | Alias for `/qa` |
+| `/design-sprint` | Orchestrate UI design → frontend implementation |
+| `/reviewer` | Alias for `/rev` · `/tester` alias for `/qa` |
 | `/agents` | This directory |
-
----
-
-## Core Agents (18)
-
-### Development Team
-
-| Agent | Expertise | Trigger When |
-|-------|-----------|--------------|
-| **backend-developer** | Spring Boot 4, Java 25, WebFlux, JPA | Backend APIs, microservices, database |
-| **frontend-developer** | React 19, TypeScript 5.8, Zustand, TanStack | UI components, state management, SPA |
-| **devops-engineer** | Kubernetes, GKE, Helm, CI/CD, Docker | Deployment, infrastructure, pipelines |
-| **solution-architect** | System design, CQRS, Saga, Event Sourcing | Architecture decisions, patterns, ADRs |
-| **mlops-engineer** | Spring AI, LLM integration, Gemini, OpenAI | AI features, prompt engineering, ML ops |
-
-### Quality Assurance Team
-
-| Agent | Expertise | Trigger When |
-|-------|-----------|--------------|
-| **backend-tester** | JUnit 6, Mockito, Testcontainers, StepVerifier | Java unit/integration tests, TDD |
-| **frontend-tester** | Vitest, React Testing Library, MSW | React component tests, hook tests |
-| **e2e-tester** | Playwright, cross-browser, visual testing | End-to-end tests, user flows |
-| **backend-reviewer** | Checkstyle, SpotBugs, SonarQube | Java code review, quality gates |
-| **frontend-reviewer** | ESLint, Prettier, accessibility | React/TS code review, a11y |
-
-### Security & Operations
-
-| Agent | Expertise | Trigger When |
-|-------|-----------|--------------|
-| **secops-engineer** | OWASP Top 10:2025, Threat Modeling, OAuth 2.1, Supply Chain, Zero Trust, AI/LLM Security | Security reviews, threat modeling, auth, compliance |
-| **technical-writer** | C4 diagrams, ADRs, API docs, Mermaid | Documentation, changelogs, README |
-
-### Design
-
-| Agent | Expertise | Trigger When |
-|-------|-----------|--------------|
-| **ui-designer** | React, Tailwind v4, Framer Motion, Design Systems | Landing pages, dashboards, mobile UI, brand design |
-
-### Product & Process
-
-| Agent | Expertise | Trigger When |
-|-------|-----------|--------------|
-| **product-owner** | User stories, backlog, prioritization | Sprint planning, acceptance criteria |
-| **scrum-master** | Agile ceremonies, orchestration, retrospectives | Sprint management, blockers |
-| **business-analyst** | SWOT, market research, requirements | Competitive analysis, BRDs |
-
-### Legal & Compliance
-
-| Agent | Expertise | Trigger When |
-|-------|-----------|--------------|
-| **uk-legal-counsel** | UK Law, GDPR, Employment, Contracts, Penalties | Legal advice, contracts, compliance, risk |
-
-### Finance & Accounting
-
-| Agent | Expertise | Trigger When |
-|-------|-----------|--------------|
-| **uk-accountant** | Corporation Tax, VAT, PAYE, R&D Credits, IR35, UK GAAP | Tax planning, financial forecasting, compliance |
-
-### Marketing
-
-| Agent | Expertise | Trigger When |
-|-------|-----------|--------------|
-| **apex** | Go-To-Market, Positioning, Growth Funnels, SEO | Product launches, marketing strategy |
-
-### New Specialist Agents (8)
-
-| Agent | Command | Expertise | Workflow gate |
-|-------|---------|-----------|---------------|
-| **ai-engineer** | `/ai` | RAG, agents, prompts, evals, guardrails | — (SECOPS usually triggered) |
-| **data-engineer** | `/data` | ETL/ELT, dbt, warehouse, streaming, quality | — |
-| **dba** | `/dba` | schema, indexing, query tuning, migrations, replication | ARCH trigger |
-| **sre-engineer** | `/sre` | SLOs, observability, incidents, runbooks | `RELIABILITY_OK` (soft) |
-| **performance-engineer** | `/perf` | Web Vitals, profiling, latency, budgets, load | `PERF_OK` (soft) |
-| **ux-researcher** | `/ux` | interviews, usability, IA, journey maps, synthesis | — |
-| **native-mobile-developer** | `/ios` `/android` | Swift/SwiftUI, Kotlin/Compose | — |
-| **verify** | `/verify` | completeness audit + workflow gates | `APPROVAL_GATE`, `VERIFIED` |
-
-> Overlapping domains? See **`claude/skills/disambiguation.md`** for routing (e.g. `/ai` vs `mlops-engineer`, `/data` vs `/dba`, `/sre` vs `/perf` vs `devops-engineer`, `/ux` vs `/ui`, native vs `/fe`).
-
----
-
-## Extended Skills (15)
-
-Specialized skills that extend core agents:
-
-### Frontend Extensions (extend frontend-developer)
-
-| Skill | Specialization |
-|-------|----------------|
-| **angular-developer** | Angular 21, Signals, NgRx SignalStore, zoneless |
-| **vue-developer** | Vue 3, Composition API, Pinia, Nuxt 3 |
-| **flutter-developer** | Flutter 3.27, Dart 3.6, Riverpod, cross-platform |
-
-### Backend Extensions (extend backend-developer)
-
-| Skill | Specialization |
-|-------|----------------|
-| **kotlin-developer** | Kotlin 2.1, Coroutines, Ktor, KMP |
-| **spring-kafka-integration** | Kafka producers/consumers, Reactor Kafka, DLT |
-| **quarkus-developer** | Quarkus 3.17, native builds, Panache, GraalVM |
-| **fastapi-developer** | FastAPI, Python async, Pydantic, SQLAlchemy |
-| **hmrc-api-specialist** | MTD API, OAuth2 Gov Gateway, SA103 |
-
-### Desktop Extensions
-
-| Skill | Specialization |
-|-------|----------------|
-| **javafx-developer** | JavaFX 21+, FXML, MVVM, Scene Builder |
-| **javafx-designer** | JavaFX CSS styling, Ikonli icons, component design |
-
-### DevOps Extensions (extend devops-engineer)
-
-| Skill | Specialization |
-|-------|----------------|
-| **terraform-specialist** | Terraform 1.10, GCP provider, modules, state |
-
-### Testing Extensions (extend e2e-tester)
-
-| Skill | Specialization |
-|-------|----------------|
-| **cucumber-bdd** | Cucumber 7, Gherkin, BDD, living documentation |
-
-### Architecture Extensions (extend solution-architect)
-
-| Skill | Specialization |
-|-------|----------------|
-| **graphql-developer** | Apollo Server/Federation, DataLoader, subscriptions |
-
-### Compliance Extensions
-
-| Skill | Specialization |
-|-------|----------------|
-| **uk-self-employment** | SA103, Class 4 NI, allowable expenses, MTD |
-
----
 
 ## Workflow
 
 ```
-/po+/ba -> /arch -> /secops -> [/fin] -> [/legal] -> [/ui] -> /fe|/be -> /rev -> /qa + /e2e
-Vision+AC  Arch.   Security  Finance   Legal     Design  TDD Dev    Review  Testing
+/po+/ba -> /arch -> /secops -> [/fin] -> [/legal] -> [/ui] -> /fe|/be -> /rev -> /qa + /e2e -> /verify
 ```
+All gating is proportional and enforced by the `workflow-engine` skill. See `claude/skills/disambiguation.md` to pick the right agent when domains overlap.
 
 ## Skill Locations
 
 - **User-level** (global): `~/.claude/skills/`
-- **Project-level**: `.claude/skills/`
-
-Project skills override user skills with the same name.
+- **Project-level**: `.claude/skills/` (overrides user skills with the same name)

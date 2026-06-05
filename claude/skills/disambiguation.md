@@ -1,6 +1,9 @@
 # Agent Disambiguation Matrix
 
-With ~48 agents, several domains overlap. Use this matrix to pick the **right** specialist and avoid mis-triggering. When in doubt, prefer the most specific agent for the task's *primary* concern; invoke a second agent only for a genuinely separate concern.
+The roster is a **15-agent core team + optional specialists** (see `commands/agents.md`). Use this matrix to pick the **right** agent when domains overlap — prefer the most specific agent for the task's *primary* concern; invoke a second only for a genuinely separate concern.
+
+**Technology stacks are NOT separate agents.** The role agent detects the stack and loads the matching reference — so this matrix is about *roles*, not stacks:
+`Angular/Vue/Flutter/JavaFX → /fe` · `Kotlin/FastAPI/Laravel/Quarkus/Kafka/HMRC → /be` · `GraphQL → /arch` · `Terraform → /devops` · `Cucumber/BDD → /e2e` · `language reviewers → /rev` · `UK law/tax → /legal, /fin`.
 
 ## By task → agent
 
@@ -10,25 +13,24 @@ With ~48 agents, several domains overlap. Use this matrix to pick the **right** 
 | Training/fine-tuning models, model serving, ML infra | **mlops-engineer** | /ai (app-level LLM features) |
 | Analytics pipelines, ETL/ELT, dbt, warehouse, streaming | **/data** | /dba (OLTP), /be (app logic) |
 | OLTP schema, indexing, query tuning, migrations, replication | **/dba** | /data (analytics), /perf (whole-request latency) |
-| App/business logic, REST APIs, server code | **/be** | /data, /dba, /ai |
-| React/Next or React Native/Expo, web/TS UI | **/fe** | native iOS/Android, Flutter |
-| Native iOS (Swift/SwiftUI) or Android (Kotlin/Compose) | **/ios · /android** | /fe (RN), flutter-developer |
-| Flutter / Dart cross-platform | **flutter-developer** | /fe, native mobile |
-| Reliability: SLOs, monitoring, alerting, incidents, runbooks | **/sre** | devops-engineer (infra/CI-CD), /perf (speed) |
-| Infra provisioning, IaC, Kubernetes, CI/CD pipelines | **devops-engineer** | /sre (reliability), /secops (hardening) |
+| App/business logic, REST APIs, server code (any backend stack) | **/be** | /data, /dba, /ai |
+| Web or cross-platform UI — React/Next, Angular, Vue, Flutter, JavaFX | **/fe** | native iOS/Android (Swift/Kotlin) |
+| Native iOS (Swift/SwiftUI) or Android (Kotlin/Compose) | **/ios · /android** | /fe (web / React-Native / Flutter) |
+| Reliability: SLOs, monitoring, alerting, incidents, runbooks | **/sre** | /devops (infra/CI-CD), /perf (speed) |
+| Infra provisioning, IaC (Terraform), Kubernetes, CI/CD pipelines | **/devops** | /sre (reliability), /secops (hardening) |
 | Speed/efficiency: Web Vitals, profiling, latency, budgets, load tests | **/perf** | /sre (uptime), /dba (schema) |
-| Security review, threat modeling, auth, secrets, supply chain | **/secops** | /sre, devops-engineer |
+| Security review, threat modeling, auth, secrets, supply chain | **/secops** | /sre, /devops |
 | Visual/UI design, design systems, prototypes | **/ui (Aura)** | /ux (research) |
 | User research, usability tests, personas, journeys, IA | **/ux** | /ui (visual), /ba (business reqs) |
 | Business/market requirements, AC, process models | **/ba** | /ux (user research), /po (vision) |
 | Completeness audit + workflow gates (APPROVAL_GATE/VERIFIED) | **/verify** | /rev (code quality), /qa (test design) |
-| Code quality review | **/rev** | /verify (completeness), /perf (speed) |
-| Test case design / BDD | **/qa** | /e2e (automation), /verify |
-| E2E test automation | **/e2e** | /qa (design) |
+| Code quality review (any language) | **/rev** | /verify (completeness), /perf (speed) |
+| Test case design / BDD specs | **/qa** | /e2e (automation), /verify |
+| E2E test automation (Playwright, Cucumber) | **/e2e** | /qa (design) |
 
 ## Common confusions (rules of thumb)
 - **/ai vs mlops-engineer:** does the task ship an LLM *feature in the product* (→ /ai) or *operate ML infrastructure* (→ mlops-engineer)?
 - **/data vs /dba:** is the database for *analytics* (→ /data) or the *application's live OLTP store* (→ /dba)?
-- **/sre vs /perf:** is the goal *staying up* (→ /sre) or *being fast* (→ /perf)? vs **devops-engineer** = *standing it up*.
+- **/sre vs /perf:** is the goal *staying up* (→ /sre) or *being fast* (→ /perf)? vs **/devops** = *standing it up*.
 - **/ux vs /ui:** *evidence about users* (→ /ux) vs *the visual design* (→ /ui).
-- **native mobile vs /fe:** *Swift/Kotlin native* (→ /ios·/android) vs *React Native/Flutter cross-platform* (→ /fe / flutter-developer).
+- **native mobile vs /fe:** *Swift/Kotlin native* (→ /ios·/android) vs *web / React-Native / Flutter cross-platform* (→ /fe, which loads the matching stack reference).

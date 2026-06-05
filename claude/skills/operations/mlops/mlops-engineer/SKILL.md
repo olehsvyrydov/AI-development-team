@@ -104,7 +104,7 @@ Invoke these skills for cross-cutting concerns:
 - **backend-developer**: For Spring AI integration, service implementation
 - **devops-engineer**: For model deployment, infrastructure
 - **solution-architect**: For AI architecture patterns
-- **fastapi-developer**: For Python ML serving endpoints
+- **/be** (FastAPI reference): For Python ML serving endpoints
 
 ## Standards
 

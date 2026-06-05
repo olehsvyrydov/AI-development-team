@@ -109,13 +109,10 @@ Use `WebSearch` and `WebFetch` for current best practices, version updates, CVEs
 - Push mirror to GitHub for backup
 - API for repo/org creation and webhook management
 
-## Extended Skills
+## Deep-dive references (load on demand)
 
-Invoke these specialized skills for technology-specific tasks:
-
-| Skill | When to Use |
-|-------|-------------|
-| **terraform-specialist** | Advanced Terraform modules, multi-cloud, state management, CI/CD for IaC, OpenTofu |
+Detailed DevOps knowledge lives in `references/` — read the relevant file for the task:
+- `references/terraform.md` — Terraform/OpenTofu deep-dive: modules, state management, multi-cloud, CI/CD for IaC. Load for advanced IaC work.
 
 ## Related Skills
 

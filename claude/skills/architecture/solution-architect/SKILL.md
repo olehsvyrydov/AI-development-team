@@ -124,6 +124,7 @@ Detailed domain knowledge lives in `references/` — read the relevant file when
 - `references/data-and-storage.md` — database (sharding/replication/pooling/NewSQL), CDN & edge, data-platform architectures.
 - `references/security-architecture.md` — STRIDE/threat modeling, Zero Trust, authn, API & supply-chain security, privacy by design.
 - `references/event-driven.md` — Saga, CQRS, Event Sourcing, transactional outbox, exactly-once, Kafka patterns.
+- `references/graphql.md` — GraphQL API design: schema design, resolvers, Apollo Server/Federation, DataLoader, subscriptions. Load for GraphQL APIs.
 
 ## Architecture Design Methodology
 
