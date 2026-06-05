@@ -279,7 +279,7 @@ public class DashboardController implements Initializable {
     <center>
         <ScrollPane fitToWidth="true" styleClass="content-scroll">
             <VBox spacing="20" styleClass="content">
-                <padding><Insets topRightBottomLeft="20"/></padding>
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
 
                 <!-- Summary Cards -->
                 <HBox spacing="20" styleClass="summary-cards">
@@ -544,7 +544,7 @@ public class ThreadingHelper {
 
 ### GraalVM Native Image for JavaFX
 
-```java
+```json
 // GraalVM reflection configuration
 // src/main/resources/META-INF/native-image/reflect-config.json
 [
