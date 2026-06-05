@@ -12,12 +12,16 @@
 #   3. <framework>/claude/workflow/workflow.yaml   (shipped default)
 # ============================================================================
 version: 1
-preset: regulated
+preset: regulated   # DEMO pins this to show the FULL gate board. Under regulated, the
+                    # `always_required` list (see Presets) forces several gates regardless
+                    # of change-class — so the proportionality note below is overridden here.
 
 # --- 1. Proportionality: right-size process to the change -------------------
 # The agent FIRST classifies the change, then runs the matching track. This is
 # the fix for "the workflow gets ignored": a trivial fix should not drag a
 # story through arch + security + approval.
+# (NOTE: this demo pins `regulated`, which always-requires the heavy gates; the
+#  default `solo` preset forces nothing and lets proportionality do its job.)
 change_classes:
   trivial:     { desc: "typo, comment, doc tweak, rename, formatting",                track: floor_min }
   small:       { desc: "localized change; one file/function; no new deps/interfaces", track: floor }
