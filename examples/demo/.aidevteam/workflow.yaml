@@ -1,16 +1,15 @@
 # ============================================================================
-# ai-dev-team — canonical workflow definition
+# ai-dev-team — DEMO project workflow OVERRIDE (not the shipped default)
 # ----------------------------------------------------------------------------
-# This file is the single source of truth for HOW the team works. It is loaded
-# on demand by the `workflow-engine` skill (kept out of always-on context so
-# CLAUDE.md/AGENTS.md stay lean). Edit this file to customize the workflow.
+# This is a project-level override (./.aidevteam/workflow.yaml) for the bundled
+# Hub demo. It pins the `regulated` preset so the demo board shows the full set
+# of gates — but keeps every backend FILE-BASED (no Jira/Confluence), so the
+# demo needs no setup.
 #
-# Resolution order (first found wins):
-#   1. ./.aidevteam/workflow.yaml      (this project)
+# Resolution order the engine/Hub use (first found wins):
+#   1. ./.aidevteam/workflow.yaml      (this project — THIS file)
 #   2. ~/.aidevteam/workflow.yaml      (your user default)
-#   3. <framework>/claude/workflow/workflow.yaml   (shipped default — this file)
-#
-# The default is `solo`: proportional, file-based, zero paid accounts.
+#   3. <framework>/claude/workflow/workflow.yaml   (shipped default)
 # ============================================================================
 version: 1
 preset: regulated
@@ -90,5 +89,5 @@ presets:
   regulated:
     always_required: [ARCH_APPROVED, SECOPS_APPROVED, APPROVAL_GATE, CODE_REVIEWED, VERIFIED, RELIABILITY_OK]
     default_track: full
-    tickets: jira
-    knowledge_base: confluence
+    tickets: backlog_md
+    knowledge_base: markdown
