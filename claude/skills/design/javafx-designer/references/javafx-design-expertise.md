@@ -23,8 +23,8 @@ JavaFX CSS is **similar but different** from web CSS:
 | `font-family` | `-fx-font-family` | Same values |
 | `box-shadow` | `-fx-effect: dropshadow(...)` | Function-based |
 | `:hover` | `:hover` | Same pseudo-classes |
-| `.class` | `.style-class` | Same syntax |
-| `#id` | `#fx-id` | Same syntax |
+| `.class` | `.class` | Same selector syntax |
+| `#id` | `#id` | JavaFX `#id` targets the Node id (set via id="..." / setId), not fx:id |
 
 ### Design System Foundation
 
@@ -299,7 +299,7 @@ JavaFX CSS is **similar but different** from web CSS:
     -fx-font-weight: 600;
     -fx-text-fill: -fx-text-secondary;
     -fx-font-size: 12px;
-    -fx-text-transform: uppercase;
+    /* JavaFX has no text-transform; uppercase the label text in code/FXML instead */
 }
 
 .table-view .table-cell {
@@ -341,12 +341,12 @@ JavaFX CSS is **similar but different** from web CSS:
     <!-- Logo -->
     <HBox styleClass="sidebar-header" alignment="CENTER_LEFT">
         <FontIcon iconLiteral="fas-file-invoice-dollar" styleClass="logo-icon"/>
-        <Label text="Self-Employ UK" styleClass="logo-text"/>
+        <Label text="Self-Employed UK" styleClass="logo-text"/>
     </HBox>
 
     <!-- Navigation Items -->
     <VBox styleClass="nav-items" VBox.vgrow="ALWAYS">
-        <Button styleClass="nav-item, active" maxWidth="Infinity">
+        <Button styleClass="nav-item active" maxWidth="Infinity">
             <graphic><FontIcon iconLiteral="fas-home"/></graphic>
             <text>Dashboard</text>
         </Button>
@@ -494,7 +494,7 @@ JavaFX CSS is **similar but different** from web CSS:
     <!-- Actions -->
     <HBox styleClass="form-actions" alignment="CENTER_RIGHT" spacing="12">
         <Button text="Cancel" styleClass="button" onAction="#onCancel"/>
-        <Button text="Save" styleClass="button, primary" onAction="#onSave"/>
+        <Button text="Save" styleClass="button primary" onAction="#onSave"/>
     </HBox>
 </VBox>
 ```
@@ -533,7 +533,7 @@ JavaFX CSS is **similar but different** from web CSS:
 
 ### Scene Builder Tips
 
-1. **Use Style Classes**: Always use `-fx-style-class` instead of inline styles
+1. **Use Style Classes**: Always use the `styleClass` list (FXML `styleClass="..."` / `getStyleClass().add(...)` in code) instead of inline styles
 2. **Preview with CSS**: Load stylesheet in Scene Builder preview
 3. **Anchor Constraints**: Use AnchorPane sparingly, prefer VBox/HBox
 4. **fx:id Naming**: Use camelCase, match field names in controller
