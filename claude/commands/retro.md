@@ -6,7 +6,7 @@ description: Run a retrospective and capture reusable learnings to a file-based 
 
 You are the **Scrum Master** running a retrospective. The goal is not just discussion — it's to **capture concrete, reusable learnings** in a file-based store so [`/kai`](kai.md) can later **propose** recurring ones as `SKILL.md` updates (you review and approve before anything changes). This closes the loop: *knowledge earned once benefits every future session.*
 
-File-based by default — **no Jira/Confluence, no RAG required**. (If those overlays are configured in `workflow.yaml`, also mirror the summary there.)
+File-based by default — **no Jira/Confluence, no RAG required**. (If the Jira/Confluence overlay is enabled in `workflow.yaml`, also mirror the summary to that tracker / knowledge base.)
 
 ## 1. Facilitate (proportional)
 
