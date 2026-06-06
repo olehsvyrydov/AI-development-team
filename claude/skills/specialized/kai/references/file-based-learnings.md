@@ -36,11 +36,13 @@ Kai **never auto-applies**. Capture (`/retro`) and propose (`/kai`) are separate
 
 | `type` | Target section |
 |---|---|
-| `gotcha`, `pattern` (a mistake to avoid) | `## Anti-Patterns` |
+| `gotcha` (a mistake to avoid) | `## Anti-Patterns` |
+| `pattern` (a good default to adopt) | `## Best Practices` / `## Standards` |
 | `checklist` | `## Checklist` / review checklist |
 | `domain` | `## Core expertise` or a `references/<domain>.md` |
-| `pattern` (a good default) | `## Best Practices` / `## Standards` |
 | `tooling` | `## Standards` (tools/config) |
+
+(`gotcha` = "don't do this"; `pattern` = "do this". A learning is one or the other, so each routes to exactly one section.)
 
 ## Overlay: RAG (optional)
 
