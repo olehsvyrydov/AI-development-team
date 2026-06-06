@@ -6,10 +6,13 @@
 # of gates — but keeps every backend FILE-BASED (no Jira/Confluence), so the
 # demo needs no setup.
 #
-# Resolution order the engine/Hub use (first found wins):
-#   1. ./.aidevteam/workflow.yaml      (this project — THIS file)
-#   2. ~/.aidevteam/workflow.yaml      (your user default)
-#   3. <framework>/claude/workflow/workflow.yaml   (shipped default)
+# Resolution order the Hub uses (first found wins):
+#   1. ./.aidevteam/workflow.yaml                  (this project — THIS file)
+#   2. ~/.aidevteam/workflow.yaml                  (your user default)
+#   3. ./.claude/workflow/workflow.yaml            (a project-scope framework install)
+#   4. <framework>/claude/workflow/workflow.yaml   (the bundled/shipped default)
+# (The engine's documented contract is steps 1–2 → shipped default; the Hub also
+#  recognizes a project-scope install at step 3.)
 # ============================================================================
 version: 1
 preset: regulated   # DEMO pins this to show the FULL gate board. Under regulated, the
