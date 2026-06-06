@@ -110,5 +110,5 @@ Every proposal must pass all three checks:
 - [ ] All proposals pass universality, dedup, and actionability checks
 - [ ] Target section is SAFE or CAUTIOUS (never UNSAFE)
 - [ ] Proposal content is formatted for the target section type
-- [ ] Re-ingestion triggered after applying proposals
+- [ ] Source learnings marked `status: promoted` after applying (and, with the RAG overlay only, re-ingestion triggered)
 - [ ] Source learnings are traceable in proposal metadata
