@@ -6,6 +6,7 @@ This file records all notable changes to the project. Versioning roughly follows
 
 ### Added
 - **ai-engineer reference libraries** — vendor-neutral, research-grounded, fact-checked `references/rag-patterns.md` (chunking · embeddings · retrieval · reranking · context · eval) and `references/agentic-workflows.md` (loops · tools · memory · multi-agent · control). The first of the LLM/RAG/multi-agent reference libraries the role agent self-routes to.
+- **ai-engineer reference libraries (cont.)** — vendor-neutral, research-grounded, fact-checked `references/llm-frameworks.md` (framework selection by control model · MCP roles/transports/spec revisions) and `references/prompt-engineering.md` (structured output · repair loops · context engineering). Extends the LLM/RAG/multi-agent reference set.
 
 ## [5.0.0] — 2026-06-06
 
