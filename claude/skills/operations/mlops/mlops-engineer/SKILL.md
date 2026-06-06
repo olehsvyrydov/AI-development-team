@@ -265,6 +265,30 @@ public class JobAnalysisService {
 
 ---
 
+## Benchmark & eval-harness integrity
+
+### Experiment harness must exercise the REAL system, not a convenience facade
+
+When A/B-testing or ablating a capability, the treatment arm MUST drive the exact production path that carries the differentiator — not a facade/convenience wrapper that may silently omit it. A facade that drops the treatment context collapses the treatment arm into the control: the benchmark then measures nothing, yet still emits plausible numbers (a false negative no statistics can recover). **Guard it with a symmetric present/absent test:** seed a unique sentinel that can ONLY reach the model via the feature path, then assert the treatment arm's rendered prompt/payload CONTAINS it and the control/ablation arm's does NOT. Capture and assert on what the dependency actually received (the system prompt / request), not the runner's return value — if treatment ≡ control at the wire, the contrast is vacuous regardless of green tests downstream.
+
+### Fail-closed integrity gates before any measurement
+
+A benchmark/eval that can silently measure the wrong thing (corpus↔reference overlap → memorisation instead of generalisation; train/test contamination; leakage) is worse than none — it manufactures false confidence. Run the integrity precondition FIRST and make its failure LOUD and FATAL: throw, refuse to emit any artefact, and name every offending pair. Audit control/neutral items too. Prove the gate with a RED test: feed it a deliberately contaminated fixture and assert it throws AND that nothing was written (fail-closed, not fail-reported). Keep the detector conservative toward rejection (shared N-gram shingles tolerate incidental common words but catch a lifted phrase).
+
+### No-fabrication discipline in measurement code
+
+Report every metric exactly as measured, even below target — no path rounds toward, massages, or hides a sub-target result. A metric needing a human or expensive/external input is an explicit EMPTY slot (e.g. `seniorApproval = null`), never auto-filled or defaulted; the blank is the honest state until the real input arrives. Handle vacuous cases explicitly and documentedly (recall with zero actual positives → 1.0, flagged as vacuous). **CI asserts MECHANICS, not magic numbers:** confusion-matrix arithmetic is self-consistent (`recall == TP/(TP+FN)`), a CI brackets its point estimate, "feature on" ≥ "feature off" in direction — NOT a specific uplift or a hard `>= 0.80` (pinning a magic value bakes in a fluke or invites tuning the code to the number).
+
+### Deterministic mock on the default path; real dependency opt-in only
+
+Expensive or non-deterministic external dependencies (paid model APIs, network) must be MOCK-ONLY on the default/CI path: zero network, zero cost, byte-identical across runs. The mock is a deterministic substitute (echo/record the inputs), explicitly NOT a quality model, and its outputs are never presented as real results. Put the real path behind ALL of: an explicit opt-in tag/task, the API key present, an explicit target arg, and a PRINTED cost estimate before any paid call — the default run must be physically unable to reach the paid path (prove it: a default-path test asserts zero live calls / zero billed tokens). Seed every RNG (shuffle order, bootstrap resampling, per-run seed) from a base seed so (inputs, seed) reproduces byte-identical output — verify with a two-run byte-equality test.
+
+### Emit tidy per-observation data; do inference in the right tool
+
+The runner/harness emits one tidy row per observation (long format: one measurement per row; condition/model/item as columns) plus descriptive aggregates (means, bootstrap CIs) — and stops there. Inferential statistics (mixed-effects, regression, hypothesis tests) belong in a committed analysis notebook against that tidy CSV, NOT hand-rolled in the application language. The tidy CSV is the contract between the two. Pre-register the analysis model (formula, primary contrast, target) in the notebook so it can't be retrofitted to the result; clear notebook outputs before commit (no data baked into version control).
+
+---
+
 ## Investigation Quality Standards
 
 ### Pipeline Correctness Before Performance (MANDATORY)

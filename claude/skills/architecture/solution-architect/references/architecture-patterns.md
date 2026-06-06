@@ -421,3 +421,13 @@ module.exports = {
 
 ---
 
+## Distinct SPA route vs proxied API path (reverse-proxy prefix collision)
+
+If a reverse proxy routes a path prefix (e.g. `/thing/*`) to the backend, do **not** also use that same path as the client-side router path for the SPA page that *consumes* it — the edge will serve the SPA's HTML shell to the data fetcher, yielding a confusing "HTML where JSON expected" failure. Name the page route distinctly (e.g. page `/review-queue` consuming API `/api/queue`). Add the new proxied path to the edge-routing smoke test when introducing it. A recurring foot-gun — worth checking on every new proxied prefix.
+
+## Anti-pattern — the leaky port boundary
+
+A "pure" port in `core` that takes a persistence / RBAC / framework type as an argument is forced to reach into those subsystems, acquiring a back-edge that breaks the dependency direction and makes it un-unit-testable without infrastructure. **Resolve all facts at the edge** (an application-level service does the RBAC / auth / supersession / IO lookups) and pass the port a **neutral, already-resolved value object** — plain ids, titles, flags, lists — not the live persistence/RBAC type. The port then stays pure, deterministic, and testable in isolation, even for a feature that genuinely depends on RBAC data. This is the mechanism that keeps the pure-port/edge-does-IO split from silently regressing.
+
+---
+
