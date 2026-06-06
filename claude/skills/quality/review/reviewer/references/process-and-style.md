@@ -115,7 +115,7 @@ When reviewing code, enforce self-documenting code principles:
 ### What to Accept:
 - **Javadoc on public APIs** -- documents contract, parameters, return values, exceptions
 - **"Why" comments** -- explains non-obvious business rules or workarounds
-- **TODO with ticket** -- `// TODO: LJ-123 refactor after X` is acceptable
+- **TODO with ticket** -- `// TODO: PROJ-123 refactor after X` is acceptable
 
 ### Example:
 ```java
