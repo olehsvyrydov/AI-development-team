@@ -60,7 +60,7 @@ After **each meaningful change**, update the living documentation so it reflects
 - **Release notes** — generate them from a commit range (e.g. `git log <prev-tag>..HEAD`), grouped by Conventional-Commit type, audience-readable.
 - **PR-description template** — maintain and apply a template with **Summary / Changes / Risk / Test evidence** sections.
 - **Recommend CI gates** — a commitlint-style message check (enforce Conventional Commits, reject `Co-Authored-By`) and a docs-freshness gate (fail when public API/CLI/config changes land without README/CHANGELOG updates).
-- **Both audiences current** — keep developer docs (README/CHANGELOG) *and* stakeholder docs current; reuse stakeholder-readable Gherkin feature files (see **e2e-tester** `references/cucumber-bdd.md`) as human-readable proof artifacts inside the docs rather than re-describing behaviour prose-style.
+- **Both audiences current** — keep developer docs (README/CHANGELOG) *and* stakeholder docs current; reuse stakeholder-readable Gherkin feature files (see the e2e-tester [`cucumber-bdd.md`](../../quality/testing/e2e-tester/references/cucumber-bdd.md)) as human-readable proof artifacts inside the docs rather than re-describing behaviour prose-style.
 
 > **Templates, commitlint config, PR template, and CI-gate snippets:** [references/commit-and-docs.md](references/commit-and-docs.md)
 

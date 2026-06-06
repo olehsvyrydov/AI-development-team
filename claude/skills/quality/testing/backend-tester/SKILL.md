@@ -170,7 +170,7 @@ fun `should call repository with correct id`() = runTest {
 
 ## Gherkin for stakeholder-facing acceptance & benchmarks
 
-For acceptance sign-off, SLO benchmarks, or cost/compliance guarantees that a non-engineer must trust, express the proof as a plain Given/When/Then Gherkin scenario whose passing run IS the proof — tagged (`@benchmark`/`@acceptance`/`@slo`) and using `Scenario Outline` + `Examples` so the bar (latency budget, accuracy floor, cost ceiling) is visible in a data table rather than buried in code. See the **e2e-tester** `references/cucumber-bdd.md` "Benchmark & Stakeholder-Facing Scenarios" section for the full pattern; back the steps with API-level assertions here.
+For acceptance sign-off, SLO benchmarks, or cost/compliance guarantees that a non-engineer must trust, express the proof as a plain Given/When/Then Gherkin scenario whose passing run IS the proof — tagged (`@benchmark`/`@acceptance`/`@slo`) and using `Scenario Outline` + `Examples` so the bar (latency budget, accuracy floor, cost ceiling) is visible in a data table rather than buried in code. See the e2e-tester [`cucumber-bdd.md`](../e2e-tester/references/cucumber-bdd.md) "Benchmark & Stakeholder-Facing Scenarios" section for the full pattern; back the steps with API-level assertions here.
 
 ## Related Skills
 
