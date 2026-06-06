@@ -1,8 +1,8 @@
 # Persistent-Memory Coding Assistant — Vision & Problem Statement
 
-> This document describes an **aspirational concept**, not committed work. It
-> captures _why_ such a tool would be valuable; it does not commit to building
-> one, to a timeline, or to a commercial model.
+> This document describes the **vision and the problem it solves**. The tool is
+> **not yet implemented** — this is a forward-looking plan, not a record of
+> shipped work.
 
 ## The Problem
 
@@ -25,7 +25,7 @@ A **terminal-based coding assistant** (and eventually, perhaps, an IDE) that:
 2. **Remembers intelligently** — Before sending any prompt to Claude, the app queries the database for relevant past context and injects it. Claude always has the right information at hand.
 3. **Maintains long history** — Full conversation history is recoverable across sessions, days, weeks. Not just summaries — the actual exchanges.
 4. **Compacts without loss** — When the context window fills, the app compacts intelligently: full detail goes to the DB, a smart summary stays in context. No information is destroyed.
-5. **Could scale beyond personal use** — Potentially shippable as a single native binary serving individual developers or teams. Whether it ever becomes a product — open source or commercial — is an open question, not a goal.
+5. **Could scale beyond personal use** — Potentially shippable as a single native binary serving individual developers or teams.
 
 ## User Story
 
@@ -33,7 +33,7 @@ A **terminal-based coding assistant** (and eventually, perhaps, an IDE) that:
 > I want my AI assistant to remember everything we've discussed and discovered,
 > so that I can trust it as a long-term collaborator rather than a session-scoped tool.
 
-## Success Criteria (if pursued)
+## Success Criteria
 
 - Zero information loss between sessions
 - Context retrieval latency < 100ms
@@ -41,9 +41,3 @@ A **terminal-based coding assistant** (and eventually, perhaps, an IDE) that:
 - Works with any project (not tied to AI Dev Team framework)
 - Startup time < 200ms
 - Memory footprint < 100MB (without Qdrant)
-
-## Open Questions
-
-- **Build vs adopt** — This need might be met by an existing tool (Onyx, Obsidian, mem0) rather than a new build. See [Market Research](market-research.md).
-- **Open source vs commercial** — Undecided. The concept does not assume a commercial model.
-- **Branding** — No name chosen; this is a concept only.

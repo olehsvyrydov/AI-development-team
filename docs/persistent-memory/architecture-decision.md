@@ -1,8 +1,8 @@
 # Persistent-Memory Coding Assistant — Suggested Architecture
 
-**Status**: Proposed — **not committed**. Applies _only if_ the concept is built
-from scratch rather than satisfied by adopting an existing tool (Onyx,
-Obsidian, mem0 — see [Market Research](market-research.md)).
+**Status**: Proposed — a suggested stack. Applies _if_ the tool is built from
+scratch rather than satisfied by adopting an existing tool (Onyx, Obsidian,
+mem0 — see [Market Research](market-research.md)).
 **Date**: 2026-02-24
 **Suggested stack**: Java/Quarkus with GraalVM Native Image
 
@@ -168,12 +168,12 @@ External:
 - Project-scoped vs global memory
 - Memory deduplication and cleanup
 
-### Phase 4: Advanced / Optional (undecided)
+### Phase 4: Advanced / Optional
 - Team memory sharing (Qdrant Cloud)
 - Cost tracking dashboard
 - Plugin system
 - IDE integration (VS Code, IntelliJ)
 - Usage analytics
 
-> Whether any phase beyond a personal prototype is pursued — and under what
-> licensing or commercial model — is an open question, not a plan.
+> These phases are indicative, not a fixed commitment; scope and ordering may
+> change as the project develops.
