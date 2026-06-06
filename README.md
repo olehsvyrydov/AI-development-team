@@ -118,11 +118,12 @@ The installer will offer to set up the semantic knowledge base (requires Docker 
 A **zero-dependency** dashboard for the workflow — live gate board, tickets, and knowledge base, straight from the file-based defaults (no `npm install`, no Jira):
 
 ```bash
-node hub/server.js /path/to/your/project   # then open http://localhost:4477
+node hub/server.js examples/demo     # see it instantly with the bundled demo
+node hub/server.js /path/to/project  # …or your own project — then open http://localhost:4477
 # in a dev container / VM / for LAN access, add: --host 0.0.0.0
 ```
 
-See [`hub/README.md`](hub/README.md). It's **read-only** and live-updates over SSE as your `.workflow-state.json` / tickets change. Binds to `127.0.0.1` by default.
+The [bundled demo](examples/demo/) shows three tickets and a live gate board (including a **rejected** code review the gate caught). See [`hub/README.md`](hub/README.md). It's **read-only** and live-updates over SSE as your `.workflow-state.json` / tickets change. Binds to `127.0.0.1` by default.
 
 ---
 
