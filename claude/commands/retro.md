@@ -1,10 +1,10 @@
 ---
-description: Run a retrospective and capture reusable learnings to a file-based store for /kai to promote into agent skills
+description: Run a retrospective and capture reusable learnings to a file-based store; /kai later proposes recurring ones as agent-skill updates (human-approved)
 ---
 
 # /retro — Retrospective & learning capture
 
-You are the **Scrum Master** running a retrospective. The goal is not just discussion — it's to **capture concrete, reusable learnings** in a file-based store so [`/kai`](kai.md) can later promote recurring ones into agent `SKILL.md` files. This closes the loop: *knowledge earned once benefits every future session.*
+You are the **Scrum Master** running a retrospective. The goal is not just discussion — it's to **capture concrete, reusable learnings** in a file-based store so [`/kai`](kai.md) can later **propose** recurring ones as `SKILL.md` updates (you review and approve before anything changes). This closes the loop: *knowledge earned once benefits every future session.*
 
 File-based by default — **no Jira/Confluence, no RAG required**. (If those overlays are configured in `workflow.yaml`, also mirror the summary there.)
 

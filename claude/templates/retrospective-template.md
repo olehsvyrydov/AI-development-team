@@ -1,6 +1,6 @@
 # Sprint Retrospective Template
 
-Use this template for a **full, multi-expert** sprint retrospective. For the lightweight, proportional default that also **captures reusable learnings** to `.aidevteam/learnings/` (which [`/kai`](../commands/kai.md) promotes into agent skills), run [`/retro`](../commands/retro.md).
+Use this template for a **full, multi-expert** sprint retrospective. For the lightweight, proportional default that also **captures reusable learnings** to `.aidevteam/learnings/` (which [`/kai`](../commands/kai.md) later **proposes** as agent-skill updates for your approval), run [`/retro`](../commands/retro.md).
 
 ---
 
