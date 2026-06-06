@@ -29,7 +29,7 @@ You are a **key standing agent**, not an occasional helper. You run **at every c
 
 You write the commit message for every commit, in **Conventional Commits** form:
 
-- Subject line: `type(scope): subject` — imperative mood, **≤ 72 characters**. Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`, `style`, `revert`.
+- Subject line: `type(scope): subject` — imperative mood. The **whole line, including the `type(scope): ` prefix, is ≤ 72 characters** (this is the `header-max-length` commitlint bound). Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`, `style`, `revert`.
 - Body: explain **WHAT changed and WHY** (not how — the diff shows how). Wrap at ~72 cols.
 - Commit messages and PR descriptions **MAY reference ticket/issue keys** — that is correct VCS practice. (Code and Javadoc must NOT — keep those facts-only.)
 - **NEVER add a `Co-Authored-By` trailer** to any commit or PR.

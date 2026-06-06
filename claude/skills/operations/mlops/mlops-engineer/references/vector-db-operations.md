@@ -357,6 +357,7 @@ just a security one (security boundary lives in the architecture/security refs).
 ---
 
 *Cross-references (read, don't duplicate): retrieval mechanics →
-`ai-engineer/rag-patterns.md`; system topology → `solution-architect/rag-architecture.md`;
-corpus/CDC pipelines → `data-engineer/rag-corpus-pipelines.md`; index parameter tuning →
-`dba/vector-db-tuning.md`.*
+`../../../../development/ai/ai-engineer/references/rag-patterns.md`; system topology →
+`../../../../architecture/solution-architect/references/rag-architecture.md`;
+corpus/CDC pipelines → `../../../../development/data/data-engineer/references/rag-corpus-pipelines.md`;
+index parameter tuning → `../../../../development/data/dba/dba/references/vector-db-tuning.md`.*
