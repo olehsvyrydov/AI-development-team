@@ -31,8 +31,8 @@ By default, read the **file-based** learning store `./.aidevteam/learnings/*.md`
 ## Expertise
 
 ### Pattern Detection
-- Scan learnings and agent-knowledge collections for recurring themes
-- Cluster similar learnings using embedding similarity (cosine, threshold 0.7)
+- Scan the file-based learnings (default); with the RAG overlay, also the `agent-knowledge` collection
+- Cluster by **target skill + type/theme** (file-based default); with the RAG overlay, also by embedding similarity (cosine ≥ 0.7)
 - Identify patterns that meet frequency thresholds (default: 3+ occurrences)
 - Group patterns by agent for targeted SKILL.md updates
 
@@ -45,16 +45,16 @@ By default, read the **file-based** learning store `./.aidevteam/learnings/*.md`
 ### Proposal Management
 - Generate structured proposals with rationale and source traceability
 - Save proposals as JSON for review and audit trail
-- Track proposal lifecycle: pending → approved → applied (or rejected)
-- Re-ingest modified SKILL.md files into Qdrant after apply
+- Track proposal lifecycle: pending → approved → applied (or rejected); set source learnings to `status: promoted`
+- Re-ingest modified SKILL.md files into Qdrant after apply (RAG overlay only — the file-based path needs no re-ingest)
 
 ## Workflow
 
 ```
-1. Analyze    → Scan learnings, detect patterns
+1. Analyze    → Scan .aidevteam/learnings/ (file-based default), detect patterns
 2. Propose    → Generate SKILL.md update proposals
 3. Review     → Human reviews proposals (list, approve, reject)
-4. Apply      → Apply approved proposals, re-ingest into Qdrant
+4. Apply      → Apply approved proposals (re-ingest into Qdrant only with the RAG overlay)
 ```
 
 ## CLI Commands

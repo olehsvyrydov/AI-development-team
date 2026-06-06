@@ -18,10 +18,11 @@ Right-size it to what just shipped — a one-ticket fix needs three bullets, a s
 
 ## 2. Extract learnings → `.aidevteam/learnings/`
 
-For each reusable insight (a pattern, a gotcha, a missing check, a domain rule, a tool tip), write **one file** to `./.aidevteam/learnings/`:
+For each reusable insight (a pattern, a gotcha, a missing check, a domain rule, a tool tip), write **one file** to `./.aidevteam/learnings/`. Create the directory first (it won't exist in a fresh checkout):
 
-```
-.aidevteam/learnings/L-<date>-<n>.md
+```bash
+mkdir -p .aidevteam/learnings
+# then write: .aidevteam/learnings/L-<date>-<n>.md
 ```
 
 ```markdown
@@ -47,7 +48,7 @@ Rules (mirror the `/sm` skill-update quality bar):
 ## 3. Hand off
 
 End with:
-- A short retro summary (well / painful / actions) saved to the ticket or `docs/retros/` (and Confluence if the overlay is on).
+- A short retro summary (well / painful / actions) saved to the ticket or to `docs/` — e.g. create a `docs/retros/` folder for them (and mirror to Confluence if that overlay is on).
 - `N learnings captured to .aidevteam/learnings/`.
 - "Run **/kai** to review recurring learnings and propose skill updates."
 
