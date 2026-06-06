@@ -172,6 +172,12 @@ Detailed domain knowledge lives in `references/` — read the relevant file when
 | **Cost** | Budget? Cloud spend limits? | < $50K/month |
 | **Observability** | Logging, tracing, metrics requirements? | Full distributed tracing |
 
+### Cross-Cutting Concerns (route through AOP)
+
+Treat **timing, metrics, cost accounting, logging, tracing, and audit** as cross-cutting concerns that belong in **aspects**, not hand-woven into every business method. When you specify a cross-cutting requirement in an ADR or guardrail, prescribe an aspect-based approach — Spring AOP where a Spring context exists, AspectJ otherwise — so core logic stays clean and the instrumentation is applied uniformly via annotations/pointcuts. Reserve inline instrumentation for the rare case where an aspect genuinely cannot express the concern. This keeps the codebase honest about what is business logic versus plumbing, and makes instrumentation changes a single-aspect edit rather than a scattered refactor.
+
+**The inverse is equally a guardrail: AOP is for genuine cross-cutting concerns ONLY — never specify domain or business logic inside an aspect.** Especially the logic that is the *meaningful difference* between code paths (e.g. an experiment's independent variable, a branch-specific business rule) belongs in explicit, visible code — not buried in a pointcut where it is invisible at the call site. If a proposed aspect would change *what* the system decides rather than *how* it is observed, it is misplaced domain logic; pull it back into the explicit path.
+
 ### Architecture Tradeoff Analysis Method (ATAM)
 
 ATAM is a structured approach to evaluate architectures against quality attributes. Developed by SEI at Carnegie Mellon University.

@@ -528,3 +528,36 @@ Audit-critical writes should **fail loud** (throw if a load-bearing audit/event 
 - **Never throw out of the core evaluation for an advisory write.** Catch + log; the primary result must still return. (Don't copy the fail-loud audit rule onto a telemetry path.)
 - **Skip rather than fabricate an FK.** When a required foreign key for the optional write is absent (e.g. an attribution user/space id isn't available), **skip** the write rather than invent a synthetic id that orphans the row or violates the constraint. Make the skip observable (log once at startup / debug), and prefer a config that supplies a real system id when the write is wanted by default.
 
+## Java micro-standards (instance vs static, regex, RNG)
+
+These complement the universal **Engineering Standards** in the SKILL.md — they are Java/JVM specific.
+
+### Prefer instance methods over `static` for logic on a bean/service
+
+Logic that conceptually belongs to a service/bean must be an **instance method**, not `static` — OOP keeps behaviour polymorphic, mockable, and DI-friendly. A class converted into a DI bean must not retain `static` logic helpers. Reserve `static` for:
+
+- genuinely stateless **pure utilities** (document *why* it is static),
+- idiomatic record/value **static factories** (`builder()`, `from()`, `of()`),
+- the JVM `main` family.
+
+Rationale: instance methods participate in injection and overriding; `static` logic on a bean is untestable-by-substitution and signals a misplaced responsibility.
+
+### Cache compiled regex `Pattern`s
+
+Compile a regex **once** — a `static final Pattern` constant, an instance field, or `computeIfAbsent` over a map for dynamic patterns — never call `Pattern.compile(...)` per invocation on a hot path. The compiled `Pattern` is immutable and thread-safe; per-call recompilation is pure wasted CPU and allocation.
+
+```java
+// BAD — recompiled on every call
+boolean isSlug(String s) { return Pattern.compile("^[a-z0-9-]+$").matcher(s).matches(); }
+
+// GOOD — compiled once, reused
+private static final Pattern SLUG = Pattern.compile("^[a-z0-9-]+$");
+boolean isSlug(String s) { return SLUG.matcher(s).matches(); }
+```
+
+### Seeded reproducible RNG = `SplittableRandom(seed)`
+
+For **reproducible** pseudo-randomness use `new SplittableRandom(seed)` — modern, seedable, and faster than `java.util.Random`. **Never use `ThreadLocalRandom` for reproducibility** — it cannot be seeded (`setSeed` throws `UnsupportedOperationException`). Use `SecureRandom` *only* for unpredictable security draws (tokens, salts, keys), never for reproducible sequences.
+
+When a reviewer questions a stdlib call's portability or behaviour, prefer an **explicit deterministic algorithm** (e.g. write out Fisher–Yates for a shuffle) over leaning on a subtle or newer overload — determinism must be guaranteed by the chosen primitive, not assumed.
+
