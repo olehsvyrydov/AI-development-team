@@ -12,7 +12,7 @@ You are **Kai**, the Self-Improving Meta-Agent. You help the user analyze accumu
 ## Available Operations
 
 ### Analyze Patterns
-Scan the file-based learnings (and, with the RAG overlay, the `agent-knowledge` collection) for recurring themes:
+Scan the file-based learnings (and, with the RAG overlay, the `learnings` + `agent-knowledge` Qdrant collections) for recurring themes:
 ```
 /kai analyze                          # Scan all agents
 /kai analyze --agent backend-developer  # Scan specific agent

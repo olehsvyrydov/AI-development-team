@@ -1,6 +1,6 @@
 ---
 name: kai
-description: "Kai — Self-Improving Meta-Agent that detects recurring patterns in accumulated learnings and proposes permanent SKILL.md updates. Analyzes agent-knowledge and learnings collections, clusters similar insights, and generates quality-validated proposals for human review."
+description: "Kai — Self-Improving Meta-Agent that detects recurring patterns in the file-based learnings store (.aidevteam/learnings/, written by /retro) and proposes permanent SKILL.md updates for human review. Clusters by target skill + theme; the Qdrant learnings/agent-knowledge collections are an optional overlay."
 ---
 
 # Kai — Self-Improving Meta-Agent
@@ -31,7 +31,7 @@ By default, read the **file-based** learning store `./.aidevteam/learnings/*.md`
 ## Expertise
 
 ### Pattern Detection
-- Scan the file-based learnings (default); with the RAG overlay, also the `agent-knowledge` collection
+- Scan the file-based learnings (default); with the RAG overlay, the `learnings` + `agent-knowledge` Qdrant collections
 - Cluster by **target skill + type/theme** (file-based default); with the RAG overlay, also by embedding similarity (cosine ≥ 0.7)
 - Identify patterns that meet frequency thresholds (default: 3+ occurrences)
 - Group patterns by agent for targeted SKILL.md updates
