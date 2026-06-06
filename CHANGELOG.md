@@ -2,6 +2,11 @@
 
 This file records all notable changes to the project. Versioning roughly follows [semver](https://semver.org), and dates are written in ISO-8601.
 
+## [Unreleased]
+
+### Added
+- **ai-engineer reference libraries** — vendor-neutral, research-grounded, fact-checked `references/rag-patterns.md` (chunking · embeddings · retrieval · reranking · context · eval) and `references/agentic-workflows.md` (loops · tools · memory · multi-agent · control). The first of the LLM/RAG/multi-agent reference libraries the role agent self-routes to.
+
 ## [5.0.0] — 2026-06-06
 
 The **OSS-first, vendor-neutral** release: a proportional enforced workflow, a leaner roster, a universal installer, pluggable backends, and a local dashboard. No paid accounts required by default; works in **Claude Code, Cursor, Kiro, and VS Code**.
