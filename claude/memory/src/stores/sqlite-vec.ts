@@ -199,8 +199,16 @@ export class SqliteVecStore implements VectorStore {
   }
 }
 
-/** Map a collection name to a safe SQL table name (hyphens are illegal unquoted). */
-const vecTable = (c: string): string => `vec_${c.replace(/-/g, "_")}`;
+/**
+ * Map a collection name to a safe SQL table name (hyphens are illegal unquoted).
+ * Validates against the fixed allowlist first — collection can reach SQL from the
+ * MCP server with a user-supplied value, so this is the injection guard (C-review).
+ */
+const ALLOWED = new Set<string>(COLLECTIONS);
+function vecTable(c: string): string {
+  if (!ALLOWED.has(c)) throw new Error(`unknown collection: ${c}`);
+  return `vec_${c.replace(/-/g, "_")}`;
+}
 const str = (v: unknown): string => (v == null ? "" : String(v));
 function safeParse(s: string): Record<string, unknown> {
   try {

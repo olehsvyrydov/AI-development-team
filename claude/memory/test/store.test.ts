@@ -59,6 +59,29 @@ test("sqlite-vec store: upsert, KNN query, and project isolation", async (t) => 
   }
 });
 
+test("sqlite-vec store: rejects an unknown collection (SQL-injection guard)", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aidt-mem-"));
+  const store = await SqliteVecStore.open(path.join(dir, "memory.db"));
+  if (!store) {
+    t.skip("sqlite-vec not installed");
+    return;
+  }
+  try {
+    await store.ensureCollections(DIMS);
+    await assert.rejects(
+      () => store.query('session-context"; DROP TABLE vec_session_context; --', vec(1), null, 5),
+      /unknown collection/,
+    );
+    await assert.rejects(
+      () => store.upsert("evil; DELETE", [point("x", 1, { project_id: "p", scope: "project", chunk_type: "decision" })]),
+      /unknown collection/,
+    );
+  } finally {
+    store.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("sqlite-vec store: refuses a dims mismatch (C-dim)", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aidt-mem-"));
   const dbPath = path.join(dir, "memory.db");

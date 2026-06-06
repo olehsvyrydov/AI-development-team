@@ -9,7 +9,7 @@
  */
 import fs from "node:fs";
 import { parseTranscript } from "../transcript.ts";
-import { scrubChunks } from "../scrub.ts";
+import { scrubChunks, scrubSecrets } from "../scrub.ts";
 import { renderDigest } from "../digest.ts";
 import { loadMemoryConfig } from "../lib/config.ts";
 import { projectId } from "../lib/project-id.ts";
@@ -73,7 +73,7 @@ async function main(): Promise<void> {
 
   // Also persist the current workflow-state digest as a single recovery row.
   try {
-    const digest = renderDigest(cwd);
+    const digest = scrubSecrets(renderDigest(cwd)); // C12: scrub before egress
     const [dv] = await embedder.embedDocuments([digest]);
     await store.upsert("session-context", [
       {
