@@ -324,7 +324,7 @@ public class DesktopContextProvider {
 
     private String buildUserAgent() {
         return String.format(
-            "UK-Self-Employment-Manager/%s (%s; %s; Java %s; JavaFX %s)",
+            "Example-Tax-App/%s (%s; %s; Java %s; JavaFX %s)",
             getAppVersion(),
             System.getProperty("os.name"),
             System.getProperty("os.version"),
