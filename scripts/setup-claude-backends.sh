@@ -29,7 +29,7 @@ TARGET_DIR="$HOME/.claude"
 BACKUP_DIR="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
 
 # Version
-VERSION="4.1.0"
+VERSION="5.0.0"
 
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════════╗"

@@ -99,9 +99,12 @@ Gates fire **proportionally** (by change-class / trigger / preset) via the `work
 
 ## Version
 
-- **Version**: 4.1.0
-- **Release Date**: 2026-02-23
+- **Version**: 5.0.0 (see `CHANGELOG.md`)
+- **Release Date**: 2026-06-06
+- **Editors**: Claude Code, Cursor, Kiro, VS Code (universal `install.sh`)
 - **Skills**: 29 (15-agent core team + optional specialists; tech stacks as references)
 - **Commands**: 47 slash commands
 - **Templates**: 6 document templates
-- **RAG**: AI Team Memory (Qdrant + voyage-code-3)
+- **Backends**: pluggable adapters — file-based by default; Jira/Confluence/OpenMemory/Penpot/etc. optional
+- **Hub**: zero-dependency workflow dashboard (`node hub/server.js`)
+- **RAG**: AI Team Memory (Qdrant + voyage-code-3, optional)

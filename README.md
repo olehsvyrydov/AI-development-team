@@ -590,8 +590,11 @@ source .venv/bin/activate && pytest
 
 ## Version History
 
+See [`CHANGELOG.md`](CHANGELOG.md) for full details.
+
 | Version | Date | Changes |
 |---------|------|---------|
+| 5.0.0 | 2026-06-06 | **OSS-first release** — proportional workflow engine, 48→29 roster, universal multi-editor installer, pluggable adapters, local Hub |
 | 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, context persistence, RAG knowledge base, migration scripts |
 | 4.0.0 | 2025-01-02 | Restructured for easy `~/.claude` deployment, installer |
 | 3.1.0 | 2024-12-27 | Approval gates, Aura design verification |
