@@ -2,6 +2,15 @@
 
 This file records all notable changes to the project. Versioning roughly follows [semver](https://semver.org), and dates are written in ISO-8601.
 
+## [Unreleased]
+
+### Added
+- **ai-engineer reference libraries** — vendor-neutral, research-grounded, fact-checked `references/rag-patterns.md` (chunking · embeddings · retrieval · reranking · context · eval) and `references/agentic-workflows.md` (loops · tools · memory · multi-agent · control). The first of the LLM/RAG/multi-agent reference libraries the role agent self-routes to.
+- **ai-engineer reference libraries (cont.)** — vendor-neutral, research-grounded, fact-checked `references/llm-frameworks.md` (framework selection by control model · MCP roles/transports/spec revisions) and `references/prompt-engineering.md` (structured output · repair loops · context engineering). Extends the LLM/RAG/multi-agent reference set.
+- **ai-engineer reference libraries (complete)** — vendor-neutral, research-grounded, fact-checked `references/eval-frameworks.md` (eval methodology · golden sets · metrics · LLM-as-judge bias · regression/statistical care · production observability · framework landscape) and `references/structured-output.md` (reliability spectrum · schema-constrained vs grammar-constrained decoding · JSON Schema 2020-12 subset · validate/retry/fallback loops). Completes the ai-engineer reference set (rag-patterns, agentic-workflows, llm-frameworks, prompt-engineering, eval-frameworks, structured-output).
+- **solution-architect reference libraries** — vendor-neutral, research-grounded, fact-checked `references/rag-architecture.md` (retrieval topology · caching tiers · freshness/consistency SLOs) and `references/agentic-systems-architecture.md` (agent topologies · control · observability/governance · OTel GenAI conventions). System-design altitude — complements the ai-engineer implementation references.
+- **data/mlops/dba vector reference libraries** — vendor-neutral, research-grounded, fact-checked references, lane-separated by concern: data-engineer `references/rag-corpus-pipelines.md` (RAG corpus ingestion · chunking · embedding pipelines · freshness), mlops-engineer `references/vector-db-operations.md` (vector-DB ops · serving · scaling · monitoring), and dba `references/vector-db-tuning.md` (index tuning · ANN parameters · query/storage optimization). Extends the LLM/RAG/multi-agent reference set across data-pipeline, ops, and index-tuning altitudes.
+
 ## [5.0.0] — 2026-06-06
 
 The **OSS-first, vendor-neutral** release: a proportional enforced workflow, a leaner roster, a universal installer, pluggable backends, and a local dashboard. No paid accounts required by default; works in **Claude Code, Cursor, Kiro, and VS Code**.
