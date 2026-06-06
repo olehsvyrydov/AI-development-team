@@ -21,6 +21,17 @@
 | Expertise | one generalist | **role specialists** + on-demand stack references |
 | Lock-in | often tool-specific | **vendor-neutral**, 4 editors, free defaults |
 
+### See it live
+
+A zero-dependency dashboard for the workflow — a live **gate board**, tickets, and knowledge base over SSE. Try the bundled demo (no setup, no `npm install`):
+
+```bash
+node hub/server.js examples/demo   # → http://localhost:4477
+```
+
+<!-- Hero GIF: record the demo board and save it as docs/hub-demo.gif, then replace
+     this comment with:  ![AI Dev Team Hub — live gate board](docs/hub-demo.gif) -->
+
 ---
 
 ## Team at a Glance
