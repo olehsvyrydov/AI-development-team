@@ -245,6 +245,26 @@ Every review comment MUST include a severity label:
 5. **Request code changes over explanations** -- if code needs a comment to explain it, suggest simplifying the code or adding an in-code comment
 6. **Be specific** -- always include file:line references and concrete examples
 
+## Resolving Inline Review Comments (Authoritative Checklist)
+
+When a PR already carries **inline review comments** (from a human reviewer or an automated reviewer), those comments are the **authoritative checklist** — not the maintainer's higher-level chat themes. Pull every inline comment and resolve each **one-by-one**: either apply the change, or reply on that specific thread with a reasoned explanation for not doing so. Do this **before or alongside** any holistic refactor — never let a sweeping rewrite silently skip individual threads.
+
+- Treating a chat-level summary as the complete spec **misses** comments that were only raised inline.
+- Every inline thread gets a per-thread outcome: a commit that addresses it, or a reply explaining why it stands.
+- Reconcile at the end: every open thread is either resolved by a change or answered.
+
+## Engineering Standards Enforcement
+
+Enforce these on every review; severity is fixed — do not downgrade. (Tooling commands, the grep scan, and language-specific detail live in the language references.)
+
+- **Process artifacts in code/Javadoc — BLOCKING.** Code and Javadoc state **facts only** (behaviour, params, returns, exceptions, side effects). Any ticket/issue ID, decision-record number/letter, review-condition code (e.g. `C1`, `D4`), agent/persona name, or sprint/milestone name inside source or Javadoc is BLOCKING — it belongs in the commit message or PR, never the artifact. (Ticket keys in commit/PR text are correct VCS practice — do not block those.)
+- **Narration comments — flag.** Comments that merely restate the next line add noise; require deletion or replacement with a genuine non-obvious WHY-comment.
+- **Cryptic names — flag.** Single-letter / abbreviated identifiers outside tiny lambda/loop scope (`d`, `l`, `proc`, `mgr`, `tmp`) must carry value/role + action.
+- **Non-facts Javadoc — flag.** Javadoc that narrates history, restates the method name, or omits the contract (missing `@param`/`@return`/`@throws` on a non-trivial public API).
+- **>6-param constructor without a builder — flag.** Require a builder (static builder for records) so call sites are readable and order-independent.
+- **`static` logic on a DI bean — flag.** Service logic should be an instance method (mockable, injectable); `static` only for pure utilities, record factories, and `main`.
+- **Domain logic hidden in an aspect — flag.** AOP is cross-cutting only — the meaningful difference between code paths must stay explicit.
+
 
 ## Deep-dive references (load on demand)
 
@@ -358,6 +378,8 @@ Detailed review material lives in `references/` — read the relevant file when 
 11. **Ignoring comment clutter**: Flag obvious/redundant comments that add noise instead of value
 12. **Reviewing code without questioning the problem**: Well-written code that solves the wrong problem is still wrong
 13. **Reviewing against implementation details**: Review against behavioral AC (Given/When/Then), not file paths or code snippets
+14. **Skipping inline review threads**: Inline comments are the authoritative checklist — resolve each one-by-one (a change or a per-thread reply) before any holistic refactor; never treat chat-level themes as the complete spec
+15. **Passing process artifacts in code**: Ticket IDs, ADR/condition codes, persona/sprint names in source or Javadoc are BLOCKING — they belong in commits, never the artifact
 
 ---
 

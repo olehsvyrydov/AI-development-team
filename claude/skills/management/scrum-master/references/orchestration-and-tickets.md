@@ -59,6 +59,7 @@ Use this to decide what to do next at any point:
 11. **Retrospective-driven sprint planning** — retro action items from the previous sprint should directly become tickets in the next sprint backlog. Track retro-to-ticket conversion rate.
 12. **Reserve 15-20% capacity for trailing tech debt** — when planning feature sprints, reserve capacity for tech debt discovered during implementation or carried from previous sprints
 13. **Mandatory retro after major feature sprints** — retrospectives are non-negotiable for sprints exceeding 30 SP or introducing a new feature category
+14. **Walk PR inline comments as the authoritative checklist** — when a PR has inline review comments, ensure each is resolved one-by-one (a change addressing it, or a per-thread reply with reasoning) BEFORE/alongside any holistic refactor. Inline comments are the authoritative checklist — never let the team treat a maintainer's chat-level themes as the complete spec and silently skip individual threads
 
 ### Workflow Enforcement Checklist
 

@@ -128,6 +128,84 @@ For compile-time null safety, recommend projects adopt **NullAway + Error Prone 
 - NullAway catches null dereferences at compile time with <10% build overhead
 - See: spring.io/blog/2025/03/10/null-safety-in-spring-apps-with-jspecify-and-null-away/
 
+## Engineering Standards Enforcement (BLOCKING + Flag)
+
+Enforce these on every backend review. Severity is fixed — do not downgrade.
+
+### 1. Process artifacts in code/Javadoc — BLOCKING
+
+Code and Javadoc must state **facts only**: what the code does, how to use it, parameters, returns, exceptions, side effects. Any internal process reference inside source or Javadoc is a **BLOCKING** finding:
+
+- ticket / issue IDs (e.g. `ABC-1421`)
+- decision-record numbers or letters (e.g. `ADR-12`, `ADR-D4`)
+- review-condition codes (e.g. `C1`, `D4`)
+- agent / persona names, sprint or milestone names, "as discussed in round N"
+
+Grep scan:
+```bash
+grep -rniE '(//|/\*|\*).*([A-Z]{2,}-[0-9]+|ADR[- ]?[0-9A-Z]+|condition [A-Z][0-9]|sprint [0-9]|round [0-9])' src/
+```
+Every hit in a comment/Javadoc is BLOCKING — the fact belongs in the commit message or PR, not the artifact.
+
+> **Not a finding:** ticket keys in commit messages or PR descriptions are correct VCS practice — review those, do not block them.
+
+#### BAD vs GOOD Javadoc
+
+```java
+// BAD — process artifacts leak into the contract (BLOCKING)
+/**
+ * Resolves the active tenant for a request (added under ABC-1421, see ADR-D4).
+ * Reworked in sprint 7 per review condition C2.
+ */
+TenantId resolveTenant(HttpServletRequest request);
+
+// GOOD — facts only: behaviour, inputs, outputs, failure mode
+/**
+ * Resolves the active tenant from the request's authenticated principal.
+ *
+ * @param request the inbound request; must carry an authenticated principal
+ * @return the resolved tenant identifier
+ * @throws TenantUnresolvedException if no tenant maps to the principal
+ */
+TenantId resolveTenant(HttpServletRequest request);
+```
+
+### 2. Narration comments — flag
+
+Flag comments that merely restate the next line (`// loop over users`, `// set the flag`). Self-explanatory code needs no narration; keep only non-obvious WHY-comments (workarounds, surprising constraints, deliberate deviations). Require the author to delete the narration or replace it with a genuine WHY.
+
+### 3. Cryptic names — flag
+
+Flag single-letter or abbreviated identifiers outside tiny lambda/loop scope (`d`, `l`, `proc`, `mgr`, `tmp`). Names must carry value/role + action so intent is clear without chasing the definition.
+
+### 4. Non-facts Javadoc — flag
+
+Beyond process artifacts (BLOCKING above), flag Javadoc that narrates history, restates the method name, or omits the actual contract (missing `@param`/`@return`/`@throws` on a non-trivial public API). Javadoc must document the contract, not the journey.
+
+### 5. >6-param constructor without builder — flag
+
+Flag any constructor or record canonical constructor with **more than 6 parameters** that lacks a builder. Require a builder (static builder for records) so call sites are readable and order-independent. Verify the builder validates before invoking the canonical constructor.
+
+### 6. Stream vs loop / algorithmic complexity — flag
+
+Flag an accidental O(n²) (nested `contains` over lists, repeated linear scans) where a `Set`/`Map` lookup applies. Flag eager materialisation of huge inputs. Note: do NOT demand Streams in measured hot paths — an explicit loop there is correct; flag the reverse (a Stream chain in an allocation-sensitive inner loop) only with a performance rationale.
+
+### 7. `static` logic on a DI bean — flag
+
+Flag `static` methods that carry **logic** on a class wired as a DI bean/service. Service logic should be an instance method (polymorphic, mockable, injectable). `static` is acceptable only for genuinely stateless pure utilities (with a documented reason), idiomatic record/value static factories (`builder()`/`from()`/`of()`), and the JVM `main` family. A bean retaining `static` logic helpers is a misplaced-responsibility smell.
+
+### 8. Per-call `Pattern.compile` / unseedable reproducible RNG — flag
+
+Flag `Pattern.compile(...)` invoked per call on a hot path — require a cached `static final`/field/`computeIfAbsent` `Pattern`. Flag `ThreadLocalRandom` used where a reproducible (seeded) sequence is intended — it cannot be seeded; require `SplittableRandom(seed)`. Flag `SecureRandom` used for reproducible (non-security) sequences. Where a reviewer questions a stdlib call's portability, prefer an explicit deterministic algorithm (e.g. Fisher–Yates) over a subtle overload.
+
+## Resolving inline review comments (process)
+
+When a PR already carries **inline review comments**, those comments are the **authoritative checklist** — not a maintainer's higher-level chat themes. Pull every inline comment and resolve each **one-by-one**: either apply the change, or reply on that specific thread with a reasoned explanation. Do this **before or alongside** any holistic refactor — never let a sweeping rewrite silently skip individual threads.
+
+- Treating a chat-level summary as the complete spec **misses** comments that were only raised inline.
+- Every inline thread gets a per-thread outcome: a commit that addresses it, or a reply explaining why it stands.
+- Reconcile at the end: every open thread is either resolved by a change or answered.
+
 ## Java/Kotlin Code Quality Checklist
 
 ### Java Specific

@@ -473,6 +473,48 @@ src/test/
             └── navigation.feature
 ```
 
+## Benchmark & Stakeholder-Facing Scenarios (The Scenario IS the Proof)
+
+Gherkin is not only for UI flow tests. Use it as the **proof artifact** for benchmarks and stakeholder-facing acceptance — a feature file that a non-engineer (investor, auditor, approver, product owner) can read top-to-bottom and trust as evidence that a claim holds. The scenario, plus its passing run, IS the proof; there is no separate "trust me" document.
+
+### Principles
+
+- **Plain Given/When/Then a non-engineer can read.** No code, no selectors, no internal IDs in the scenario text. A reviewer with zero programming knowledge should follow the business meaning. The step text is the spec; the step definition hides the mechanics.
+- **Tags drive selective runs.** Mark these scenarios so they can be executed (or excluded) as a set — e.g. `@benchmark`, `@acceptance`, `@stakeholder`, `@slo`. CI can run `@acceptance` on every push and the heavier `@benchmark` set nightly or on demand.
+- **Scenario Outline + Examples for configurable data.** Express thresholds, inputs, and expected outcomes as a data table so the same scenario proves many cases and the numbers are visible to the reader. Make the bar explicit in the table (latency budget, accuracy floor, cost ceiling), not buried in code.
+- **The assertion encodes the claim.** A benchmark scenario asserts the published bar (e.g. "p95 latency is at most 200 ms", "answer cites at least one source", "cost is reported"). When it passes, the claim is substantiated; when it fails, the claim is false — that binary is the value.
+
+### Example — benchmark as proof
+
+```gherkin
+@benchmark @slo
+Feature: Search latency and grounding guarantees
+  As an approver evaluating the system
+  I want measurable proof that answers are fast and grounded
+  So that I can sign off against the published service levels
+
+  Scenario Outline: Answers meet the latency budget and always cite sources
+    Given a knowledge base seeded with the "<corpus>" fixture
+    When a user asks "<question>"
+    Then the p95 answer latency is at most <p95_ms> milliseconds
+    And the answer cites at least <min_citations> source(s)
+
+    Examples:
+      | corpus     | question                  | p95_ms | min_citations |
+      | onboarding | How do I reset my key?    | 200    | 1             |
+      | finance    | What is the tax rate?     | 200    | 1             |
+```
+
+The non-engineer reads the table and the Then-steps and sees exactly what bar is being met. The step definitions measure latency and inspect citations; the reader never needs to.
+
+### When to reach for this
+
+- Acceptance sign-off where a stakeholder must agree the behaviour matches the requirement.
+- Performance / SLO benchmarks that must be auditable and re-runnable.
+- Cost / compliance guarantees that need a human-readable, executable record.
+
+Keep these feature files alongside the suite but tag them distinctly so they double as living, stakeholder-readable documentation — the **technical-writer** reuses them as human-readable proof in docs rather than re-describing behaviour in prose.
+
 ## Parent & Related Skills
 
 | Skill | Relationship |
