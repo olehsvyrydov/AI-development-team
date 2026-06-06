@@ -18,7 +18,7 @@
       "ARCH_APPROVED":   { "state": "passed",   "by": "/arch",   "at": "2026-06-04T10:02:00Z", "note": "Time-boxed token; no saga needed." },
       "SECOPS_APPROVED": { "state": "passed",   "by": "/secops", "at": "2026-06-04T10:20:00Z" },
       "DESIGN_APPROVED": { "state": "passed",   "by": "/ui",     "at": "2026-06-04T11:05:00Z" },
-      "CODE_REVIEWED":   { "state": "rejected", "by": "/rev",    "at": "2026-06-04T14:05:00Z", "note": "Reset endpoint is not rate-limited yet — add it (SECOPS follow-up, ADT-130) before re-review." },
+      "CODE_REVIEWED":   { "state": "rejected", "by": "/rev",    "at": "2026-06-04T14:05:00Z", "note": "Reset endpoint is not rate-limited yet — add it (SecOps follow-up, ADT-130) before re-review." },
       "VERIFIED":        { "state": "pending",  "by": null,      "at": null },
       "RELIABILITY_OK":  { "state": "pending",  "by": null,      "at": null }
     }
