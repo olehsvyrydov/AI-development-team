@@ -61,7 +61,7 @@ Each project gets its own Jira project and Confluence space. The AI dev team fra
 
 ```
 Jira Projects:              Confluence Spaces:
-├── EXAMPLE (PROJ)          ├── Example Project
+├── Example Project (PROJ)  ├── Example Project
 ├── PROJECT-2 (P2)          ├── Project 2
 └── PROJECT-N (PN)          └── Project N
 
