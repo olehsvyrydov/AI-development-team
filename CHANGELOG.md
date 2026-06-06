@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to this project. Roughly [semver](https://semver.org); dates are ISO-8601.
+This file records all notable changes to the project. Versioning roughly follows [semver](https://semver.org), and dates are written in ISO-8601.
 
 ## [5.0.0] — 2026-06-06
 
