@@ -496,7 +496,7 @@ Feature: Search latency and grounding guarantees
   Scenario Outline: Answers meet the latency budget and always cite sources
     Given a knowledge base seeded with the "<corpus>" fixture
     When a user asks "<question>"
-    Then an answer is returned within <p95_ms> milliseconds at p95
+    Then the p95 answer latency is at most <p95_ms> milliseconds
     And the answer cites at least <min_citations> source(s)
 
     Examples:

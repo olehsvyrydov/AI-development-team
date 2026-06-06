@@ -179,12 +179,13 @@ module.exports = {
     'subject-empty': [2, 'never'],
     'type-empty': [2, 'never'],
   },
-  // Reject co-author attribution.
+  // Reject co-author attribution. `Co-Authored-By:` is a footer trailer, so
+  // scan the whole message (`raw`), not just `body` — `body` alone misses it.
   plugins: [
     {
       rules: {
-        'no-coauthor': ({ body }) =>
-          [!/Co-Authored-By/i.test(body || ''), 'Co-Authored-By trailer is not allowed'],
+        'no-coauthor': ({ raw }) =>
+          [!/Co-Authored-By/i.test(raw || ''), 'Co-Authored-By trailer is not allowed'],
       },
     },
   ],
