@@ -61,7 +61,7 @@ Each project gets its own Jira project and Confluence space. The AI dev team fra
 
 ```
 Jira Projects:              Confluence Spaces:
-├── LEMMEJOB (LJ)           ├── Lemmejob
+├── EXAMPLE (PROJ)          ├── Example Project
 ├── PROJECT-2 (P2)          ├── Project 2
 └── PROJECT-N (PN)          └── Project N
 
@@ -73,10 +73,10 @@ Shared across all projects:
     └── TEAM_WORKFLOW.md    (this file — team process)
 ```
 
-**Jira project key** (e.g., `LJ` for Lemmejob) is used in:
-- Branch names: `feature/LJ-123-password-reset`
-- Commit messages: `LJ-123: Implement token generation for password reset`
-- PR titles: `LJ-123: Password reset via email`
+**Jira project key** (e.g., `PROJ` for Example Project) is used in:
+- Branch names: `feature/PROJ-123-password-reset`
+- Commit messages: `PROJ-123: Implement token generation for password reset`
+- PR titles: `PROJ-123: Password reset via email`
 
 ---
 

@@ -230,17 +230,17 @@ public class FraudPreventionHeadersGenerator {
 
         // Vendor information
         headers.put("Gov-Vendor-Version",
-            "uk.selfemploy.app=" + percentEncode(context.getAppVersion()));
+            "com.example.taxapp=" + percentEncode(context.getAppVersion()));
 
         // License ID (if applicable)
         if (context.getLicenseId() != null) {
             headers.put("Gov-Vendor-License-IDs",
-                "uk.selfemploy.app=" + percentEncode(context.getLicenseId()));
+                "com.example.taxapp=" + percentEncode(context.getLicenseId()));
         }
 
         // Product name
         headers.put("Gov-Vendor-Product-Name",
-            percentEncode("UK Self-Employment Manager"));
+            percentEncode("Example Tax App"));
 
         return headers;
     }
@@ -290,7 +290,7 @@ public class DesktopContextProvider {
     private String getOrCreateDeviceId() {
         // Load from encrypted local storage or create new UUID
         Path deviceIdPath = Paths.get(System.getProperty("user.home"),
-            ".selfemploy", "device.id");
+            ".taxapp", "device.id");
 
         if (Files.exists(deviceIdPath)) {
             return Files.readString(deviceIdPath).trim();

@@ -71,7 +71,7 @@
             <artifactId>javafx-maven-plugin</artifactId>
             <version>${javafx.maven.plugin.version}</version>
             <configuration>
-                <mainClass>uk.selfemploy.app.Launcher</mainClass>
+                <mainClass>com.example.taxapp.app.Launcher</mainClass>
             </configuration>
         </plugin>
     </plugins>
@@ -112,7 +112,7 @@ public class MainApplication extends Application {
         Scene scene = new Scene(root, 1200, 800);
         scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
 
-        primaryStage.setTitle("UK Self-Employment Manager");
+        primaryStage.setTitle("Example Tax App");
         primaryStage.setScene(scene);
         primaryStage.setMinWidth(800);
         primaryStage.setMinHeight(600);
@@ -258,7 +258,7 @@ public class DashboardController implements Initializable {
 
 <BorderPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="uk.selfemploy.ui.controller.DashboardController"
+            fx:controller="com.example.taxapp.ui.controller.DashboardController"
             styleClass="dashboard">
 
     <!-- Top: Header with tax year selector -->
@@ -512,11 +512,11 @@ public class ThreadingHelper {
     <artifactId>jpackage-maven-plugin</artifactId>
     <version>1.6.0</version>
     <configuration>
-        <name>UK Self-Employment Manager</name>
+        <name>Example Tax App</name>
         <appVersion>${project.version}</appVersion>
-        <vendor>Self-Employment UK</vendor>
+        <vendor>Example Tax Ltd</vendor>
         <destination>target/dist</destination>
-        <module>uk.selfemploy.app/uk.selfemploy.app.Launcher</module>
+        <module>com.example.taxapp.app/com.example.taxapp.app.Launcher</module>
         <runtimeImage>target/jlink-image</runtimeImage>
         <icon>src/main/resources/icons/app-icon.${icon.extension}</icon>
         <javaOptions>
@@ -528,15 +528,15 @@ public class ThreadingHelper {
         <winDirChooser>true</winDirChooser>
         <winShortcut>true</winShortcut>
         <winMenu>true</winMenu>
-        <winMenuGroup>Self-Employment UK</winMenuGroup>
+        <winMenuGroup>Example Tax Ltd</winMenuGroup>
 
         <!-- macOS specific -->
-        <macPackageIdentifier>uk.selfemploy.app</macPackageIdentifier>
-        <macPackageName>Self-Employment UK</macPackageName>
+        <macPackageIdentifier>com.example.taxapp.app</macPackageIdentifier>
+        <macPackageName>Example Tax Ltd</macPackageName>
 
         <!-- Linux specific -->
         <linuxShortcut>true</linuxShortcut>
-        <linuxPackageName>self-employment-uk</linuxPackageName>
+        <linuxPackageName>example-tax-app</linuxPackageName>
         <linuxAppCategory>Office</linuxAppCategory>
     </configuration>
 </plugin>
@@ -549,7 +549,7 @@ public class ThreadingHelper {
 // src/main/resources/META-INF/native-image/reflect-config.json
 [
   {
-    "name": "uk.selfemploy.ui.controller.DashboardController",
+    "name": "com.example.taxapp.ui.controller.DashboardController",
     "allDeclaredConstructors": true,
     "allPublicMethods": true,
     "allDeclaredFields": true
@@ -567,7 +567,7 @@ public class ThreadingHelper {
 ```
 ui/
 ├── src/main/
-│   ├── java/uk/selfemploy/ui/
+│   ├── java/com/example/taxapp/ui/
 │   │   ├── controller/          # FXML controllers
 │   │   │   ├── DashboardController.java
 │   │   │   ├── IncomeController.java
@@ -601,7 +601,7 @@ ui/
 │       │       └── dark.css
 │       └── icons/               # Application icons
 └── src/test/
-    └── java/uk/selfemploy/ui/
+    └── java/com/example/taxapp/ui/
         └── controller/          # TestFX tests
 ```
 

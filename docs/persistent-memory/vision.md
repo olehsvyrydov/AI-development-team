@@ -1,4 +1,8 @@
-# Bumbl — Vision & Problem Statement
+# Persistent-Memory Coding Assistant — Vision & Problem Statement
+
+> This document describes an **aspirational concept**, not committed work. It
+> captures _why_ such a tool would be valuable; it does not commit to building
+> one, to a timeline, or to a commercial model.
 
 ## The Problem
 
@@ -13,15 +17,15 @@ When a conversation grows large, Claude Code compacts it — discarding details 
 - **Context fragmentation** — Decisions made early in a session influence later work. When those decisions are compacted away, Claude makes contradictory choices.
 - **No long-term learning** — Even with our Kai meta-agent promoting patterns to SKILL.md, the real-time session knowledge is ephemeral.
 
-## The Vision
+## The Vision (Aspiration)
 
-Build a **terminal-based coding assistant** (and eventually an IDE) that:
+A **terminal-based coding assistant** (and eventually, perhaps, an IDE) that:
 
 1. **Never loses information** — Every exchange, investigation finding, decision, error resolution, and file change is persisted to a database in real-time, not on compaction.
 2. **Remembers intelligently** — Before sending any prompt to Claude, the app queries the database for relevant past context and injects it. Claude always has the right information at hand.
 3. **Maintains long history** — Full conversation history is recoverable across sessions, days, weeks. Not just summaries — the actual exchanges.
 4. **Compacts without loss** — When the context window fills, the app compacts intelligently: full detail goes to the DB, a smart summary stays in context. No information is destroyed.
-5. **Scales to commercial product** — Ships as a single native binary, works on any platform, could serve individual developers or enterprise teams.
+5. **Could scale beyond personal use** — Potentially shippable as a single native binary serving individual developers or teams. Whether it ever becomes a product — open source or commercial — is an open question, not a goal.
 
 ## User Story
 
@@ -29,7 +33,7 @@ Build a **terminal-based coding assistant** (and eventually an IDE) that:
 > I want my AI assistant to remember everything we've discussed and discovered,
 > so that I can trust it as a long-term collaborator rather than a session-scoped tool.
 
-## Success Criteria
+## Success Criteria (if pursued)
 
 - Zero information loss between sessions
 - Context retrieval latency < 100ms
@@ -38,6 +42,8 @@ Build a **terminal-based coding assistant** (and eventually an IDE) that:
 - Startup time < 200ms
 - Memory footprint < 100MB (without Qdrant)
 
-## Name
+## Open Questions
 
-**Bumbl** — a busy bee that remembers every flower it visits.
+- **Build vs adopt** — This need might be met by an existing tool (Onyx, Obsidian, mem0) rather than a new build. See [Market Research](market-research.md).
+- **Open source vs commercial** — Undecided. The concept does not assume a commercial model.
+- **Branding** — No name chosen; this is a concept only.

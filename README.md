@@ -292,7 +292,7 @@ claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com
 
 - **Jira**: Kanban board for issue tracking, ticket lifecycle, sprint management
 - **Confluence**: Architecture decisions, security reviews, investigation reports, sprint documentation
-- **Git conventions**: Branch names (`feature/LJ-123-description`), commit messages (`LJ-123: Implement feature`)
+- **Git conventions**: Branch names (`feature/PROJ-123-description`), commit messages (`PROJ-123: Implement feature`)
 
 ---
 

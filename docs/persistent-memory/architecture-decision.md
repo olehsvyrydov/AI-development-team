@@ -1,12 +1,18 @@
-# Bumbl — Architecture Decision Record
+# Persistent-Memory Coding Assistant — Suggested Architecture
 
-**Status**: Accepted
+**Status**: Proposed — **not committed**. Applies _only if_ the concept is built
+from scratch rather than satisfied by adopting an existing tool (Onyx,
+Obsidian, mem0 — see [Market Research](market-research.md)).
 **Date**: 2026-02-24
-**Decision**: Java/Quarkus with GraalVM Native Image
+**Suggested stack**: Java/Quarkus with GraalVM Native Image
 
 ## Context
 
-We need to choose a technology stack for Bumbl — a persistent memory coding assistant that wraps the Claude API. The app must be fast, distributable as a single binary, commercially viable, and leverage the developer's existing skills.
+_If_ a persistent-memory coding assistant that wraps the Claude API were built
+from scratch, it would need to be fast, distributable as a single binary, and
+maintainable with the developer's existing skills. This document records the
+suggested stack for that hypothetical build. It is not a commitment to build,
+nor an assumption of a commercial outcome.
 
 ## Options Considered
 
@@ -17,10 +23,10 @@ We need to choose a technology stack for Bumbl — a persistent memory coding as
 | Development speed | Fast — rich ecosystem, existing Qdrant/embedding code |
 | Distribution | **Poor** — requires Python runtime, venv, pip install |
 | Performance | Adequate for I/O bound work, poor startup time |
-| Commercial viability | Weak — perceived as scripting, not enterprise-grade |
+| Productization | Weak — perceived as scripting rather than a shippable app |
 | Developer skill | Medium |
 
-**Verdict**: Good for prototyping, wrong for a product.
+**Verdict**: Good for prototyping, wrong for a distributable app.
 
 ### Option B: Java/Quarkus + GraalVM Native
 
@@ -29,7 +35,7 @@ We need to choose a technology stack for Bumbl — a persistent memory coding as
 | Development speed | Medium — strong ecosystem, familiar language |
 | Distribution | **Excellent** — single native binary, ~30MB, no JVM needed |
 | Performance | ~10ms startup, ~30MB memory (native), async I/O via Vert.x |
-| Commercial viability | **Strong** — enterprise trust, mature libraries |
+| Productization | **Strong** — mature libraries, easy single-binary delivery |
 | Developer skill | **Strong** (primary language) |
 
 **Verdict**: Best balance of capability, distribution, and developer expertise.
@@ -41,7 +47,7 @@ We need to choose a technology stack for Bumbl — a persistent memory coding as
 | Development speed | Medium — simple language, proven for CLI tools |
 | Distribution | Excellent — single binary, cross-compilation built-in |
 | Performance | Excellent startup and memory |
-| Commercial viability | Strong — growing enterprise adoption |
+| Productization | Strong — proven for developer tooling |
 | Developer skill | **None** — would need to learn from scratch |
 
 **Verdict**: Strong choice objectively, but learning curve negates the advantage vs Quarkus native.
@@ -53,22 +59,22 @@ We need to choose a technology stack for Bumbl — a persistent memory coding as
 | Development speed | **Slow** — manual memory management, no GC, verbose |
 | Distribution | Excellent — native binary |
 | Performance | Maximum possible |
-| Commercial viability | Overkill for this use case |
+| Productization | Overkill for this use case |
 | Developer skill | Some (C/C++ basics) |
 
 **Verdict**: 5-10x slower development for ~20% memory improvement on an I/O-bound app. Not justified.
 
-## Decision
+## Suggested Decision
 
-**Java/Quarkus with GraalVM Native Image.**
+**Java/Quarkus with GraalVM Native Image** — _if_ built from scratch.
 
 ### Rationale
 
-1. **Native binary distribution** — GraalVM compiles to a standalone executable. No JVM, no runtime dependencies. Users run `./bumbl` and it starts in ~10ms.
+1. **Native binary distribution** — GraalVM compiles to a standalone executable. No JVM, no runtime dependencies. Users run `./assistant` and it starts in ~10ms.
 
 2. **Developer's strongest language** — Java expertise means faster iteration, fewer bugs, better architecture decisions. Learning Go would add months to the timeline.
 
-3. **Commercial readiness** — Java/Quarkus is enterprise-grade from day one. Libraries for HTTP clients, database access, dependency injection, testing — all battle-tested.
+3. **Mature ecosystem** — Java/Quarkus offers battle-tested libraries for HTTP clients, database access, dependency injection, and testing.
 
 4. **Async I/O** — Quarkus is built on Vert.x (Netty). Non-blocking HTTP calls to Claude API, Qdrant, and file system operations — exactly what this app needs.
 
@@ -139,7 +145,7 @@ External:
 | `quarkus-scheduler` | Background save tasks | Yes |
 | `quarkus-config-yaml` | Configuration | Yes |
 
-## Implementation Phases
+## Possible Implementation Phases
 
 ### Phase 1: Core Engine (MVP)
 - Anthropic API client (streaming chat completions)
@@ -162,9 +168,12 @@ External:
 - Project-scoped vs global memory
 - Memory deduplication and cleanup
 
-### Phase 4: Commercial Features
+### Phase 4: Advanced / Optional (undecided)
 - Team memory sharing (Qdrant Cloud)
 - Cost tracking dashboard
 - Plugin system
 - IDE integration (VS Code, IntelliJ)
 - Usage analytics
+
+> Whether any phase beyond a personal prototype is pursued — and under what
+> licensing or commercial model — is an open question, not a plan.
