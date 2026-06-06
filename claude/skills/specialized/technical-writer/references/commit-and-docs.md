@@ -58,7 +58,8 @@ fix(retrieval): clamp page size to documented maximum
 
 The list endpoint promised "at most 50 results" but the query had no LIMIT,
 so a large page-size request could scan the whole table. Clamp over-cap
-limits down (do not 400) and fall back to the default when limit is absent.
+limits down to the maximum (rather than rejecting with HTTP 400) and fall
+back to the default when limit is absent.
 
 Refs: KEY-1421
 ```

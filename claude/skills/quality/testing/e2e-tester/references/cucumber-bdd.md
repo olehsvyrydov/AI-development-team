@@ -497,7 +497,7 @@ Feature: Search latency and grounding guarantees
     Given a knowledge base seeded with the "<corpus>" fixture
     When a user asks "<question>"
     Then an answer is returned within <p95_ms> milliseconds at p95
-    And the answer cites at least <min_citations> source
+    And the answer cites at least <min_citations> source(s)
 
     Examples:
       | corpus     | question                  | p95_ms | min_citations |

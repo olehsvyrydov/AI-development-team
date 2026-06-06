@@ -304,5 +304,3 @@ the unit of trust, not the diff.
 | **Over-long few-shot when retrieval fits better** | Pays the example tax on every call and over-anchors | Retrieve examples dynamically, or fine-tune |
 | **Forcing CoT on a reasoning model / easy task** | Wasted latency; can flip correct answers wrong | Let reasoning models think; reserve CoT for hard tasks on completion models |
 | **Volatile content above the cache breakpoint** | Timestamps/IDs/shuffled tools silently kill the cache discount | Stable prefix first, per-request data last |
-</content>
-</invoke>
