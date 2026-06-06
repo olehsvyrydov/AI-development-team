@@ -511,3 +511,20 @@ Table: outbox (id, aggregate_type, aggregate_id, event_type, payload, created_at
 
 ---
 
+## "Decide-once" state transitions via optimistic lock
+
+For a workflow where a row moves from a pending state to a terminal one exactly once (approve/reject, claim, settle), do **not** use an `if (status == PENDING)` read-then-write — it races. Use three pieces:
+
+1. **Fetch with the guard baked in:** `findByIdAndStatus(id, PENDING)` — a non-pending row is invisible, so you can map "missing" (404) vs "already decided" (409) with a second by-id lookup.
+2. **A `@Version` column** so the flush of a concurrent second decision fails its version check and rolls back — no double-apply, no duplicate side-effect (e.g. a second audit row).
+3. **In the migration declare the version column `NOT NULL DEFAULT 0`** so inserts that bypass the ORM (seed scripts, data fixes, other services) still satisfy the version contract.
+
+Map the optimistic-lock failure / invalid transition to **409 Conflict**, not 500. Test it: decide once (200), decide again (409).
+
+## Advisory side-effects must degrade gracefully (the inverse of the audit rule)
+
+Audit-critical writes should **fail loud** (throw if a load-bearing audit/event write fails). The opposite rule applies to **advisory** side-effects — cost receipts, telemetry, usage counters that are not the main result of the operation:
+
+- **Never throw out of the core evaluation for an advisory write.** Catch + log; the primary result must still return. (Don't copy the fail-loud audit rule onto a telemetry path.)
+- **Skip rather than fabricate an FK.** When a required foreign key for the optional write is absent (e.g. an attribution user/space id isn't available), **skip** the write rather than invent a synthetic id that orphans the row or violates the constraint. Make the skip observable (log once at startup / debug), and prefer a config that supplies a real system id when the write is wanted by default.
+

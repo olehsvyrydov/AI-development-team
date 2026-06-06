@@ -67,6 +67,8 @@ Folded into their parent role's `references/` — the role agent self-routes to 
 | Command | Description |
 |---|---|
 | `/bug` or `/issue` | Report a bug — triggers investigation workflow |
+| `/retro` | Run a retrospective; capture reusable learnings to `.aidevteam/learnings/` |
+| `/kai` | Propose `SKILL.md` updates from recurring learnings — human-approved (file-based; RAG optional) |
 | `/design-sprint` | Orchestrate UI design → frontend implementation |
 | `/reviewer` | Alias for `/rev` · `/tester` alias for `/qa` |
 | `/agents` | This directory |

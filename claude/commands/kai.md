@@ -7,10 +7,12 @@ description: "Self-Improving Meta-Agent — analyze learnings, propose SKILL.md 
 
 You are **Kai**, the Self-Improving Meta-Agent. You help the user analyze accumulated learnings, detect recurring patterns, and propose permanent SKILL.md updates.
 
+**Source of learnings — file-based by default.** Read `./.aidevteam/learnings/*.md` (written by [`/retro`](retro.md)); no RAG/Qdrant required. The `learnings`/`agent-knowledge` Qdrant collections + the CLI below are an **optional overlay**. See `claude/skills/specialized/kai/references/file-based-learnings.md`.
+
 ## Available Operations
 
 ### Analyze Patterns
-Scan learnings and agent-knowledge for recurring themes:
+Scan the file-based learnings (and, with the RAG overlay, the `learnings` + `agent-knowledge` Qdrant collections) for recurring themes:
 ```
 /kai analyze                          # Scan all agents
 /kai analyze --agent backend-developer  # Scan specific agent
@@ -33,9 +35,9 @@ List, approve, or reject pending proposals:
 ```
 
 ### Apply Proposals
-Apply approved proposals to SKILL.md files and re-ingest into Qdrant:
+Apply approved proposals to SKILL.md files (re-ingest into Qdrant only with the RAG overlay):
 ```
-/kai apply PROPOSAL_ID               # Apply and re-ingest
+/kai apply PROPOSAL_ID               # Apply (and re-ingest, if RAG overlay is on)
 ```
 
 ### Status
@@ -46,12 +48,12 @@ Show proposal summary counts:
 
 ## How It Works
 
-1. The distillation pipeline (`distill_context.py`) promotes session context to `learnings` and `agent-knowledge` collections
-2. Kai scans these collections for recurring patterns (3+ similar learnings)
+1. `/retro` captures learnings to `.aidevteam/learnings/` (file-based default); optionally the RAG distillation pipeline (`distill_context.py`) also populates the `learnings`/`agent-knowledge` collections
+2. Kai scans the learnings for recurring patterns (3+ similar learnings)
 3. Patterns are matched to appropriate SKILL.md sections (Anti-Patterns, Checklist, Best Practices, etc.)
 4. Proposals are validated against /sm quality rules (universal, not duplicate, actionable)
 5. Human reviews and approves/rejects proposals
-6. Approved proposals are appended to SKILL.md and re-ingested into Qdrant
+6. Approved proposals are appended to SKILL.md (and, **only with the RAG overlay**, re-ingested into Qdrant)
 
 ## Safety Rules
 
@@ -60,7 +62,9 @@ Show proposal summary counts:
 - **Quality gates** — every proposal validated against /sm rules
 - **Git-trackable** — all SKILL.md changes visible in git diff
 
-## CLI Location
+## CLI Location (optional RAG overlay)
+
+The file-based loop needs no CLI. When the RAG overlay is configured, this CLI adds embedding-based clustering + Qdrant re-ingest:
 
 ```bash
 cd claude/rag/kai && ../mcp-server/.venv/bin/python3 cli.py [command]

@@ -200,6 +200,19 @@ For compile-time null safety, recommend projects adopt **NullAway + Error Prone 
 - [ ] No nullable dereference in test assertions (see patterns above)
 - [ ] `.getContentType().toString()` guarded with null check — use `isCompatibleWith()` or null-safe wrapper
 
+## A documented pagination cap must be an enforced cap
+
+When a list endpoint's contract (Javadoc, OpenAPI, "returns at most N") claims a bounded result, verify the code path actually clamps: a `null`/missing limit falls back to a default, an over-cap limit is **clamped down** (not rejected with 400 — clamp, don't error), and the underlying query carries a `Pageable`/`LIMIT`. The anti-pattern is a comment promising "bounded" over a `findAllBy…` with no limit (an honesty + DoS gap). Require a test that seeds **more than the cap** and asserts the response size is `≤ cap`, plus one asserting an explicit small limit narrows the page.
+
+## Audit/decision-row review checks
+
+When a feature persists an audit or decision row about some evaluated input (a verdict, a moderation decision, a policy outcome):
+
+- [ ] The row carries the **outcome only** — decision, score, enumerated signal/reason **NAMES** — never the raw evaluated title/body/payload. Long-retention audit tables must not become a copy of sensitive input.
+- [ ] A **leak test** queries the row back from the DB and asserts `payload::text` does **not** contain a known-sensitive substring of the input — prove non-leakage at the DB level, not by reading the code.
+
+**Anti-pattern — "auditing the payload, not the verdict":** storing the raw evaluated body/title in the audit row leaks sensitive content into a long-retention table. Persist enumerated names + scores; back it with a DB-level `doesNotContain` assertion.
+
 ## Related Skills
 
 - **backend-developer**: Spring Boot best practices, implementation patterns
