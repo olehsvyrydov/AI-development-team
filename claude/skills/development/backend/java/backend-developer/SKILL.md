@@ -178,6 +178,115 @@ These are **`references/`, not separate agents** — loaded by the **Stack selec
 - **Javadoc for API**: Use Javadoc for public APIs, interfaces, and non-trivial methods — document *why*, not *what*
 - **Organize imports**: Group imports logically (java.*, javax.*, org.*, com.*); remove unused imports
 
+### Engineering Standards (Code-Level)
+
+These standards govern every line you write. They are enforced at review and are BLOCKING when violated.
+
+#### 1. Javadoc states FACTS ONLY
+
+Javadoc and code comments describe **what the code does and how to use it** — the public contract, parameters, return values, thrown exceptions, side effects, thread-safety. Nothing else.
+
+**NEVER put internal process artifacts into code or Javadoc:** no ticket/issue IDs, no decision-record numbers or letters, no review-condition codes (e.g. "C1", "D4"), no agent/persona names, no sprint or milestone names, no "as discussed in round 3". Code outlives the process that produced it; these references rot and leak internal workflow into the artifact.
+
+> **Scope note:** This rule is about CODE and Javadoc only. Commit messages and pull-request descriptions MAY (and should) reference ticket keys — that is correct version-control practice.
+
+```java
+// BAD — process artifacts leak into the contract
+/**
+ * Resolves the active tenant for a request (added under ABC-1421, see ADR-D4).
+ * Reworked in sprint 7 per review condition C2.
+ */
+TenantId resolveTenant(HttpServletRequest request);
+
+// GOOD — facts only: what it does, inputs, outputs, failure mode
+/**
+ * Resolves the active tenant from the request's authenticated principal.
+ *
+ * @param request the inbound request; must carry an authenticated principal
+ * @return the resolved tenant identifier
+ * @throws TenantUnresolvedException if no tenant maps to the principal
+ */
+TenantId resolveTenant(HttpServletRequest request);
+```
+
+#### 2. No narration comments
+
+Write self-explanatory code instead of narrating it. Delete comments that restate what the next line obviously does (`// loop over users`, `// increment counter`). Keep only **non-obvious WHY-comments**: the reason behind a workaround, a surprising constraint, a deliberate deviation from the expected approach.
+
+```java
+// BAD — narration
+// get the user by id
+var user = repository.findById(id);
+// if null throw
+if (user == null) throw new NotFoundException();
+
+// GOOD — the only comment explains a non-obvious WHY
+// Vendor API returns 200 with an empty body on a soft-deleted record,
+// so we treat an empty body as "not found" rather than trusting the status.
+var user = repository.findById(id).orElseThrow(NotFoundException::new);
+```
+
+#### 3. Descriptive naming
+
+Names carry the value/role plus the action. Avoid cryptic abbreviations and single letters (except conventional loop indices / lambda params with tiny scope). A reader should infer intent from the name without chasing the definition.
+
+```java
+// BAD
+int d; List<Usr> l; void proc(Map<String,Object> m) { ... }
+
+// GOOD
+int retryDelaySeconds; List<User> activeUsers; void applyDiscount(Map<String, Object> orderAttributes) { ... }
+```
+
+#### 4. Builder pattern beyond 6 parameters
+
+When a constructor — or a record — needs **more than 6 parameters**, provide a builder so call sites are readable and order-independent. For a record, expose a **static builder** (the canonical constructor stays, the builder wraps it).
+
+```java
+public record ShippingLabel(
+        String recipientName, Address destination, Address origin,
+        double weightKg, Dimensions dimensions, Carrier carrier,
+        ServiceLevel serviceLevel, boolean insured) {
+
+    public static Builder builder() { return new Builder(); }
+
+    public static final class Builder {
+        // fluent setters returning `this`
+        public ShippingLabel build() { /* validate + invoke canonical constructor */ }
+    }
+}
+```
+
+#### 5. Stream API for readability, loops for hot paths
+
+Prefer the Stream API where it makes the transformation clearer and performance is not a constraint. In **hot paths** (tight inner loops, large element counts, allocation-sensitive code), prefer an explicit loop to avoid per-element lambda/boxing/iterator overhead. Choose by intent: readability first, measured performance second.
+
+#### 6. Mind algorithmic complexity
+
+Pick data structures and algorithms that improve time/space complexity. Replace an accidental O(n²) (e.g. nested `contains` over lists) with a `Set`/`Map` lookup; pre-size collections you know the bound of; stream lazily over huge inputs rather than materialising them. State the complexity in a WHY-comment only when it is non-obvious and load-bearing.
+
+#### 7. Cross-cutting concerns via AOP
+
+Keep core business logic free of cross-cutting plumbing. Route **timing, metrics, cost accounting, logging, tracing** through aspects — Spring AOP when a Spring context is present, AspectJ otherwise — rather than hand-weaving the same boilerplate into every method. The business method should read as business logic; the aspect supplies the instrumentation.
+
+```java
+// BAD — instrumentation tangled into business logic
+public Result process(Request r) {
+    long start = System.nanoTime();
+    log.info("processing {}", r);
+    try { return doProcess(r); }
+    finally { metrics.record("process", System.nanoTime() - start); }
+}
+
+// GOOD — business method is clean; an @Around aspect on @Timed supplies timing+metrics
+@Timed("service.process")
+public Result process(Request r) { return doProcess(r); }
+```
+
+**AOP is for genuine cross-cutting concerns ONLY.** Never push domain/business logic into an aspect — least of all the logic that is the *meaningful difference* between two code paths (e.g. an experiment's independent variable, a branch-specific rule). That logic belongs in explicit, readable code where a reader can see it; hiding it in a pointcut makes the real behaviour invisible at the call site. Aspects supply instrumentation, not decisions.
+
+> Java-specific micro-standards (instance vs `static` on a bean, cached regex `Pattern`s, seeded reproducible RNG) live in `references/java-expertise.md`.
+
 ### API Design
 - RESTful conventions (nouns, not verbs)
 - RFC 9457 Problem Details for errors
@@ -307,6 +416,15 @@ public String computeFileHash(Path file) {
 | **Silent Null Returns in Audit Functions** | Data integrity loss goes undetected | Throw exception or log WARN for audit-critical functions (hashing, timestamping, retention) |
 | **Unaudited Queries After Schema Change** | Queries miss new filter dimensions (e.g., soft-delete) | After any schema change adding a filter, grep all queries on the affected table |
 | **Implementing Filters Without Enumeration** | Missing exclusion criteria discovered in review/QA | Enumerate ALL filter/exclusion criteria as a checklist before writing any matching logic |
+| **Process Artifacts in Javadoc** | Ticket/ADR/condition codes, persona/sprint names rot and leak workflow into code | Facts only — they belong in commits/PRs, not source or Javadoc |
+| **Narration Comments** | Restating the next line adds noise that drifts out of date | Self-explanatory code; keep only non-obvious WHY-comments |
+| **>6-Param Constructor** | Unreadable, order-fragile call sites | Builder pattern (static builder for records) |
+| **Cross-Cutting Code in Business Logic** | Timing/metrics/logging boilerplate tangles the domain method | Route through AOP (Spring AOP / AspectJ) |
+| **Domain Logic in an Aspect** | The meaningful difference between code paths becomes invisible at the call site | AOP is cross-cutting only; keep decisions in explicit code |
+| **`static` Logic on a Bean** | Untestable by substitution, not injectable/overridable | Instance methods for service logic; `static` only for pure utils, record factories, `main` |
+| **`Pattern.compile()` per call** | Recompiling an immutable pattern wastes CPU/allocation on hot paths | Compile once: `static final` constant, field, or `computeIfAbsent` map |
+| **`ThreadLocalRandom` for reproducibility** | Cannot be seeded — `setSeed` throws | `SplittableRandom(seed)`; `SecureRandom` only for security draws |
+| **Accidental O(n²)** | Nested linear scans blow up on large inputs | Set/Map lookup, pre-sized collections, lazy streams |
 
 ---
 
