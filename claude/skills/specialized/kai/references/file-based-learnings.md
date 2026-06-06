@@ -1,0 +1,47 @@
+# File-based learnings — the default `/retro → /kai` loop (no RAG)
+
+Kai's job is to turn accumulated learnings into permanent `SKILL.md` improvements. By default this runs **entirely file-based** — no Qdrant, no embeddings, no paid accounts. The RAG `learnings`/`agent-knowledge` collections are an **optional overlay** (higher-fidelity clustering via embeddings); when they're absent, Kai reads the file store below.
+
+## The store
+
+`/retro` writes one file per learning to `./.aidevteam/learnings/`:
+
+```markdown
+---
+id: L-2026-06-06-001
+date: 2026-06-06
+source: ADT-124
+agent: backend-developer
+target: claude/skills/development/backend/java/backend-developer/SKILL.md
+type: gotcha            # pattern | gotcha | checklist | domain | tooling
+scope: universal        # universal | project
+status: open            # open | promoted | rejected
+---
+**Insight:** …
+**Recommendation:** …
+```
+
+## How Kai reads it (file-based path)
+
+1. **Collect** — read every `.aidevteam/learnings/*.md` with `status: open` and `scope: universal`.
+2. **Cluster** — group by `target` (the destination skill), then by `type` + a keyword theme from the Insight/Recommendation. No embeddings needed; exact-target + lexical-theme grouping is enough at file scale.
+3. **Threshold** — a cluster becomes a candidate when **≥ 3** learnings share a target+theme (tune via `min_frequency`). Smaller clusters wait for more evidence (or a human can force-promote a high-value singleton).
+4. **Validate** against the `/sm` quality rules — universal, reusable, **not already covered** in the target `SKILL.md`, actionable, and aimed at a SAFE section (`## Anti-Patterns`, `## Checklist`, `## Best Practices` / references) — never `Trigger`/`Context`/`Gate Check`/`Workflow`.
+5. **Propose** — emit a proposal (target file, section, exact insertion text, and the source learning ids for traceability). Show it for review.
+6. **Apply (after explicit approval)** — append to the target `SKILL.md`, set each source learning's `status: promoted`, and (if the RAG overlay is on) re-ingest. Every change is a plain git diff.
+
+Kai **never auto-applies**. Capture (`/retro`) and propose (`/kai`) are separate; a human approves before any `SKILL.md` changes.
+
+## Mapping learning `type` → skill section
+
+| `type` | Target section |
+|---|---|
+| `gotcha`, `pattern` (a mistake to avoid) | `## Anti-Patterns` |
+| `checklist` | `## Checklist` / review checklist |
+| `domain` | `## Core expertise` or a `references/<domain>.md` |
+| `pattern` (a good default) | `## Best Practices` / `## Standards` |
+| `tooling` | `## Standards` (tools/config) |
+
+## Overlay: RAG (optional)
+
+When the `ai-team-memory` MCP + Qdrant are configured, Kai can additionally cluster by embedding similarity (cosine ≥ 0.7) across the `learnings`/`agent-knowledge` collections for fuzzier matches, and re-ingest updated skills. The file store remains the source of truth; the overlay only improves recall. CLI: `claude/rag/kai/cli.py`.
