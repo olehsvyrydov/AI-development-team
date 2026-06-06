@@ -1,0 +1,24 @@
+{
+  "name": "@ai-dev-team/memory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-session memory for the AI Dev Team framework — deterministic workflow digest + pluggable vector recall (sqlite-vec / Qdrant, Voyage / Gemini). Zero-dependency by default; runs on Node's native TypeScript type-stripping (no build step).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/",
+    "digest": "node src/digest.ts"
+  },
+  "optionalDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@qdrant/js-client-rest": "^1.11.0",
+    "sqlite-vec": "^0.1.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.20",
+    "typescript": "^5.9.3"
+  }
+}
