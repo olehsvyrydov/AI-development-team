@@ -23,7 +23,7 @@ const argv = process.argv.slice(2);
 let PROJECT = process.cwd();
 let PORT = 4477;
 let HOST = '127.0.0.1';   // serves local paths/state — bind to loopback by default
-let ALLOW_REMOTE = false; // C3: writes refused off-loopback unless this is set
+let ALLOW_REMOTE = false; // writes are refused off-loopback unless this is set
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--port') PORT = parseInt(argv[++i], 10) || PORT;
   else if (argv[i] === '--host') HOST = argv[++i] || HOST;
@@ -47,9 +47,13 @@ const SELF_DIR = __dirname;
 const lib = require('./lib/state');
 const { writeAllowed } = require('./lib/guard');
 const api = require('./lib/api');
+const projects = require('./lib/projects');
+const { createRegistry } = require('./lib/registry');
+const { readJsonBody } = require('./lib/http-body');
 const { safeExists, safeRead } = lib;
 
-const MAX_BODY = 64 * 1024; // C5: cap the request body before buffering
+// user-global project registry (~/.aidevteam/registry.json) for the projects/* API
+const registry = createRegistry({ home: os.homedir() });
 
 // the active workflow path for this project (used by the watcher + startup log)
 function findWorkflow() { return lib.findWorkflow(PROJECT); }
@@ -66,23 +70,6 @@ function buildState() {
     stage: sel ? sel.stage : null,
     track: sel ? sel.track : null,
     gates: sel ? sel.gates : [],
-  });
-}
-
-// read a JSON request body, capped at MAX_BODY (C5). Calls cb(err, obj).
-function readJsonBody(req, cb) {
-  let size = 0;
-  const chunks = [];
-  req.on('data', (c) => {
-    size += c.length;
-    if (size > MAX_BODY) { req.destroy(); cb(new Error('body too large')); cb = () => {}; return; }
-    chunks.push(c);
-  });
-  req.on('error', () => cb(new Error('read error')));
-  req.on('end', () => {
-    const raw = Buffer.concat(chunks).toString('utf8').trim();
-    if (!raw) return cb(null, {});
-    try { cb(null, JSON.parse(raw)); } catch { cb(new Error('invalid JSON')); }
   });
 }
 
@@ -140,9 +127,30 @@ const server = http.createServer((req, res) => {
     req.on('close', () => clients.delete(res));
     return;
   }
-  // ---- control plane: POST /api/<route> (ADT-206) --------------------------
+  // ---- multi-project registry: /api/projects[/...] -------------------------
+  if (pathname === '/api/projects' || pathname.startsWith('/api/projects/')) {
+    const write = req.method === 'POST' || req.method === 'DELETE';
+    const finish = (data) => {
+      Promise.resolve(projects.handle(req.method, pathname, data, { registry }))
+        .then((r) => r ? sendJson(res, r.code, r.payload) : sendJson(res, 404, { ok: false, error: 'unknown route' }))
+        .catch((e) => sendJson(res, 500, { ok: false, error: String(e && e.message || e) }));
+    };
+    if (write) {
+      const gate = writeAllowed(req, { port: PORT, allowRemote: ALLOW_REMOTE });
+      if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
+      readJsonBody(req, (err, data) => {
+        if (err) return sendJson(res, err.message === 'body too large' ? 413 : 400, { ok: false, error: err.message });
+        finish(data);
+      });
+      return;
+    }
+    if (req.method === 'GET') { finish(null); return; }
+    return sendJson(res, 405, { ok: false, error: 'method not allowed' });
+  }
+
+  // ---- control plane: POST /api/<route> ------------------------------------
   if (req.method === 'POST' && pathname.startsWith('/api/')) {
-    // C3: anti-CSRF + anti-DNS-rebinding gauntlet before any mutation
+    // anti-CSRF + anti-DNS-rebinding gauntlet before any mutation
     const gate = writeAllowed(req, { port: PORT, allowRemote: ALLOW_REMOTE });
     if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
     const route = pathname.slice('/api/'.length);
