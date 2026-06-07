@@ -87,3 +87,12 @@ test("buildConfig defaults to the zero-config digest-only path", () => {
   assert.equal(cfg.memory.backend, "none");
   assert.equal(cfg.memory.embeddings, "none");
 });
+
+test("buildConfig preserves existing backend when choices omit it (AC-I5, no clobber)", () => {
+  const existing = { memory: { backend: "sqlite", embeddings: "gemini", dbPath: "/x/memory.db", qdrantUrl: null } };
+  // e.g. the --add-overlay path passes no backend/embeddings choices
+  const cfg = buildConfig(existing, {});
+  assert.equal(cfg.memory.backend, "sqlite", "did not reset to none");
+  assert.equal(cfg.memory.embeddings, "gemini");
+  assert.equal(cfg.memory.dbPath, "/x/memory.db");
+});

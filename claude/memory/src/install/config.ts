@@ -40,8 +40,11 @@ export interface ExistingConfig {
 
 export function buildConfig(existing: ExistingConfig | null | undefined, choices: InstallChoices): AidtConfig {
   const prev = existing ?? {};
-  const backend = pick(choices.backend, ["none", "sqlite", "qdrant"], "none");
-  const embeddings = pick(choices.embeddings, ["none", "voyage", "gemini"], "none");
+  // Fall back to the EXISTING selection when a choice is omitted, so re-running
+  // (and the --add-overlay path, which passes no choices) never resets the
+  // user's backend/embeddings to none (AC-I5: idempotent, non-destructive).
+  const backend = pick(choices.backend ?? prev.memory?.backend, ["none", "sqlite", "qdrant"], "none");
+  const embeddings = pick(choices.embeddings ?? prev.memory?.embeddings, ["none", "voyage", "gemini"], "none");
   return {
     version: 1,
     memory: {
