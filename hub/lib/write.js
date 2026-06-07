@@ -107,7 +107,11 @@ function appendComment(dir, ticketId, { author, kind, body, gate, state } = {}) 
   if (state) rec.state = state;
   const file = path.join(dir, '.aidevteam', 'comments', `${safeId(ticketId)}.jsonl`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.appendFileSync(file, JSON.stringify(rec) + '\n'); // single-line append is atomic on POSIX
+  // O_APPEND single-line write — atomic across writers up to PIPE_BUF (4KB on
+  // Linux); bodies are capped at 8KB, so two *concurrent* appends to the same
+  // ticket could in theory interleave. Acceptable for the single-developer model;
+  // revisit with flock if multi-writer contention becomes real.
+  fs.appendFileSync(file, JSON.stringify(rec) + '\n');
   return rec;
 }
 
