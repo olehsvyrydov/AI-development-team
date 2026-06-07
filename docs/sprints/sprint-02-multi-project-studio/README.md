@@ -161,13 +161,31 @@ ADT-210 / ADT-230:
 
 | Slice | Tickets | Stage | Committed |
 |-------|---------|-------|-----------|
-| 1 — Shell | ADT-210..217, ADT-230 | `ready` (210, 230) / `backlog` (rest) | ✅ this sprint |
+| 1 — Shell | **ADT-210** | ✅ **DONE** | ✅ this sprint |
+| 1 — Shell | ADT-211..217, ADT-230 | `backlog` | needs desktop/GUI env + SECOPS exec passes |
 | 2 — Tasks | ADT-218..221 | `backlog` | staged |
 | 3 — Base | ADT-222..225 | `backlog` | staged |
 | 4 — Workflow | ADT-226..229, ADT-231 | `backlog` | staged (editable, PD-2) |
 | 5 — Backends/Remote/Cost | ADT-232..240 (+234 remote-exec) | `backlog` | staged (SECOPS-gated, PD-3) |
 | Deferred | ADT-241 (Bumbl) | — | not this release |
 
-**Gate legend:** all gates `pending` until set by their owner. No gate is pre-passed by /sm. ADT-207/208/209 → `superseded` (see §3).
+### ADT-210 — Connect & register a project — ✅ DONE
 
-> After ARCH + SECOPS clear ADT-210/ADT-230 → say **"/sm - please update sprint status"** and pull the next SLICE-1 ticket.
+The project-registry + connect/analyze **foundation** is delivered and committed (4 commits). It cleared the full gate path:
+
+`/arch` (new boundaries: registry, `projectId` derivation, analyzer seam) → `/secops` (**17 binding conditions**: path containment, DoS caps, CSRF guard, `:id` traversal, DELETE-leaves-files-intact, no-secrets) → **TDD** implementation → `/rev` code review → **/qa 32/33** black-box (1 minor observation, no functional fail) + **/e2e 8/8** HTTP suite → `/arch` conformance review (CONFORMANT-WITH-NOTES, `projectId` parity verified byte-for-byte) → `/verify`.
+
+It deliberately ships **no execution path** — host-CLI exec (ADT-230) and SSH exec (ADT-234) are NOT approved by the Slice-1 SECOPS pass and remain hard-gated. The analyzer is deterministic and no-LLM. Net-new code lives in the zero-dependency Node hub (`hub/lib/{project-id,registry,analyze,projects}.js`) as a superset of the Sprint-01 hub (strangler-fig seam; reused libs unchanged).
+
+### What remains in the backlog (and why it has not started)
+
+- **Angular Cockpit UI + Workflow/Tasks/Base panels (ADT-211+):** require a **desktop/GUI environment** to build and verify (Tauri shell + Angular 21 + canvas), which this headless session does not provide. The foundation exposes the exact `{ ok, projects[] }` / `{ ok, project, profile, state }` shapes a UI will consume.
+- **Remote / host-CLI execution (ADT-230 host-CLI exec, ADT-234 SSH):** each needs its **own dedicated hard SECOPS pass** before any execution code lands — the Slice-1 gate explicitly does NOT unblock them. No exec path may be committed until those passes clear.
+
+**Gate legend:** ADT-210 gates all `passed`. Remaining tickets' gates `pending` until set by their owner; no gate is pre-passed by /sm. ADT-207/208/209 → `superseded` (see §3).
+
+### Sprint-01 carry-in (context)
+
+The hub board + ticket popup tickets **ADT-204/205** were completed in Sprint-01's tail (the observability board with ticket drill-down). **ADT-207/208/209** are **superseded** by Slice-1 tickets (see §3) — their passed ARCH/DESIGN/SECOPS analysis is carried forward as input, not auto-passed.
+
+> Next: the per-project shell (ADT-211) and the host-CLI runner (ADT-230) — both blocked on the environment / dedicated SECOPS prerequisites above.
