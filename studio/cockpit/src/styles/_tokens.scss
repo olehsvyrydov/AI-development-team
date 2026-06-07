@@ -1,0 +1,97 @@
+/* Cockpit design tokens.
+ *
+ * The custom-property NAMES (--kb-*) are deliberately shared with the KGB frontend so a
+ * component authored in one app drops into the other without retokenising. The VALUES differ:
+ * the cockpit's launcher is dark-first (a gradient header with an accent dot, per the design),
+ * with a light override under [data-theme='light']. Referencing var(--kb-*) is the contract —
+ * never inline these hex values in a component.
+ */
+:root,
+[data-theme='dark'] {
+  /* Surfaces */
+  --kb-bg: #0B0D12;
+  --kb-surface: #14171F;
+  --kb-surface-muted: #1B1F2A;
+  --kb-border: #262B38;
+  --kb-border-strong: #343B4C;
+
+  /* Text */
+  --kb-text: #F2F4F8;
+  --kb-text-muted: #A4ABBC;
+  --kb-text-subtle: #8A91A0;
+
+  /* Accent + semantic */
+  --kb-accent: #6E8BFF;
+  --kb-accent-hover: #8AA0FF;
+  --kb-accent-strong: #4F6BE8;
+  --kb-accent-strong-hover: #4159C9;
+  --kb-accent-soft: #1E2740;
+  --kb-success: #34D399;
+  --kb-warning: #FBBF24;
+  --kb-danger: #F87171;
+  --kb-focus-ring: rgba(110, 139, 255, .55);
+
+  /* Header gradient (Projects Home + Project Shell chrome) */
+  --kb-header-from: #161B2E;
+  --kb-header-to: #0E1119;
+
+  /* Typography */
+  --kb-font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --kb-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace;
+
+  --kb-text-xs: 0.75rem;
+  --kb-text-sm: 0.875rem;
+  --kb-text-base: 1rem;
+  --kb-text-lg: 1.125rem;
+  --kb-text-xl: 1.25rem;
+  --kb-text-2xl: 1.5rem;
+  --kb-text-3xl: 2rem;
+
+  /* Spacing */
+  --kb-space-1: 0.25rem;
+  --kb-space-2: 0.5rem;
+  --kb-space-3: 1rem;
+  --kb-space-4: 1.5rem;
+  --kb-space-5: 2rem;
+  --kb-space-6: 2.5rem;
+
+  /* Radius */
+  --kb-radius-sm: 4px;
+  --kb-radius-md: 8px;
+  --kb-radius-lg: 12px;
+  --kb-radius-xl: 16px;
+
+  /* Shadow */
+  --kb-shadow-sm: 0 1px 2px rgba(0,0,0,.30);
+  --kb-shadow-md: 0 6px 18px rgba(0,0,0,.36);
+  --kb-shadow-lg: 0 16px 40px rgba(0,0,0,.46);
+}
+
+[data-theme='light'] {
+  --kb-bg: #FAFAFB;
+  --kb-surface: #FFFFFF;
+  --kb-surface-muted: #F4F4F6;
+  --kb-border: #E4E4E7;
+  --kb-border-strong: #D4D4D8;
+
+  --kb-text: #18181B;
+  --kb-text-muted: #52525B;
+  --kb-text-subtle: #6A6A73;
+
+  --kb-accent: #2563EB;
+  --kb-accent-hover: #1D4ED8;
+  --kb-accent-strong: #2563EB;
+  --kb-accent-strong-hover: #1D4ED8;
+  --kb-accent-soft: #DBEAFE;
+  --kb-success: #16A34A;
+  --kb-warning: #D97706;
+  --kb-danger: #DC2626;
+  --kb-focus-ring: rgba(37, 99, 235, .35);
+
+  --kb-header-from: #1E293B;
+  --kb-header-to: #0F172A;
+
+  --kb-shadow-sm: 0 1px 2px rgba(24,24,27,.06);
+  --kb-shadow-md: 0 4px 12px rgba(24,24,27,.08);
+  --kb-shadow-lg: 0 12px 32px rgba(24,24,27,.10);
+}

@@ -1,0 +1,47 @@
+@use './styles/tokens';
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--kb-font-display);
+  background: var(--kb-bg);
+  color: var(--kb-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* A single, consistent focus ring across the app for keyboard users (WCAG 2.2 — focus
+   visible). Pointer interactions don't get the ring (:focus-visible). */
+:focus-visible {
+  outline: 2px solid var(--kb-accent);
+  outline-offset: 2px;
+  border-radius: var(--kb-radius-sm);
+}
+
+/* Visually-hidden but available to assistive tech (skip links, status regions). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}

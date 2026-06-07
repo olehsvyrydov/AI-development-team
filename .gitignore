@@ -17,6 +17,15 @@ Thumbs.db
 # Node (if using for any tooling)
 node_modules/
 
+# Studio Cockpit (Angular app — build artifacts only; source is tracked)
+studio/cockpit/node_modules/
+studio/cockpit/dist/
+studio/cockpit/.angular/
+studio/cockpit/test-results/
+studio/cockpit/playwright-report/
+studio/cockpit/e2e/.temp-project-path
+studio/cockpit/out-tsc/
+
 # Python
 __pycache__/
 *.pyc

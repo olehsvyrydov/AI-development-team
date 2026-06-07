@@ -1,0 +1,7 @@
+{
+  "alpha": "/tmp/aidt-cockpit-alpha-w17INe",
+  "beta": "/tmp/aidt-cockpit-beta-8rF5J2",
+  "untrusted": "/tmp/aidt-cockpit-untrusted-gFdOlu",
+  "notDir": "/tmp/aidt-cockpit-notdir-cYlysy/a-file-not-a-dir.txt",
+  "missing": "/tmp/aidt-cockpit-missing-1780856404507-does-not-exist"
+}
