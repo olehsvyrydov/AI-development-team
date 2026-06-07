@@ -40,7 +40,7 @@ design-gallery/
 
 # Local workflow state (per-project; generated)
 .workflow-state.json
-.aidevteam/state/
+.aidevteam/
 # …but keep the bundled demo fixture tracked
 !examples/demo/.workflow-state.json
 
