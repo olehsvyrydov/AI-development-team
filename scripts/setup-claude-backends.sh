@@ -450,66 +450,30 @@ setup_atlassian() {
     fi
 }
 
-# Context persistence hooks setup
+# Cross-session memory setup — delegates to the Node wizard (ADT-202).
+# The wizard writes ~/.aidevteam/config.json (selection only, no secrets) and
+# idempotently wires the SessionStart/PreCompact hooks into ~/.claude/settings.json.
+# Zero-dependency by default: the digest-only path needs no key and no Docker.
 setup_hooks() {
-    local RAG_PYTHON="$SCRIPT_DIR/claude/rag/mcp-server/.venv/bin/python3"
-    local CONTEXT_DIR="$SCRIPT_DIR/claude/rag/context-cache"
+    local WIZARD="$SCRIPT_DIR/claude/memory/src/install/wizard.ts"
 
-    # Only offer if RAG venv exists and context-cache scripts exist
-    if [ ! -f "$RAG_PYTHON" ] || [ ! -f "$CONTEXT_DIR/save_context.py" ]; then
+    if ! command -v node >/dev/null 2>&1; then
+        echo -e "${YELLOW}Node.js not found — skipping memory setup. Install Node >=22.5, then run:${NC}"
+        echo "  node --no-warnings \"$WIZARD\""
+        return
+    fi
+    if [ ! -f "$WIZARD" ]; then
         return
     fi
 
     echo ""
-    echo -e "${BLUE}=== Context Persistence Hooks (Optional) ===${NC}"
+    echo -e "${BLUE}=== Cross-Session Memory (Optional) ===${NC}"
+    echo "Inject your workflow state + recalled context at the start of every session."
+    echo "Default path is digest-only: no API key, no Docker, nothing leaves your machine."
     echo ""
-    echo "Automatically save session context before compaction and restore"
-    echo "it in future sessions. Requires RAG setup (Qdrant + venv)."
-    echo ""
-
-    read -p "Enable context persistence hooks? [y/N] " hook_choice
-    if [ "$hook_choice" != "y" ] && [ "$hook_choice" != "Y" ]; then
-        echo "Skipping. See docs/context-persistence-guide.md to enable later."
-        return
-    fi
-
-    # We need to know the project dir to write settings.local.json
-    # For now, write a helper message since project path varies
-    echo ""
-    echo -e "${GREEN}To enable hooks for a project, add this to the project's settings.local.json:${NC}"
-    echo ""
-    echo "  File: ~/.claude/projects/<escaped-project-path>/settings.local.json"
-    echo ""
-    cat <<HOOKEOF
-  {
-    "hooks": {
-      "PreCompact": [
-        {
-          "matcher": "",
-          "hooks": [
-            {
-              "type": "command",
-              "command": "$RAG_PYTHON $CONTEXT_DIR/save_context.py",
-              "timeout": 60
-            }
-          ]
-        }
-      ],
-      "SessionStart": [
-        {
-          "matcher": "compact|resume",
-          "hooks": [
-            {
-              "type": "command",
-              "command": "$RAG_PYTHON $CONTEXT_DIR/restore_context.py",
-              "timeout": 30
-            }
-          ]
-        }
-      ]
-    }
-  }
-HOOKEOF
+    # Hand off to the interactive wizard (it prompts for backend/embeddings/hooks).
+    node --no-warnings "$WIZARD" || \
+        echo -e "${YELLOW}Memory wizard skipped/failed; re-run later: node --no-warnings \"$WIZARD\"${NC}"
     echo ""
 }
 
