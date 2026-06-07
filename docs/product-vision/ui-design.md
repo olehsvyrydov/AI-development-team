@@ -195,7 +195,9 @@ Overview:
 
 ## 4. Flow 3 — WORKFLOW view (visual builder)
 
-Reference language: **n8n / React Flow** node-graph editors. Three regions: **palette · canvas · inspector**, plus a **run bar**. It is a visual program, so it gets program affordances (run, step, trace, breakpoints-as-pauses).
+**Scope: the editable builder is in the MVP.** Creating, editing, and deleting trigger events, agent nodes, loops, conditionals, and background agents (§4.1–§4.2) ship as first-class MVP capabilities — not a deferred fast-follow. The live-run visualization (§4.3) layers on top of the same canvas.
+
+Reference language: **n8n**-style node-graph editors, built on **Rete.js v2** (with its official Angular renderer; **ngx-vflow** as the fallback). Three regions: **palette · canvas · inspector**, plus a **run bar**. It is a visual program, so it gets program affordances (run, step, trace, breakpoints-as-pauses). The interaction design below — palette, canvas, inspector, live-run token, accessibility — is library-agnostic and stands as specified; only the named implementation library changed (Angular 21 stack, not React).
 
 ### 4.1 Wireframe — editing
 
@@ -291,6 +293,7 @@ Live-run visual grammar:
 - **Active-node inspector** (right) streams the agent's **live output/thoughts** and offers **Pause here** (a soft breakpoint) so a human can inspect before the token moves on.
 - **Background agents** firing show a brief pulse on their lane chip ("☾ security-watch triggered") without stealing the main token.
 - **Conditionals** resolve visibly: the chosen edge lights, the rejected edge stays grey, with the evaluated label shown (`pass? → yes`).
+- **Execution location** (local vs remote): agents can run locally or on a remote host. The active node and its run-log rows carry a small **location chip** — `⌂ local` (dim) or `⇅ {host}` (accent) — so the human can always see *where* an agent is running, not just which one. The run-bar shows the run's predominant location (`⌂ local` / `⇅ remote: build-box`); a mixed run shows `⇅ mixed`. The chip is glyph+text (colour-never-alone), reusing the existing chip family — no new visual language.
 
 **Run states:** `idle → running → (paused) → done | failed | stopped`. Each has a distinct run-bar treatment (idle = neutral, running = accent pulse, failed = red banner with "jump to failure").
 
@@ -321,7 +324,7 @@ A calm, dense, sortable Kanban that builds directly on the existing Hub board. O
 └──────────────┴──────────────┴──────────────┴──────────────┴──────────────────┘
 ```
 
-- Each card: **ID + status (colour+glyph+text)**, title, **current agent badge** (◆/be), a **last-comment preview** ("the agent's voice"), **💬 count**, and inline **human-action buttons** when the ticket is in **⧗ Needs You** (Approve / Request changes) so a human can unblock without opening it.
+- Each card: **ID + status (colour+glyph+text)**, title, **current agent badge** (◆/be), a **last-comment preview** ("the agent's voice"), **💬 count**, and inline **human-action buttons** when the ticket is in **⧗ Needs You** (Approve / Request changes) so a human can unblock without opening it. When an agent is actively working a ticket, the card also carries the small **execution-location chip** (`⌂ local` / `⇅ {host}`) — the same chip used in the Workflow run view — so "where is this running" is answerable from the board.
 - **Sortable** by status (column order), and a **List view** toggle sorts a flat table by any column (status, agent, updated). Filters: "needs human", by agent.
 - **Done** column has a **⟶🗄 archive** affordance; finished tickets slide into the archive after a grace period (undo toast).
 
@@ -442,7 +445,7 @@ Where humans curate the documents agents **must follow** (code rules, policies, 
 Built from the existing Hub tokens; reusable across all views.
 
 **Atoms**
-`StatusLabel` (colour+glyph+text) · `AgentBadge` (◆ + role, dashed=expected) · `GateChip`/`RecallChip` (solid=hard/active, dashed=soft) · `StackChip` · `IconButton` (≥24/44px) · `ProgressBar` (determinate/indeterminate shimmer) · `StepChecklist item` · `Toast` · `LiveDot` (pulse) · `Tooltip`.
+`StatusLabel` (colour+glyph+text) · `AgentBadge` (◆ + role, dashed=expected) · `GateChip`/`RecallChip` (solid=hard/active, dashed=soft) · `LocationChip` (`⌂ local` / `⇅ {host}`, glyph+text) · `StackChip` · `IconButton` (≥24/44px) · `ProgressBar` (determinate/indeterminate shimmer) · `StepChecklist item` · `Toast` · `LiveDot` (pulse) · `Tooltip`.
 
 **Molecules**
 `ProjectCard` (+ its `AnalysingCard` and `ErrorCard` states) · `ConnectCard` · `TicketCard` (board) · `Parcel` (conveyor) · `CommentEntry` (attributed, kind-tagged) · `PaletteItem` · `RunLogRow` · `DocРrow` (with recall state) · `SortControl` · `FilterChip`.
@@ -542,7 +545,7 @@ Keep the canon; add the minimum new tokens. Defined OKLCH-first per design stand
 - **Accent purple = "the live token / active focus."** Reserve `--accent` for what is *running / active / recalled-now*. This gives the whole app one consistent "where the energy is" signal across Workflow (active node), Tasks (needs-you pulse), and Base (recall pulse).
 - **Per-stage/agent hues** (already in the Hub) colour the agent nodes and ticket agent badges so `/rev` looks the same violet everywhere.
 - **Surfaces by elevation, not shadow** (dark-mode rule): canvas sinks (`--canvas-bg`), cards rise (`--panel2`), dialogs rise more — brightness, not heavy shadows.
-- **Glyph system:** monoline glyphs (◧ ◆ ◇ ↺ ☾ ⚡ ⏚ ✓ ◉ ◐ ⧗) — Lucide equivalents in build (`workflow`, `git-branch`, `repeat`, `moon`, `zap`, `merge`, `check`, `circle-dot`). No colour-only meaning.
+- **Glyph system:** monoline glyphs (◧ ◆ ◇ ↺ ☾ ⚡ ⏚ ✓ ◉ ◐ ⧗ ⌂ ⇅) — Lucide equivalents in build (`workflow`, `git-branch`, `repeat`, `moon`, `zap`, `merge`, `check`, `circle-dot`, `home`/`monitor` for local, `server`/`arrow-up-down` for remote). No colour-only meaning.
 - **Motion:** 150–300ms, `--ease-smooth` for transitions, spring only for the conveyor settle and node-drop. Token travel ~ edge-length-scaled, capped ~400ms. All gated behind `prefers-reduced-motion`.
 - **Typography:** keep the Hub's system-ui body + `ui-monospace` for IDs/agent/run-log/code — the monospace reinforces the "it's a program" feel in Workflow and the Base editor.
 
@@ -550,7 +553,7 @@ Keep the canon; add the minimum new tokens. Defined OKLCH-first per design stand
 
 ## 12. Buildability note (single FE dev)
 
-- **No new heavy deps required by the spec**, but the Workflow canvas is the one place a library pays off: **React Flow** (MIT) gives nodes/edges/minimap/pan-zoom/keyboard out of the box — recommend it over hand-rolling. Everything else is plain components over the existing token set.
+- **No new heavy deps required by the spec**, but the Workflow canvas is the one place a library pays off: **Rete.js v2** (MIT, with its official Angular renderer; **ngx-vflow** as the fallback) gives nodes/edges/minimap/pan-zoom/keyboard plus a built-in execution model — recommend it over hand-rolling, since the workflow is a program that executes. Everything else is plain components over the existing token set.
 - **One data model, two task skins** (Board + Conveyor) keeps Concept B cheap.
 - **Shared components** (StatusLabel, AgentBadge, RecallChip, Timeline) are literally the Hub's, lifted into the project shell — minimal new surface area.
 - Suggested build order: Projects Home + connect pipeline → Project Shell + Overview → Tasks (Board) + Timeline → Base + recall → Workflow (edit) → Workflow (live run) → Conveyor view.
@@ -562,7 +565,8 @@ Keep the canon; add the minimum new tokens. Defined OKLCH-first per design stand
 1. Is the runtime a **desktop shell (Tauri/Electron)** or a **local web app**? Affects folder-picker + window-min-size handling.
 2. Is the workflow **per-project** only, or are there **shared/template** workflows across projects (Projects Home could host a template gallery)?
 3. Should **humans edit** ticket history, or only **add notes** (this spec assumes append-only agent history + human notes)?
-4. Confirm **React Flow** is acceptable as the one new dependency for the canvas.
+
+**Decided (owner-locked, folded into this spec):** the implementation stack is **Angular 21**; the workflow canvas library is **Rete.js v2** (with its official Angular renderer, **ngx-vflow** as fallback) — *not* React Flow; the **editable workflow builder is in the MVP**; and **remote execution** is included, surfaced via the execution-location chip (§4.3, §5).
 
 **Status:** Draft → awaiting `/po` review. On approval, record `DESIGN_APPROVED` (soft) and hand to `/fe`.
 ```

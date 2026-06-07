@@ -82,7 +82,7 @@ default path.
 ```mermaid
 flowchart LR
   subgraph Desktop["Desktop shell (Tauri) — auto-manages Core"]
-    UI["Cockpit Web UI<br/>(React + React Flow)"]
+    UI["Cockpit Web UI<br/>(Angular 21 + Rete.js v2)"]
     Core["Constellation Core<br/>(Node, supersets hub/server.js)"]
   end
   UI -->|HTTP + SSE on 127.0.0.1| Core
@@ -288,7 +288,7 @@ flowchart TB
 
 ## 6. Open Question 4 — WORKFLOW builder ↔ executable orchestration
 
-### Decision: **Build a thin custom graph runtime on top of `React Flow` for the canvas, with a graph data model that *compiles to* the existing `workflow.yaml`/ledger semantics. Do NOT adopt n8n/Node-RED/Windmill as the engine.**
+### Decision: **Build a thin custom graph runtime on top of `Rete.js v2` (official Angular renderer) for the canvas, with a graph data model that *compiles to* the existing `workflow.yaml`/ledger semantics. The builder is an *editable* authoring surface in the MVP — not read-only-first. Do NOT adopt n8n/Node-RED/Windmill as the engine.**
 
 **Why not adopt a heavyweight engine:**
 - **n8n / Node-RED / Windmill** are full execution *platforms* (their own
@@ -296,19 +296,36 @@ flowchart TB
   *their* server (the very thing the user dislikes), adopting their data model,
   and bending our agent/gate/ledger semantics to theirs. Heavy lock-in for a
   capability we mostly already have in `workflow.yaml` + the ledger.
-- Notably, **n8n's editor is itself built on React Flow** — so the canvas we'd
-  copy from is the library we'd use directly, minus the server baggage.
-- **Rete.js** is a fine dataflow framework but TypeScript-first node-compute
-  oriented; we want *agent orchestration*, not in-browser dataflow compute.
 
-**Why React Flow (canvas) + custom runtime (execution):**
-- React Flow is MIT, embeddable, infinitely customizable, and the de-facto
-  standard for node UIs — it gives us the *visual* layer only.
+**Why Rete.js v2 (canvas) + custom runtime (execution):**
+- The workflow **is a program that executes** real agents through gates — not a
+  static diagram. Rete.js is the one mature, MIT-licensed option whose core is
+  built around **processing engines** (dataflow / control-flow / hybrid / codegen)
+  — it models nodes-that-compute, so the editor's mental model aligns with the
+  Core runtime rather than fighting it. Its core is **framework-agnostic** with
+  swappable renderers, and it ships an **official Angular renderer** (standalone
+  from v19, enhanced for v20/21, supporting Angular 12–21) that tracks the
+  Angular 21 baseline — so the canvas is first-party to our framework, not a
+  community wrapper.
 - The *execution* layer is small because we already own the primitives: gates,
   tracks, owners, refusal policy, ledger, typed comments. The graph is a
   **richer front-end over the same engine**, and "essentially a visual program
   expressible as TypeScript" (the vision's words) maps cleanly to a compiled
-  plan.
+  plan. Core stays the authoritative compiler/runtime.
+- **Fallback: `ngx-vflow`** (Angular-native, Signals-based, MIT). If Rete's
+  lower-level ergonomics prove too costly during the Workflow phase, ngx-vflow is
+  the least-friction substitute for our zoneless/Signals model — we would then
+  build the execution-semantics layer ourselves against Core. This is a contained
+  canvas-layer decision; nothing else depends on it.
+
+**Editable in the MVP.** The builder supports **authoring + client-side
+validation** in v1: nodes/edges are created, edited, and connected on the canvas,
+the editor validates against `workflow.yaml` for fast feedback (gate existence,
+bounded loops, no `safety_override` bypass, no dangling references), and on save
+the **Core compiler is authoritative** — it re-validates and returns errors the
+editor surfaces inline. The graph runtime + compiler must therefore support the
+authoring/validation round-trip from day one (the graph file is the source of
+truth; the editor is the view, and serialize∘parse must be lossless).
 
 **Graph data model (`workflow.graph.json`, per project, stored in `.aidevteam/`):**
 
@@ -442,7 +459,7 @@ named in the plans, to be confirmed against the actual MCP schema.
 | `hub/lib/guard.js` (C3 anti-CSRF/rebinding) | **Reuse as-is** | The remote-access security floor; required before any off-loopback write |
 | `hub/lib/comments.js` | **Reuse as-is** | TASKS history + agent-written log |
 | `hub/server.js` HTTP/SSE | **Supersede** | Core keeps the same routes but multiplexes by project + manages the registry |
-| `hub/public/index.html` | **Replace** | The read-only single-board UI becomes the multi-project Cockpit (React + React Flow) |
+| `hub/public/index.html` | **Reuse-not-replace** | Stays in the repo and stays served (single-project zero-dep floor); the multi-project Cockpit (Angular 21 + Rete.js v2) is **additive** and supersets it once at parity |
 | `workflow.yaml` + engine semantics | **Reuse as authority** | The graph compiler validates against it; gates/refusal stay authoritative |
 | `claude/memory/` | **Reuse as-is** | BASE = this subsystem |
 
@@ -460,7 +477,7 @@ without forking it.
 |---|---|---|---|
 | Desktop shell | **Tauri**, Electron | **Tauri** | 20–30× smaller, tray lifecycle, capability security, native WebView |
 | Core runtime | **reuse `hub/` Node**, rewrite in Rust/Go | **Reuse Node** | Hub + memory already Node/TS; rewrite violates reuse |
-| Visual canvas | **React Flow**, Rete.js, raw SVG | **React Flow (MIT)** | Standard, embeddable, what n8n itself uses |
+| Visual canvas | **Rete.js v2**, ngx-vflow, raw SVG | **Rete.js v2 (MIT)**, ngx-vflow fallback | The one option built for graphs that *execute* (dataflow/control-flow engines); official Angular renderer (v12–21); ngx-vflow held in reserve |
 | Workflow engine | **custom over `workflow.yaml`**, n8n, Node-RED, Windmill | **Custom thin runtime** | Avoid a second server + foreign data model; we own gates/ledger |
 | Agent runtime | **host-CLI**, Claude Agent SDK, standalone | **host-CLI default + SDK opt-in** | Only host-CLI reuses the plan's credentials (SDK needs API key per 2026 terms) |
 | Vector/BASE | **`claude/memory/` (sqlite-vec/Qdrant)**, LanceDB, pgvector | **Reuse `claude/memory/`** | Already implements project-scoped recall + graceful fallback |
@@ -482,15 +499,18 @@ be reached remotely:
 | **Tampering** | Concurrent/racy ledger writes | Atomic CAS via `write.js` (`expectedRev`) — already enforced |
 | **Info disclosure (cross-project)** | Project A recalling B's BASE; key bleed | Hard `project_id`+`scope` filter on every recall; per-project keychain entries; no shared global creds |
 | **Credential theft** | API keys in repo/config | Default path holds **no key** (host-CLI); SDK keys only in OS keychain; `config.json` = selection, not secrets |
-| **Elevation via remote exec** | SSH runner = remote code execution | Explicit per-project opt-in, host allowlist, known-hosts pinning, no arbitrary shell — only the agent command |
+| **Elevation via remote exec** | SSH runner = remote code execution; **in scope for v1** | Explicit per-project opt-in, host allowlist, known-hosts pinning, no arbitrary shell — only the agent command. Because remote execution ships in v1, every remote/SSH ticket carries a **mandatory hard `SECOPS_APPROVED`** gate (its own dedicated threat-model pass) before that path can be enabled |
 | **Repudiation** | "who advanced this gate?" | Every mutation emits a typed comment with author (`AC-B6`) — uniform audit trail |
 | **DoS / runaway agents** | Loop nodes, background fan-out, cost blow-up | Bounded `maxIters`, concurrency caps, per-run cost receipts + budget guard (cron agents pausable) |
-| **Supply chain** | New deps (Tauri, React Flow) | Pin + SBOM; Core default stays zero-runtime-dep like the hub; deps live in the UI/shell layer |
+| **Supply chain** | New deps (Tauri, Angular 21, Rete.js v2) | Pin + SBOM; Core default stays zero-runtime-dep like the hub; deps live in the UI/shell layer |
 
 **`/secops` (`SECOPS_APPROVED`, hard, safety-override) is mandatory** before
 build: this system touches **secrets, network, external input, and file access**
-— four of the gate's triggers. Remote exec (SSH runner) in particular needs a
-dedicated threat-model pass.
+— four of the gate's triggers. **Remote agent execution (the SSH runner) is in
+v1, not deferred** — so it raises `SECOPS_APPROVED` to **mandatory and hard for
+every remote/SSH path**, each requiring its own dedicated remote-code-execution
+threat-model pass (allowlist, host-key pinning, no arbitrary shell) before that
+path is enabled.
 
 ---
 
@@ -519,25 +539,33 @@ Ship the smallest thing that proves the whole loop, reusing the hub end-to-end:
 3. **Cockpit** with the three panels, but:
    - **TASKS** fully functional (it's the existing board + comments + archive).
    - **BASE** = add docs → ingest into `claude/memory/` → recall (reuse memory).
-   - **WORKFLOW** = React Flow canvas that **reads/writes `workflow.graph.json`**
-     and can run **one linear trigger→agent→gate chain** via the **host-CLI
-     runner** — proves graph→real-agent.
-4. **host-CLI AgentRunner only** (no SDK, no SSH yet) — proves credential reuse.
-5. **Reuse `guard.js`** so the same UI works in a browser on loopback.
+   - **WORKFLOW** = Rete.js v2 canvas that **edits and reads/writes
+     `workflow.graph.json`** — an **editable** authoring surface (create/connect/
+     validate nodes against `workflow.yaml`, lossless round-trip) — and can run a
+     trigger→agent→gate chain via the **host-CLI runner** — proves
+     authoring→graph→real-agent.
+4. **AgentRunner with two backends: host-CLI (default) and remote (SSH).**
+   Host-CLI proves credential reuse (no new key); the **SSH backend proves a
+   remote project runs identically to a local one** (gated by a mandatory hard
+   `SECOPS_APPROVED` per §10). The Agent SDK backend remains opt-in/deferred.
+5. **Reuse `guard.js`** so the same UI works in a browser on loopback (and is the
+   security floor for the off-loopback writes that remote execution implies).
 
-**Deliberately deferred past MVP:** SSH/remote runner, Agent SDK backend, cron
-background agents, loops/conditions/parallel nodes, KGB/Canon adapter, IDE
-webview client, Windows packaging polish (target Mac first, Win second).
+**Deliberately deferred past MVP:** Agent SDK backend, cron background agents,
+parallel nodes, KGB/Canon adapter, IDE webview client, Windows packaging polish
+(target Mac first, Win second). **In v1 (not deferred):** the editable workflow
+builder and the remote (SSH) agent runner.
 
 ```mermaid
 flowchart LR
   Tauri --> Core
-  Core --> Reg["Registry (local)"]
+  Core --> Reg["Registry (local + remote)"]
   Core --> State["buildState (reuse)"]
   Core --> Mem["claude/memory (reuse)"]
-  Core --> Run["host-CLI runner"]
-  UI["Cockpit: WORKFLOW · TASKS · BASE"] --> Core
-  Run -->|claude -p| Host["Host login (no new key)"]
+  Core --> Run["AgentRunner seam"]
+  UI["Cockpit: WORKFLOW (editable) · TASKS · BASE"] --> Core
+  Run -->|host-CLI: claude -p| Host["Host login (no new key)"]
+  Run -->|remote: SSH runner| Remote["Remote host login"]
 ```
 
 ---
@@ -553,7 +581,7 @@ flowchart LR
 | R5 | **Headless auth for cron/background agents.** Unattended runs need a non-interactive credential the host CLI may not provide. | **Med** | Define "needs-auth" pause state; SDK-key fallback for unattended projects |
 | R6 | **`projectId` is path-based** — move/rename orphans history (documented limitation in `project-id.ts`). | **Med** | Add a re-link/migrate action in the registry UI |
 | R7 | **KGB/Canon/Bumbl interfaces unverified** here — their MCP/tool surface lives in other repos. | **Med** | Confirm TrustGate "evaluate" + propose/approve MCP signatures before building the adapter |
-| R8 | **Tauri WebView quirks** for a complex React Flow canvas across OS WebViews. | **Low-Med** | Test canvas on WKWebView (Mac) + WebView2 (Win) early |
+| R8 | **Tauri WebView quirks** for a complex Rete.js v2 canvas across OS WebViews (transform-heavy live-run animation; `@angular/elements` re-mount on the Angular renderer). | **Low-Med** | Test canvas on WKWebView (Mac) + WebView2 (Win) early; mount the editor once per route; ngx-vflow fallback if ergonomics block |
 | R9 | **Multiple Cores / port collisions** when IDE webview + desktop app both run. | **Low** | Single-instance lock + discovery file in `~/.aidevteam/` so views attach to one Core |
 | R10 | **Scope creep** — this can balloon into "build n8n + Kiro." | **Med** | The MVP (§12) is the contract; defer everything in the deferred list |
 
@@ -566,15 +594,19 @@ flowchart LR
    and via an IDE webview thin client. Solves "no manual server"; Win+Mac.
 2. **Execution + keys:** **host-CLI runner by default** (reuses the host's
    login — the *only* compliant way to reuse the plan; SDK requires an API key
-   per 2026 terms), **Agent SDK opt-in (keychain-stored key)**, **remote via SSH
-   runner** — one `AgentRunner` seam; local and remote symmetric.
+   per 2026 terms), **remote via SSH runner — in v1** (a mandatory hard
+   `SECOPS_APPROVED` per path), **Agent SDK opt-in (keychain-stored key)** —
+   one `AgentRunner` seam; local and remote symmetric.
 3. **Registry/analysis:** user-level `~/.aidevteam/registry.json` keyed by the
    existing `projectId`; existing-files fast path via `buildState`, else a
    one-shot analyzer; isolation via `project_id`+`scope` everywhere; SoT stays in
    each repo.
-4. **WORKFLOW:** **React Flow** canvas + **thin custom runtime** that compiles
-   `workflow.graph.json` to a plan validated against `workflow.yaml`; every step
-   is a typed ledger comment. **Reject n8n/Node-RED/Windmill** as the engine.
+4. **WORKFLOW:** **Rete.js v2** canvas (official Angular renderer; ngx-vflow
+   fallback) + **thin custom runtime** that compiles `workflow.graph.json` to a
+   plan validated against `workflow.yaml`; every step is a typed ledger comment.
+   The builder is **editable in the MVP** (authoring + validation, lossless
+   round-trip), not read-only-first. **Reject n8n/Node-RED/Windmill** as the
+   engine.
 5. **BASE:** **reuse `claude/memory/` as-is**; **KGB/Canon as an optional
    governance overlay** (recommended for teams), **Bumbl as an optional
    self-hosted target** — none required.
