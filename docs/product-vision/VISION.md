@@ -73,7 +73,7 @@ flowchart TB
   subgraph Cockpit["Cockpit UI — Tauri desktop shell (also browser / IDE webview)"]
     home["Projects Home<br/>(connect a folder → analyse → ready)"]
     subgraph shell["Per-project Shell (left rail)"]
-      wf["WORKFLOW<br/>visual builder + live run<br/>(React Flow)"]
+      wf["WORKFLOW<br/>visual builder + live run<br/>(Rete.js v2)"]
       tk["TASKS<br/>agent-managed board<br/>+ full history + archive"]
       ba["BASE<br/>governing rules/policy/context<br/>+ recall indicator"]
     end
@@ -121,10 +121,10 @@ need to re-open them.
 |---|----------|---------------|-------------|
 | **L1** | **Packaging** | **Tauri desktop shell that auto-spawns a Node "Core" sidecar** (supersets `hub/server.js`); same UI also reachable via a plain browser and an IDE webview thin client. Solves "don't run a server every time"; cross-platform Win/Mac. Electron is the fallback only if a WebView-incompatible dependency surfaces. | Jorge (decision), Aura, Finn |
 | **L2** | **Subagent execution + key reuse** | **Drive the host tool's own CLI by default** (the *only* compliant way to reuse the user's plan credentials — the Agent SDK requires an API key per 2026 terms). One `AgentRunner` adapter seam with three backends: host-CLI (default, no new key), Agent SDK (opt-in, keychain-stored key), remote (SSH). Secrets never written to project files, knowledge store, workflow definition, UI, or logs. | Jorge (decision), Anna (NFR), Finn (bridge) |
-| **L3** | **Workflow builder** | **React Flow canvas + a thin custom runtime** that compiles a per-project graph definition (`workflow.graph.json`) to an execution plan **validated against `workflow.yaml`**; every step recorded as a typed ledger comment. **Reject** n8n / Node-RED / Windmill as the engine (they bring their own server + data model — the thing users dislike). | Jorge (decision), Aura, Finn, Apex |
+| **L3** | **Workflow builder** | **Rete.js v2 canvas (official Angular renderer) + a thin custom runtime** that compiles a per-project graph definition (`workflow.graph.json`) to an execution plan **validated against `workflow.yaml`**; every step recorded as a typed ledger comment. Rete is chosen because the workflow is a *program that executes* (it has built-in dataflow/control-flow engines), with ngx-vflow as a contained fallback. **Reject** n8n / Node-RED / Windmill as the engine (they bring their own server + data model — the thing users dislike). | Jorge (decision), Aura, Finn, Apex |
 | **L4** | **BASE = reuse `claude/memory`** | The project-scoped, gracefully-degrading semantic-recall subsystem already in the repo *is* BASE. No new vector subsystem is built. KGB/Canon and Bumbl are **optional adapters**, never hard dependencies. | Jorge (decision), Anna, Apex |
 | **L5** | **Hub = reuse-not-replace** | Core is a **superset** of the hub: reuse `state.js`/`write.js`/`guard.js`/`comments.js`/`api.js` as the load-bearing internals; never bypass the atomic-CAS writer; never weaken the anti-CSRF/rebinding guard. New capability (registry, orchestrator, runner, analyzer) is *additive*. | Jorge (decision), all |
-| **L6** | **Frontend = React + Vite + TS, hub kept as the floor** | Move to React 19 + Vite + TypeScript (React Flow forces React), **but keep the zero-dependency `index.html` hub alive and served at `/legacy`** as the browser-MVP floor and graceful-degradation surface. Lift the hub's already-correct presentation logic (status derivation, gate chips, agent badges, comment timeline, SSE diff→toast engine, dark theme) into typed components, locked against regression by snapshot tests. Reuse the hub's SSE for realtime (no WebSockets for MVP); TanStack Query + Zustand for lean state; reuse the server's CAS-409 reconcile for safe optimistic writes. | Finn (decision), Aura, Jorge |
+| **L6** | **Frontend = Angular 21 + TS, hub kept as the floor** | Build the cockpit in Angular 21 (standalone components, Signals, zoneless, Signal Forms; Angular CLI / esbuild-Vite build) — owner-locked for stack consistency with the KGB project (also Angular, to be aligned to the same version) and shared components/tooling — **but keep the zero-dependency `index.html` hub alive and served at `/legacy`** as the browser-MVP floor and graceful-degradation surface. Lift the hub's already-correct (framework-agnostic) presentation logic (status derivation, gate chips, agent badges, comment timeline, SSE diff→toast engine, dark theme) into Angular services + typed components, locked against regression by snapshot tests. Reuse the hub's SSE for realtime via RxJS (no WebSockets for MVP); Signals + services for lean state (NgRx SignalStore only where justified); reuse the server's CAS-409 reconcile for safe optimistic writes. | Finn (decision), Aura, Jorge |
 | **L7** | **Per-project isolation + audit completeness (NFRs)** | Per-project data/governance strictly partitioned by `projectId` (only content explicitly marked global is shared); every state change emits an attributable, timestamped, human-readable history entry automatically; nothing silently lost or overwritten. | Anna (NFR), Jorge (security), Aura |
 | **L8** | **Local-first, loopback-by-default** | All core functions work with no network; the tool binds to the local machine only unless remote access is deliberately enabled; remote writes require explicit authorization. Security gate mandatory before any remote-write capability. | Anna, Jorge, Finn |
 
@@ -193,7 +193,7 @@ here.**
   multi-project as first-class (it's the core JTBD — continuity across projects/machines).
 - **Leans:** Apex — **single local project first**. Anna/Jorge — **multi-project in
   MVP**. *Finn shows the conflict is sequencing, not architecture:* Phase 1 ships a
-  single-project React board (the Apex cut); Phase 2 wraps it in the multi-project shell
+  single-project Angular board (the Apex cut); Phase 2 wraps it in the multi-project shell
   **with no rework**. So /po can pick the cut without changing the design. *(See §10,
   reconciliation R3.)*
 
@@ -224,7 +224,7 @@ here.**
    recall, isolated per project, **degrading gracefully** when the index/recall backend
    is down (core rules still injected deterministically; an agent run is never blocked
    solely because recall is down).
-5. **WORKFLOW — read-only render** — render the default workflow visually (React Flow),
+5. **WORKFLOW — read-only render** — render the default workflow visually (Rete.js v2),
    and run **one linear trigger → agent → gate chain** via the **host-CLI runner** to
    prove "graph → real agent." *(Editing is deferred — see D-C.)*
 6. **Host key reuse + local-first + cross-platform** — no extra keys (host-CLI runner);
@@ -271,7 +271,7 @@ compete on "most agents" or "best autonomy" (losing fights against Devin/Cursor/
 | **Ledger** | The file-based workflow state (`.workflow-state.json`) plus typed comments — the append-in-effect record of every ticket's state and history. The atomic-CAS writer is the only path that mutates it. |
 | **Recall** | Semantic retrieval of relevant BASE content into an agent's context at the right moment (the "rule known → rule enforced" mechanic). The UI shows a **recall indicator** (indexed / active / recalled-now) so the human can see rules actually steering work. |
 | **AgentRunner** | The single adapter seam with three backends: **host-CLI** (default, reuses the host login, no new key), **Agent SDK** (opt-in, API key in OS keychain), **remote** (SSH runner on the remote host). |
-| **Graph / `workflow.graph.json`** | The per-project visual workflow definition (nodes/edges/loops/conditions/background agents). It **compiles to** the existing `workflow.yaml`/ledger semantics; the graph file is the source of truth, React Flow is the editor view. Round-trip must be lossless. |
+| **Graph / `workflow.graph.json`** | The per-project visual workflow definition (nodes/edges/loops/conditions/background agents). It **compiles to** the existing `workflow.yaml`/ledger semantics; the graph file is the source of truth, the Rete.js canvas is the editor view. Round-trip must be lossless. |
 | **Token (live-run)** | The glowing dot that animates along the active edge during a workflow run — the literal "where are we / which agent is active" indicator. |
 | **Conveyor** | An optional playful TASKS view where tickets ride a belt toward the agent (or human) who acts next. A skin over the same data as the Board; ships last. |
 | **Host-CLI / Agent SDK / SSH runner** | The three execution backends (see AgentRunner). Only host-CLI reuses the plan's credentials. |
@@ -288,20 +288,20 @@ Merged from architecture R1–R10 and frontend F1–F8; deduped and ranked.
 | **K2** | **Headless cost / separate credit pool.** From mid-2026 headless/SDK usage draws a separate, smaller credit pool — background/loop agents can exhaust it. | **High** | Arch R2 | Cost metering + budget guard from day one (per-run token/cost recorded as ledger comments; budget indicator in UI). |
 | **K3** | **Remote = remote code execution.** The SSH runner is powerful and dangerous. | **High** | Arch R3 | **Dedicated /secops threat model**; opt-in, host allowlist, known-hosts pinning, no arbitrary shell (only the agent command) before shipping remote. (Ties to decision D-B.) |
 | **K4** | **Lossless round-trip** (graph ↔ `workflow.graph.json`) silently breaks, losing user config. | **High** | FE F2 | Property test `serialize ∘ parse = identity` in CI from the Workflow phase. |
-| **K5** | **React Flow perf on WKWebView** — the live token + 50+ nodes (transform-heavy animation on the macOS system WebView). | **High** | FE F1, Arch R8 | Spike a 50-node canvas + token animation on WKWebView before committing to animation richness; `transform`/`opacity` only; respect reduced-motion. |
+| **K5** | **Canvas perf on WKWebView** — the live token + 50+ nodes (transform-heavy animation on the macOS system WebView; applies to the Rete.js canvas). | **High** | FE F1, Arch R8 | Spike a 50-node canvas + token animation on WKWebView before committing to animation richness; `transform`/`opacity` only; respect reduced-motion. |
 | **K6** | **Node sidecar packaging in Tauri** across Win+Mac (SEA bundling, signing, notarization) is fiddly. | **Med** | Arch R4 | Spike Node SEA + Tauri sidecar on both OSes early; fallback = Electron if blocked (the zero-dep hub remains a working browser MVP regardless). |
 | **K7** | **Headless auth for cron/background agents** — unattended runs need a non-interactive credential the host CLI may not provide. | **Med** | Arch R5 | Define a "needs-auth" pause state; SDK-key fallback for unattended projects. |
 | **K8** | **`projectId` is path-based** — move/rename orphans a project's history. | **Med** | Arch R6 | Add a re-link/migrate action in the registry UI. |
 | **K9** | **KGB/Canon/Bumbl interfaces unverified** — their MCP/tool surface lives in *other repos*, not this one; the adapter contract is specified against *capabilities named in plans*, not a confirmed schema. | **Med** | Arch R7 | Confirm TrustGate "evaluate" + propose/approve MCP signatures before building the adapter. (Ties to D-D.) |
-| **K10** | **Keyboard a11y for node-connect (WCAG 2.5.7)** is non-trivial with React Flow's pointer model. | **Med** | FE F3 | Budget explicit time; ship the accessible graph **list-view** alternative regardless. |
-| **K11** | **Status-derivation regression** during the vanilla→React port (the blocked-by-hard-gate rule). | **Med** | FE F4 | Snapshot tests against current vanilla output *before* porting each pure function. |
+| **K10** | **Keyboard a11y for node-connect (WCAG 2.5.7)** is non-trivial with any canvas pointer model (incl. the Rete.js interaction layer). | **Med** | FE F3 | Budget explicit time; ship the accessible graph **list-view** alternative regardless. |
+| **K11** | **Status-derivation regression** during the vanilla→Angular port (the blocked-by-hard-gate rule). | **Med** | FE F4 | Snapshot tests against current vanilla output *before* porting each pure function. |
 | **K12** | **Browser host can't read arbitrary folder paths** for "connect a project." | **Med** | FE F5 | Bridge: browser uses a host-known project or a user-typed path; native picker only in Tauri/IDE. |
 | **K13** | **Remote-write auth layering** (bearer token on top of the CSRF header) not yet specified server-side. | **Med** | FE F8 | Coordinate /be + /secops contract before any remote-write work; the guard already refuses remote writes by default. |
 | **K14** | **Scope creep** — this can balloon into "build n8n + Kiro." | **Med** | Arch R10 | The MVP (§5) is the contract; defer everything on the deferred list. |
 | **K15** | **Multiple Cores / port collisions** when the IDE webview and desktop app both run. | **Low** | Arch R9, FE | Single-instance lock + a discovery file in `~/.aidevteam/` so views attach to one Core. |
 | **K16** | **Per-project SSE fan-out** (N connections) resource use with many projects. | **Low-Med** | FE F6 | MVP is few projects; move to a multiplexed Core stream when project counts justify it. |
-| **K17** | **Bundle creep** from React Flow on non-workflow routes. | **Low** | FE F7 | Route-level code-splitting; Workflow is its own async chunk. |
-| **K18** | **Supply chain** — new deps (Tauri, React Flow). | **Low** | Arch | Pin + SBOM; Core default stays zero-runtime-dep like the hub; deps live in the UI/shell layer. |
+| **K17** | **Bundle creep** from the canvas library (Rete.js v2) on non-workflow routes. | **Low** | FE F7 | Route-level code-splitting; Workflow is its own lazy chunk. |
+| **K18** | **Supply chain** — new deps (Tauri, Angular, Rete.js v2). | **Low** | Arch | Pin + SBOM; Core default stays zero-runtime-dep like the hub; deps live in the UI/shell layer. |
 
 **Two unknowns to call out explicitly (per the brief):**
 - **The Agent-SDK key / credit-pool constraint (K1+K2)** is the single most
