@@ -15,3 +15,25 @@ zero-dependency hub stays as the fallback floor.
 ## D-D — Sequencing: multi-project shell first, then per-project depth.
 ## D-E — BASE backbone: reuse claude/memory now; KGB/Canon + Bumbl deferred/optional.
 ## Product name: open (keep "ADT" for now).
+
+## Resolved: product name — DART (Dev AI Responsible Team)
+The product/app is **DART — Dev AI Responsible Team**. The agent roster + gated
+workflow it is built on remain "the team" (the existing skills). DART is the
+cross-platform studio around them.
+
+## Environment + integration facts (owner-provided)
+- Build/test on this Linux/Ubuntu machine. The Angular Cockpit is built and
+  headless-tested here; Tauri desktop packaging + Windows are deferred until the
+  feature set is complete (designed cross-platform throughout). A dev-cloud VPS is
+  available on request (credentials provided when needed) for remote-execution and
+  display-dependent testing.
+- Frontend stack consistency confirmed: KGB (knowledge-base repo) is also Angular —
+  the Cockpit follows the same conventions so components can be shared.
+- Knowledge-backbone candidates live locally: Bumbl (../bumbl-dis, Rust) and KGB
+  (../knowledge-base, Angular frontend + Java hexagonal backend); Canon is a
+  commercial branch of KGB. Evaluate as optional overlays when the BASE layer lands.
+- API keys (ANTHROPIC/VOYAGE/GEMINI) are available at ~/git/workspace/canon/deploy/.env;
+  used via environment only for live memory recall — NEVER read into, logged, or
+  committed to this repo.
+- Branch: all DART work accumulates on `feat/dart`; main stays clean until the
+  owner approves a PR (owner + Copilot review) — only then merge to main.
