@@ -81,23 +81,23 @@ function parseWorkflow(yaml) {
     const m = line.match(/^\s+([A-Za-z_][A-Za-z0-9_]*):\s*\[([^\]]*)\]/);
     if (m) tracks[m[1]] = m[2].split(',').map((s) => norm(s)).filter(Boolean);
   }
-  // active preset's always_required
-  let alwaysRequired = [];
+  // always_required for EVERY preset (so an overlay preset switch re-resolves it)
+  const presetsAR = {};
   let cur = null;
   for (const line of section(yaml, 'presets').split('\n')) {
     const head = line.match(/^\s{2}([A-Za-z-]+):(.*)$/);
     if (head) {
       cur = head[1];
       const inline = head[2].match(/always_required:\s*\[([^\]]*)\]/);
-      if (cur === preset && inline) { alwaysRequired = inline[1].split(',').map(norm).filter(Boolean); break; }
+      if (inline) presetsAR[cur] = inline[1].split(',').map(norm).filter(Boolean);
       continue;
     }
-    if (cur === preset) {
+    if (cur) {
       const ar = line.match(/always_required:\s*\[([^\]]*)\]/);
-      if (ar) { alwaysRequired = ar[1].split(',').map(norm).filter(Boolean); break; }
+      if (ar) presetsAR[cur] = ar[1].split(',').map(norm).filter(Boolean);
     }
   }
-  return { preset, gates, tracks, alwaysRequired };
+  return { preset, gates, tracks, alwaysRequired: presetsAR[preset] || [], presetsAR };
 }
 
 // deep-merge the machine-owned overlay over the parsed base (overlay wins per key)
@@ -107,11 +107,15 @@ function applyOverlay(wf, project) {
   let ov;
   try { ov = JSON.parse(safeRead(p)); } catch { return { wf, overlayPath: null }; }
   if (!ov || typeof ov !== 'object') return { wf, overlayPath: null };
+  const effPreset = typeof ov.preset === 'string' ? ov.preset : wf.preset;
+  const presetsAR = wf.presetsAR || {};
   const merged = {
-    preset: typeof ov.preset === 'string' ? ov.preset : wf.preset,
+    preset: effPreset,
     tracks: { ...wf.tracks, ...(ov.tracks || {}) },
     gates: mergeGates(wf.gates, ov.gates),
-    alwaysRequired: Array.isArray(ov.alwaysRequired) ? ov.alwaysRequired : wf.alwaysRequired,
+    // re-resolve always_required for the EFFECTIVE preset (overlay may switch it)
+    alwaysRequired: Array.isArray(ov.alwaysRequired) ? ov.alwaysRequired : (presetsAR[effPreset] || wf.alwaysRequired),
+    presetsAR,
   };
   return { wf: merged, overlayPath: p };
 }

@@ -24,6 +24,8 @@ gates:
 presets:
   small-team:
     always_required: [CODE_REVIEWED]
+  regulated:
+    always_required: [ARCH_APPROVED, SECOPS_APPROVED, CODE_REVIEWED, VERIFIED]
 `;
 
 function fixture(ledger, overrides) {
@@ -98,6 +100,10 @@ test('overlay (.aidevteam/workflow.overrides.json) merges over the base workflow
     assert.equal(st.preset, 'regulated', 'overlay preset wins');
     assert.deepEqual(st.tracks.standard, ['implement', 'code_review'], 'overlay track order wins');
     assert.ok(st.overlay, 'overlay path reported');
+    // /rev fix: switching preset via overlay must re-resolve always_required
+    const req = st.gateDefs.filter((g) => g.required).map((g) => g.name).sort();
+    assert.deepEqual(req, ['ARCH_APPROVED', 'CODE_REVIEWED', 'SECOPS_APPROVED', 'VERIFIED'],
+      'regulated always_required resolved after overlay preset switch');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
