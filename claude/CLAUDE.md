@@ -6,6 +6,7 @@ A team of ~29 specialist AI agents (a 15-agent core team + optional specialists)
 - **Proportional process.** Right-size the workflow to the change — a typo is not a feature. Don't over-process; don't skip what matters.
 - **TDD.** Behavior → failing test → minimal code → green → refactor → commit. Targets: >80% unit, >60% integration.
 - **Behavior-only tickets.** Stories say WHAT, not HOW (no file paths/line numbers).
+- **Facts-only, self-describing code.** Source and doc-comments (Javadoc/JSDoc) state facts only — never ticket IDs, agent/persona names, review-condition codes, or sprint references; those live in commits/PRs and the ledger. Prefer self-describing names; comment only a non-obvious *why* or a genuinely complex flow.
 - **OSS-first, no lock-in.** Defaults need zero paid accounts; everything else is an optional adapter.
 - **Reusable skills.** Agent skills hold universal knowledge — no project/ticket/sprint specifics.
 

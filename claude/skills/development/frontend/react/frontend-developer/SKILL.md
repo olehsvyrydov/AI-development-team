@@ -226,6 +226,15 @@ These are **`references/`, not separate agents** — loaded by the **Stack selec
 - Error boundaries for fault tolerance
 - Accessible by default (semantic HTML, ARIA when needed)
 
+### Code States Facts Only
+
+Code is self-describing; comments and JSDoc carry only what the names cannot.
+
+- **No process artifacts in code or JSDoc.** Never embed ticket/issue IDs, agent or persona names, review-condition codes (e.g. `C1`, `D4`), acceptance-criteria IDs, or sprint/phase names in source or JSDoc. Code outlives the process that produced it, so these references rot and leak workflow into the artifact — they belong in the commit message, PR description, or the workflow ledger.
+- **JSDoc documents the contract, not history.** For non-trivial public APIs, hooks, and complex props, state params, return, thrown errors, and side effects — the *why*, not the *what*.
+- **No narration comments.** A comment that restates the next line is noise; delete it or replace it with a genuine non-obvious WHY. Prefer self-describing names over comments.
+- **Scope note:** this governs CODE and JSDoc only — commit messages and PRs may (and should) reference ticket keys.
+
 ---
 
 ## Checklist
@@ -267,6 +276,7 @@ These are **`references/`, not separate agents** — loaded by the **Stack selec
 | **Blocking Rendering** | UI freezes during heavy computation | `useTransition`, `useDeferredValue`, Web Workers |
 | **localStorage for Auth Tokens** | XSS can steal tokens | httpOnly cookies, server-side sessions |
 | **Obvious Comments** | Clutter code, become stale | Self-documenting names, JSDoc for public APIs only |
+| **Process Artifacts in Code/JSDoc** | Ticket IDs, condition codes, persona/sprint names rot and leak workflow into code | Facts only — they belong in commits/PRs, not source |
 | **Commented-out Code** | Dead code noise | Delete it; git preserves history |
 | **CSS calc() for iframe sizing** | Filament/framework CSS variables may be undefined, wrapper padding accumulates unpredictably | Use JS `getBoundingClientRect().top` to measure actual position |
 | **relying on flexbox alone to prevent page scroll** | Parent frameworks with `min-h-screen` on multiple ancestors cause overflow despite `overflow:hidden` on inner containers | Set `document.documentElement.style.overflow = 'hidden'` via JS |

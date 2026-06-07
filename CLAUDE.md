@@ -55,6 +55,11 @@ ai-dev-team/
 
 ## Development Guidelines
 
+### Code conventions (always)
+
+- **Follow the workflow.** Before any development task and every handoff, consult the `workflow-engine` skill; do not skip its gates.
+- **Facts-only, self-describing code.** Source and doc-comments (Javadoc/JSDoc) state facts only — never ticket IDs, agent/persona names, review-condition codes, or sprint references. Those belong in commit messages, PRs, and the ledger. Prefer self-describing names; comment only a non-obvious *why* or a genuinely complex algorithm/flow.
+
 ### When Improving This Repository
 
 1. **Extending existing skills**: Add new technologies to skill files in `claude/skills/`
