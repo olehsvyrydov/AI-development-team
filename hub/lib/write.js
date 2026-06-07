@@ -1,8 +1,8 @@
 'use strict';
 /*
- * hub/lib/write.js — the ONLY module that mutates project files (ADT-206).
+ * The only module that mutates project files.
  *
- * Security (Soren C5): all writes are atomic (tmp + fsync + rename) and the
+ * All writes are atomic (tmp + fsync + rename) and the
  * ledger uses compare-and-swap on `rev` plus an in-process mutex, so a hub write
  * never clobbers a concurrent agent edit (returns {conflict:true} instead).
  * Comment bodies are capped and the ticket id is sanitized into the filename
@@ -14,7 +14,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { fileRev } = require('./state');
 
-const MAX_COMMENT_BODY = 8192; // C5
+const MAX_COMMENT_BODY = 8192;
 
 function computeRev(dir) { return fileRev(dir); }
 

@@ -1,6 +1,6 @@
 'use strict';
 /*
- * hub/lib/guard.js — control-plane request guard (Soren security condition C3).
+ * Control-plane request guard.
  *
  * A server bound to 127.0.0.1 is still reachable by ANY website the developer
  * visits (the browser will happily POST to http://127.0.0.1:4477). So binding to

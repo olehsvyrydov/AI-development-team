@@ -1,7 +1,7 @@
 /**
  * Build the user-global config object (~/.aidevteam/config.json).
  *
- * SECURITY (C1 / AC-I6): this is the ONLY thing written, and it carries the
+ * SECURITY: this is the ONLY thing written, and it carries the
  * *selection* only. The output object is constructed field-by-field from an
  * allowlist — never spread from caller input — so a stray key/token in the
  * `choices` argument can never be persisted.
@@ -42,7 +42,7 @@ export function buildConfig(existing: ExistingConfig | null | undefined, choices
   const prev = existing ?? {};
   // Fall back to the EXISTING selection when a choice is omitted, so re-running
   // (and the --add-overlay path, which passes no choices) never resets the
-  // user's backend/embeddings to none (AC-I5: idempotent, non-destructive).
+  // user's backend/embeddings to none when re-running or toggling an overlay.
   const backend = pick(choices.backend ?? prev.memory?.backend, ["none", "sqlite", "qdrant"], "none");
   const embeddings = pick(choices.embeddings ?? prev.memory?.embeddings, ["none", "voyage", "gemini"], "none");
   return {
@@ -59,7 +59,7 @@ export function buildConfig(existing: ExistingConfig | null | undefined, choices
   };
 }
 
-/** Toggle a memory MCP overlay (the "connect later" path, AC-I4). */
+/** Enable or disable a memory MCP overlay without reinstalling. */
 export function setOverlay(cfg: AidtConfig, name: string, enabled: boolean): AidtConfig {
   return { ...cfg, overlays: { ...cfg.overlays, [name]: { enabled } } };
 }

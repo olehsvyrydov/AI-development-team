@@ -1,12 +1,12 @@
 'use strict';
 /*
- * hub/lib/state.js — the single, file-derived workflow projection (ADT-203).
+ * The single, file-derived workflow projection.
  *
  * Extracted from hub/server.js and extended: parses `tracks`, merges the
  * machine-owned overlay (.aidevteam/workflow.overrides.json), and returns EVERY
  * ticket with explicit track/stage/assignee/expectedOwner/status/gates plus a
  * `rev` for optimistic concurrency. Shared by the hub server, the digest CLI,
- * and (via that CLI) the memory SessionStart hook, so all three agree (AC-X3).
+ * and (via that CLI) the memory SessionStart hook, so all three agree.
  *
  * Pure reads, no writes — never throws on missing/malformed inputs.
  */

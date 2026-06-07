@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Interactive memory setup wizard (ADT-202).
+ * Interactive memory setup wizard.
  *
  * Persists the user's choice to ~/.aidevteam/config.json (selection only, 0600)
  * and idempotently wires the SessionStart/PreCompact hooks into
@@ -51,7 +51,7 @@ function readJson<T>(p: string, fallback: T): T {
   }
 }
 
-/** Write JSON atomically with restrictive perms (C11). */
+/** Write JSON atomically with restrictive perms. */
 function writeJson(p: string, obj: unknown, mode: number): void {
   fs.mkdirSync(path.dirname(p), { recursive: true, mode: 0o700 });
   const tmp = `${p}.tmp.${process.pid}`;
@@ -140,7 +140,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // --add-overlay / --disable-overlay: the "connect later" path (AC-I4)
+  // --add-overlay / --disable-overlay: the "connect later" path
   if (typeof o["add-overlay"] === "string" || typeof o["disable-overlay"] === "string") {
     const base = buildConfig(existingCfg, {});
     const enable = typeof o["add-overlay"] === "string";
@@ -171,7 +171,7 @@ async function main(): Promise<void> {
   }
 
   const cfg = buildConfig(existingCfg, choices);
-  writeJson(configPath(), cfg, 0o600); // C11
+  writeJson(configPath(), cfg, 0o600);
   try {
     fs.chmodSync(aidevteamHome(), 0o700);
   } catch {

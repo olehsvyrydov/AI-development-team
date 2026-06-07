@@ -2,7 +2,7 @@
 /**
  * SessionStart hook — inject project context on a new/resumed/compacted session.
  *
- * Order (security C6, AC-M1/M2):
+ * Order:
  *   1. Print the DETERMINISTIC digest first (file-based, no network) and flush —
  *      so the workflow state is never lost even if everything below fails.
  *   2. Best-effort semantic recall (project-scoped + global dev-rules), time-boxed.
@@ -22,7 +22,7 @@ import { formatContext, readStdinJson, withDeadline } from "./common.ts";
 /** Hub digest CLI path, resolved relative to this hook (repo/hub/lib/digest.js). */
 const HUB_DIGEST = path.resolve(import.meta.dirname, "../../../../hub/lib/digest.js");
 
-/** One shared projection (AC-X3): prefer the hub's overlay-aware digest CLI. */
+/** One shared projection: prefer the hub's overlay-aware digest CLI. */
 function projectDigest(cwd: string): string {
   try {
     if (fs.existsSync(HUB_DIGEST)) {
@@ -45,7 +45,7 @@ async function main(): Promise<void> {
 
   // 1) Deterministic digest FIRST — the floor that never fails.
   // Prefer the hub's overlay-aware digest CLI so the hook and the hub board
-  // project the SAME state (AC-X3); fall back to the local renderer.
+  // project the SAME state; fall back to the local renderer.
   try {
     process.stdout.write(projectDigest(cwd) + "\n");
   } catch {
@@ -86,4 +86,4 @@ async function main(): Promise<void> {
 
 main()
   .catch((e) => process.stderr.write(`[memory] restore-context error: ${(e as Error).message}\n`))
-  .finally(() => process.exit(0)); // C6: never break a session
+  .finally(() => process.exit(0)); // never break a session

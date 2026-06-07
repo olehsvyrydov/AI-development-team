@@ -32,7 +32,7 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
   }
 
   async #embedOne(text: string, taskType: string): Promise<number[]> {
-    // C1a: pass the key via header, never the URL query string (URLs leak to logs/proxies).
+    // pass the key via header, never the URL query string (URLs leak to logs/proxies).
     const res = await fetch(`${BASE}/${this.model}:embedContent`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": this.#key },

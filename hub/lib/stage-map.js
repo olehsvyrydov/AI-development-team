@@ -1,6 +1,6 @@
 'use strict';
 /*
- * Canonical stage <-> gate <-> owner mapping (ADT-203).
+ * Canonical stage <-> gate <-> owner mapping.
  *
  * Track stages (workflow.yaml `tracks:`) are not the same tokens as gate names,
  * so this is the bridge. `expectedOwner` derives the owner from the parsed gate

@@ -1,5 +1,5 @@
 /**
- * Secret-scrub + ignore-globs — security condition C2.
+ * Secret-scrub + ignore-globs
  *
  * Transcript-derived chunks may contain secrets/PII/proprietary code. When the
  * user opts into embeddings, chunk text is sent to a third-party API, so we

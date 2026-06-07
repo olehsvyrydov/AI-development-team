@@ -3,9 +3,9 @@
  * PreCompact hook — capture the salient context of the session before it is
  * compacted, tagged to the current project, for later recall.
  *
- * Security: C2 (secret-scrub + ignore-globs before any egress), C6 (always
- * exit 0; bounded transcript read; errors to stderr). A missing backend/key is
- * a no-op, not a failure.
+ * Secrets are scrubbed and credential files skipped before any egress. The hook
+ * always exits 0 (bounded transcript read; errors to stderr) so it can never
+ * break a session; a missing backend/key is a no-op, not a failure.
  */
 import fs from "node:fs";
 import { parseTranscript } from "../transcript.ts";
@@ -18,7 +18,7 @@ import { getStore } from "../stores/factory.ts";
 import type { VectorPoint } from "../types.ts";
 import { pointId, readStdinJson } from "./common.ts";
 
-const MAX_TRANSCRIPT_BYTES = 64 * 1024 * 1024; // C6: bound the read
+const MAX_TRANSCRIPT_BYTES = 64 * 1024 * 1024; // bound the read
 
 async function main(): Promise<void> {
   const input = await readStdinJson();
@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // C2: scrub secrets and drop credential-sourced chunks BEFORE embedding/egress.
+  // scrub secrets and drop credential-sourced chunks BEFORE embedding/egress.
   const chunks = scrubChunks(parseTranscript(transcriptPath));
   const pid = projectId(cwd);
   await store.ensureCollections(embedder.dimensions);
@@ -73,7 +73,7 @@ async function main(): Promise<void> {
 
   // Also persist the current workflow-state digest as a single recovery row.
   try {
-    const digest = scrubSecrets(renderDigest(cwd)); // C12: scrub before egress
+    const digest = scrubSecrets(renderDigest(cwd)); // scrub before egress
     const [dv] = await embedder.embedDocuments([digest]);
     await store.upsert("session-context", [
       {
@@ -100,4 +100,4 @@ async function main(): Promise<void> {
 
 main()
   .catch((e) => process.stderr.write(`[memory] save-context error: ${(e as Error).message}\n`))
-  .finally(() => process.exit(0)); // C6: never break a session
+  .finally(() => process.exit(0)); // never break a session

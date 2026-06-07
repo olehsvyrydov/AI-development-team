@@ -3,10 +3,10 @@
  * `node:sqlite`. No Docker, single file, scales across projects.
  *
  * Security:
- *  - C8: the extension is loaded ONLY from the vendored package path
+ *  - the extension is loaded ONLY from the vendored package path
  *    (`sqlite-vec.getLoadablePath()`), never a user/env-supplied path, and
  *    extension loading is disabled again immediately after load.
- *  - C11: the DB file is created 0600 under a 0700 dir (handled by the caller).
+ *  - the DB file is created 0600 under a 0700 dir (handled by the caller).
  *
  * Each collection is one vec0 virtual table with metadata columns (filterable in
  * the KNN query) and `+content`/`+payload` auxiliary columns (stored, returned).
@@ -38,11 +38,11 @@ export class SqliteVecStore implements VectorStore {
       fs.mkdirSync(path.dirname(dbPath), { recursive: true, mode: 0o700 });
       const db = new DatabaseSync(dbPath, { allowExtension: true });
       db.enableLoadExtension(true);
-      db.loadExtension(loadablePath); // C8: vendored path only
-      db.enableLoadExtension(false); // C8: re-disable immediately
+      db.loadExtension(loadablePath); // vendored path only
+      db.enableLoadExtension(false); // re-disable immediately
       db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
       try {
-        fs.chmodSync(dbPath, 0o600); // C11
+        fs.chmodSync(dbPath, 0o600);
       } catch {
         /* best-effort */
       }
@@ -57,7 +57,7 @@ export class SqliteVecStore implements VectorStore {
     this.#db.exec("CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT)");
     const stored = this.#getMeta("embedding_dims");
     if (stored && Number(stored) !== dims) {
-      // C-dim: refuse to mix vector widths in one DB.
+      // refuse to mix vector widths in one DB.
       throw new Error(`embedding dims mismatch: db=${stored} requested=${dims} (reindex required)`);
     }
     if (!stored) this.#setMeta("embedding_dims", String(dims));
@@ -202,7 +202,7 @@ export class SqliteVecStore implements VectorStore {
 /**
  * Map a collection name to a safe SQL table name (hyphens are illegal unquoted).
  * Validates against the fixed allowlist first — collection can reach SQL from the
- * MCP server with a user-supplied value, so this is the injection guard (C-review).
+ * MCP server with a user-supplied value, so this is the injection guard.
  */
 const ALLOWED = new Set<string>(COLLECTIONS);
 function vecTable(c: string): string {

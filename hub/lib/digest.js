@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 /*
- * hub/lib/digest.js — the canonical, overlay-aware workflow-state digest (ADT-203).
+ * The canonical, overlay-aware workflow-state digest.
  *
  * Reuses hub/lib/state.js so the hub board, this CLI, and the memory SessionStart
- * hook (which shells out to `--text`) all project the SAME state (AC-X3).
+ * hook (which shells out to `--text`) all project the SAME state.
  *
  *   node hub/lib/digest.js [projectDir] [--json|--text]
  */

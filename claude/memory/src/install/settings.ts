@@ -2,13 +2,13 @@
  * Idempotent wiring of the memory hooks into a Claude Code settings object.
  *
  * Pure functions over the settings JSON (the wizard handles file IO) so wiring
- * is unit-testable. Re-running never duplicates our entries (AC-I5) and never
+ * is unit-testable. Re-running never duplicates our entries and never
  * touches unrelated keys (permissions/statusLine) or the user's other hooks.
  *
  * Schema (confirmed): hooks.<Event> = [{ matcher, hooks:[{type,command,args,timeout}] }].
  * SessionStart matcher "startup|resume|compact"; PreCompact "".
  * Run as `node --no-warnings <hook>.ts` (Node runs TS natively; --no-warnings
- * also silences the node:sqlite experimental notice — /rev finding).
+ * also silences the node:sqlite experimental notice).
  */
 export interface WireOpts {
   restorePath: string;
