@@ -265,4 +265,4 @@ function buildState(project) {
   };
 }
 
-module.exports = { buildState, parseWorkflow, findWorkflow, normState, wfLabel, section, safeExists, safeRead };
+module.exports = { buildState, parseWorkflow, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev };
