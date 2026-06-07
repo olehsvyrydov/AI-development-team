@@ -1,7 +1,7 @@
 'use strict';
-/* TDD for ADT-206 SECURITY (Soren C3): a loopback control plane is reachable by
- * any website the developer visits, so every mutating request must clear an
- * anti-CSRF + anti-DNS-rebinding gauntlet. Written before impl (Red). */
+/* Tests for the loopback control-plane guard: because a loopback control plane
+ * is reachable by any website the developer visits, every mutating request must
+ * clear an anti-CSRF and anti-DNS-rebinding gauntlet. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { writeAllowed } = require('../lib/guard');

@@ -1,6 +1,6 @@
 'use strict';
-/* TDD for ADT-206 write layer (Soren C5): atomic CAS ledger writes (no lost
- * updates vs concurrent agent edits), overlay merge, and append-only comments. */
+/* Tests for the write layer: atomic CAS ledger writes (no lost updates under
+ * concurrent agent edits), overlay merge, and append-only comments. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -67,7 +67,7 @@ test('writeOverlay deep-merges into .aidevteam/workflow.overrides.json', async (
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('appendComment writes an append-only JSONL line and caps the body (C5)', async () => {
+test('appendComment writes an append-only JSONL line and caps the body', async () => {
   const dir = tmp();
   try {
     const c1 = await w.appendComment(dir, 'T-1', { author: '/rev', kind: 'gate', body: 'rejected: needs tests' });

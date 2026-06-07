@@ -1,5 +1,5 @@
 'use strict';
-/* TDD for ADT-203 stage-map: which gate governs a stage, and the expected owner
+/* Tests for stage-map: which gate governs a stage, and the expected owner
  * (derived from the parsed gate owners so it follows workflow.yaml / overrides). */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

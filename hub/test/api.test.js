@@ -1,7 +1,7 @@
 'use strict';
-/* TDD for ADT-206 control-plane routes: advance/assign/gate.set with audit
- * comments (AC-B6), validation (AC unknown→400), CAS (AC-B4 409), overlay-only
- * workflow edits (AC-B1/B2), and the no-clobber-of-YAML guarantee. */
+/* Tests for the control-plane routes: advance/assign/gate.set with audit
+ * comments, validation (unknown input → 400), CAS conflict (409), overlay-only
+ * workflow edits, and the no-clobber-of-YAML guarantee. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -28,7 +28,7 @@ function proj(ledger) {
   return dir;
 }
 
-test('gate/set updates the ledger AND emits a typed gate comment (AC-B6)', async () => {
+test('gate/set updates the ledger AND emits a typed gate comment', async () => {
   const dir = proj({ 'T-1': { title: 'A', track: 'standard', stage: 'code_review', gates: {} } });
   try {
     const r = await handle('gate/set', { id: 'T-1', gate: 'CODE_REVIEWED', state: 'rejected', note: 'needs tests', by: '/rev' }, dir);
@@ -53,7 +53,7 @@ test('validation: unknown ticket / unknown gate / bad state → 400', async () =
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('CAS: a stale expectedRev is rejected with 409 (AC-B4)', async () => {
+test('CAS: a stale expectedRev is rejected with 409', async () => {
   const dir = proj({ 'T-1': { title: 'A', track: 'standard', stage: 'implement', gates: {} } });
   try {
     const r = await handle('ticket/advance', { id: 'T-1', toStage: 'code_review', expectedRev: 'stale' }, dir);
@@ -71,7 +71,7 @@ test('advance with the matching rev succeeds and bumps stage', async () => {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('track/reorder writes the overlay only and leaves workflow.yaml untouched (AC-B1)', async () => {
+test('track/reorder writes the overlay only and leaves workflow.yaml untouched', async () => {
   const dir = proj({ 'T-1': { title: 'A', track: 'standard', stage: 'implement', gates: {} } });
   try {
     const before = fs.readFileSync(path.join(dir, '.aidevteam', 'workflow.yaml'), 'utf8');
@@ -92,7 +92,7 @@ test('track/reorder rejects a non-permutation (400)', async () => {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('preset validates the enum and writes the overlay (AC-B2)', async () => {
+test('preset validates the enum and writes the overlay', async () => {
   const dir = proj({ 'T-1': { title: 'A', track: 'standard', stage: 'implement', gates: {} } });
   try {
     assert.equal((await handle('preset', { preset: 'banana' }, dir)).code, 400);
