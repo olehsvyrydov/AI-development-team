@@ -1,0 +1,8 @@
+node_modules/
+test-results/
+playwright-report/
+.last-run.json
+
+# The fixture ledger must be tracked: the root .gitignore excludes
+# .workflow-state.json globally, but this one is test data, not real state.
+!fixtures/project/.workflow-state.json

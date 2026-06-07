@@ -1,7 +1,7 @@
 'use strict';
-/* TDD for ADT-203 hub/lib/state.js — the explicit, multi-ticket workflow projection.
- * AC-X1 (track/stage/assignee/expectedOwner/gates explicit), AC-X2 (backward compat),
- * plus overlay merge and a stable rev. */
+/* Tests for hub/lib/state.js — the explicit, multi-ticket workflow projection.
+ * Covers per-ticket track/stage/assignee/expectedOwner/gates, backward
+ * compatibility with older ledgers, overlay merge, and a stable rev. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -37,7 +37,7 @@ function fixture(ledger, overrides) {
   return dir;
 }
 
-test('buildState exposes every ticket with track/stage/assignee/expectedOwner/gates (AC-X1, multi-ticket)', () => {
+test('buildState exposes every ticket with track/stage/assignee/expectedOwner/gates (multi-ticket)', () => {
   const dir = fixture({
     'T-1': { title: 'A', track: 'full', stage: 'security', assignee: '/secops',
              gates: { ARCH_APPROVED: { state: 'passed', by: '/arch' }, SECOPS_APPROVED: { state: 'pending' } } },
@@ -77,7 +77,7 @@ test('a rejected hard gate makes the ticket status "blocked"', () => {
   }
 });
 
-test('older ledger without assignee still parses and shows expectedOwner (AC-X2)', () => {
+test('older ledger without assignee still parses and shows expectedOwner', () => {
   const dir = fixture({ 'T-3': { title: 'C', track: 'full', stage: 'architecture',
     gates: { ARCH_APPROVED: { state: 'pending' } } } });
   try {
@@ -85,6 +85,59 @@ test('older ledger without assignee still parses and shows expectedOwner (AC-X2)
     assert.equal(t3.assignee, null);
     assert.equal(t3.expectedOwner, '/arch', 'derives expected owner when unassigned');
     assert.equal(t3.status, 'waiting');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('ticket surfaces its comment log oldest-first; no log → []', () => {
+  const dir = fixture({
+    'T-1': { title: 'A', track: 'standard', stage: 'implement', gates: {} },
+    'T-2': { title: 'B', track: 'standard', stage: 'implement', gates: {} },
+  });
+  try {
+    const file = path.join(dir, '.aidevteam', 'comments', 'T-1.jsonl');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file,
+      JSON.stringify({ id: 'c1', ticket: 'T-1', ts: '2026-01-01T00:00:00Z', author: '/be', kind: 'comment', body: 'first' }) + '\n' +
+      JSON.stringify({ id: 'c2', ticket: 'T-1', ts: '2026-01-02T00:00:00Z', author: '/rev', kind: 'gate', body: 'second', gate: 'CODE_REVIEWED', state: 'passed' }) + '\n');
+    const st = buildState(dir);
+    const t1 = st.tickets.find((t) => t.id === 'T-1');
+    const t2 = st.tickets.find((t) => t.id === 'T-2');
+    assert.equal(t1.comments.length, 2);
+    assert.equal(t1.comments[0].body, 'first');
+    assert.equal(t1.comments[1].gate, 'CODE_REVIEWED');
+    assert.deepEqual(t2.comments, [], 'ticket without a log gets an empty array');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('ticket description comes from the ledger when present, else null', () => {
+  const dir = fixture({
+    'T-1': { title: 'A', track: 'standard', stage: 'implement', description: 'why this exists', gates: {} },
+    'T-2': { title: 'B', track: 'standard', stage: 'implement', gates: {} },
+  });
+  try {
+    const st = buildState(dir);
+    assert.equal(st.tickets.find((t) => t.id === 'T-1').description, 'why this exists');
+    assert.equal(st.tickets.find((t) => t.id === 'T-2').description, null);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('ticket description falls back to a markdown ticket body when the ledger lacks one', () => {
+  const dir = fixture({
+    'T-7': { title: 'G', track: 'standard', stage: 'implement', gates: {} },
+  });
+  try {
+    const tdir = path.join(dir, '.aidevteam', 'tickets');
+    fs.mkdirSync(tdir, { recursive: true });
+    fs.writeFileSync(path.join(tdir, 'T-7.md'),
+      '---\nid: T-7\ntitle: G\n---\n\n# G\n\nThe detailed body of the ticket.\n');
+    const t7 = buildState(dir).tickets.find((t) => t.id === 'T-7');
+    assert.equal(t7.description, 'The detailed body of the ticket.');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -100,7 +153,7 @@ test('overlay (.aidevteam/workflow.overrides.json) merges over the base workflow
     assert.equal(st.preset, 'regulated', 'overlay preset wins');
     assert.deepEqual(st.tracks.standard, ['implement', 'code_review'], 'overlay track order wins');
     assert.ok(st.overlay, 'overlay path reported');
-    // /rev fix: switching preset via overlay must re-resolve always_required
+    // switching preset via overlay must re-resolve always_required
     const req = st.gateDefs.filter((g) => g.required).map((g) => g.name).sort();
     assert.deepEqual(req, ['ARCH_APPROVED', 'CODE_REVIEWED', 'SECOPS_APPROVED', 'VERIFIED'],
       'regulated always_required resolved after overlay preset switch');

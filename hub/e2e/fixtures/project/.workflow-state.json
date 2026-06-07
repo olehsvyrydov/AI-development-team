@@ -1,0 +1,34 @@
+{
+  "BOARD-IMPL": {
+    "title": "Assigned ticket in the implement stage",
+    "track": "full",
+    "stage": "implement",
+    "assignee": "/be",
+    "assigned_at": "2026-01-01T09:00:00.000Z",
+    "description": "This ticket is actively assigned to a developer and sits in the implement column. It exists to prove that a real assignee is rendered distinctly from an expected owner.",
+    "gates": {
+      "ARCH_APPROVED": { "state": "passed", "by": "/arch", "at": "2026-01-01T08:00:00.000Z" },
+      "CODE_REVIEWED": { "state": "pending" }
+    }
+  },
+  "BOARD-BLOCKED": {
+    "title": "Ticket blocked by a rejected hard gate",
+    "track": "full",
+    "stage": "architecture",
+    "assignee": "/arch",
+    "assigned_at": "2026-01-01T07:00:00.000Z",
+    "description": "Architecture review rejected this ticket. Because the governing gate is a hard gate, the board must show a Blocked status and name the responsible gate and its owner.",
+    "gates": {
+      "ARCH_APPROVED": { "state": "rejected", "by": "/arch", "at": "2026-01-01T07:30:00.000Z", "note": "Introduces a new service without a documented boundary." }
+    }
+  },
+  "BOARD-WAIT": {
+    "title": "Unassigned ticket awaiting its expected owner",
+    "track": "full",
+    "stage": "security",
+    "description": "No assignee is set on this ticket. The board should display the expected owner for the security stage, visually distinguished from a real assignee.",
+    "gates": {
+      "SECOPS_APPROVED": { "state": "pending" }
+    }
+  }
+}

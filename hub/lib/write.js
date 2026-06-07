@@ -13,6 +13,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { fileRev } = require('./state');
+const { safeId, commentFile, readComments } = require('./comments');
 
 const MAX_COMMENT_BODY = 8192;
 
@@ -88,11 +89,6 @@ function writeOverlay(dir, patch) {
   });
 }
 
-// keep comment files inside the comments dir regardless of the ticket id
-function safeId(id) {
-  return String(id || 'unknown').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 80) || 'unknown';
-}
-
 /** Append one comment to the per-ticket JSONL audit log (append-only, race-free). */
 function appendComment(dir, ticketId, { author, kind, body, gate, state } = {}) {
   const rec = {
@@ -105,7 +101,7 @@ function appendComment(dir, ticketId, { author, kind, body, gate, state } = {}) 
   };
   if (gate) rec.gate = gate;
   if (state) rec.state = state;
-  const file = path.join(dir, '.aidevteam', 'comments', `${safeId(ticketId)}.jsonl`);
+  const file = commentFile(dir, ticketId);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   // O_APPEND single-line write — atomic across writers up to PIPE_BUF (4KB on
   // Linux); bodies are capped at 8KB, so two *concurrent* appends to the same
@@ -113,20 +109,6 @@ function appendComment(dir, ticketId, { author, kind, body, gate, state } = {}) 
   // revisit with flock if multi-writer contention becomes real.
   fs.appendFileSync(file, JSON.stringify(rec) + '\n');
   return rec;
-}
-
-/** Read a ticket's comment log (oldest first). Returns [] if none. */
-function readComments(dir, ticketId) {
-  const file = path.join(dir, '.aidevteam', 'comments', `${safeId(ticketId)}.jsonl`);
-  let txt;
-  try { txt = fs.readFileSync(file, 'utf8'); } catch { return []; }
-  const out = [];
-  for (const line of txt.split('\n')) {
-    const t = line.trim();
-    if (!t) continue;
-    try { out.push(JSON.parse(t)); } catch { /* skip a corrupt line */ }
-  }
-  return out;
 }
 
 module.exports = { computeRev, atomicWriteJSON, readModifyWriteLedger, writeOverlay, appendComment, readComments, safeId };

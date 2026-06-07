@@ -1,0 +1,15 @@
+{
+  "name": "hub-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Dev-only end-to-end tests for the AI Dev Team hub board. Kept out of the shipped, zero-dependency hub runtime — install and run from this directory only.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "install-browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  }
+}

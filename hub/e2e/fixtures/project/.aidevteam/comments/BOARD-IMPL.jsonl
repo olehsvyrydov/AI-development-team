@@ -1,0 +1,3 @@
+{"author":"/arch","kind":"gate","gate":"ARCH_APPROVED","state":"passed","ts":"2026-01-01T08:00:00.000Z","body":"Architecture approved. The boundary is documented and the dependency is justified."}
+{"author":"hub","kind":"advance","ts":"2026-01-01T09:00:00.000Z","body":"stage to implement"}
+{"author":"/be","kind":"comment","ts":"2026-01-01T09:05:00.000Z","body":"Started implementation against the agreed interface."}

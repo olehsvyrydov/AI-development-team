@@ -1,0 +1,24 @@
+# Deterministic workflow definition for the hub board end-to-end tests.
+# Mirrors the shipped schema (preset / tracks / gates / presets) so the hub's
+# state projection parses it exactly as it would a real project, but the values
+# are fixed here so the rendered board is stable across runs.
+version: 1
+preset: small-team
+
+tracks:
+  full: [vision, architecture, security, design, approval_gate, implement, code_review, qa, verify, done]
+
+gates:
+  ARCH_APPROVED:   { owner: "/arch",   sets: "after architecture agreed", refusal: hard, trigger: [new_service] }
+  SECOPS_APPROVED: { owner: "/secops", sets: "after security review",     refusal: hard, safety_override: true, trigger: [auth] }
+  DESIGN_APPROVED: { owner: "/ui",     sets: "after design approved",     refusal: soft, trigger: [visual_change] }
+  CODE_REVIEWED:   { owner: "/rev",    sets: "after code review",         refusal: hard, trigger: [track:full] }
+  VERIFIED:        { owner: "/verify", sets: "final completeness audit",  refusal: hard, trigger: [track:full] }
+
+presets:
+  solo:
+    always_required: []
+  small-team:
+    always_required: [CODE_REVIEWED]
+  regulated:
+    always_required: [ARCH_APPROVED, SECOPS_APPROVED, CODE_REVIEWED, VERIFIED]

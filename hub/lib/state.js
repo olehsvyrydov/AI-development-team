@@ -14,6 +14,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { expectedOwner } = require('./stage-map');
+const { readComments } = require('./comments');
 
 function safeExists(p) { try { return fs.existsSync(p); } catch { return false; } }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
@@ -183,6 +184,32 @@ function readKb(project) {
   } catch { return []; }
 }
 
+// strip YAML front-matter and a leading title heading, returning the prose body
+function markdownBody(txt) {
+  let s = String(txt || '');
+  const fm = s.match(/^---\n[\s\S]*?\n---\n?/);
+  if (fm) s = s.slice(fm[0].length);
+  s = s.replace(/^\s*#[^\n]*\n/, '');
+  return s.trim();
+}
+
+// description source priority: ledger field -> markdown ticket body -> null
+function resolveDescription(project, id, ledgerEntry) {
+  const fromLedger = ledgerEntry && ledgerEntry.description;
+  if (typeof fromLedger === 'string' && fromLedger.trim()) return fromLedger;
+  const candidates = [
+    path.join(project, '.aidevteam', 'tickets', `${id}.md`),
+    path.join(project, 'backlog', `${id}.md`),
+    path.join(project, 'backlog', 'tasks', `${id}.md`),
+  ];
+  for (const p of candidates) {
+    if (!safeExists(p)) continue;
+    const body = markdownBody(safeRead(p));
+    if (body) return body;
+  }
+  return null;
+}
+
 function statusOf(stage, mergedGates, assignee) {
   const s = String(stage || '').toLowerCase();
   if (s === 'done') return 'done';
@@ -235,6 +262,8 @@ function buildState(project) {
         expectedOwner: expectedOwner(t.stage, wf),
         status: statusOf(t.stage, gates, assignee),
         gates,
+        description: resolveDescription(project, id, t),
+        comments: readComments(project, id),
         source: 'ledger',
       };
     });
@@ -245,6 +274,8 @@ function buildState(project) {
       id: t.id, title: t.title, track: null, stage: t.stage, assignee: null, assigned_at: null,
       active: null, expectedOwner: expectedOwner(t.stage, wf), status: statusOf(t.stage, [], null),
       gates: gateDefs.map((g) => ({ ...g, state: 'pending', by: null, at: null, note: null })),
+      description: resolveDescription(project, t.id, null),
+      comments: readComments(project, t.id),
       file: t.file, source: 'markdown',
     }));
   }

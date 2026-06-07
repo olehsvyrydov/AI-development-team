@@ -10,6 +10,38 @@
     --txt:#e6edf3; --dim:#8b949e; --accent:#6e56cf;
     --ok:#2ea043; --okbg:#12261a; --pend:#9e6a03; --pendbg:#2a1f06;
     --rej:#da3633; --rejbg:#2a1213; --hard:#da3633; --soft:#9e6a03;
+
+    /* gate-state tokens (formalize the existing inline hexes) */
+    --st-pass-fg:#7ee2a8; --st-pass-bg:var(--okbg);
+    --st-pend-fg:#e3b341; --st-pend-bg:var(--pendbg);
+    --st-rej-fg:#ff7b72;  --st-rej-bg:var(--rejbg);
+    --st-na-fg:#8b949e;   --st-na-bg:#161b22;
+
+    /* gate-modifier tokens */
+    --mod-hard:#ff7b72; --mod-soft:#e3b341; --mod-safety:#f78166; --mod-req:#d2a8ff;
+
+    /* status tokens — one consistent mapping for the ticket status label */
+    --status-done-fg:#3fb950;  --status-done-bg:#0e2716;
+    --status-prog-fg:#a5d6ff;  --status-prog-bg:#10243a;
+    --status-wait-fg:#e3b341;  --status-wait-bg:#2a1f06;
+    --status-block-fg:#ff7b72; --status-block-bg:#2a1213;
+
+    /* stage hues — one per full-track stage (floor/standard reuse the matching hue) */
+    --stg-vision-fg:#79c0ff;    --stg-vision-bg:#0d1f33;
+    --stg-spec-fg:#56d4dd;      --stg-spec-bg:#06262a;
+    --stg-arch-fg:#d2a8ff;      --stg-arch-bg:#1b1530;
+    --stg-sec-fg:#f78166;       --stg-sec-bg:#2a1410;
+    --stg-design-fg:#ff9bce;    --stg-design-bg:#2e1322;
+    --stg-approve-fg:#e3b341;   --stg-approve-bg:#2a1f06;
+    --stg-impl-fg:#a5d6ff;      --stg-impl-bg:#10243a;
+    --stg-review-fg:#c297ff;    --stg-review-bg:#1b1530;
+    --stg-designqa-fg:#ff9bce;  --stg-designqa-bg:#2e1322;
+    --stg-qa-fg:#7ee2a8;        --stg-qa-bg:#12261a;
+    --stg-rel-fg:#ffa657;       --stg-rel-bg:#2a1a08;
+    --stg-verify-fg:#e3b341;    --stg-verify-bg:#2a1f06;
+    --stg-done-fg:#3fb950;      --stg-done-bg:#0e2716;
+    --stg-perf-fg:#ffd33d;      --stg-perf-bg:#2a2406;
+    --stg-other-fg:#8b949e;     --stg-other-bg:#161b22;
   }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
@@ -24,38 +56,129 @@
   .live { display:flex; align-items:center; gap:6px; color:var(--dim); font-size:12px; }
   .live i { width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 0 rgba(46,160,67,.6);
             animation:pulse 2s infinite; }
+  .live.stale i { background:var(--pend); animation:none; }
+  .live.down i { background:var(--rej); animation:none; }
   @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(46,160,67,.5)} 70%{box-shadow:0 0 0 6px rgba(46,160,67,0)} 100%{box-shadow:0 0 0 0 rgba(46,160,67,0)} }
-  main { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:16px; padding:18px 20px; align-items:start; }
-  section.col { background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-  .col > h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim);
-              margin:0; padding:12px 14px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; }
-  .col > h2 .count { color:var(--txt); }
-  .list { padding:10px; display:flex; flex-direction:column; gap:8px; }
-  .gate { background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--line);
-          border-radius:8px; padding:10px 12px; }
-  .gate.passed   { border-left-color:var(--ok); }
-  .gate.pending  { border-left-color:var(--pend); }
-  .gate.rejected { border-left-color:var(--rej); }
-  .gate .row1 { display:flex; align-items:center; gap:8px; }
-  .gate .name { font-weight:600; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
-  .gate .owner { color:var(--dim); font-size:12px; margin-left:auto; }
-  .chips { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
-  .chip { font-size:11px; padding:2px 7px; border-radius:6px; border:1px solid var(--line); color:var(--dim); }
-  .chip.state-passed { color:#7ee2a8; background:var(--okbg); border-color:#1f4a2e; }
-  .chip.state-pending  { color:#e3b341; background:var(--pendbg); border-color:#4a3a13; }
-  .chip.state-rejected { color:#ff7b72; background:var(--rejbg); border-color:#4a1f1f; }
-  .chip.hard { color:#ff7b72; border-color:#4a1f1f; }
-  .chip.soft { color:#e3b341; border-color:#4a3a13; }
-  .chip.req  { color:#d2a8ff; border-color:#3a2a55; }
-  .chip.safety { color:#ff7b72; border-color:#4a1f1f; }
-  .item { background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:9px 12px;
-          display:flex; align-items:center; gap:8px; }
-  .item .id { font-family:ui-monospace,monospace; font-size:12px; color:var(--dim); }
-  .item .title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .item .status { font-size:11px; padding:2px 7px; border-radius:6px; border:1px solid var(--line); color:var(--dim); }
+
+  /* ---- board ---- */
+  main { padding:18px 20px; }
+  .tracklabel { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin:0 0 10px; }
+  .tracklabel b { color:var(--txt); }
+  .board { display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; scroll-snap-type:x proximity; align-items:start; }
+  .stagecol { flex:0 0 220px; min-width:220px; scroll-snap-align:start;
+              background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .stagecol > h3 { font-size:12px; margin:0; padding:10px 12px; border-bottom:1px solid var(--line);
+                   display:flex; justify-content:space-between; align-items:center; gap:8px;
+                   font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .stagecol > h3 .ct { font-size:11px; color:var(--dim); }
+  .stagecol .stack { padding:10px; display:flex; flex-direction:column; gap:8px; min-height:48px; }
+  .colempty { color:var(--dim); font-size:12px; text-align:center; padding:14px 8px;
+              border:1px dashed var(--line); border-radius:8px; }
+
+  /* ---- ticket card ---- */
+  .card { display:block; width:100%; text-align:left; cursor:pointer; font:inherit; color:inherit;
+          background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+          transition:transform .12s ease, border-color .12s ease; }
+  .card:hover { transform:translateY(-1px); border-color:var(--accent); }
+  .card:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .card.flash { animation:flash .4s ease; }
+  @keyframes flash { 0%{box-shadow:inset 0 0 0 1px var(--accent)} 100%{box-shadow:inset 0 0 0 1px transparent} }
+  .card .top { display:flex; align-items:center; gap:8px; }
+  .card .id { font-family:ui-monospace,monospace; font-size:12px; color:var(--dim); }
+  .card .stagepill { margin-left:auto; font-size:11px; padding:2px 7px; border-radius:6px; }
+  .card .title { margin:6px 0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .card .mid { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .card .gatestrip { display:flex; gap:5px; margin-top:8px; flex-wrap:wrap; }
+
+  /* status label (color + glyph + text, never color alone) */
+  .status { font-size:11px; padding:2px 8px; border-radius:6px; display:inline-flex; gap:5px; align-items:center;
+            border:1px solid transparent; }
+  .status.done  { color:var(--status-done-fg);  background:var(--status-done-bg);  border-color:#16462a; }
+  .status.in_progress { color:var(--status-prog-fg); background:var(--status-prog-bg); border-color:#1c3a55; }
+  .status.waiting { color:var(--status-wait-fg); background:var(--status-wait-bg); border-color:#4a3a13; }
+  .status.blocked { color:var(--status-block-fg); background:var(--status-block-bg); border-color:#4a1f1f; }
+
+  /* agent badge */
+  .agent { display:inline-flex; align-items:center; gap:6px; font-family:ui-monospace,monospace; font-size:12px;
+           padding:2px 8px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--txt); }
+  .agent .adot { width:6px; height:6px; border-radius:50%; background:var(--accent); }
+  .agent.expected { color:var(--dim); border-style:dashed; }
+  .agent.expected .adot { display:none; }
+  .agent .role { color:var(--dim); font-family:inherit; }
+
+  /* gate chips on cards + modal */
+  .gchip { font-size:11px; padding:2px 7px; border-radius:6px; border:1px solid var(--line);
+           border-left-width:2px; color:var(--dim); display:inline-flex; gap:4px; align-items:center; }
+  .gchip.passed   { color:var(--st-pass-fg); background:var(--st-pass-bg); border-left-color:var(--st-pass-fg); }
+  .gchip.pending  { color:var(--st-pend-fg); background:var(--st-pend-bg); border-left-color:var(--st-pend-fg); }
+  .gchip.rejected { color:var(--st-rej-fg);  background:var(--st-rej-bg);  border-left-color:var(--st-rej-fg); }
+  .gchip.na       { color:var(--st-na-fg);   background:var(--st-na-bg);   border-left-color:var(--line); }
+  .gchip.hard { border-left-style:solid; }
+  .gchip.soft { border-left-style:dashed; }
+
+  /* ---- overlay: scrim + modal ---- */
+  .scrim { position:fixed; inset:0; background:rgba(1,4,9,.66); backdrop-filter:blur(2px); }
+  .scrim[hidden] { display:none; }
+  .modal { position:fixed; inset:0; display:flex; align-items:flex-start; justify-content:center;
+           padding:6vh 16px; overflow:auto; }
+  .modal[hidden] { display:none; }
+  .modal .panel { width:100%; max-width:680px; background:var(--panel); border:1px solid var(--line);
+                  border-radius:12px; overflow:hidden; animation:modalin .16s ease; }
+  @keyframes modalin { from{opacity:.4; transform:translateY(6px)} to{opacity:1; transform:none} }
+  .modal header { background:var(--panel); position:sticky; top:0; }
+  .modal .mhead { display:flex; align-items:flex-start; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .modal .mhead .id { font-family:ui-monospace,monospace; color:var(--dim); font-size:12px; }
+  .modal .mhead .mtitle { font-size:16px; margin:2px 0 0; }
+  .modal .mhead .stagepill { font-size:11px; padding:3px 8px; border-radius:6px; white-space:nowrap; }
+  .modal .close { margin-left:auto; background:none; border:1px solid var(--line); color:var(--dim);
+                  border-radius:8px; width:30px; height:30px; cursor:pointer; font-size:16px; line-height:1; }
+  .modal .close:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .modal .body { padding:16px; display:flex; flex-direction:column; gap:18px; }
+  .modal .sub { display:flex; gap:10px; align-items:center; flex-wrap:wrap; color:var(--dim); font-size:12px; }
+  .modal h4 { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim);
+              margin:0 0 8px; border-bottom:1px solid var(--line); padding-bottom:6px; }
+  .desc { white-space:pre-wrap; color:var(--txt); }
+  .desc.muted { color:var(--dim); font-style:italic; }
+
+  /* gate rows in modal */
+  .grow { display:flex; gap:10px; align-items:baseline; padding:8px 0; border-bottom:1px dashed var(--line); flex-wrap:wrap; }
+  .grow:last-child { border-bottom:none; }
+  .grow .gname { font-family:ui-monospace,monospace; font-size:13px; min-width:160px; }
+  .grow .by { color:var(--dim); font-size:12px; }
+  .grow .note { flex-basis:100%; color:var(--dim); font-size:12px; }
+  .grow .note b { color:var(--txt); font-weight:600; }
+
+  /* comment timeline */
+  .timeline { display:flex; flex-direction:column; gap:10px; }
+  .comment { background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:9px 11px;
+             animation:slidein .25s ease; }
+  @keyframes slidein { from{opacity:0; transform:translateY(-4px)} to{opacity:1; transform:none} }
+  .comment .crow { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .comment .kind { font-size:10px; text-transform:uppercase; letter-spacing:.05em; padding:1px 6px;
+                   border-radius:5px; border:1px solid var(--line); color:var(--dim); }
+  .comment .when { margin-left:auto; color:var(--dim); font-size:12px; }
+  .comment .cbody { margin-top:6px; white-space:pre-wrap; }
+
+  /* ---- toasts ---- */
+  .toasts { position:fixed; top:14px; right:14px; display:flex; flex-direction:column; gap:8px;
+            z-index:50; max-width:340px; }
+  .toast { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line);
+           border-radius:8px; padding:9px 12px; box-shadow:0 6px 18px rgba(1,4,9,.5); animation:toastin .2s ease; }
+  @keyframes toastin { from{opacity:0; transform:translateY(-6px)} to{opacity:1; transform:none} }
+  .toast.pass    { border-left-color:var(--st-pass-fg); }
+  .toast.rej     { border-left-color:var(--st-rej-fg); }
+  .toast.advance { border-left-color:var(--accent); }
+  .toast.comment { border-left-color:var(--st-na-fg); }
+  .toast .ttag { font-family:ui-monospace,monospace; font-size:12px; color:var(--txt); font-weight:600; }
+  .toast .tmsg { font-size:12px; color:var(--dim); margin-top:2px; }
+
   .empty { color:var(--dim); padding:16px; text-align:center; font-size:13px; }
-  footer { color:var(--dim); font-size:12px; padding:8px 20px 20px; }
+  footer { color:var(--dim); font-size:12px; padding:16px 20px 24px; }
   code { font-family:ui-monospace,monospace; color:#d2a8ff; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation:none !important; transition:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -64,61 +187,426 @@
   <div class="meta" id="meta"></div>
 </header>
 <main>
-  <section class="col"><h2>Workflow gates <span class="count" id="g-count">0</span></h2><div class="list" id="gates"></div></section>
-  <section class="col"><h2>Tickets <span class="count" id="t-count">0</span></h2><div class="list" id="tickets"></div></section>
-  <section class="col"><h2>Knowledge base <span class="count" id="k-count">0</span></h2><div class="list" id="kb"></div></section>
+  <p class="tracklabel" id="tracklabel"></p>
+  <div class="board" id="board"></div>
 </main>
 <footer id="foot">Connecting…</footer>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden></div>
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
 <script>
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+'use strict';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-function render(st) {
-  // header meta
-  const m = [];
-  m.push(`<span class="badge preset">preset: ${esc(st.preset)}</span>`);
-  if (st.ticket) m.push(`<span class="badge">ticket: ${esc(st.ticket)}${st.ticketCount > 1 ? ` (of ${st.ticketCount})` : ''}</span>`);
-  if (st.stage) m.push(`<span class="badge">stage: ${esc(st.stage)}</span>`);
-  if (st.ledgerError) m.push(`<span class="badge" style="color:#ff7b72;border-color:#4a1f1f">ledger: ${esc(st.ledgerError)}</span>`);
-  m.push(`<span class="live"><i></i>live</span>`);
-  $('#meta').innerHTML = m.join('');
+// gate-state glyphs and status glyphs — color is never the only signal
+const GATE_GLYPH = { passed: '✓', pending: '⠿', rejected: '✗', na: '·' };
+const STATUS_LABEL = {
+  done: { cls: 'done', glyph: '✓', text: 'Done' },
+  in_progress: { cls: 'in_progress', glyph: '▸', text: 'In progress' },
+  waiting: { cls: 'waiting', glyph: '⠿', text: 'Waiting' },
+  blocked: { cls: 'blocked', glyph: '✗', text: 'Blocked' },
+};
 
-  // gates
-  $('#g-count').textContent = st.gates.length;
-  $('#gates').innerHTML = st.gates.length ? st.gates.map(g => `
-    <div class="gate ${esc(g.state)}" title="${g.by ? esc(g.by + (g.at ? ' · ' + g.at : '')) : ''}">
-      <div class="row1">
-        <span class="name">${esc(g.name)}</span>
-        <span class="owner">${esc(g.owner)}</span>
-      </div>
-      <div class="chips">
-        <span class="chip state-${esc(g.state)}">${esc(g.state)}</span>
-        <span class="chip ${g.refusal==='hard'?'hard':'soft'}">${esc(g.refusal)}</span>
-        ${g.required ? '<span class="chip req">required</span>' : ''}
-        ${g.safety ? '<span class="chip safety">safety-override</span>' : ''}
-      </div>
-    </div>`).join('') : '<div class="empty">No gates found in workflow.yaml</div>';
-
-  // tickets
-  $('#t-count').textContent = st.tickets.length;
-  $('#tickets').innerHTML = st.tickets.length ? st.tickets.map(t => `
-    <div class="item"><span class="id">${esc(t.id)}</span>
-      <span class="title" title="${esc(t.file)}">${esc(t.title)}</span>
-      <span class="status">${esc(t.status)}</span></div>`).join('')
-    : '<div class="empty">No tickets — file-based (Backlog.md / .aidevteam/tickets) when present</div>';
-
-  // kb
-  $('#k-count').textContent = st.kb.length;
-  $('#kb').innerHTML = st.kb.length ? st.kb.map(d => `
-    <div class="item"><span class="title" title="${esc(d.file)}">${esc(d.name)}</span></div>`).join('')
-    : '<div class="empty">No knowledge base (docs/) yet</div>';
-
-  $('#foot').innerHTML = `project <code>${esc(st.project)}</code> · workflow <code>${esc(st.workflow || '—')}</code> · updated ${new Date().toLocaleTimeString()}`;
+// map a stage token to a stage-hue token family
+const STAGE_TOKEN = {
+  vision: 'vision',
+  state_behavior: 'spec', write_test: 'spec', tdd: 'spec',
+  architecture: 'arch',
+  security: 'sec',
+  design: 'design',
+  approval_gate: 'approve',
+  implement: 'impl', dev: 'impl',
+  self_review: 'review', code_review: 'review', review: 'review',
+  design_qa: 'designqa',
+  qa: 'qa',
+  reliability: 'rel',
+  verify: 'verify',
+  done: 'done',
+  perf: 'perf',
+};
+const stageVar = (stage) => STAGE_TOKEN[String(stage).toLowerCase()] || 'other';
+function stagePillStyle(stage) {
+  const v = stageVar(stage);
+  return `color:var(--stg-${v}-fg);background:var(--stg-${v}-bg);`;
 }
 
+// relative time from an ISO timestamp; falls back to the raw string
+function relTime(iso) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return esc(iso || '');
+  const diff = Date.now() - t;
+  const s = Math.round(diff / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.round(s / 60);
+  if (m < 60) return m + 'm ago';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.round(h / 24) + 'd ago';
+}
+
+// name the gate responsible for a "blocked" ticket. Only a rejected hard gate
+// can drive "blocked", so name that gate — never a still-pending one, whose
+// owner has done nothing wrong yet. No rejected hard gate means not blocked.
+function blockingGate(t) {
+  return (t.gates || []).find((g) => g.refusal === 'hard' && g.state === 'rejected') || null;
+}
+
+// the status the card and modal both display, derived once from gate data so
+// the label and the gate strip can never contradict each other. A ticket is
+// blocked only by a rejected HARD gate — a rejected soft gate does not block —
+// mirroring the server's canonical status derivation.
+function derivedStatus(t) {
+  const blocker = (t.gates || []).find((g) => g.refusal === 'hard' && g.state === 'rejected');
+  if (blocker) return 'blocked';
+  if (t.status && STATUS_LABEL[t.status]) return t.status;
+  return 'waiting';
+}
+
+// the gate state to show on a card chip: a gate not triggered for this ticket
+// reads as not-applicable rather than pending
+function chipState(g) {
+  if (g.state === 'passed' || g.state === 'rejected') return g.state;
+  if (g.state === 'pending') return 'pending';
+  return 'na';
+}
+
+// ---- agent indicator -------------------------------------------------------
+// an assigned ticket names its working agent; an unassigned one shows the
+// stage's expected owner, visually muted.
+function renderAgent(t, stageOwners) {
+  const assignee = t.assignee;
+  if (assignee) {
+    return `<span class="agent" title="working now"><span class="adot"></span>${esc(assignee)}</span>`;
+  }
+  const expected = t.expectedOwner || (stageOwners ? stageOwners[t.stage] : null);
+  if (expected) {
+    return `<span class="agent expected" title="expected owner — not yet assigned">${esc(expected)} <span class="role">expected</span></span>`;
+  }
+  return `<span class="agent expected">unassigned</span>`;
+}
+
+function renderGateChip(g) {
+  const cs = chipState(g);
+  const mod = g.refusal === 'hard' ? 'hard' : 'soft';
+  const safety = g.safety ? ' ⛉' : '';
+  return `<span class="gchip ${cs} ${mod}" title="${esc(g.name)} — ${esc(cs)}">${GATE_GLYPH[cs]}${safety} ${esc(shortGate(g.name))}</span>`;
+}
+// gate names are long; show the owner-ish short form on the strip, full name in modal
+function shortGate(name) {
+  return String(name).replace(/_APPROVED$/, '').replace(/_OK$/, '').replace(/_/g, ' ').toLowerCase();
+}
+
+// ---- card ------------------------------------------------------------------
+function renderCard(t, stageOwners) {
+  const st = derivedStatus(t);
+  const lbl = STATUS_LABEL[st] || STATUS_LABEL.waiting;
+  const blocker = st === 'blocked' ? blockingGate(t) : null;
+  const blockNote = blocker
+    ? `<div class="card-block status blocked" style="margin-top:8px">Blocked by ${esc(shortGate(blocker.name))} · ${esc(blocker.owner)}</div>`
+    : '';
+  const gates = (t.gates || []).filter((g) => g.state !== 'na');
+  const shown = gates.slice(0, 4).map(renderGateChip).join('');
+  const more = gates.length > 4 ? `<span class="gchip na">+${gates.length - 4}</span>` : '';
+  return `<button class="card" type="button" data-id="${esc(t.id)}"
+      aria-label="${esc(t.id)} ${esc(t.title)} — ${esc(lbl.text)}">
+    <div class="top">
+      <span class="id">${esc(t.id)}</span>
+      <span class="stagepill" style="${stagePillStyle(t.stage)}">${esc(t.stage)}</span>
+    </div>
+    <div class="title">${esc(t.title)}</div>
+    <div class="mid">
+      ${renderAgent(t, stageOwners)}
+      <span class="status ${lbl.cls}">${lbl.glyph} ${esc(lbl.text)}</span>
+    </div>
+    ${blockNote}
+    <div class="gatestrip">${shown}${more}</div>
+  </button>`;
+}
+
+// ---- board -----------------------------------------------------------------
+// columns follow the active track order, then append any stage that tickets
+// actually sit in but the track does not list (so nothing is hidden).
+function activeTrack(st) {
+  const order = (st.tracks && st.tracks[st.track]) ? st.tracks[st.track].slice() : [];
+  const seen = new Set(order.map((s) => String(s).toLowerCase()));
+  for (const t of st.tickets) {
+    const s = String(t.stage).toLowerCase();
+    if (!seen.has(s)) { order.push(t.stage); seen.add(s); }
+  }
+  return order;
+}
+
+let CURRENT = null; // last applied state, for modal + diffing
+
+function renderBoard(st) {
+  const cols = activeTrack(st);
+  const byStage = new Map();
+  for (const t of st.tickets) {
+    const k = String(t.stage).toLowerCase();
+    if (!byStage.has(k)) byStage.set(k, []);
+    byStage.get(k).push(t);
+  }
+  $('#tracklabel').innerHTML = st.tickets.length
+    ? `Active track: <b>${esc(st.track || '—')}</b> · ${st.tickets.length} ticket${st.tickets.length === 1 ? '' : 's'}`
+    : '';
+  if (!cols.length) {
+    $('#board').innerHTML = '<div class="empty">No tickets — file-based (Backlog.md / .aidevteam/tickets) when present</div>';
+    return;
+  }
+  $('#board').innerHTML = cols.map((stage) => {
+    const list = byStage.get(String(stage).toLowerCase()) || [];
+    const cards = list.length
+      ? list.map((t) => renderCard(t, st.stageOwners)).join('')
+      : '<div class="colempty">empty</div>';
+    return `<section class="stagecol" aria-label="${esc(stage)}">
+      <h3 style="color:var(--stg-${stageVar(stage)}-fg)">${esc(stage)} <span class="ct">${list.length}</span></h3>
+      <div class="stack">${cards}</div>
+    </section>`;
+  }).join('');
+}
+
+function renderHeader(st) {
+  const m = [];
+  m.push(`<span class="badge preset">preset: ${esc(st.preset)}</span>`);
+  if (st.ledgerError) m.push(`<span class="badge" style="color:#ff7b72;border-color:#4a1f1f">ledger: ${esc(st.ledgerError)}</span>`);
+  m.push(`<span class="live" id="live"><i></i>live</span>`);
+  $('#meta').innerHTML = m.join('');
+}
+
+// ---- modal -----------------------------------------------------------------
+let modalTicketId = null;
+let lastFocused = null;
+
+function openTicket(id) {
+  const t = CURRENT && CURRENT.tickets.find((x) => x.id === id);
+  if (!t) return;
+  modalTicketId = id;
+  lastFocused = document.activeElement;
+  renderModal(t);
+  $('#scrim').hidden = false;
+  $('#modal').hidden = false;
+  const close = $('#modal .close');
+  if (close) close.focus();
+  document.addEventListener('keydown', onModalKey, true);
+}
+
+function closeModal() {
+  modalTicketId = null;
+  $('#modal').hidden = true;
+  $('#scrim').hidden = true;
+  $('#modal').innerHTML = '';
+  document.removeEventListener('keydown', onModalKey, true);
+  if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+}
+
+function onModalKey(e) {
+  if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+  if (e.key !== 'Tab') return;
+  // focus trap: keep Tab within the modal
+  const focusables = $('#modal').querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (!focusables.length) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+// build a quick lookup of the latest deciding comment per gate, so a gate row
+// can show the rationale the agent left even when the ledger note is empty
+function gateNotes(t) {
+  const map = {};
+  for (const c of t.comments || []) {
+    if (c.kind === 'gate' && c.gate) map[c.gate] = c;
+  }
+  return map;
+}
+
+function renderGateRow(g, notes) {
+  const cs = chipState(g);
+  const mod = g.refusal === 'hard' ? 'hard' : 'soft';
+  const safety = g.safety ? '⛉ ' : '';
+  const decided = g.state === 'passed' || g.state === 'rejected';
+  const by = decided && g.by ? `decided by ${esc(g.by)}${g.at ? ' · ' + relTime(g.at) : ''}` : `owner ${esc(g.owner)}`;
+  const note = g.note || (notes[g.name] && notes[g.name].body) || '';
+  const noteRow = note ? `<div class="note"><b>rationale:</b> ${esc(note)}</div>` : '';
+  return `<div class="grow">
+    <span class="gchip ${cs} ${mod}">${GATE_GLYPH[cs]} ${esc(cs)}</span>
+    <span class="gname">${safety}${esc(g.name)}</span>
+    <span class="by">${by}</span>
+    ${noteRow}
+  </div>`;
+}
+
+function renderModal(t) {
+  const st = derivedStatus(t);
+  const lbl = STATUS_LABEL[st] || STATUS_LABEL.waiting;
+  const notes = gateNotes(t);
+  const blocker = st === 'blocked' ? blockingGate(t) : null;
+  const gates = (t.gates || []).filter((g) => g.state !== 'na');
+  const gatesHtml = gates.length
+    ? gates.map((g) => renderGateRow(g, notes)).join('')
+    : '<div class="desc muted">No gates triggered for this ticket.</div>';
+
+  // comments newest-first for a PR-thread reading order
+  const comments = (t.comments || []).slice().reverse();
+  const commentsHtml = comments.length
+    ? comments.map((c) => `<div class="comment">
+        <div class="crow">
+          <span class="agent">${esc(c.author)}</span>
+          <span class="kind">${esc(c.kind || 'comment')}</span>
+          <span class="when" title="${esc(c.ts)}">${relTime(c.ts)}</span>
+        </div>
+        <div class="cbody">${esc(c.body)}</div>
+      </div>`).join('')
+    : '<div class="desc muted">No comments yet.</div>';
+
+  const desc = t.description
+    ? `<div class="desc">${esc(t.description)}</div>`
+    : '<div class="desc muted">No description provided.</div>';
+
+  const blockLine = blocker
+    ? `<span class="status blocked">${lbl.glyph} Blocked by ${esc(blocker.name)} · ${esc(blocker.owner)}</span>`
+    : `<span class="status ${lbl.cls}">${lbl.glyph} ${esc(lbl.text)}</span>`;
+
+  $('#modal').innerHTML = `<div class="panel">
+    <header>
+      <div class="mhead">
+        <div>
+          <span class="id">${esc(t.id)}</span>
+          <h2 class="mtitle" id="modal-title">${esc(t.title)}</h2>
+        </div>
+        <span class="stagepill" style="${stagePillStyle(t.stage)}">${esc(t.stage)}</span>
+        <button class="close" type="button" aria-label="Close dialog">✕</button>
+      </div>
+    </header>
+    <div class="body">
+      <div class="sub">
+        ${renderAgent(t, CURRENT && CURRENT.stageOwners)}
+        ${blockLine}
+        <span>track: <code>${esc(t.track || '—')}</code></span>
+      </div>
+      <div><h4>Description</h4>${desc}</div>
+      <div><h4>Gates</h4>${gatesHtml}</div>
+      <div><h4>Comments</h4><div class="timeline">${commentsHtml}</div></div>
+    </div>
+  </div>`;
+}
+
+// ---- diff + toasts ---------------------------------------------------------
+let prev = null;
+function snapshot(st) {
+  const m = {};
+  for (const t of st.tickets) {
+    const gateStates = {};
+    for (const g of t.gates || []) gateStates[g.name] = { state: g.state, by: g.by };
+    m[t.id] = { stage: t.stage, assignee: t.assignee, comments: (t.comments || []).length, gates: gateStates };
+  }
+  return m;
+}
+
+function diffToasts(before, st) {
+  if (!before) return; // first load: no noise
+  const after = snapshot(st);
+  const titles = {};
+  for (const t of st.tickets) titles[t.id] = t.title;
+  for (const id of Object.keys(after)) {
+    const a = after[id];
+    const b = before[id];
+    if (!b) { toast('advance', id, `New ticket: ${titles[id] || ''}`); continue; }
+    if (a.stage !== b.stage) toast('advance', id, `Advanced to ${a.stage}`);
+    if (a.assignee !== b.assignee) {
+      toast('advance', id, a.assignee ? `Assigned to ${a.assignee}` : 'Unassigned');
+    }
+    if (a.comments > b.comments) toast('comment', id, `${a.comments - b.comments} new comment${a.comments - b.comments === 1 ? '' : 's'}`);
+    for (const name of Object.keys(a.gates)) {
+      const ga = a.gates[name];
+      const gb = b.gates[name];
+      if (gb && ga.state !== gb.state) {
+        const kind = ga.state === 'passed' ? 'pass' : ga.state === 'rejected' ? 'rej' : 'advance';
+        const who = ga.by ? ` (by ${ga.by})` : '';
+        toast(kind, id, `${shortGate(name)} ${ga.state}${who}`);
+      }
+    }
+  }
+}
+
+function toast(kind, ticketId, msg) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.innerHTML = `<div class="ttag">${esc(ticketId)}</div><div class="tmsg">${esc(msg)}</div>`;
+  el.tabIndex = 0;
+  let timer = setTimeout(() => el.remove(), 6000);
+  el.addEventListener('mouseenter', () => clearTimeout(timer));
+  el.addEventListener('mouseleave', () => { timer = setTimeout(() => el.remove(), 2500); });
+  el.addEventListener('click', () => { openTicket(ticketId); el.remove(); });
+  const region = $('#toasts');
+  region.prepend(el);
+  while (region.children.length > 4) region.lastChild.remove();
+}
+
+// ---- apply update ----------------------------------------------------------
+function applyUpdate(st) {
+  diffToasts(prev, st);
+  const changed = new Set();
+  if (prev) {
+    const after = snapshot(st);
+    for (const id of Object.keys(after)) {
+      const a = after[id];
+      const b = prev[id];
+      if (!b) { changed.add(id); continue; }
+      if (a.stage !== b.stage || a.assignee !== b.assignee || a.comments !== b.comments) { changed.add(id); continue; }
+      for (const n of Object.keys(a.gates)) {
+        if (!b.gates[n] || a.gates[n].state !== b.gates[n].state) { changed.add(id); break; }
+      }
+    }
+  }
+  CURRENT = st;
+  renderHeader(st);
+  renderBoard(st);
+  // flash changed cards (settles via animationend; gated by reduced-motion CSS)
+  for (const id of changed) {
+    const card = $(`.card[data-id="${CSS.escape(id)}"]`);
+    if (card) { card.classList.add('flash'); card.addEventListener('animationend', () => card.classList.remove('flash'), { once: true }); }
+  }
+  // re-render an open modal so a newly-arrived comment/gate shows without refresh
+  if (modalTicketId) {
+    const t = st.tickets.find((x) => x.id === modalTicketId);
+    if (t) renderModal(t); else closeModal();
+  }
+  $('#foot').innerHTML = `project <code>${esc(st.project)}</code> · workflow <code>${esc(st.workflow || '—')}</code> · updated ${new Date().toLocaleTimeString()}`;
+  setLive('ok');
+  prev = snapshot(st);
+}
+
+function setLive(stateName) {
+  const live = $('#live');
+  if (!live) return;
+  live.className = 'live' + (stateName === 'ok' ? '' : ' ' + stateName);
+  live.setAttribute('aria-label', stateName === 'ok' ? 'live, connected' : 'disconnected, retrying');
+}
+
+// ---- delegation ------------------------------------------------------------
+$('#board').addEventListener('click', (e) => {
+  const card = e.target.closest('.card');
+  if (card) openTicket(card.getAttribute('data-id'));
+});
+$('#scrim').addEventListener('click', closeModal);
+$('#modal').addEventListener('click', (e) => {
+  if (e.target.closest('.close')) closeModal();
+});
+
+// ---- realtime (SSE + auto-reconnect kept) ----------------------------------
 const ev = new EventSource('/api/events');
-ev.addEventListener('update', e => render(JSON.parse(e.data)));
-ev.onerror = () => { $('#foot').textContent = 'Disconnected — retrying…'; };
+ev.addEventListener('update', (e) => {
+  try { applyUpdate(JSON.parse(e.data)); } catch {}
+});
+ev.onerror = () => {
+  $('#foot').textContent = 'Disconnected — retrying…';
+  setLive('down');
+};
 </script>
 </body>
 </html>

@@ -1,0 +1,1 @@
+{"author":"/arch","kind":"gate","gate":"ARCH_APPROVED","state":"rejected","ts":"2026-01-01T07:30:00.000Z","body":"Rejected: introduces a new service without a documented boundary. Re-submit with an ADR."}
