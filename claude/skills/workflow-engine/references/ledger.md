@@ -15,6 +15,9 @@ The ledger records which gates a ticket has passed. The workflow-engine uses the
     "title": "Password reset via email",
     "track": "standard",
     "stage": "review",
+    "assignee": "/rev",
+    "assigned_at": "2026-06-04T13:00:00Z",
+    "active": { "agent": "/rev", "since": "2026-06-04T14:00:00Z", "heartbeat": "2026-06-04T14:03:00Z" },
     "gates": {
       "ARCH_APPROVED":   { "state": "passed",  "by": "/arch",   "at": "2026-06-04T10:02:00Z", "note": "Saga not needed; simple token." },
       "SECOPS_APPROVED": { "state": "passed",  "by": "/secops", "at": "2026-06-04T10:20:00Z" },
@@ -28,6 +31,9 @@ The ledger records which gates a ticket has passed. The workflow-engine uses the
 }
 ```
 
+- `assignee` (+ `assigned_at`): the agent that **owns** the ticket's current stage (durable). Optional — older ledgers without it still parse, and the board derives an **expected owner** from the stage's gate owner instead. The owner-per-stage mapping is `claude/.../workflow-engine` ⇄ the hub's `hub/lib/stage-map.js`.
+- `active`: who is **touching the ticket right now** (ephemeral heartbeat `{agent, since, heartbeat}`); treated as idle after ~90s without a refresh, so a dead session greys out. Optional.
+- **Workflow overrides:** machine edits from the hub builder go to `.aidevteam/workflow.overrides.json` (a JSON overlay merged over the hand-authored `workflow.yaml`); the base YAML is never machine-written. When an overlay is present, consult the *effective* workflow via `node hub/lib/digest.js [dir] --json` (the same projection the hub board and the memory SessionStart hook use).
 - `state`: `passed` | `pending` | `rejected`.
 - `qa`: the recorded QA outcome (`outcome`, `by`, `at`, `evidence`) — `/verify` reads this as proof the `/qa` step actually ran before it sets `VERIFIED`.
 - Every gate decision is appended with `by` (the agent) and `at` (ISO-8601). Soft-gate skips go in `skips[]` with a `reason`.

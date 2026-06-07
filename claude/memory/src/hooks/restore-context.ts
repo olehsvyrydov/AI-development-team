@@ -8,6 +8,9 @@
  *   2. Best-effort semantic recall (project-scoped + global dev-rules), time-boxed.
  * Every path exits 0; errors go to stderr only (stdout is injected as context).
  */
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { renderDigest } from "../digest.ts";
 import { loadMemoryConfig } from "../lib/config.ts";
 import { projectId } from "../lib/project-id.ts";
@@ -16,13 +19,35 @@ import { getStore } from "../stores/factory.ts";
 import type { ScoredPoint } from "../types.ts";
 import { formatContext, readStdinJson, withDeadline } from "./common.ts";
 
+/** Hub digest CLI path, resolved relative to this hook (repo/hub/lib/digest.js). */
+const HUB_DIGEST = path.resolve(import.meta.dirname, "../../../../hub/lib/digest.js");
+
+/** One shared projection (AC-X3): prefer the hub's overlay-aware digest CLI. */
+function projectDigest(cwd: string): string {
+  try {
+    if (fs.existsSync(HUB_DIGEST)) {
+      const out = execFileSync("node", [HUB_DIGEST, cwd, "--text"], {
+        encoding: "utf8",
+        timeout: 2000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+      if (out) return out;
+    }
+  } catch {
+    /* hub unavailable / errored — fall back to the local renderer */
+  }
+  return renderDigest(cwd);
+}
+
 async function main(): Promise<void> {
   const input = await readStdinJson();
   const cwd = typeof input.cwd === "string" ? input.cwd : process.cwd();
 
   // 1) Deterministic digest FIRST — the floor that never fails.
+  // Prefer the hub's overlay-aware digest CLI so the hook and the hub board
+  // project the SAME state (AC-X3); fall back to the local renderer.
   try {
-    process.stdout.write(renderDigest(cwd) + "\n");
+    process.stdout.write(projectDigest(cwd) + "\n");
   } catch {
     /* digest failed somehow — still continue; never abort the session */
   }
