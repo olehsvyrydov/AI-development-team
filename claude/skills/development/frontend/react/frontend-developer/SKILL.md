@@ -103,6 +103,8 @@ Use WebSearch and WebFetch tools to:
 
 If the stack is ambiguous, ask; otherwise default to React/Next.js. (Native iOS/Android → `native-mobile-developer`.)
 
+**Match the user's ecosystem before falling back to the default.** "Default to React" is the *last* resort, not the first move. When the project itself gives no signal, weigh the user's house standard — their other repos, a declared stack, sibling services (e.g. an Angular shop, a Vue monorepo) — and prefer consistency with it; a frontend picked for the agent's preference creates a maintenance island. Surface the stack decision explicitly when there is genuinely no signal rather than defaulting silently.
+
 ## Deep-dive references (load on demand)
 
 Detailed frontend knowledge lives in `references/` — read the relevant file when the task calls for it:

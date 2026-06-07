@@ -177,6 +177,7 @@ When something urgent happens mid-sprint:
 - [ ] Schema changes trigger full query audit on affected tables
 - [ ] Architecture conditions include negative cases (what to skip/reject)
 - [ ] Audit trail functions fail loudly (no silent null returns)
+- [ ] Destructive / boundary / capability-scoping tickets prove the **negative** with a test or grep/conformance check (files left untouched, reads confined to root, capability absent, secrets not persisted) — not only that the happy path works
 
 ---
 
@@ -371,6 +372,10 @@ GitHub Copilot automated review should be a mandatory gate before merging PRs. I
 - Helper function logic bugs
 
 **Process**: After /rev code review is complete and PR is created, wait for Copilot review comments. Fix all findings, push, and verify no new comments before merging.
+
+### Reply AND resolve every thread each round
+
+When orchestrating a PR-review cycle, replying to a review comment is **not** the same as resolving it. After each review round, every thread the team handled must be both **answered** (a fixing commit or a reasoned reply) **and** marked **Resolved** on the host — replies alone leave the thread open and the count non-zero. On GitHub use the `resolveReviewThread` GraphQL mutation (REST replies do not resolve); on GitLab resolve the thread. Treat "resolve the comments" from a maintainer as "mark the threads resolved," not "answer them." Don't advance the ticket past review with open threads still outstanding.
 
 ## Two-Phase Sprint Model — Validated
 

@@ -285,6 +285,58 @@ public Result process(Request r) { return doProcess(r); }
 
 **AOP is for genuine cross-cutting concerns ONLY.** Never push domain/business logic into an aspect — least of all the logic that is the *meaningful difference* between two code paths (e.g. an experiment's independent variable, a branch-specific rule). That logic belongs in explicit, readable code where a reader can see it; hiding it in a pointcut makes the real behaviour invisible at the call site. Aspects supply instrumentation, not decisions.
 
+#### 8. Immutable record-based configuration
+
+Prefer immutable, record-based `@ConfigurationProperties` (constructor binding + `@DefaultValue`) over mutable getter/setter classes — config is read-once at startup, so binding it into a record makes it final, thread-safe, and self-documenting.
+
+```java
+// GOOD — constructor-bound record; defaults declared, not mutated post-construction
+@ConfigurationProperties(prefix = "kb.ingest")
+public record IngestProperties(
+        @DefaultValue("25") int maxConcurrentJobs,
+        @DefaultValue("PT30S") Duration fetchTimeout) { }
+```
+
+#### 9. Don't mix configuration into code
+
+Schemas (e.g. a JSON input schema), user-facing descriptions/messages, and magic-number caps are **configuration**, not logic — externalise them into resource files or config keys (`@ConfigurationProperties`), never inline literals. Mixing config into code makes it un-tunable without a recompile and buries policy inside business logic.
+
+```java
+// BAD — schema + cap + message baked into code
+String schema = "{ \"type\": \"object\", ... }";        // belongs in a resource file
+if (items.size() > 50) throw new IllegalArgumentException("too many items, max 50");
+
+// GOOD — schema loaded from classpath; cap from config; message from a bundle
+String schema = resourceLoader.readClasspath("schemas/input.json");
+if (items.size() > props.maxItems()) throw new TooManyItemsException(props.maxItems());
+```
+
+#### 10. Pick the validation approach that preserves the error contract
+
+Don't reach for Bean Validation reflexively. When error codes are **field-specific and ordered** — e.g. absent→`*_missing` vs over-cap→`*_invalid`, with some fields collapsing both into one code — a dedicated validator class is the right choice: a Bean-Validation constraint set produces an **unordered** violation set and cannot express per-field, ordered code selection. Choose the approach that can actually model the required contract; use the framework only when it can express it.
+
+#### 11. Catch the specific exception, not broad `RuntimeException`
+
+Mapping a broad `catch (RuntimeException)` to a single error (e.g. "unauthenticated") masks unrelated failures — misconfiguration, DB errors, NPEs — as that error and hides real incidents. Catch the **specific** failure type and let every other runtime exception fall through to the generic error path.
+
+```java
+// BAD — a config or DB failure is silently reported as "unauthenticated"
+try { return verifier.verify(token); }
+catch (RuntimeException e) { throw new UnauthenticatedException(); }
+
+// GOOD — only the real auth failure maps to "unauthenticated"; the rest propagate
+try { return verifier.verify(token); }
+catch (TokenInvalidException e) { throw new UnauthenticatedException(); }
+```
+
+#### 12. Pin a cross-component derived key with a byte-for-byte parity test
+
+Any identity derived independently in more than one language/component and used as a **shared key** (partition key, cache key, correlation id) must be reproduced *exactly* — same input canonicalization, encoding, hash, and truncation — across every implementation. If one byte of the derivation diverges (canonicalization fall-through, encoding, slice length), the components silently address different partitions and **no error fires**. Prefer a single source of truth where feasible; where the derivation must be re-implemented, lock it with a cross-implementation **parity test** that embeds the other side's algorithm and asserts byte-for-byte equality across *all* derivation branches — not "looks the same."
+
+#### 13. Reuse proven logic behind a strangler-fig seam, don't rewrite on port
+
+When extending or porting an existing component, prefer wrapping/reusing the proven logic behind a strangler-fig seam — additive wiring, reused modules left untouched, the new surface a superset of the old — over a rewrite. Guard the boundary with snapshot/conformance tests proving **no existing contract changed**. Reuse-under-test beats rewrite: less behavioural drift, faster gate clearance, existing behaviour provably preserved. Rewrite only when the old logic is genuinely unfit for the new requirement.
+
 > Java-specific micro-standards (instance vs `static` on a bean, cached regex `Pattern`s, seeded reproducible RNG) live in `references/java-expertise.md`.
 
 ### API Design
@@ -425,6 +477,10 @@ public String computeFileHash(Path file) {
 | **`Pattern.compile()` per call** | Recompiling an immutable pattern wastes CPU/allocation on hot paths | Compile once: `static final` constant, field, or `computeIfAbsent` map |
 | **`ThreadLocalRandom` for reproducibility** | Cannot be seeded — `setSeed` throws | `SplittableRandom(seed)`; `SecureRandom` only for security draws |
 | **Accidental O(n²)** | Nested linear scans blow up on large inputs | Set/Map lookup, pre-sized collections, lazy streams |
+| **Mutable getter/setter Config Class** | Config can drift after startup; verbose, not thread-safe | Immutable record `@ConfigurationProperties` (constructor binding + `@DefaultValue`) |
+| **Schema/Messages/Caps Inline** | Config baked into code can't be tuned without a recompile; policy buried in logic | Externalise schemas to resource files, caps/messages to config keys (`@ConfigurationProperties`) |
+| **Bean Validation for Ordered Per-Field Codes** | Unordered violation set can't express absent→`*_missing` vs over-cap→`*_invalid` selection | Dedicated validator class when the error contract is field-specific and ordered |
+| **Broad `catch (RuntimeException)` → one error** | Masks misconfig/DB/NPE failures as e.g. "unauthenticated", hiding real incidents | Catch the specific failure type; let other runtime exceptions reach the generic handler |
 
 ---
 

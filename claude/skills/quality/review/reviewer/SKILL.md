@@ -253,6 +253,8 @@ When a PR already carries **inline review comments** (from a human reviewer or a
 - Every inline thread gets a per-thread outcome: a commit that addresses it, or a reply explaining why it stands.
 - Reconcile at the end: every open thread is either resolved by a change or answered.
 
+**Replying ≠ resolving.** Posting a reply (or a fixing commit) addresses a thread, but on most hosts it does **not** close it — you must also mark the conversation **Resolved** so the thread count goes to zero. On GitHub, a REST reply leaves the thread open; resolution is a separate step (the `resolveReviewThread` GraphQL mutation, or the "Resolve conversation" button). On GitLab, resolve the thread explicitly. When a maintainer says "resolve the comments," they mean mark the threads resolved — not merely answer them. After each round: reply/fix **and** resolve every thread you handled.
+
 ## Engineering Standards Enforcement
 
 Enforce these on every review; severity is fixed — do not downgrade. (Tooling commands, the grep scan, and language-specific detail live in the language references.)
@@ -264,6 +266,9 @@ Enforce these on every review; severity is fixed — do not downgrade. (Tooling 
 - **>6-param constructor without a builder — flag.** Require a builder (static builder for records) so call sites are readable and order-independent.
 - **`static` logic on a DI bean — flag.** Service logic should be an instance method (mockable, injectable); `static` only for pure utilities, record factories, and `main`.
 - **Domain logic hidden in an aspect — flag.** AOP is cross-cutting only — the meaningful difference between code paths must stay explicit.
+- **Configuration baked into code — flag.** Schemas (e.g. a JSON input schema), user-facing descriptions/messages, and magic-number caps belong in resource files or config keys (`@ConfigurationProperties`), not inline literals — mixing config into code makes it un-tunable without a recompile.
+- **Broad `catch (RuntimeException)` mapped to one error — flag.** Catching a broad runtime type and translating it to a single specific error (e.g. "unauthenticated") masks unrelated failures (misconfiguration, DB errors) as that error and hides real incidents. Require catching the specific failure type and letting other runtime exceptions fall through to the generic error path.
+- **Missing proof of the negative on destructive/boundary/capability work — BLOCKING.** For a change that deletes, confines a read/write boundary, or scopes a capability, a happy-path test is not enough: require a test (or grep/conformance check) that proves the **negative** — files left untouched after a delete, reads confined to the allowed root, the excluded capability/exec path absent, secrets not persisted. Positive-only verification silently misses exactly the failures that matter (silent escape, over-deletion, leaked exec).
 
 
 ## Deep-dive references (load on demand)

@@ -362,6 +362,14 @@ Any endpoint that acts on a resource by id (approve, decide, edit, delete) must 
 
 Field-name allowlisting (never serialize a field named `password`/`token`/`secret`) is the **primary** control. A second, orthogonal risk: an operator pastes a credential into the *value* of a legitimately-allowed free-text field (a note, a reason, a comment). Because audit logs are append-only and often multi-year retention, such a value is effectively unredactable after the fact — so scrub at the boundary, **before the value enters both the entity and the audit payload**, not just one. Implement as a small `replaceAll` over labelled-secret / `Bearer <tok>` / email patterns clamped to a max length. **Do not describe a label-anchored regex as "conservative" or "over-redacting"** — it only catches credentials that announce themselves (`apikey=…`); a bare high-entropy string slips through. Say plainly "label-anchored, defense-in-depth, not a guarantee," or add an entropy/length heuristic if you need to claim broad coverage. Overclaiming the strength of a leak control is itself a finding.
 
+## Verify a "reused" control exists in source before crediting it
+
+When an architecture or design leans on an **existing** control as a mitigation ("reuse the path-containment helper", "the framework already validates this"), open the cited source and confirm the behaviour is actually there before you credit it in the threat model. A gate that accepts the design's *claim* of a reused control — without reading it — ships a hole when the control turns out to be net-new code that was never written. If it does not yet exist, mark it as **net-new** and require its own implementation plus a dedicated test; do not count an unwritten control as a passing mitigation. Read the code, not the design's assertion about the code.
+
+## Gate execution / RCE-class surfaces separately, each with its own pass
+
+Scope a security approval to the surface that actually shipped. An **execution / RCE-class capability** — host-CLI/`spawn`/`child_process`, SSH or other remote-exec, dynamic eval, deserialization of untrusted data — must get its **own dedicated hard SECOPS pass** and must **not** ride along on a foundation/feature gate that has no execution surface. Conversely, a "no-exec" foundation should **prove the negative**: verify (by grep/conformance over `spawn`/`child_process`/`ssh`/runner imports, etc.) that no execution path leaked into it, rather than assuming none did. "No exec here" is a claim to be tested, not taken on faith.
+
 ## Composing deterministic + advisory signals (safety calibration)
 
 When a security/quality decision combines a cheap **deterministic** check with an **advisory/probabilistic** signal (LLM score, heuristic, ML classifier):

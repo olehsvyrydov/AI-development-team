@@ -178,6 +178,11 @@ Treat **timing, metrics, cost accounting, logging, tracing, and audit** as cross
 
 **The inverse is equally a guardrail: AOP is for genuine cross-cutting concerns ONLY — never specify domain or business logic inside an aspect.** Especially the logic that is the *meaningful difference* between code paths (e.g. an experiment's independent variable, a branch-specific business rule) belongs in explicit, visible code — not buried in a pointcut where it is invisible at the call site. If a proposed aspect would change *what* the system decides rather than *how* it is observed, it is misplaced domain logic; pull it back into the explicit path.
 
+### Cross-Component Contract & Stack Guardrails
+
+- **A derived identity used as a cross-component key must be reproducible byte-for-byte.** When a key (partition/cache/correlation id) is derived independently in two components or languages, the derivation is a *contract*, not an implementation detail: same input canonicalization, encoding, hash, truncation on every side. Divergence by one byte points the components at different partitions with **no error raised**. In the ADR, prefer a single source of truth; where the derivation must be re-implemented, mandate a cross-implementation **parity test** asserting byte-for-byte equality across all derivation branches.
+- **Stack choice follows the user's existing ecosystem, not the agent's default.** Before settling on a frontend (or any) stack in an ADR, detect and weigh the user's house standard — other repos, declared stack, existing services — and prefer consistency with it. A stack picked for novelty or the agent's preference creates a maintenance island. When no signal exists, surface the stack decision explicitly rather than defaulting silently.
+
 ### Architecture Tradeoff Analysis Method (ATAM)
 
 ATAM is a structured approach to evaluate architectures against quality attributes. Developed by SEI at Carnegie Mellon University.
