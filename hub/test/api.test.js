@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { handle } = require('../lib/api');
+const { handle, isPermutation } = require('../lib/api');
 const { computeRev } = require('../lib/write');
 
 const WF = `version: 1
@@ -90,6 +90,20 @@ test('track/reorder rejects a non-permutation (400)', async () => {
     const r = await handle('track/reorder', { track: 'standard', stages: ['implement', 'DROP'] }, dir);
     assert.equal(r.code, 400);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('isPermutation accepts a reordering and rejects extra/missing/duplicate/wrong-length', () => {
+  assert.equal(isPermutation(['a', 'b', 'c'], ['c', 'a', 'b']), true, 'same multiset, reordered');
+  assert.equal(isPermutation(['a', 'b'], ['a', 'b', 'c']), false, 'extra element / wrong length');
+  assert.equal(isPermutation(['a', 'b', 'c'], ['a', 'b']), false, 'missing element / wrong length');
+  assert.equal(isPermutation(['a', 'a', 'b'], ['a', 'b', 'b']), false, 'same length, different multiplicities');
+  assert.equal(isPermutation(['a', 'b'], 'not-an-array'), false, 'non-array second argument');
+});
+
+test('isPermutation is not fooled by delimiter-free concatenation collisions', () => {
+  // ['a','bc'] and ['ab','c'] both concatenate to 'abc' after sorting with no
+  // delimiter, but they are NOT permutations of each other.
+  assert.equal(isPermutation(['a', 'bc'], ['ab', 'c']), false);
 });
 
 test('preset validates the enum and writes the overlay', async () => {
