@@ -23,8 +23,9 @@ studio/cockpit/dist/
 studio/cockpit/.angular/
 studio/cockpit/test-results/
 studio/cockpit/playwright-report/
-studio/cockpit/e2e/.temp-project-path
+studio/cockpit/e2e/.fixtures.json
 studio/cockpit/out-tsc/
+studio/cockpit/*.png
 
 # Python
 __pycache__/

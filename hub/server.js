@@ -50,10 +50,21 @@ const api = require('./lib/api');
 const projects = require('./lib/projects');
 const { createRegistry } = require('./lib/registry');
 const { readJsonBody } = require('./lib/http-body');
+const { createStaticSpa } = require('./lib/static-spa');
 const { safeExists, safeRead } = lib;
+
+// production Cockpit build (Angular `@angular/build` → dist/<project>/browser);
+// served same-origin at `/` so the page reaches network-idle (no HMR socket).
+// When absent (undeployed), the server falls back to the legacy board below.
+const cockpit = createStaticSpa(
+  path.join(SELF_DIR, '..', 'studio', 'cockpit', 'dist', 'cockpit', 'browser'));
 
 // user-global project registry (~/.aidevteam/registry.json) for the projects/* API
 const registry = createRegistry({ home: os.homedir() });
+
+// the single allowed root for the directory browser: realpath($HOME), resolved once
+let BROWSE_ROOT;
+try { BROWSE_ROOT = fs.realpathSync(os.homedir()); } catch { BROWSE_ROOT = os.homedir(); }
 
 // the active workflow path for this project (used by the watcher + startup log)
 function findWorkflow() { return lib.findWorkflow(PROJECT); }
@@ -127,6 +138,20 @@ const server = http.createServer((req, res) => {
     req.on('close', () => clients.delete(res));
     return;
   }
+  // ---- read-only directory browser: /api/fs/* (folder picker) --------------
+  // these GETs disclose local filesystem structure, so they carry the write guard
+  // (anti-CSRF / anti-DNS-rebinding) before any FS work, same as the write API
+  if (pathname === '/api/fs/roots' || pathname === '/api/fs/list') {
+    const gate = writeAllowed(req, { port: PORT, allowRemote: ALLOW_REMOTE });
+    if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
+    let query = null;
+    try { query = new URL(req.url, 'http://localhost').searchParams; } catch {}
+    Promise.resolve(projects.handleFs(req.method, pathname, query, { registry, browseRoot: BROWSE_ROOT }))
+      .then((r) => r ? sendJson(res, r.code, r.payload) : sendJson(res, 404, { ok: false, error: 'unknown route' }))
+      .catch((e) => sendJson(res, 500, { ok: false, error: String(e && e.message || e) }));
+    return;
+  }
+
   // ---- multi-project registry: /api/projects[/...] -------------------------
   if (pathname === '/api/projects' || pathname.startsWith('/api/projects/')) {
     const write = req.method === 'POST' || req.method === 'DELETE';
@@ -163,7 +188,24 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // static: index.html
+  // ---- legacy zero-dependency board (the original hub UI) ------------------
+  if (pathname === '/legacy' || pathname === '/legacy/' || pathname.startsWith('/legacy/')) {
+    return serveLegacyBoard(res);
+  }
+
+  // ---- production Cockpit SPA at `/` (same-origin, no HMR) ------------------
+  // Non-/api, non-/legacy GETs serve the build; unknown client routes fall back
+  // to its index.html. When the build is absent, serve the legacy board so the
+  // server still works undeployed.
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    if (cockpit.tryServe(req, res, pathname)) return;
+    return serveLegacyBoard(res);
+  }
+  res.writeHead(405, { 'content-type': 'text/plain' });
+  res.end('Method Not Allowed');
+});
+
+function serveLegacyBoard(res) {
   const file = path.join(SELF_DIR, 'public', 'index.html');
   if (!safeExists(file)) {
     res.writeHead(500, { 'content-type': 'text/plain' });
@@ -171,7 +213,7 @@ const server = http.createServer((req, res) => {
   }
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   res.end(safeRead(file));
-});
+}
 
 startWatchers();
 server.listen(PORT, HOST, () => {
