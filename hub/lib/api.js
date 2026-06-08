@@ -9,6 +9,7 @@
  */
 const w = require('./write');
 const { buildState } = require('./state');
+const engine = require('./engine');
 
 const PRESETS = ['solo', 'small-team', 'regulated'];
 const GATE_STATES = ['passed', 'pending', 'rejected'];
@@ -183,6 +184,46 @@ async function handle(route, data, project) {
       if (!r.ok) return conflict(st());
       return ok(st());
     }
+    case 'workflow/set-rules': {
+      const { rules, expectedRev } = data;
+      const wf = st();
+      // Author-time gate: the FULL closed-grammar + safety validation. An unsafe or
+      // malformed rule is refused here and never persists (overlay byte-unchanged).
+      const v = engine.validateRules(rules, wf);
+      if (!v.ok) return bad(v.error);
+      const r = await w.writeOverlayCAS(project, expectedRev, { rules });
+      if (!r.ok) return conflict(st());
+      return ok(st());
+    }
+    case 'workflow/set-labels': {
+      const { labels, expectedRev } = data;
+      const v = engine.validateLabels(labels);
+      if (!v.ok) return bad(v.error);
+      const r = await w.writeOverlayCAS(project, expectedRev, { labels });
+      if (!r.ok) return conflict(st());
+      return ok(st());
+    }
+    case 'label/set': {
+      const { id, label, set, by, expectedRev } = data;
+      const wf = st();
+      if (!findTicket(id)) return bad('unknown ticket');
+      if (typeof label !== 'string' || !label) return bad('label required');
+      // Enforce the settable_by contract against the acting author — an
+      // unauthorized set writes NOTHING (no labels[] change, no comment, no route).
+      if (!engine.labelSettableBy(label, by || '*', wf)) return bad('label not settable by this agent');
+      const wantSet = set !== false; // default: set; explicit false ⇒ clear
+      const r = await w.readModifyWriteLedger(project, expectedRev, (led) => {
+        const t = led[id];
+        if (!t) return;
+        const cur = Array.isArray(t.labels) ? t.labels.filter((l) => typeof l === 'string') : [];
+        if (wantSet) { if (!cur.includes(label)) cur.push(label); }
+        else { const idx = cur.indexOf(label); if (idx >= 0) cur.splice(idx, 1); }
+        t.labels = cur;
+      });
+      if (!r.ok) return conflict(st());
+      w.appendComment(project, id, { author: by || 'hub', kind: 'label', body: `${wantSet ? 'set' : 'cleared'} label ${label}`, label, state: wantSet ? 'set' : 'cleared' });
+      return ok(st());
+    }
     case 'kb/add': {
       const { title, body } = data;
       const r = w.addKbNote(project, { title, body });
@@ -194,4 +235,147 @@ async function handle(route, data, project) {
   }
 }
 
-module.exports = { handle, isPermutation, validateStageList, PRESETS, GATE_STATES };
+// The write surface the engine applies through — every mutation rides the existing
+// CAS writers; instruct/fan_out are recorded only. Each closure carries the project.
+// All ledger writes are awaited (the mutex serializes them) so the next projection
+// read in the tick observes the effect — the tick is one sequential unit.
+function engineIO(project) {
+  return {
+    async setLabel(id, label, set, by) {
+      await w.readModifyWriteLedger(project, null, (led) => {
+        const t = led[id]; if (!t) return;
+        const cur = Array.isArray(t.labels) ? t.labels.filter((l) => typeof l === 'string') : [];
+        if (set) { if (!cur.includes(label)) cur.push(label); }
+        else { const i = cur.indexOf(label); if (i >= 0) cur.splice(i, 1); }
+        t.labels = cur;
+      });
+      w.appendComment(project, id, { author: by, kind: 'label', body: `${set ? 'set' : 'cleared'} label ${label}`, label, state: set ? 'set' : 'cleared' });
+    },
+    async routeStage(id, toStage, by) {
+      await w.readModifyWriteLedger(project, null, (led) => { if (led[id]) led[id].stage = toStage; });
+      w.appendComment(project, id, { author: by, kind: 'advance', body: `stage → ${toStage}` });
+    },
+    async assign(id, agent, by) {
+      await w.readModifyWriteLedger(project, null, (led) => {
+        if (led[id]) { led[id].assignee = agent || null; led[id].assigned_at = new Date().toISOString(); }
+      });
+      w.appendComment(project, id, { author: by, kind: 'assign', body: `assigned → ${agent || '(none)'}` });
+    },
+    async requireGate(id, gate, by) {
+      // add-only: append the gate name to the ticket's required set; never sets state
+      await w.readModifyWriteLedger(project, null, (led) => {
+        const t = led[id]; if (!t) return;
+        const cur = Array.isArray(t.requiredGates) ? t.requiredGates.filter((g) => typeof g === 'string') : [];
+        if (!cur.includes(gate)) cur.push(gate);
+        t.requiredGates = cur;
+      });
+      w.appendComment(project, id, { author: by, kind: 'comment', body: `requires gate ${gate}` });
+    },
+    directive(id, target, prompt, by) {
+      // recorded only — no write authority; the prompt is untrusted data stored raw
+      w.appendComment(project, id, { author: by, kind: 'directive', body: String(prompt == null ? '' : prompt), target });
+    },
+    fanOut(id, targets, by) {
+      w.appendComment(project, id, { author: by, kind: 'directive', body: `fan_out (recorded only): ${(targets || []).join(', ')}` });
+    },
+    async recordFired(id, rule, eventId, at, toStage) {
+      await w.readModifyWriteLedger(project, null, (led) => {
+        const t = led[id]; if (!t) return;
+        const cur = Array.isArray(t.fired) ? t.fired : [];
+        const entry = { rule, event: eventId, at: at || new Date().toISOString() };
+        if (toStage) entry.toStage = toStage;
+        cur.push(entry);
+        t.fired = cur;
+      });
+    },
+  };
+}
+
+/**
+ * Run one deterministic engine tick for a project: derive the new events off the
+ * comment-log tail, evaluate the rules against each, and apply matched do-actions
+ * through the CAS writers. Idempotent via the (rule,event) dedup trace; bounded by
+ * the loop budget (backward routes → NEEDS_HUMAN, stop) and the then-chain cap.
+ *
+ * Returns a summary `{ fired:[{rule,event,ticket}], needsHuman:[ids] }` for tests
+ * and logging. Performs file mutations only; never spawns/execs anything.
+ */
+async function runEngineTick(project, io = engineIO(project)) {
+  const fired = [];
+  const needsHuman = [];
+  const state0 = buildState(project);
+  const rules = state0.rules || [];
+  if (!rules.length) return { fired, needsHuman };
+  const rulesById = new Map(rules.map((r) => [r.id, r]));
+
+  for (const ticket0 of state0.tickets) {
+    // re-read the ticket fresh per iteration so cross-ticket writes stay isolated
+    let state = buildState(project);
+    let ticket = state.tickets.find((t) => t.id === ticket0.id);
+    if (!ticket) continue;
+    const events = engine.deriveEvents(ticket.comments, new Set((ticket.fired || []).map((f) => f.event)));
+
+    for (const event of events) {
+      const candidates = engine.selectRules(event, rules);
+      // a tick evaluates a bounded set; then-chains are expanded with a depth cap
+      const queue = candidates.map((r) => ({ rule: r, depth: 0 }));
+      let stopRouting = false;
+      while (queue.length) {
+        const { rule, depth } = queue.shift();
+        if (depth > engine.CHAIN_DEPTH_CAP) break;
+        state = buildState(project);
+        ticket = state.tickets.find((t) => t.id === ticket0.id);
+        if (!ticket) break;
+        if (engine.alreadyFired(ticket, rule.id, event.id)) continue;
+        if (!engine.matches(rule, ticket, event)) continue;
+
+        // loop safety: a backward route over budget → NEEDS_HUMAN, stop routing
+        const routeAction = (rule.do || []).find((a) => Object.keys(a)[0] === 'route_to_stage');
+        if (routeAction && !stopRouting) {
+          const toStage = routeAction.route_to_stage;
+          const count = engine.backwardRouteCount(ticket, toStage, state);
+          if (count >= engine.LOOP_BUDGET) {
+            await io.setLabel(ticket.id, 'NEEDS_HUMAN', true, 'engine');
+            await io.recordFired(ticket.id, rule.id, event.id, event.at);
+            needsHuman.push(ticket.id);
+            stopRouting = true;
+            continue; // no further backward route fires for this loop
+          }
+        }
+
+        // apply, recording the toStage on the fired entry for the loop counter
+        const { result: wroteRoute, applied } = await applyWithRouteTrace(rule, ticket, event, state, io);
+        if (applied.length) fired.push({ rule: rule.id, event: event.id, ticket: ticket.id });
+
+        // expand the then-chain in the same tick iff the parent fired
+        if (Array.isArray(rule.then) && wroteRoute !== 'refused') {
+          for (const nextId of rule.then) {
+            const next = rulesById.get(nextId);
+            if (next) queue.push({ rule: next, depth: depth + 1 });
+          }
+        }
+      }
+    }
+  }
+  return { fired, needsHuman };
+}
+
+// Apply a rule, threading the route target into recordFired so the loop counter
+// can see prior backward routes. Returns 'refused' when a route was blocked by the
+// safety check (so the then-chain does not expand off a blocked parent route).
+async function applyWithRouteTrace(rule, ticket, event, wf, io) {
+  let routeStage = null;
+  const wrapped = {
+    ...io,
+    async routeStage(id, toStage, by) { routeStage = toStage; await io.routeStage(id, toStage, by); },
+    async recordFired(id, ruleId, eventId, at) { await io.recordFired(id, ruleId, eventId, at, routeStage); },
+  };
+  // detect a refused route: if the rule has a route action but it routes past an
+  // unmet safety gate, apply() will skip it — surface that to the chain logic
+  const routeAction = (rule.do || []).find((a) => Object.keys(a)[0] === 'route_to_stage');
+  const routeRefused = !!routeAction && engine.routePastUnmetSafetyGate(routeAction.route_to_stage, ticket, wf);
+  const applied = await engine.apply(rule, ticket, event, wf, wrapped);
+  return { result: routeRefused ? 'refused' : 'applied', applied };
+}
+
+module.exports = { handle, isPermutation, validateStageList, PRESETS, GATE_STATES, runEngineTick, engineIO };

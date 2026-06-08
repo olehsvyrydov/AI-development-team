@@ -99,6 +99,11 @@ function sendJson(res, code, obj) {
 const channels = createChannels({
   render: (dir) => JSON.stringify(buildStateFor(dir)),
   findWorkflow: (dir) => lib.findWorkflow(dir),
+  // Edge-triggered deterministic engine: on any file change to a watched project,
+  // derive the new events off the comment-log tail and apply matched rules through
+  // the CAS writers BEFORE the SSE frame is broadcast. A tick failure is swallowed
+  // by the channel hook and never blocks the push.
+  onChange: (dir) => api.runEngineTick(dir),
 });
 
 // ---- HTTP ------------------------------------------------------------------
@@ -190,9 +195,14 @@ const server = http.createServer((req, res) => {
       resolveProject(data && data.project, { registry, launch: PROJECT }).then((rp) => {
         if (!rp.ok) return sendJson(res, rp.code, { ok: false, error: rp.error });
         return Promise.resolve(api.handle(route, data, rp.dir)).then((r) => {
-          // notify only the resolved project's subscribers (cross-project isolation)
-          if (r.code === 200) channels.push(rp.dir);
-          sendJson(res, r.code, r.payload);
+          if (r.code !== 200) return sendJson(res, r.code, r.payload);
+          // a successful mutation may newly satisfy a rule's `when`; run the
+          // deterministic engine tick before notifying subscribers so a label/
+          // comment write that triggers a route is reflected in the pushed state.
+          return Promise.resolve(api.runEngineTick(rp.dir)).catch(() => {}).then(() => {
+            channels.push(rp.dir); // notify only the resolved project's subscribers
+            sendJson(res, r.code, r.payload);
+          });
         });
       }).catch((e) => sendJson(res, 500, { ok: false, error: String(e && e.message || e) }));
     });

@@ -229,7 +229,7 @@ function writeNewFileExclusive(target, content) {
 }
 
 /** Append one comment to the per-ticket JSONL audit log (append-only, race-free). */
-function appendComment(dir, ticketId, { author, kind, body, gate, state } = {}) {
+function appendComment(dir, ticketId, { author, kind, body, gate, state, label, target } = {}) {
   const rec = {
     id: crypto.randomUUID(),
     ticket: String(ticketId),
@@ -240,6 +240,8 @@ function appendComment(dir, ticketId, { author, kind, body, gate, state } = {}) 
   };
   if (gate) rec.gate = gate;
   if (state) rec.state = state;
+  if (label) rec.label = label;
+  if (target) rec.target = Array.isArray(target) ? target.map(String) : String(target);
   const file = commentFile(dir, ticketId);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   // O_APPEND single-line write — atomic across writers up to PIPE_BUF (4KB on

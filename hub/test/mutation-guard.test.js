@@ -164,3 +164,25 @@ test('N-18 mutation routes and kb/add are refused 403 without X-AIDT; allowed wi
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('N-16 the rule/label authoring routes are refused 403 without X-AIDT; nothing written', async () => {
+  const dir = proj();
+  const port = await freePort();
+  const { stop } = await startServer(dir, port);
+  try {
+    for (const [route, body] of [
+      ['workflow/set-rules', { rules: [{ id: 'a', do: [] }] }],
+      ['workflow/set-labels', { labels: { X: { settable_by: ['*'] } } }],
+      ['label/set', { id: 'T-1', label: 'X', set: true, by: '/rev' }],
+    ]) {
+      const res = await post(port, route, body);
+      assert.equal(res.status, 403, `${route} refused without X-AIDT`);
+    }
+    // the overlay must not have been written by any refused authoring call
+    assert.ok(!fs.existsSync(path.join(dir, '.aidevteam', 'workflow.overrides.json')), 'no overlay written under 403');
+    assert.ok(!fs.existsSync(path.join(dir, '.aidevteam', 'comments', 'T-1.jsonl')), 'no label comment written under 403');
+  } finally {
+    await stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

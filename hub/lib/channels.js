@@ -46,10 +46,13 @@ function watchTargets(dir, workflowFile) {
  *
  * @param opts.render `(dir) => string` produces the SSE `data:` payload for a project
  * @param opts.findWorkflow optional `(dir) => string|null` active workflow path to watch
+ * @param opts.onChange optional `(dir) => void|Promise` run on each debounced change
+ *        BEFORE the broadcast (e.g. the deterministic engine tick); its rejection is
+ *        swallowed so a tick failure never tears the channel down or blocks the push
  * @param opts.cap max concurrently watched projects (default 16)
  * @param opts.debounceMs per-channel change coalesce window (default 150)
  */
-function createChannels({ render, findWorkflow = () => null, cap = DEFAULT_CAP, debounceMs = DEFAULT_DEBOUNCE_MS } = {}) {
+function createChannels({ render, findWorkflow = () => null, onChange = null, cap = DEFAULT_CAP, debounceMs = DEFAULT_DEBOUNCE_MS } = {}) {
   const channels = new Map(); // resolved dir -> channel
 
   function frame(dir) { return `event: update\ndata: ${render(dir)}\n\n`; }
@@ -63,15 +66,24 @@ function createChannels({ render, findWorkflow = () => null, cap = DEFAULT_CAP, 
         try { res.write(payload); } catch { channel.subscribers.delete(res); }
       }
     };
-    const onChange = () => {
+    const handleChange = () => {
       clearTimeout(channel.debounce);
-      channel.debounce = setTimeout(() => { startWatchers(); broadcast(); }, debounceMs);
+      channel.debounce = setTimeout(() => {
+        startWatchers();
+        // run the optional change hook (the engine tick) before broadcasting the
+        // fresh frame, so a rule-driven mutation is reflected in the pushed state.
+        // Re-entrancy is avoided: the hook's own writes are observed on the next
+        // settle, and the dedup trace makes a replayed tail effectively-once.
+        const after = () => broadcast();
+        if (onChange) { try { Promise.resolve(onChange(dir)).then(after, after); } catch { after(); } }
+        else after();
+      }, debounceMs);
     };
     const watch = (p) => {
       if (channel.watched.has(p)) return;
       try { fs.statSync(p); } catch { return; } // only watch what exists
       try {
-        const w = fs.watch(p, { persistent: true }, onChange);
+        const w = fs.watch(p, { persistent: true }, handleChange);
         channel.watched.set(p, w);
       } catch { /* a single bad watch never tears the channel down */ }
     };

@@ -98,7 +98,7 @@ function parseWorkflow(yaml) {
       if (ar) presetsAR[cur] = ar[1].split(',').map(norm).filter(Boolean);
     }
   }
-  return { preset, gates, tracks, alwaysRequired: presetsAR[preset] || [], presetsAR };
+  return { preset, gates, tracks, alwaysRequired: presetsAR[preset] || [], presetsAR, labels: parseLabels(yaml), rules: parseRules(yaml) };
 }
 
 // deep-merge the machine-owned overlay over the parsed base (overlay wins per key)
@@ -119,6 +119,8 @@ function applyOverlay(wf, project) {
     // re-resolve always_required for the EFFECTIVE preset (overlay may switch it)
     alwaysRequired: Array.isArray(ov.alwaysRequired) ? ov.alwaysRequired : (presetsAR[effPreset] || wf.alwaysRequired),
     presetsAR,
+    labels: mergeLabels(wf.labels, ov.labels),
+    rules: mergeRules(wf.rules, ov.rules),
   };
   return { wf: merged, overlayPath: p };
 }
@@ -130,6 +132,103 @@ function mergeGates(base, ovGates) {
     byName.set(name, { ...g, ...patch, name });
   }
   return [...byName.values()];
+}
+
+// Names that, used as a projection map key or a rule/label identifier, would
+// shadow the prototype chain. Dropped at parse so a definition named after one of
+// them can never pollute Object.prototype or the rules/labels projection.
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+// A tiny JSON5-ish reader for the inline `{...}` and `[...]` values the base
+// workflow.yaml carries on a single line (the same shape gates/tracks already use).
+// Quotes keys/strings, then JSON.parse — no eval, no arbitrary code. Returns the
+// parsed value or null when the snippet is not well-formed.
+function parseInline(snippet) {
+  const s = String(snippet == null ? '' : snippet).trim();
+  if (!s) return null;
+  let json = s;
+  // single → double quotes (values carry no embedded double quotes in this form)
+  json = json.replace(/'/g, '"');
+  // quote bare object keys: `{ id: x }` / `, key:` → `"key":`
+  json = json.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:/g, '$1"$2":');
+  // quote bare scalar values (tokens that are not already quoted/braced/numeric/bool)
+  json = json.replace(/:\s*([A-Za-z_][A-Za-z0-9_./*-]*)/g, (m, v) => {
+    if (v === 'true' || v === 'false' || v === 'null') return ': ' + v;
+    return ': "' + v + '"';
+  });
+  // quote bare scalars inside arrays: [a, b] → ["a","b"] (skip already-quoted/braced)
+  json = json.replace(/([[,]\s*)([A-Za-z_][A-Za-z0-9_./*-]*)\s*(?=[,\]])/g, '$1"$2"');
+  try { return JSON.parse(json); } catch { return null; }
+}
+
+// Strip prototype-polluting keys from a plain object (one level deep is enough for
+// the rule/label shapes; nested do-actions are scalars/strings).
+function dropForbiddenKeys(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (FORBIDDEN_KEYS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+// Parse the base `labels:` block: each `NAME: { ... }` line → name → contract.
+function parseLabels(yaml) {
+  const out = {};
+  for (const line of section(yaml, 'labels').split('\n')) {
+    const m = line.match(/^\s+([A-Za-z_][A-Za-z0-9_-]*):\s*(\{.*\})\s*$/);
+    if (!m) continue;
+    const name = m[1];
+    if (FORBIDDEN_KEYS.has(name)) continue;
+    const def = parseInline(m[2]);
+    if (def && typeof def === 'object') Object.defineProperty(out, name, { value: dropForbiddenKeys(def), enumerable: true, writable: true, configurable: true });
+  }
+  return out;
+}
+
+// Parse the base `rules:` block: each `- { ... }` list item → a rule object.
+function parseRules(yaml) {
+  const out = [];
+  for (const line of section(yaml, 'rules').split('\n')) {
+    const m = line.match(/^\s*-\s*(\{.*\})\s*$/);
+    if (!m) continue;
+    const rule = parseInline(m[1]);
+    if (rule && typeof rule === 'object' && typeof rule.id === 'string' && !FORBIDDEN_KEYS.has(rule.id)) {
+      out.push(dropForbiddenKeys(rule));
+    }
+  }
+  return out;
+}
+
+// Overlay labels merge: project adds + overrides by name (mirrors mergeGates).
+function mergeLabels(base, ov) {
+  const out = {};
+  for (const [name, def] of Object.entries(base || {})) {
+    if (FORBIDDEN_KEYS.has(name)) continue;
+    out[name] = def;
+  }
+  if (ov && typeof ov === 'object' && !Array.isArray(ov)) {
+    for (const [name, def] of Object.entries(ov)) {
+      if (FORBIDDEN_KEYS.has(name)) continue;
+      if (def && typeof def === 'object') out[name] = dropForbiddenKeys(def);
+    }
+  }
+  return out;
+}
+
+// Overlay rules merge: index base by id; overlay adds new ids and overrides by id.
+function mergeRules(base, ov) {
+  const byId = new Map();
+  for (const r of base || []) if (r && typeof r.id === 'string' && !FORBIDDEN_KEYS.has(r.id)) byId.set(r.id, r);
+  if (Array.isArray(ov)) {
+    for (const r of ov) {
+      if (r && typeof r === 'object' && typeof r.id === 'string' && !FORBIDDEN_KEYS.has(r.id)) {
+        byId.set(r.id, dropForbiddenKeys(r));
+      }
+    }
+  }
+  return [...byId.values()];
 }
 
 function readLedger(project) {
@@ -328,7 +427,7 @@ function fileRev(project) {
 /** Build the full, multi-ticket workflow projection for a project directory. */
 function buildState(project) {
   const wfPath = findWorkflow(project);
-  const base = wfPath ? parseWorkflow(safeRead(wfPath)) : { preset: 'solo', gates: [], tracks: {}, alwaysRequired: [] };
+  const base = wfPath ? parseWorkflow(safeRead(wfPath)) : { preset: 'solo', gates: [], tracks: {}, alwaysRequired: [], labels: {}, rules: [] };
   const { wf, overlayPath } = applyOverlay(base, project);
   const { tickets: ledger, error: ledgerError } = readLedger(project);
 
@@ -363,6 +462,8 @@ function buildState(project) {
         expectedOwner: expectedOwner(t.stage, wf),
         status: statusOf(t.stage, gates, assignee),
         gates,
+        labels: Array.isArray(t.labels) ? t.labels.filter((l) => typeof l === 'string') : [],
+        fired: Array.isArray(t.fired) ? t.fired : [],
         description: resolveDescription(project, id, t),
         comments: readComments(project, id),
         source: 'ledger',
@@ -375,6 +476,8 @@ function buildState(project) {
       id: t.id, title: t.title, track: null, stage: t.stage, assignee: null, assigned_at: null,
       active: null, expectedOwner: expectedOwner(t.stage, wf), status: statusOf(t.stage, [], null),
       gates: gateDefs.map((g) => ({ ...g, state: 'pending', by: null, at: null, note: null })),
+      labels: [],
+      fired: [],
       description: resolveDescription(project, t.id, null),
       comments: readComments(project, t.id),
       file: t.file, source: 'markdown',
@@ -401,6 +504,8 @@ function buildState(project) {
     tracks: wf.tracks,
     gateDefs,
     stageOwners,
+    labels: wf.labels || {},
+    rules: wf.rules || [],
     tickets,
     ticketCount: tickets.length,
     taskSummary,
@@ -430,4 +535,4 @@ function listSummary(project) {
   } catch { return null; }
 }
 
-module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev };
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS };
