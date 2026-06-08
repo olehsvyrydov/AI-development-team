@@ -115,14 +115,114 @@ function parseJsonSafe(txt) {
   catch { return null; }
 }
 
-// first blank-line-delimited paragraph of a README, front-matter and leading H1 stripped
-function firstParagraph(md) {
-  let s = String(md || '');
+const SHORT_DESCRIPTION_CHARS = 280;
+const LONG_DESCRIPTION_CHARS = 1200;
+const LONG_DESCRIPTION_PARAGRAPHS = 3;
+
+// Drop fenced code blocks (``` ... ``` / ~~~ ... ~~~) wholesale: their contents
+// (ASCII diagrams, shell snippets) are never prose and must not be split across
+// blank-line blocks where the body would lose its fence marker.
+function stripFences(s) {
+  const out = [];
+  let fence = null;
+  for (const line of s.split('\n')) {
+    const open = line.match(/^\s*(```+|~~~+)/);
+    if (fence) {
+      if (open && line.trim().startsWith(fence)) fence = null;
+      continue;
+    }
+    if (open) { fence = open[1]; continue; }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
+// Strip leading YAML front-matter (--- ... ---) and split into blank-line-delimited blocks.
+function readmeBlocks(md) {
+  let s = String(md || '').replace(/\r\n?/g, '\n');
   const fm = s.match(/^---\n[\s\S]*?\n---\n?/);
   if (fm) s = s.slice(fm[0].length);
-  s = s.replace(/^\s*#[^\n]*\n/, '');
-  const para = s.trim().split(/\n\s*\n/)[0] || '';
-  return para.replace(/\s+/g, ' ').trim();
+  s = stripFences(s);
+  return s.split(/\n[ \t]*\n/);
+}
+
+// A block is non-prose when every non-blank line is structural/decorative markup
+// (badges, images, links/anchors, headings, rules, blockquotes, lists, tables,
+// HTML, comments) — i.e. it carries no human-readable sentence to surface.
+function isProseBlock(block) {
+  const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return false;
+  return lines.some((line) => isProseLine(line));
+}
+
+function isProseLine(line) {
+  if (!line) return false;
+  if (/^<!--/.test(line)) return false;                 // HTML comment
+  if (/^#{1,6}\s/.test(line)) return false;             // ATX heading
+  if (/^(=+|-{2,}|\*{3,}|_{3,})$/.test(line)) return false; // setext underline / horizontal rule
+  if (/^>/.test(line)) return false;                    // blockquote
+  if (/^([-*+]\s|\d+[.)]\s)/.test(line)) return false;  // list item
+  if (/^\|.*\|/.test(line)) return false;               // table row
+  if (/^[|:\- ]+$/.test(line)) return false;            // table delimiter
+  if (/^<\/?[a-zA-Z]/.test(line)) return false;         // HTML tag/block line
+  // strip inline markup; if nothing readable remains (badge/image/link-only), not prose
+  return stripInlineMarkdown(line).replace(/[^\p{L}\p{N}]/gu, '').length > 0;
+}
+
+// Reduce inline markdown to plain text: drop images, unwrap links to their text,
+// remove emphasis/code markers, decode a few common entities, collapse whitespace.
+function stripInlineMarkdown(text) {
+  let s = String(text || '');
+  s = s.replace(/<!--[\s\S]*?-->/g, ' ');               // HTML comments
+  s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ');           // images ![alt](url)
+  s = s.replace(/!\[[^\]]*\]\[[^\]]*\]/g, ' ');          // reference images
+  s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');         // links [text](url) -> text
+  s = s.replace(/\[([^\]]*)\]\[[^\]]*\]/g, '$1');        // reference links -> text
+  s = s.replace(/<\/?[a-zA-Z][^>]*>/g, ' ');             // HTML tags
+  s = s.replace(/`+([^`]*)`+/g, '$1');                   // inline code
+  s = s.replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1');    // bold/italic
+  s = s.replace(/[*_~`]/g, '');                          // stray emphasis markers
+  s = s.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (m) => (
+    { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' }[m] || ' '
+  ));
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+// First genuine prose block of a README as clean plain text, or '' if none exists.
+function firstProseParagraph(md) {
+  for (const block of readmeBlocks(md)) {
+    if (isProseBlock(block)) {
+      const text = stripInlineMarkdown(block.replace(/\n/g, ' '));
+      if (text) return text;
+    }
+  }
+  return '';
+}
+
+// Up to `maxParagraphs` consecutive prose blocks joined into one cleaned passage.
+function leadingProse(md, maxParagraphs) {
+  const out = [];
+  for (const block of readmeBlocks(md)) {
+    if (!isProseBlock(block)) continue;
+    const text = stripInlineMarkdown(block.replace(/\n/g, ' '));
+    if (text) out.push(text);
+    if (out.length >= maxParagraphs) break;
+  }
+  return out.join('\n\n');
+}
+
+// Cap to `max` chars on a word/sentence boundary, never mid-token, no trailing space.
+function capText(text, max) {
+  const s = String(text || '').trim();
+  if (s.length <= max) return s;
+  let cut = s.slice(0, max);
+  const sentenceEnd = cut.search(/[.!?][^.!?]*$/);
+  if (sentenceEnd > max * 0.5 && /[.!?]/.test(cut[sentenceEnd])) {
+    return cut.slice(0, sentenceEnd + 1).trim();
+  }
+  const lastSpace = cut.lastIndexOf(' ');
+  if (lastSpace > 0) cut = cut.slice(0, lastSpace);
+  return cut.trim();
 }
 
 // description from pyproject.toml / Cargo.toml via a simple line regex (zero-dep)
@@ -181,21 +281,37 @@ function deriveTitle(root, budget) {
   return path.basename(root);
 }
 
+// Derive human-readable prose for the project, never raw README markup.
+// Returns { description, longDescription }: a short capped sentence/paragraph and a
+// longer passage (a few prose paragraphs) for the project page header. Prefers the
+// README's first genuine prose, then package.json/TOML descriptions, then a generic.
 function deriveDescription(root, stack, budget) {
+  const cap = Math.min(CAPS.maxDescriptionChars, SHORT_DESCRIPTION_CHARS);
   for (const name of README_NAMES) {
-    const para = firstParagraph(confinedRead(root, name, budget));
-    if (para) return para.slice(0, CAPS.maxDescriptionChars);
+    const md = confinedRead(root, name, budget);
+    const prose = firstProseParagraph(md);
+    if (prose) {
+      return {
+        description: capText(prose, cap),
+        longDescription: capText(leadingProse(md, LONG_DESCRIPTION_PARAGRAPHS), LONG_DESCRIPTION_CHARS),
+      };
+    }
   }
   const pkg = parseJsonSafe(confinedRead(root, 'package.json', budget));
   if (pkg && typeof pkg.description === 'string' && pkg.description.trim()) {
-    return pkg.description.trim().slice(0, CAPS.maxDescriptionChars);
+    const desc = capText(pkg.description.trim(), cap);
+    return { description: desc, longDescription: desc };
   }
   for (const name of ['pyproject.toml', 'Cargo.toml']) {
     const desc = tomlDescription(confinedRead(root, name, budget));
-    if (desc) return desc.slice(0, CAPS.maxDescriptionChars);
+    if (desc) {
+      const short = capText(desc, cap);
+      return { description: short, longDescription: short };
+    }
   }
   const primary = stack[0] || 'multi-language';
-  return `A ${primary} project.`;
+  const generic = `A ${primary} project.`;
+  return { description: generic, longDescription: generic };
 }
 
 function hasArtefacts(root) {
@@ -235,13 +351,8 @@ function analyze(input) {
   const fast = hasArtefacts(root);
 
   let state = null;
-  let description;
-  if (fast) {
-    state = buildState(root);
-    description = deriveDescription(root, stack, budget);
-  } else {
-    description = deriveDescription(root, stack, budget);
-  }
+  if (fast) state = buildState(root);
+  const { description, longDescription } = deriveDescription(root, stack, budget);
   const title = deriveTitle(root, budget);
 
   const profile = {
@@ -249,6 +360,7 @@ function analyze(input) {
     id,
     title,
     description,
+    longDescription,
     titleOverride: null,
     descriptionOverride: null,
     stack,
@@ -285,4 +397,4 @@ function readProfile(input) {
   return { root, id, profile, state };
 }
 
-module.exports = { analyze, readProfile, CAPS, confinedPath };
+module.exports = { analyze, readProfile, CAPS, confinedPath, hasArtefacts, ARTEFACT_MARKERS };

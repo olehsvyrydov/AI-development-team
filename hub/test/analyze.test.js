@@ -145,3 +145,178 @@ test('DoS cap: the stack scan stops at the file-count cap and still returns', ()
 test('analysis never persists a half-registered project: bad input throws before any write', () => {
   assert.throws(() => analyze('/no/such/path/zzz'), /exist|director/i);
 });
+
+test('description skips a leading badge/shields row and uses the first real prose', () => {
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'badged' }),
+    'README.md': [
+      '# Badged Project',
+      '',
+      '![Claude Code](https://img.shields.io/badge/Claude-ready-6E56CF) ![Cursor](https://img.shields.io/badge/Cursor-ready-blue)',
+      '',
+      'Badged is a deterministic project analyzer that produces clean prose.',
+    ].join('\n'),
+  });
+  try {
+    const d = analyze(dir).profile.description;
+    assert.equal(d, 'Badged is a deterministic project analyzer that produces clean prose.');
+    assert.ok(!d.includes('!['), 'no raw markdown image syntax');
+    assert.ok(!d.includes('shields.io'), 'no badge URL leaks');
+  } finally { rm(dir); }
+});
+
+test('description skips HTML comment, heading, and a lone image before prose', () => {
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'mixed' }),
+    'README.md': [
+      '<!-- this is a hidden comment -->',
+      '',
+      '# Title',
+      '',
+      '<p align="center"><img src="logo.png" alt="logo"></p>',
+      '',
+      '![banner](banner.png)',
+      '',
+      'The real description lives down here as prose.',
+    ].join('\n'),
+  });
+  try {
+    assert.equal(analyze(dir).profile.description, 'The real description lives down here as prose.');
+  } finally { rm(dir); }
+});
+
+test('description strips inline markdown links, emphasis, and code to plain text', () => {
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'inline' }),
+    'README.md': '# Inline\n\nVisit **our** [docs site](https://example.com) and run `npm test` for _details_.',
+  });
+  try {
+    const d = analyze(dir).profile.description;
+    assert.equal(d, 'Visit our docs site and run npm test for details.');
+  } finally { rm(dir); }
+});
+
+test('description skips lists, blockquotes, tables, HRs and code fences as non-prose', () => {
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'blocks' }),
+    'README.md': [
+      '# Heading',
+      '',
+      '- a list item',
+      '- another item',
+      '',
+      '> a blockquote',
+      '',
+      '| col | col |',
+      '| --- | --- |',
+      '| 1   | 2   |',
+      '',
+      '---',
+      '',
+      '```',
+      'code block contents',
+      '```',
+      '',
+      'Finally, the genuine prose paragraph appears.',
+    ].join('\n'),
+  });
+  try {
+    assert.equal(analyze(dir).profile.description, 'Finally, the genuine prose paragraph appears.');
+  } finally { rm(dir); }
+});
+
+test('a fenced ASCII diagram between prose paragraphs is not surfaced as prose', () => {
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'fenced' }),
+    'README.md': [
+      '# Fenced',
+      '',
+      'The first prose paragraph introduces the project.',
+      '',
+      '```',
+      '   +-----+',
+      '   | BOX |',
+      '   +-----+',
+      '```',
+      '',
+      'The second prose paragraph follows the diagram.',
+    ].join('\n'),
+  });
+  try {
+    const p = analyze(dir).profile;
+    assert.equal(p.description, 'The first prose paragraph introduces the project.');
+    assert.ok(!p.longDescription.includes('+-----+'), 'ASCII diagram excluded');
+    assert.ok(p.longDescription.includes('The second prose paragraph follows the diagram.'));
+  } finally { rm(dir); }
+});
+
+test('longDescription spans multiple prose paragraphs and is capped', () => {
+  const para = (n) => `Paragraph ${n} ` + 'word '.repeat(40);
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'long' }),
+    'README.md': [
+      '# Long',
+      '',
+      '![badge](https://img.shields.io/badge/x-y-z)',
+      '',
+      para(1).trim(),
+      '',
+      para(2).trim(),
+      '',
+      para(3).trim(),
+      '',
+      para(4).trim(),
+    ].join('\n'),
+  });
+  try {
+    const p = analyze(dir).profile;
+    assert.ok(p.longDescription.startsWith('Paragraph 1'), 'starts at first prose paragraph');
+    assert.ok(p.longDescription.includes('Paragraph 2'), 'spans more than one paragraph');
+    assert.ok(p.longDescription.length >= p.description.length, 'long >= short');
+    assert.ok(p.longDescription.length <= 1200, 'longDescription is capped');
+    assert.ok(!p.longDescription.includes('!['), 'no raw markdown image syntax');
+    assert.ok(p.description.length <= CAPS.maxDescriptionChars);
+  } finally { rm(dir); }
+});
+
+test('short description ends on a word/sentence boundary, not mid-word', () => {
+  const long = 'This sentence is intentionally long. ' + 'alpha bravo charlie delta echo foxtrot golf hotel '.repeat(20);
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'cap' }),
+    'README.md': `# Cap\n\n${long}`,
+  });
+  try {
+    const d = analyze(dir).profile.description;
+    assert.ok(d.length <= CAPS.maxDescriptionChars);
+    assert.ok(!/\S$/.test(d) || /[.\w]$/.test(d), 'does not end mid-token');
+    assert.ok(!d.endsWith(' '), 'no trailing whitespace');
+  } finally { rm(dir); }
+});
+
+test('no-prose README falls back to package.json, never raw badge markdown', () => {
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'badgesonly', description: 'A clean package description.' }),
+    'README.md': [
+      '# Badges Only',
+      '',
+      '![one](https://img.shields.io/badge/a-b-c) ![two](https://img.shields.io/badge/d-e-f)',
+      '',
+      '[![link badge](https://img.shields.io/badge/g-h-i)](https://example.com)',
+    ].join('\n'),
+  });
+  try {
+    const p = analyze(dir).profile;
+    assert.equal(p.description, 'A clean package description.');
+    assert.ok(!p.description.includes('!['), 'no raw markdown image syntax');
+    assert.ok(!p.longDescription.includes('!['), 'long has no raw markdown image syntax');
+  } finally { rm(dir); }
+});
+
+test('no README and no descriptions yields a graceful generic, no raw markdown', () => {
+  const dir = tmpProject({ 'index.html': '<html></html>' });
+  try {
+    const p = analyze(dir).profile;
+    assert.ok(p.description && !p.description.includes('!['));
+    assert.ok(typeof p.longDescription === 'string');
+  } finally { rm(dir); }
+});
