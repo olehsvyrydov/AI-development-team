@@ -22,6 +22,8 @@ const http = require('node:http');
 const os = require('node:os');
 const { createRegistry, HEX_ID } = require('./registry');
 const { analyze, readProfile } = require('./analyze');
+const { listSummary } = require('./state');
+const { listDirectory, listRoots, realHome } = require('./fs-browse');
 const { writeAllowed } = require('./guard');
 const { readJsonBody } = require('./http-body');
 
@@ -47,7 +49,15 @@ async function handle(method, pathname, data, deps) {
   const registry = deps.registry;
 
   if (method === 'GET' && tail.length === 0) {
-    return ok({ projects: await registry.list() });
+    // enrich each record with a compact {open, needsYou} so the home view needs no
+    // N+1; a project whose state cannot be built omits the field (absent-not-zero)
+    // and never fails the whole list
+    const records = await registry.list();
+    const projects = records.map((rec) => {
+      const summary = listSummary(rec.path);
+      return summary ? { ...rec, taskSummary: summary } : { ...rec };
+    });
+    return ok({ projects });
   }
 
   if (method === 'POST' && tail.length === 1 && tail[0] === 'connect') {
@@ -110,7 +120,33 @@ async function handle(method, pathname, data, deps) {
   return bad('unsupported projects route');
 }
 
+/**
+ * Dispatch a read-only filesystem-browser request (GET /api/fs/roots,
+ * GET /api/fs/list?path=). Returns { code, payload } or null when the path is not
+ * an fs route. The browse root is realpath($HOME); `recent` comes from the
+ * registry's canonical roots. The HTTP layer applies the write guard before this
+ * is reached, because the disclosure of home-directory structure is a capability.
+ */
+async function handleFs(method, pathname, query, deps) {
+  if (pathname !== '/api/fs/roots' && pathname !== '/api/fs/list') return null;
+  if (method !== 'GET') return { code: 405, payload: { ok: false, error: 'method not allowed' } };
+
+  const home = (deps && deps.browseRoot) || realHome();
+  if (pathname === '/api/fs/roots') {
+    const records = await deps.registry.list();
+    const recent = records.map((r) => ({ label: r.label, path: r.path }));
+    const r = listRoots(home, recent);
+    return { code: 200, payload: r };
+  }
+
+  const r = listDirectory(home, query && query.get ? query.get('path') : null);
+  if (!r.ok) return { code: r.code || 400, payload: { ok: false, error: r.reason } };
+  return { code: 200, payload: r };
+}
+
 function isWrite(method) { return method === 'POST' || method === 'DELETE'; }
+
+function isFsPath(pathname) { return pathname === '/api/fs/roots' || pathname === '/api/fs/list'; }
 
 function sendJson(res, code, obj) {
   res.writeHead(code, { 'content-type': 'application/json' });
@@ -124,11 +160,25 @@ function sendJson(res, code, obj) {
  */
 function createServer({ home = os.homedir(), port = 4477, allowRemote = false } = {}) {
   const registry = createRegistry({ home });
+  let browseRoot;
+  try { browseRoot = require('node:fs').realpathSync(home); } catch { browseRoot = home; }
   return http.createServer((req, res) => {
-    let pathname;
-    try { pathname = new URL(req.url, 'http://localhost').pathname; }
+    let url;
+    try { url = new URL(req.url, 'http://localhost'); }
     catch { return sendJson(res, 400, { ok: false, error: 'bad url' }); }
+    const pathname = url.pathname;
     const realPort = (req.socket && req.socket.localPort) || port;
+
+    // the fs/* reads disclose local filesystem structure, so they carry the write
+    // guard even though they are GETs (anti-CSRF / anti-DNS-rebinding)
+    if (isFsPath(pathname)) {
+      const gate = writeAllowed(req, { port: realPort, allowRemote });
+      if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
+      Promise.resolve(handleFs(req.method, pathname, url.searchParams, { registry, browseRoot }))
+        .then((r) => r ? sendJson(res, r.code, r.payload) : sendJson(res, 404, { ok: false, error: 'unknown route' }))
+        .catch((e) => sendJson(res, 500, { ok: false, error: String((e && e.message) || e) }));
+      return;
+    }
 
     const dispatch = (data) => {
       Promise.resolve(handle(req.method, pathname, data, { registry }))
@@ -151,4 +201,4 @@ function createServer({ home = os.homedir(), port = 4477, allowRemote = false } 
   });
 }
 
-module.exports = { handle, projectsTail, createServer };
+module.exports = { handle, handleFs, projectsTail, createServer };

@@ -13,7 +13,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { expectedOwner } = require('./stage-map');
+const { expectedOwner, stageGate } = require('./stage-map');
 const { readComments } = require('./comments');
 
 function safeExists(p) { try { return fs.existsSync(p); } catch { return false; } }
@@ -218,6 +218,100 @@ function statusOf(stage, mergedGates, assignee) {
   return 'waiting';
 }
 
+// A ticket "needs you" (a human/owner decision) when EITHER a hard gate is
+// rejected — the work is parked awaiting a decision — OR it is waiting on a known
+// owner with no live agent heartbeat. This is an overlay over the base status
+// buckets, never a sixth exclusive bucket, so it must not affect their sum.
+function needsHumanDecision(ticket) {
+  for (const g of ticket.gates || []) {
+    if (g.state === 'rejected' && g.refusal === 'hard') return true;
+  }
+  return ticket.status === 'waiting' && !!ticket.expectedOwner && !ticket.active;
+}
+
+// Roll the ticket list up into a status summary. The core byStatus buckets are
+// derived from the single `status` field so they sum to `total`; `needsYou` is an
+// additional overlay count and is intentionally NOT part of that sum.
+function summarizeTasks(tickets) {
+  const core = { in_progress: 0, waiting: 0, blocked: 0, done: 0 };
+  let needsYou = 0;
+  for (const t of tickets) {
+    if (t.status in core) core[t.status]++;
+    if (needsHumanDecision(t)) needsYou++;
+  }
+  const byStatus = {
+    in_progress: core.in_progress,
+    waiting: core.waiting,
+    needsYou,
+    blocked: core.blocked,
+    done: core.done,
+  };
+  return { total: tickets.length, byStatus };
+}
+
+// Pick the track to render: the active (non-done) ticket's track if it names one
+// that is defined, else the longest defined track (tie broken by definition order).
+function resolveActiveTrack(tracks, tickets) {
+  const active = tickets.find((t) => t.track && tracks[t.track] && String(t.stage).toLowerCase() !== 'done');
+  if (active) return active.track;
+  let best = null;
+  for (const name of Object.keys(tracks)) {
+    if (best == null || tracks[name].length > tracks[best].length) best = name;
+  }
+  return best;
+}
+
+// Flatten the active track into render-ready stages so consumers do not re-join
+// tracks + gateDefs + stageOwners. Each stage carries its owner and, when a gate
+// governs it, only the gate's {name, refusal} (hard/soft).
+function projectWorkflowView(tracks, gateDefs, stageOwners, activeTrack) {
+  const seq = (activeTrack && tracks[activeTrack]) || [];
+  const stages = seq.map((stage) => {
+    const gateName = stageGate(stage);
+    const def = gateName ? gateDefs.find((g) => g.name === gateName) : null;
+    return {
+      stage,
+      owner: stageOwners[stage] || expectedOwner(stage, null) || null,
+      gate: def ? { name: def.name, refusal: def.refusal } : null,
+    };
+  });
+  return { activeTrack: activeTrack || null, stages };
+}
+
+// An embedder is "configured" only when a memory config selects one (not 'none').
+// This reads the selector field only — never an API key or any secret — from the
+// user-global config and an optional project-local override.
+function embedderConfigured(project) {
+  const candidates = [
+    path.join(project, '.aidevteam', 'config.json'),
+    path.join(os.homedir(), '.aidevteam', 'config.json'),
+  ];
+  for (const p of candidates) {
+    if (!safeExists(p)) continue;
+    let cfg;
+    try { cfg = JSON.parse(safeRead(p)); } catch { continue; }
+    const mem = cfg && typeof cfg === 'object' ? cfg.memory : null;
+    if (!mem || typeof mem !== 'object') continue;
+    const sel = String(mem.embeddings == null ? '' : mem.embeddings).toLowerCase().trim();
+    if (sel && sel !== 'none') return true;
+  }
+  return false;
+}
+
+// Project the known docs into base-panel facts. Without a real embedder the index
+// is filename-only and `indexed` is honestly the doc count (no async pipeline this
+// slice, so indexing/failed are true zeros by construction, not fabricated).
+function buildBase(project, kb) {
+  const configured = embedderConfigured(project);
+  const method = configured ? 'local-embeddings' : 'filename-only';
+  const docs = kb.map((d) => ({ name: d.name, file: d.file, index: 'indexed' }));
+  return {
+    method,
+    counts: { indexed: docs.length, indexing: 0, failed: 0 },
+    docs,
+  };
+}
+
 function fileRev(project) {
   let rev = '';
   for (const rel of ['.workflow-state.json', '.aidevteam/workflow.overrides.json']) {
@@ -280,6 +374,18 @@ function buildState(project) {
     }));
   }
 
+  const kb = readKb(project);
+
+  // each derived projection is isolated: one failing must not blank the others
+  let taskSummary = null;
+  try { taskSummary = summarizeTasks(tickets); } catch { taskSummary = null; }
+  let workflowView = null;
+  try {
+    workflowView = projectWorkflowView(wf.tracks, gateDefs, stageOwners, resolveActiveTrack(wf.tracks, tickets));
+  } catch { workflowView = null; }
+  let baseView = null;
+  try { baseView = buildBase(project, kb); } catch { baseView = null; }
+
   return {
     project: path.basename(project),
     workflow: wfLabel(project, wfPath),
@@ -290,10 +396,31 @@ function buildState(project) {
     stageOwners,
     tickets,
     ticketCount: tickets.length,
+    taskSummary,
+    workflowView,
+    base: baseView,
     ledgerError,
-    kb: readKb(project),
+    kb,
     rev: fileRev(project),
   };
 }
 
-module.exports = { buildState, parseWorkflow, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev };
+/**
+ * Compact per-project roll-up for the LIST view: { open, needsYou } where
+ * `open` = total - done. Built from the same projection as the detail view so it
+ * is exact-by-construction. Returns null when the project's state cannot be built
+ * (absent-not-zero), so a caller omits the field rather than fabricating zeros.
+ */
+function listSummary(project) {
+  try {
+    const st = fs.statSync(project);
+    if (!st.isDirectory()) return null;
+  } catch { return null; } // path gone / unreadable → omit, never fabricate zeros
+  try {
+    const s = buildState(project).taskSummary;
+    if (!s) return null;
+    return { open: s.total - s.byStatus.done, needsYou: s.byStatus.needsYou };
+  } catch { return null; }
+}
+
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev };

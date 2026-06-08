@@ -77,6 +77,41 @@ test('POST connect registers and returns the project, GET list shows it', async 
   } finally { cleanup(); fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('GET list carries a compact {open, needsYou} per project; absent when state is unreadable', async () => {
+  const { port, cleanup } = await startServer();
+  const dir = projectDir();
+  // a project with one connected, in-progress ticket and a docs folder
+  fs.mkdirSync(path.join(dir, '.aidevteam'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.workflow-state.json'), JSON.stringify({
+    'T-1': { title: 'A', track: 'full', stage: 'implement', assignee: '/be', gates: {} },
+    'T-2': { title: 'B', track: 'full', stage: 'done', gates: {} },
+  }));
+  try {
+    await req(port, 'POST', '/api/projects/connect', { headers: WRITE_HEADERS, body: { path: dir } });
+    const list = await req(port, 'GET', '/api/projects');
+    assert.equal(list.status, 200);
+    const rec = list.json.projects[0];
+    assert.ok(rec.taskSummary, 'compact summary present');
+    assert.equal(rec.taskSummary.open, 1, 'open = total(2) - done(1)');
+    assert.equal(typeof rec.taskSummary.needsYou, 'number');
+  } finally { cleanup(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('GET list omits the summary for a project whose path no longer reads, never failing the whole list', async () => {
+  const { port, cleanup } = await startServer();
+  const dir = projectDir();
+  try {
+    await req(port, 'POST', '/api/projects/connect', { headers: WRITE_HEADERS, body: { path: dir } });
+    // remove the project directory so buildState cannot read it
+    fs.rmSync(dir, { recursive: true, force: true });
+    const list = await req(port, 'GET', '/api/projects');
+    assert.equal(list.status, 200, 'the list still succeeds');
+    assert.equal(list.json.projects.length, 1, 'the record is still listed');
+    assert.ok(!('taskSummary' in list.json.projects[0]) || list.json.projects[0].taskSummary == null,
+      'the summary is omitted (absent-not-zero), not fabricated');
+  } finally { cleanup(); }
+});
+
 test('POST connect is idempotent on id (created:false on the second call)', async () => {
   const { port, cleanup } = await startServer();
   const dir = projectDir();
