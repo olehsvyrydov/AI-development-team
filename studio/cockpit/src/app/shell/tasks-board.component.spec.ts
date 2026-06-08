@@ -472,10 +472,47 @@ describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / p
     expect(host.querySelector('[data-testid="rollup-needs-you"]')!.textContent).toMatch(/1/);
   });
 
-  it('omits the needs-you roll-up when nothing needs the human (absent, never a zero)', () => {
-    const calm = { ...MIXED_STATE, tickets: MIXED_STATE.tickets!.filter((t) => t.id !== 'M-2') };
+  it('rolls up needs-you from the canonical Core taskSummary value, not the client derivation', () => {
+    // The Core counts 3 needs-you (e.g. a waiting ticket awaiting its expected owner), while the
+    // client-side rejected-hard-gate derivation only finds 1 (M-2). The header must trust the Core.
+    const coreCounts = { ...MIXED_STATE, taskSummary: { total: 6, byStatus: { in_progress: 2, waiting: 1, blocked: 1, done: 1, needsYou: 3 } } };
+    const { host } = mount(coreCounts);
+    expect(host.querySelector('[data-testid="rollup-needs-you"]')!.textContent).toMatch(/3/);
+  });
+
+  it('falls back to the client needs-you derivation when the Core taskSummary is absent', () => {
+    const noSummary = { ...MIXED_STATE, taskSummary: undefined };
+    const { host } = mount(noSummary);
+    // Only M-2 carries a rejected hard gate → the client derivation finds 1.
+    expect(host.querySelector('[data-testid="rollup-needs-you"]')!.textContent).toMatch(/1/);
+  });
+
+  it('omits the needs-you roll-up when the Core reports zero needs-you (absent, never a zero)', () => {
+    const calm = {
+      ...MIXED_STATE,
+      taskSummary: { total: 6, byStatus: { in_progress: 2, waiting: 1, blocked: 1, done: 1, needsYou: 0 } },
+      tickets: MIXED_STATE.tickets!.filter((t) => t.id !== 'M-2'),
+    };
     const { host } = mount(calm);
     expect(host.querySelector('[data-testid="rollup-needs-you"]')).toBeNull();
+  });
+
+  it('omits the needs-you roll-up when the Core summary is absent and nothing needs the human', () => {
+    const calm = { ...MIXED_STATE, taskSummary: undefined, tickets: MIXED_STATE.tickets!.filter((t) => t.id !== 'M-2') };
+    const { host } = mount(calm);
+    expect(host.querySelector('[data-testid="rollup-needs-you"]')).toBeNull();
+  });
+
+  it('marks the terminal done node active when work has reached the done stage', () => {
+    // MIXED_STATE has D-1 in the terminal 'done' stage → the done node is the active edge.
+    const { host } = mount(MIXED_STATE);
+    expect(host.querySelector('[data-testid="rail-node-done"]')!.getAttribute('data-active')).toBe('true');
+  });
+
+  it('marks the terminal done node inactive when nothing has reached done (empty done folder)', () => {
+    const noneDone = { ...MIXED_STATE, tickets: MIXED_STATE.tickets!.filter((t) => t.id !== 'D-1') };
+    const { host } = mount(noneDone);
+    expect(host.querySelector('[data-testid="rail-node-done"]')!.getAttribute('data-active')).toBe('false');
   });
 
   it('keeps the off-track lane for a ticket at a stage no longer in the track', () => {

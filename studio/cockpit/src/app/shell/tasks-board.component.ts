@@ -421,17 +421,22 @@ export class TasksBoardComponent {
   /** The index of the furthest in-progress stage column — how far the rail's active accent reaches. */
   readonly activeSegment = computed(() => activeSegmentIndex(this.state().workflowView, this.tickets()));
 
-  /** Whether the done terminus is the active edge (work has reached the last stage). */
-  readonly doneActive = computed(() => {
-    const stages = this.state().workflowView?.stages ?? [];
-    return stages.length > 0 && this.activeSegment() >= stages.length - 1;
-  });
+  /** Whether the done terminus is highlighted — true once work has reached it (the done folder is non-empty). */
+  readonly doneActive = computed(() => this.doneTickets().length > 0);
 
   /** Header roll-up: the total tasks across the board (from the summary, else the ticket count). */
   readonly totalTasks = computed(() => this.state().taskSummary?.total ?? this.tickets().length);
 
-  /** Header roll-up: how many tickets currently need the human — absent (zero) hides the chip. */
-  readonly needsYouCount = computed(() => this.tickets().filter((t) => ticketNeedsYou(t)).length);
+  /**
+   * Header roll-up: how many tickets currently need the human — absent (zero) hides the chip.
+   * Prefers the Core's canonical count (`taskSummary.byStatus.needsYou`), which also captures cases
+   * the per-card derivation misses (e.g. a waiting ticket awaiting its expected owner); falls back to
+   * the client rejected-hard-gate derivation only when the summary is absent.
+   */
+  readonly needsYouCount = computed(() => {
+    const canonical = this.state().taskSummary?.byStatus?.needsYou;
+    return canonical ?? this.tickets().filter((t) => ticketNeedsYou(t)).length;
+  });
 
   /** Empty board: nothing in the Backlog, the columns, the done folder, or the off-track lane. */
   readonly isEmpty = computed(
