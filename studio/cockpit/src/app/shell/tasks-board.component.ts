@@ -223,8 +223,8 @@ import { TaskDetailComponent } from './task-detail.component';
             @if (needsYou(t)) {
               <span class="chip chip--need" data-testid="chip-needs-you"><dart-glyph name="need" /> needs you</span>
             }
-            @for (label of routeLabels(t); track label) {
-              <span class="chip chip--label" data-testid="chip-route-label"><dart-glyph name="label" /> {{ label }}</span>
+            @for (label of cardLabels(t); track label) {
+              <span class="chip chip--label" data-testid="chip-label"><dart-glyph name="label" /> {{ label }}</span>
             }
           </span>
         </button>
@@ -470,8 +470,8 @@ export class TasksBoardComponent {
     return ticketNeedsYou(ticket);
   }
 
-  /** The routing labels a ticket carries, shown as chips so the operator sees why a card sits where it does. */
-  routeLabels(ticket: TicketView): readonly string[] {
+  /** The labels this ticket carries, shown as plain label chips (a label may or may not route). */
+  cardLabels(ticket: TicketView): readonly string[] {
     return ticket.labels ?? [];
   }
 

@@ -14,7 +14,7 @@
 |---|---|---|
 | `studio/cockpit/src/app/shell/board.ts` | +133 | Backlog predicate, set-difference partitioning, terminal/active-segment, compact gate summary |
 | `studio/cockpit/src/app/shell/tasks-board.component.ts` | +344/−88 | Pipeline layout: backlog bar, rail+nodes, done folder, off-track lane, advance, a11y, motion |
-| `studio/cockpit/src/app/shell/glyph.component.ts` | +22 | New inline-SVG glyphs `stack`, `folder-stack`, `tag` |
+| `studio/cockpit/src/app/shell/glyph.component.ts` | +22 | New inline-SVG glyphs `stack`, `folder-stack` |
 | `studio/cockpit/src/app/shell/board.spec.ts` | +196 | Unit tests for the projection functions |
 | `studio/cockpit/src/app/shell/tasks-board.component.spec.ts` | +229 | Component + R1 disjointness/parity tests |
 
@@ -60,7 +60,7 @@ Because the broadened `isBacklog` is applied as the single source-of-truth guard
 - Escaping: card title, stage name, owner, off-track label, and project cue are all interpolation-only — five XSS specs prove no `<img>` is created and the raw text survives. No `[innerHTML]`; the repo-wide `no-unsafe-binding` guard spec stays green.
 - a11y: rail keyboard nav (←/→ roving focus, tested), `aria-live="polite"` board-update region (tested), done-folder button `aria-expanded` toggling (tested), `role`/`aria-label` on columns, focus-visible outlines, `scroll-margin` reserved.
 - Reduced-motion: a single `data-motion` host attribute mirrored from `prefers-reduced-motion`, motion tokens zeroed under the media query, `card-arrive` animation disabled under reduce (tested).
-- No-tofu: the three new glyphs are inline SVG with `currentColor` — no Unicode tofu risk; `no-tofu-glyphs` guard green.
+- No-tofu: the new glyphs (`stack`, `folder-stack`) are inline SVG with `currentColor` — no Unicode tofu risk; `no-tofu-glyphs` guard green.
 
 ---
 
@@ -74,8 +74,8 @@ None.
 
 ### NIT (non-blocking — `/fe` may address in a follow-up)
 
-- **NIT-1 — dead glyph `tag`.** `glyph.component.ts` adds `'tag'` to `GLYPH_NAMES` with a full SVG case, but `tag` is referenced nowhere in the codebase (route-label chips use `name="label"`; the done stack uses `folder-stack`; roll-ups use `stack`). This is speculative generality (`board.ts`/template never consume it). Recommend deleting the `tag` glyph until a consumer exists, or wiring the route-label chip to it if that was the intent. `stack` and `folder-stack` are both used and correct.
-  *File:* `studio/cockpit/src/app/shell/glyph.component.ts` (the `'tag'` entry + its `@case`).
+- **NIT-1 — dead glyph `tag` (resolved).** An earlier draft added an unused `'tag'` glyph to `GLYPH_NAMES`; it was removed as dead code. The glyphs that ship are `stack` (roll-ups) and `folder-stack` (the done stack), both consumed and correct. Label chips use `name="label"`.
+  *File:* `studio/cockpit/src/app/shell/glyph.component.ts`.
 
 - **NIT-2 — empty ghost column for a pre-start-named *workflow* stage (theoretical).** `stageColumns` strips only the literal `backlog` stage from the rail, but `isBacklog` now claims the wider `PRE_START_STAGES` set. If a track were ever defined with a stage literally named `ready`/`triage`/`todo`/etc., that stage would still render a (permanently empty) column on the rail while its tickets sit in the Backlog bar — disjointness still holds (no double-placement), but an empty ghost column would show. **Not a real risk today:** none of the shipped `workflow.yaml` tracks name a stage with a pre-start token (verified). If the predicate is meant to fully own these tokens, `stageColumns`' filter could exclude `PRE_START_STAGES` rather than only `BACKLOG_STAGE` for symmetry. Recording as a NIT, not a blocker, because it cannot occur with current data.
 

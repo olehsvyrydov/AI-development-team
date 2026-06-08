@@ -458,9 +458,9 @@ describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / p
     expect(host.querySelector('[data-testid="done-folder-list"]')).toBeNull();
   });
 
-  it('shows a route-label chip on a card that carries a routing label (escaped)', () => {
+  it('shows a label chip on a card that carries a label (escaped)', () => {
     const { host } = mount(MIXED_STATE);
-    const chip = host.querySelector('[data-testid="card-M-2"] [data-testid="chip-route-label"]')!;
+    const chip = host.querySelector('[data-testid="card-M-2"] [data-testid="chip-label"]')!;
     expect(chip).toBeTruthy();
     expect(chip.textContent).toContain('TO_DEV_BE');
   });
