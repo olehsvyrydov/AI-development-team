@@ -58,4 +58,20 @@ function writeAllowed(req, { port, allowRemote }) {
   return { ok: true };
 }
 
-module.exports = { writeAllowed, hostAllowed, originAllowed, hasCsrfHeader, isLoopbackSocket };
+/**
+ * Decide whether a per-project SSE subscription may open. Opening a stream
+ * discloses one project's live activity and pins a watcher, so it carries the same
+ * anti-DNS-rebinding / anti-cross-site posture as a write — loopback Host, loopback
+ * Origin (when present), and a loopback socket. It does NOT require X-AIDT: a
+ * browser EventSource cannot set a custom request header, so the Host/Origin/socket
+ * loopback pinning is the operative control (a cross-site EventSource still sends an
+ * Origin, which is refused here). Returns {ok} or {ok,code,reason}.
+ */
+function streamAllowed(req, { port, allowRemote }) {
+  if (!hostAllowed(req, port)) return { ok: false, code: 403, reason: 'Host not loopback' };
+  if (!originAllowed(req, port)) return { ok: false, code: 403, reason: 'cross-site Origin' };
+  if (!allowRemote && !isLoopbackSocket(req)) return { ok: false, code: 403, reason: 'remote stream disabled' };
+  return { ok: true };
+}
+
+module.exports = { writeAllowed, streamAllowed, hostAllowed, originAllowed, hasCsrfHeader, isLoopbackSocket };

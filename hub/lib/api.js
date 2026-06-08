@@ -13,6 +13,61 @@ const { buildState } = require('./state');
 const PRESETS = ['solo', 'small-team', 'regulated'];
 const GATE_STATES = ['passed', 'pending', 'rejected'];
 
+const STAGE_NAME_MAX = 64;
+const OWNER_MAX = 64;
+// Keys that, used as a stage/owner name, would corrupt the overlay object or the
+// state projection by shadowing prototype/internal fields. Refused outright.
+const FORBIDDEN_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
+
+// True if any NUL / C0 control char is present (rejected in any free text field).
+function hasControlChar(text) {
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) < 0x20) return true;
+  }
+  return false;
+}
+
+// A stage NAME additionally bans path separators, so it can never become a path
+// or an object key that escapes downstream. (Owners are agent tokens like "/be",
+// so they may carry a leading slash — only control chars are banned there.)
+function hasUnsafeChar(text) {
+  if (hasControlChar(text)) return true;
+  return text.includes('/') || text.includes('\\');
+}
+
+// Normalize one declarative stage entry to { name, owner } or null when malformed.
+// A plain string is shorthand for { name } (back-compat with track/reorder).
+function normStage(entry) {
+  const e = typeof entry === 'string' ? { name: entry } : entry;
+  if (!e || typeof e !== 'object' || typeof e.name !== 'string') return null;
+  if (e.owner != null && typeof e.owner !== 'string') return null;
+  return { name: e.name.trim(), owner: e.owner != null ? e.owner.trim() : '' };
+}
+
+// Validate the full ordered stage list against its own contract (NOT a permutation
+// — add/delete/move are allowed). Returns { stages, owners } or { error }.
+function validateStageList(stages) {
+  if (!Array.isArray(stages) || stages.length === 0) return { error: 'stages must be a non-empty list' };
+  const seen = new Set();
+  const names = [];
+  const owners = {};
+  for (const entry of stages) {
+    const s = normStage(entry);
+    if (!s) return { error: 'invalid stage entry' };
+    if (!s.name || s.name.length > STAGE_NAME_MAX) return { error: 'stage name empty or too long' };
+    if (hasUnsafeChar(s.name) || FORBIDDEN_NAMES.has(s.name)) return { error: 'invalid stage name' };
+    if (seen.has(s.name)) return { error: 'duplicate stage name' };
+    if (s.owner) {
+      if (s.owner.length > OWNER_MAX) return { error: 'owner too long' };
+      if (hasControlChar(s.owner) || FORBIDDEN_NAMES.has(s.owner)) return { error: 'invalid owner' };
+      owners[s.name] = s.owner;
+    }
+    seen.add(s.name);
+    names.push(s.name);
+  }
+  return { stages: names, owners };
+}
+
 const ok = (state, extra) => ({ code: 200, payload: { ok: true, ...extra, state } });
 const bad = (error) => ({ code: 400, payload: { ok: false, error } });
 const conflict = (state) => ({ code: 409, payload: { ok: false, conflict: true, state } });
@@ -100,6 +155,16 @@ async function handle(route, data, project) {
       if (!r.ok) return conflict(st());
       return ok(st());
     }
+    case 'track/set-stages': {
+      const { track, stages, expectedRev } = data;
+      if (!st().tracks[track]) return bad('unknown track');
+      const v = validateStageList(stages);
+      if (v.error) return bad(v.error);
+      const r = await w.writeOverlayCAS(project, expectedRev,
+        { tracks: { [track]: v.stages }, stageOwners: v.owners });
+      if (!r.ok) return conflict(st());
+      return ok(st());
+    }
     case 'gate/trigger': {
       const { gate, trigger, owner, refusal, expectedRev } = data;
       if (!gate || !st().gateDefs.some((g) => g.name === gate)) return bad('unknown gate');
@@ -129,4 +194,4 @@ async function handle(route, data, project) {
   }
 }
 
-module.exports = { handle, isPermutation, PRESETS, GATE_STATES };
+module.exports = { handle, isPermutation, validateStageList, PRESETS, GATE_STATES };

@@ -45,10 +45,12 @@ const SELF_DIR = __dirname;
 
 // ---- state projection (shared lib: hub/lib/state.js) -----------------------
 const lib = require('./lib/state');
-const { writeAllowed } = require('./lib/guard');
+const { writeAllowed, streamAllowed } = require('./lib/guard');
 const api = require('./lib/api');
 const projects = require('./lib/projects');
 const { createRegistry } = require('./lib/registry');
+const { resolveProject } = require('./lib/resolve-project');
+const { createChannels } = require('./lib/channels');
 const { readJsonBody } = require('./lib/http-body');
 const { createStaticSpa } = require('./lib/static-spa');
 const { safeExists, safeRead } = lib;
@@ -72,8 +74,8 @@ function findWorkflow() { return lib.findWorkflow(PROJECT); }
 // API/SSE payload = the shared multi-ticket projection PLUS legacy single-ticket
 // aliases (ticket/stage/track/gates) so the current read-only UI keeps working
 // until the Phase-4 board replaces it. New consumers use tickets[]/tracks/etc.
-function buildState() {
-  const st = lib.buildState(PROJECT);
+function buildStateFor(dir) {
+  const st = lib.buildState(dir);
   const sel = st.tickets.find((t) => String(t.stage).toLowerCase() !== 'done') || st.tickets[0] || null;
   return Object.assign({}, st, {
     writable: true, // this hub instance supports the control-plane POST API
@@ -83,60 +85,63 @@ function buildState() {
     gates: sel ? sel.gates : [],
   });
 }
+function buildState() { return buildStateFor(PROJECT); }
 
 function sendJson(res, code, obj) {
   res.writeHead(code, { 'content-type': 'application/json' });
   res.end(JSON.stringify(obj));
 }
 
-// ---- SSE: watch the inputs, push on change ---------------------------------
-const clients = new Set();
-const watched = new Set();
-function broadcast() {
-  const payload = `event: update\ndata: ${JSON.stringify(buildState())}\n\n`;
-  for (const res of clients) { try { res.write(payload); } catch { clients.delete(res); } }
-}
-let debounce = null;
-// on any change, re-scan for newly-created targets (idempotent) then push
-function onChange() { clearTimeout(debounce); debounce = setTimeout(() => { startWatchers(); broadcast(); }, 150); }
-function watch(p) {
-  if (watched.has(p) || !safeExists(p)) return;
-  try { fs.watch(p, { persistent: true }, onChange); watched.add(p); } catch {}
-}
-function startWatchers() {
-  // watch the project root too, so creating .aidevteam/, docs/, backlog/, etc.
-  // AFTER startup is caught (then re-scanned for deeper watchers on the next tick)
-  watch(PROJECT);
-  ['.workflow-state.json', 'Backlog.md',
-   '.aidevteam', '.aidevteam/tickets', '.aidevteam/kb', '.aidevteam/comments', '.claude/workflow',
-   'backlog', 'backlog/tasks', 'docs', 'kb']
-    .forEach(rel => watch(path.join(PROJECT, rel)));
-  watch(path.join(os.homedir(), '.aidevteam'));   // user-level workflow override
-  const wf = findWorkflow(); if (wf) watch(wf);    // the active workflow file directly
-}
+// ---- SSE: per-project channels (isolation + bounded, refcounted watchers) ---
+// Each resolved project has its own channel + watcher set; a writer to project A
+// broadcasts only to A's subscribers. Channels are created on first subscriber,
+// torn down on last, and capped to bound the file-descriptor budget.
+const channels = createChannels({
+  render: (dir) => JSON.stringify(buildStateFor(dir)),
+  findWorkflow: (dir) => lib.findWorkflow(dir),
+});
 
 // ---- HTTP ------------------------------------------------------------------
 const server = http.createServer((req, res) => {
   let pathname;
   try { pathname = new URL(req.url, 'http://localhost').pathname; }
   catch { res.writeHead(400, { 'content-type': 'text/plain' }); return res.end('Bad Request'); }
+  let query = null;
+  try { query = new URL(req.url, 'http://localhost').searchParams; } catch {}
   if (pathname === '/api/state') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    return res.end(JSON.stringify(buildState()));
+    // resolve the viewed project (?project=:id) the same way the stream does; a
+    // crafted/unregistered id is refused (400/404), absent id ⇒ launch project
+    return resolveProject(query && query.get('project'), { registry, launch: PROJECT }).then((r) => {
+      if (!r.ok) return sendJson(res, r.code, { ok: false, error: r.error });
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(buildStateFor(r.dir)));
+    });
   }
   if (pathname === '/api/events') {
-    res.writeHead(200, {
-      'content-type': 'text/event-stream',
-      'cache-control': 'no-cache',
-      connection: 'keep-alive',
+    // Opening a per-project stream discloses one project's live activity and pins a
+    // watcher, so it is a capability: enforce loopback Host/Origin/socket pinning
+    // BEFORE resolving the id or opening a channel. (EventSource cannot send X-AIDT,
+    // so the stream guard pins Host/Origin/socket rather than requiring the header.)
+    const gate = streamAllowed(req, { port: PORT, allowRemote: ALLOW_REMOTE });
+    if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
+    return resolveProject(query && query.get('project'), { registry, launch: PROJECT }).then((r) => {
+      if (!r.ok) return sendJson(res, r.code, { ok: false, error: r.error });
+      // refuse over the active-project cap BEFORE writing the SSE head, so the cap
+      // refusal is a clean 503 (no channel opened, no watcher created)
+      if (!channels.hasCapacity(r.dir)) {
+        return sendJson(res, 503, { ok: false, error: 'too many active projects' });
+      }
+      res.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+        connection: 'keep-alive',
+      });
+      // keep the stream open: disable request/socket idle timeouts for SSE
+      res.setTimeout(0);
+      if (req.socket) req.socket.setTimeout(0);
+      const sub = channels.subscribe(r.dir, res); // writes the initial frame
+      req.on('close', () => sub.close());
     });
-    // keep the stream open: disable request/socket idle timeouts for SSE
-    res.setTimeout(0);
-    if (req.socket) req.socket.setTimeout(0);
-    res.write(`event: update\ndata: ${JSON.stringify(buildState())}\n\n`);
-    clients.add(res);
-    req.on('close', () => clients.delete(res));
-    return;
   }
   // ---- read-only directory browser: /api/fs/* (folder picker) --------------
   // these GETs disclose local filesystem structure, so they carry the write guard
@@ -144,8 +149,6 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/fs/roots' || pathname === '/api/fs/list') {
     const gate = writeAllowed(req, { port: PORT, allowRemote: ALLOW_REMOTE });
     if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
-    let query = null;
-    try { query = new URL(req.url, 'http://localhost').searchParams; } catch {}
     Promise.resolve(projects.handleFs(req.method, pathname, query, { registry, browseRoot: BROWSE_ROOT }))
       .then((r) => r ? sendJson(res, r.code, r.payload) : sendJson(res, 404, { ok: false, error: 'unknown route' }))
       .catch((e) => sendJson(res, 500, { ok: false, error: String(e && e.message || e) }));
@@ -181,9 +184,17 @@ const server = http.createServer((req, res) => {
     const route = pathname.slice('/api/'.length);
     readJsonBody(req, (err, data) => {
       if (err) return sendJson(res, err.message === 'body too large' ? 413 : 400, { ok: false, error: err.message });
-      Promise.resolve(api.handle(route, data, PROJECT))
-        .then((r) => sendJson(res, r.code, r.payload))
-        .catch((e) => sendJson(res, 500, { ok: false, error: String(e && e.message || e) }));
+      // resolve the target project from the body's `project` id (guard already
+      // cleared above — order is guard → resolve → CAS). A crafted/unregistered id
+      // is refused here and api.handle is NEVER reached, so nothing is written.
+      resolveProject(data && data.project, { registry, launch: PROJECT }).then((rp) => {
+        if (!rp.ok) return sendJson(res, rp.code, { ok: false, error: rp.error });
+        return Promise.resolve(api.handle(route, data, rp.dir)).then((r) => {
+          // notify only the resolved project's subscribers (cross-project isolation)
+          if (r.code === 200) channels.push(rp.dir);
+          sendJson(res, r.code, r.payload);
+        });
+      }).catch((e) => sendJson(res, 500, { ok: false, error: String(e && e.message || e) }));
     });
     return;
   }
@@ -215,7 +226,9 @@ function serveLegacyBoard(res) {
   res.end(safeRead(file));
 }
 
-startWatchers();
+// watchers are now per-project and lazy: a channel binds its own fs.watch set on
+// the first subscriber to that project and tears it down on the last (no eager,
+// always-on global watcher rooted at the launch project).
 server.listen(PORT, HOST, () => {
   const isAny = (HOST === '0.0.0.0' || HOST === '::');
   const shown = isAny ? 'localhost' : (HOST.includes(':') ? `[${HOST}]` : HOST);  // bracket IPv6 literals

@@ -114,6 +114,8 @@ function applyOverlay(wf, project) {
     preset: effPreset,
     tracks: { ...wf.tracks, ...(ov.tracks || {}) },
     gates: mergeGates(wf.gates, ov.gates),
+    // per-stage owner overrides (overlay wins over the gate-owner/default below)
+    stageOwners: (ov.stageOwners && typeof ov.stageOwners === 'object') ? ov.stageOwners : {},
     // re-resolve always_required for the EFFECTIVE preset (overlay may switch it)
     alwaysRequired: Array.isArray(ov.alwaysRequired) ? ov.alwaysRequired : (presetsAR[effPreset] || wf.alwaysRequired),
     presetsAR,
@@ -331,9 +333,14 @@ function buildState(project) {
   const { tickets: ledger, error: ledgerError } = readLedger(project);
 
   const gateDefs = wf.gates.map((g) => ({ ...g, required: wf.alwaysRequired.includes(g.name) }));
+  // owner precedence per stage: overlay stageOwners → gate owner → default → null
+  const ownerOverrides = wf.stageOwners || {};
   const stageOwners = {};
   for (const seq of Object.values(wf.tracks)) for (const stage of seq) {
-    if (!(stage in stageOwners)) stageOwners[stage] = expectedOwner(stage, wf);
+    if (stage in stageOwners) continue;
+    stageOwners[stage] = Object.prototype.hasOwnProperty.call(ownerOverrides, stage)
+      ? ownerOverrides[stage]
+      : expectedOwner(stage, wf);
   }
 
   let tickets = Object.entries(ledger)

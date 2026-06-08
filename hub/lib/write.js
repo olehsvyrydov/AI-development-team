@@ -68,9 +68,15 @@ function readModifyWriteLedger(dir, expectedRev, mutator) {
   });
 }
 
+// Keys that would mutate the prototype chain rather than set an own property.
+// They are dropped so a hostile patch (e.g. a stage/owner string surfacing as an
+// object key) can never pollute Object.prototype through the overlay merge.
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 function deepMerge(base, patch) {
   const out = Array.isArray(base) ? [...base] : { ...base };
   for (const [k, v] of Object.entries(patch || {})) {
+    if (FORBIDDEN_KEYS.has(k)) continue;
     if (v && typeof v === 'object' && !Array.isArray(v) && out[k] && typeof out[k] === 'object' && !Array.isArray(out[k])) {
       out[k] = deepMerge(out[k], v);
     } else {
