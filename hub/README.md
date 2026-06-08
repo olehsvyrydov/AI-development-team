@@ -9,6 +9,8 @@ node hub/server.js [projectDir] [--port 4477] [--host 0.0.0.0]
 
 `projectDir` defaults to the current directory. Requires only Node (≥ 18). Binds to `127.0.0.1` by default; pass `--host 0.0.0.0` to reach it from a **dev container / VM / LAN** (it serves local project metadata, so only do this on a trusted network).
 
+When a production **Cockpit** build is present (`studio/cockpit/dist/cockpit/browser`), the server serves it at `/`; the zero-dependency board below is then available at **`/legacy`**. With no Cockpit build present, `/` serves the legacy board directly, so the Hub works undeployed.
+
 **See it instantly** with the bundled demo — from the repo root, run `node hub/server.js examples/demo` (three tickets, a regulated-preset gate board with a rejected code review). See [`examples/demo/`](../examples/demo/).
 
 ## What it shows

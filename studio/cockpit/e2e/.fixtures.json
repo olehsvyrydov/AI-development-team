@@ -1,7 +1,10 @@
 {
-  "alpha": "/tmp/aidt-cockpit-alpha-w17INe",
-  "beta": "/tmp/aidt-cockpit-beta-8rF5J2",
-  "untrusted": "/tmp/aidt-cockpit-untrusted-gFdOlu",
-  "notDir": "/tmp/aidt-cockpit-notdir-cYlysy/a-file-not-a-dir.txt",
-  "missing": "/tmp/aidt-cockpit-missing-1780856404507-does-not-exist"
+  "tempHome": "/tmp/aidt-cockpit-e2e-home",
+  "demo": "/tmp/aidt-cockpit-e2e-home/demo-project",
+  "demoBasename": "demo-project",
+  "demoDescription": "The DART demo workspace is a self-contained fixture that exercises the per-project shell from end to end, carrying a description long enough to wrap across several lines so the header proves it renders the full passage without truncation.",
+  "pickerParent": "/tmp/aidt-cockpit-e2e-home/picker-parent",
+  "pickerParentBasename": "picker-parent",
+  "untrusted": "/tmp/aidt-cockpit-e2e-home/untrusted-readme",
+  "untrustedBasename": "untrusted-readme"
 }
