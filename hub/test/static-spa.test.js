@@ -18,9 +18,21 @@ function buildDir() {
   fs.writeFileSync(path.join(root, 'index.html'), '<!doctype html><dart-root></dart-root>');
   fs.writeFileSync(path.join(root, 'main.js'), 'console.log("app");');
   fs.writeFileSync(path.join(root, 'styles.css'), 'body{color:red}');
+  fs.writeFileSync(path.join(root, 'main-J5F6IRGC.js'), 'console.log("hashed");');
+  fs.writeFileSync(path.join(root, 'chunk-3BBKVAHH.js'), 'console.log("chunk");');
+  fs.writeFileSync(path.join(root, 'styles-TZOWVSUT.css'), 'body{color:blue}');
   fs.mkdirSync(path.join(root, 'assets'));
   fs.writeFileSync(path.join(root, 'assets', 'logo.svg'), '<svg></svg>');
   return { root, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
+}
+
+function isNoCache(value) {
+  return /no-store|no-cache/.test(String(value || ''));
+}
+
+function isImmutable(value) {
+  const v = String(value || '');
+  return /immutable/.test(v) && /max-age=31536000/.test(v);
 }
 
 function startServer(root) {
@@ -147,6 +159,71 @@ test('a directory request does not list contents; it falls back to index.html', 
     assert.match(res.body, /dart-root/);
     assert.doesNotMatch(res.body, /logo\.svg/);
   } finally { close(); cleanup(); }
+});
+
+test('index.html is served with a revalidating (no-cache) Cache-Control', async () => {
+  const { root, cleanup } = buildDir();
+  const { port, close } = await startServer(root);
+  try {
+    const res = await get(port, '/');
+    assert.equal(res.status, 200);
+    assert.ok(isNoCache(res.headers['cache-control']),
+      `root index must revalidate, got: ${res.headers['cache-control']}`);
+    assert.ok(!/immutable/.test(String(res.headers['cache-control'])),
+      'index.html must never be immutable-cached');
+  } finally { close(); cleanup(); }
+});
+
+test('the SPA fallback (client route) carries a no-cache Cache-Control', async () => {
+  const { root, cleanup } = buildDir();
+  const { port, close } = await startServer(root);
+  try {
+    const res = await get(port, '/projects/abc123');
+    assert.equal(res.status, 200);
+    assert.match(res.body, /dart-root/);
+    assert.ok(isNoCache(res.headers['cache-control']),
+      `SPA fallback must revalidate, got: ${res.headers['cache-control']}`);
+  } finally { close(); cleanup(); }
+});
+
+test('a fingerprinted asset is served immutable with a one-year max-age', async () => {
+  const { root, cleanup } = buildDir();
+  const { port, close } = await startServer(root);
+  try {
+    for (const p of ['/main-J5F6IRGC.js', '/chunk-3BBKVAHH.js', '/styles-TZOWVSUT.css']) {
+      const res = await get(port, p);
+      assert.equal(res.status, 200, `expected 200 for ${p}`);
+      assert.ok(isImmutable(res.headers['cache-control']),
+        `${p} must be immutable+max-age=31536000, got: ${res.headers['cache-control']}`);
+    }
+  } finally { close(); cleanup(); }
+});
+
+test('a non-fingerprinted static file is NOT immutable-cached', async () => {
+  const { root, cleanup } = buildDir();
+  const { port, close } = await startServer(root);
+  try {
+    for (const p of ['/main.js', '/styles.css', '/assets/logo.svg']) {
+      const res = await get(port, p);
+      assert.equal(res.status, 200, `expected 200 for ${p}`);
+      assert.ok(!/immutable/.test(String(res.headers['cache-control'] || '')),
+        `${p} must not be immutable, got: ${res.headers['cache-control']}`);
+    }
+  } finally { close(); cleanup(); }
+});
+
+test('isFingerprinted recognises hashed bundles and rejects plain names', () => {
+  const { isFingerprinted } = require('../lib/static-spa');
+  assert.equal(isFingerprinted('main-J5F6IRGC.js'), true);
+  assert.equal(isFingerprinted('chunk-3BBKVAHH.js'), true);
+  assert.equal(isFingerprinted('styles-TZOWVSUT.css'), true);
+  assert.equal(isFingerprinted('app.4f8a2b1c.css'), true);
+  assert.equal(isFingerprinted('roboto.abcd1234.woff2'), true);
+  assert.equal(isFingerprinted('index.html'), false);
+  assert.equal(isFingerprinted('main.js'), false);
+  assert.equal(isFingerprinted('styles.css'), false);
+  assert.equal(isFingerprinted('logo.svg'), false);
+  assert.equal(isFingerprinted('chunk-abc.js'), false, 'short segment is not a hash');
 });
 
 test('when the build root is absent, tryServe returns false (caller falls back)', async () => {
