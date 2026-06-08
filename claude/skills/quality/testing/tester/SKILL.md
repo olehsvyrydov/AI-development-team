@@ -314,6 +314,8 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 - [ ] Execute ALL test cases — positive, negative, and edge
 - [ ] Test as different user types (first-time, impatient, malicious, power user, mobile)
 - [ ] Actively try to break the feature (wrong inputs, wrong order, interrupted flows)
+- [ ] Cover visual states explicitly: at-a-glance, empty, loading, and long/overflowing content (e.g. very long unbroken or hyphenated strings that may wrap or break the layout)
+- [ ] Exercise the user's *real* interaction sequence, not just the most convenient one to set up (e.g. navigate-into-a-folder-then-confirm, not select-then-confirm) — a green happy-data-path is necessary but not sufficient
 - [ ] Check adjacent features still work after using the new feature
 - [ ] Document all results per test case (PASS / FAIL / BLOCKED)
 - [ ] Capture evidence for failures (screenshots, reproduction steps)
@@ -344,6 +346,7 @@ This is a key /qa responsibility. After /e2e implements automated tests, /qa rev
 12. **Trusting ticket field names blindly**: Always verify cookie names, API endpoints, and identifiers against the actual system — tickets may use placeholder names
 13. **Approving tests with `test.skip()`**: When reviewing /adam's E2E tests, reject any test that uses `test.skip()` for data-dependent conditions. Require synthetic data seeding instead (artisan command + Playwright global setup/teardown)
 14. **Approving always-passing assertions**: Watch for logical tautologies like `expect(count).toBeGreaterThanOrEqual(0)` — a count of non-negative numbers can NEVER be less than 0, making the assertion meaningless. Require `.toBeGreaterThan(0)` for existence checks. Similarly, `expect(sum).toBeGreaterThanOrEqual(0)` for sums of non-negative values is always true
+15. **Treating "all tests green" as "works"**: A fully green unit/integration/E2E suite still ships defects when it only exercised the happy data path. Require explicit coverage of at-a-glance/empty/loading/long-content visual states and the user's actual click sequence (navigate-in-then-act), not just the path the test author found easiest to fixture
 
 ---
 

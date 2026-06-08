@@ -370,6 +370,20 @@ When an architecture or design leans on an **existing** control as a mitigation 
 
 Scope a security approval to the surface that actually shipped. An **execution / RCE-class capability** — host-CLI/`spawn`/`child_process`, SSH or other remote-exec, dynamic eval, deserialization of untrusted data — must get its **own dedicated hard SECOPS pass** and must **not** ride along on a foundation/feature gate that has no execution surface. Conversely, a "no-exec" foundation should **prove the negative**: verify (by grep/conformance over `spawn`/`child_process`/`ssh`/runner imports, etc.) that no execution path leaked into it, rather than assuming none did. "No exec here" is a claim to be tested, not taken on faith.
 
+## A read/disclosure GET is capability-bearing — guard it like a mutation
+
+A GET that discloses local structure or capability (a directory/file browser, a config/secrets-shape dump, a host-introspection endpoint) is an attack surface even though it is read-only. Any website the operator visits can reach it via `fetch('http://127.0.0.1:<port>/...')`, so **loopback binding is a perimeter, never the access control.** Classify such a GET as capability-bearing, not public, and route it through the same anti-CSRF / anti-DNS-rebinding gauntlet as a mutating request — a custom header forcing a CORS preflight, `Host`/`Origin` pinned to loopback, a loopback-socket check — applied **before any filesystem access or work**, with no permissive CORS.
+
+For a filesystem-disclosure endpoint specifically:
+- Confine to a `realpath`'d root and run `realpath` **before** the containment check; compare with a trailing separator (`/home/foo/` not `/home/foo`) to avoid the prefix trap where `/home/foobar` passes as inside `/home/foo`.
+- **Skip, don't follow, escaping symlinks** — check both the entry path and its children; a symlink that resolves outside the root is omitted, not traversed.
+- Return **names and types only** — never file contents or byte previews. Cap result size (truncate) to bound DoS.
+- **Prove each refusal arm with a negative test**: missing header → 403, bad `Host`/`Origin` → 403, non-loopback socket → 403, symlink-escape omitted, no-content-leak (fixture with real key bytes), truncation cap, and pure-read (no mutation). Each negative test must fail if its control is removed.
+
+## Ratify user-facing security/privacy claim strings; bind what a gate-pass means
+
+When the UI makes a security or privacy claim ("local-first", "nothing is uploaded", "security-reviewed"), it is a technical assertion you must substantiate against real behaviour. Ratify the **exact strings**, reject strengthened absolutes ("100% private", "never touches the cloud", "verified secure"), and require they live in a single source-of-truth module shipped verbatim so a grep proves no rejected phrasing slipped in. Scope every privacy claim to the product itself — not to third-party models/APIs it calls, which still process data under the user's own plan. Bind the meaning of any gate-pass badge: "the gate ran and approved this change," **never** "this code is secure." Overclaiming a security guarantee in UI copy is itself a finding.
+
 ## Composing deterministic + advisory signals (safety calibration)
 
 When a security/quality decision combines a cheap **deterministic** check with an **advisory/probabilistic** signal (LLM score, heuristic, ML classifier):

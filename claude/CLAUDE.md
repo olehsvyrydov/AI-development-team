@@ -9,6 +9,7 @@ A team of ~29 specialist AI agents (a 15-agent core team + optional specialists)
 - **Facts-only, self-describing code.** Source and doc-comments (Javadoc/JSDoc) state facts only — never ticket IDs, agent/persona names, review-condition codes, or sprint references; those live in commits/PRs and the ledger. Prefer self-describing names; comment only a non-obvious *why* or a genuinely complex flow.
 - **OSS-first, no lock-in.** Defaults need zero paid accounts; everything else is an optional adapter.
 - **Reusable skills.** Agent skills hold universal knowledge — no project/ticket/sprint specifics.
+- **Verify UIs against the production build, served same-origin — not the dev server.** A dev server's HMR/live-reload socket never lets a page reach "network idle," so agent-driven screenshot/browser verification hangs; the prod build is what ships and exercises the real same-origin API path.
 
 ## Workflow (consult before any task)
 **Before starting any development task and before every handoff, consult the `workflow-engine` skill.** It loads `workflow.yaml`, classifies the change, decides which approval gates apply, and may **refuse** to proceed past an unmet gate. Do not paraphrase the process from memory.

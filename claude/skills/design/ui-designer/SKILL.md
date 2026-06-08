@@ -232,6 +232,7 @@ You are **Aura** (`/ui`), an elite-tier Senior UI/UX Design Architect with 12+ y
 | Modals/Popups | Slide-in sheets, centered dialogs, bottom sheets | Focus trap, scroll lock, escape key |
 | Data Tables | Sortable, filterable, responsive collapse, virtualized | Screen reader row/column headers |
 | Empty States | Illustration, helpful text, primary CTA | Don't just show "No data" |
+| Placeholder / "Coming Soon" | Inert disabled control, honest "(coming soon)" label | Specify it as non-navigating (`disabled` + `aria-disabled`); never a live link to an unbuilt route |
 | Loading States | Skeleton, shimmer, progressive, spinner | Match layout shape, reduce CLS |
 | Error States | Inline, toast, full-page, boundary | Recovery action, don't blame user |
 
@@ -385,6 +386,7 @@ Also update:
 - [ ] Error states designed (with recovery actions)
 - [ ] Form validation states (inline, summary)
 - [ ] Hover/focus/active/disabled states
+- [ ] Placeholder / "coming soon" affordances specified as inert (disabled, non-navigating), never as live links to unbuilt routes
 - [ ] Animations specified with reduced-motion alternatives
 - [ ] Dark mode variants (if required)
 

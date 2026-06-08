@@ -288,6 +288,7 @@ graph LR
 | Clickbait headlines | Value-first headlines with proof |
 | Cold spam outreach | Warm intro via LinkedIn engagement |
 | Fake urgency | Genuine scarcity or social proof |
+| Strengthened security/privacy absolutes ("100% private", "verified secure", "never touches the cloud") | Substantiated, scoped claims ratified by `/secops`, shipped verbatim from one source of truth; scope privacy to the product, not third-party services it calls; "reviewed" means "a gate ran and approved," not "secure" |
 | Generic testimonials | Specific case studies with metrics |
 | Vanity metrics reporting | Revenue metrics dashboard |
 | Copy-paste marketing | ICP-specific messaging and personalization |

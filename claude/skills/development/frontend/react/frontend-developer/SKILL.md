@@ -279,6 +279,7 @@ Code is self-describing; comments and JSDoc carry only what the names cannot.
 | **localStorage for Auth Tokens** | XSS can steal tokens | httpOnly cookies, server-side sessions |
 | **Obvious Comments** | Clutter code, become stale | Self-documenting names, JSDoc for public APIs only |
 | **Process Artifacts in Code/JSDoc** | Ticket IDs, condition codes, persona/sprint names rot and leak workflow into code | Facts only — they belong in commits/PRs, not source |
+| **Half-wired "coming soon" affordances** | A placeholder link/route for an unbuilt feature that navigates and dead-ends (e.g. bounces to home) reads as a bug | Make it inert by construction — `disabled` + `aria-disabled="true"`, no `href`/`routerLink`/side effect, honest "(coming soon)" label; cover with a test that a click neither navigates nor mutates state |
 | **Commented-out Code** | Dead code noise | Delete it; git preserves history |
 | **CSS calc() for iframe sizing** | Filament/framework CSS variables may be undefined, wrapper padding accumulates unpredictably | Use JS `getBoundingClientRect().top` to measure actual position |
 | **relying on flexbox alone to prevent page scroll** | Parent frameworks with `min-h-screen` on multiple ancestors cause overflow despite `overflow:hidden` on inner containers | Set `document.documentElement.style.overflow = 'hidden'` via JS |
@@ -325,6 +326,15 @@ When building features that present information to users:
 - **Correctness first** — displaying wrong data quickly is worse than displaying correct data slowly
 - **Assess output quality** — does the information actually help the user make a decision or complete their goal?
 - **Test with real content** — placeholder data that "looks right" may hide layout and content quality issues
+
+### Security / Privacy / Marketing Claim Strings — One Greppable Source of Truth
+
+User-facing security, privacy, and marketing claims ("local-first", "nothing is uploaded", "security-reviewed") are technical assertions that must match real behaviour:
+
+- **Centralise the ratified strings in one named module** and consume them verbatim from the reviewing gate — never inline or paraphrase them per component. This makes the honesty guarantee greppable: a single grep can prove no rejected absolute ("100% private", "never touches the cloud", "verified secure") slipped in, and any edit that strengthens an assurance is visible in one place.
+- **Scope every privacy claim to the product itself**, not to third-party services it relies on (a host model/API still processes prompts under the user's own plan).
+- A gate-pass badge means **"the gate ran and approved this change," never "this code is secure."** Label it that way.
+- Verify with a grep for the rejected absolutes as part of pre-commit/review.
 
 ---
 

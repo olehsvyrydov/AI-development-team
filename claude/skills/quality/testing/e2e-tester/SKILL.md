@@ -385,6 +385,10 @@ Before writing E2E tests for a feature:
 - **Verify the test environment matches expectations** -- API endpoints respond, test data exists, external dependencies are available
 - **Confirm the feature delivers user value** -- automate tests that verify real user outcomes, not just technical paths
 
+### Drive a Production Build, Not a Dev Server
+
+For any agent-driven browser verification or screenshotting, serve and drive the **production build same-origin**, not the dev server. A dev server keeps a hot-reload/HMR websocket (and often a long-poll) open for the life of the page, so a tool waiting for "network-idle" never proceeds and screenshot/verification hangs. When a flow appears stuck at "waiting for network idle," suspect a never-closing dev-server socket first. Bonus: the prod build is what actually ships and exercises the real same-origin API path, removing the dev proxy from the runtime under test.
+
 ### Escalate Critical Findings Immediately
 
 If during E2E test development or execution you discover:
