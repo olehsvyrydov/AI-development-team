@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { ProjectState, TicketComment, TicketView, WorkflowView } from '../core/models';
 import {
+  activeSegmentIndex,
+  backlogTickets,
+  cardGateSummary,
   commentsNewestFirst,
+  isBacklog,
   nextStageInOrder,
   nextStage,
   offTrackGroups,
+  PRE_START_STAGES,
   stageColumns,
   statusChip,
+  terminalStage,
   ticketNeedsYou,
 } from './board';
 
@@ -68,10 +74,116 @@ describe('offTrackGroups — a ticket in a stage not in the track is surfaced, n
     expect(offTrackGroups(WF, [ticket({ id: 'a', stage: 'code' })])).toEqual([]);
   });
 
-  it('treats a ticket with no stage as off-track under a blank-stage group rather than losing it', () => {
-    const groups = offTrackGroups(WF, [ticket({ id: 'x', stage: undefined })]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].tickets.map((t) => t.id)).toEqual(['x']);
+  it('excludes a ticket the Backlog bar claims (unstaged or backlog-staged) from the off-track lane', () => {
+    const groups = offTrackGroups(WF, [
+      ticket({ id: 'x', stage: undefined }),
+      ticket({ id: 'y', stage: 'backlog' }),
+      ticket({ id: 'orphan', stage: 'design-review' }),
+    ]);
+    expect(groups.map((g) => g.stage)).toEqual(['design-review']);
+    expect(groups[0].tickets.map((t) => t.id)).toEqual(['orphan']);
+  });
+
+  it('excludes a pre-start ticket (e.g. "ready") yet keeps a genuine orphan (e.g. "superseded")', () => {
+    const groups = offTrackGroups(WF, [
+      ticket({ id: 'ready', stage: 'ready' }),
+      ticket({ id: 'super', stage: 'superseded' }),
+    ]);
+    expect(groups.map((g) => g.stage)).toEqual(['superseded']);
+    expect(groups[0].tickets.map((t) => t.id)).toEqual(['super']);
+  });
+});
+
+describe('isBacklog / backlogTickets — the holding-pen predicate (unstaged or backlog-staged)', () => {
+  it('treats an unset, empty, or "unknown" stage as Backlog (never routed onto the track)', () => {
+    expect(isBacklog(ticket({ stage: undefined }), WF)).toBe(true);
+    expect(isBacklog(ticket({ stage: '' }), WF)).toBe(true);
+    expect(isBacklog(ticket({ stage: 'unknown' }), WF)).toBe(true);
+  });
+
+  it('treats the conventional first-stage token "backlog" as Backlog (case-insensitive)', () => {
+    expect(isBacklog(ticket({ stage: 'backlog' }), WF)).toBe(true);
+    expect(isBacklog(ticket({ stage: 'Backlog' }), WF)).toBe(true);
+  });
+
+  it('treats any pre-start lifecycle token as Backlog (un-started, not yet a workflow stage)', () => {
+    for (const token of PRE_START_STAGES) {
+      expect(isBacklog(ticket({ stage: token }), WF), `${token} → Backlog`).toBe(true);
+      expect(isBacklog(ticket({ stage: token.toUpperCase() }), WF), `${token.toUpperCase()} → Backlog`).toBe(true);
+    }
+    // A real lifecycle observed live — `ready` un-started tickets belong in Backlog, not off-track.
+    expect(isBacklog(ticket({ stage: 'ready' }), WF)).toBe(true);
+  });
+
+  it('is false for a ticket sitting at a real track stage', () => {
+    expect(isBacklog(ticket({ stage: 'vision' }), WF)).toBe(false);
+    expect(isBacklog(ticket({ stage: 'code' }), WF)).toBe(false);
+  });
+
+  it('is false for an unrecognized non-pre-start token (a genuine orphan → off-track, not Backlog)', () => {
+    expect(isBacklog(ticket({ stage: 'superseded' }), WF)).toBe(false);
+    expect(isBacklog(ticket({ stage: 'cancelled' }), WF)).toBe(false);
+  });
+
+  it('collects the backlog tickets, preserving first-seen order', () => {
+    const tickets = [
+      ticket({ id: 'a', stage: 'code' }),
+      ticket({ id: 'b', stage: undefined }),
+      ticket({ id: 'c', stage: 'backlog' }),
+      ticket({ id: 'd', stage: 'vision' }),
+    ];
+    expect(backlogTickets(WF, tickets).map((t) => t.id)).toEqual(['b', 'c']);
+  });
+});
+
+describe('stageColumns — Backlog claims its set first (disjoint by set-difference)', () => {
+  it('excludes backlog-claimed tickets from the stage columns (no double-placement)', () => {
+    const tickets = [
+      ticket({ id: 'b', stage: undefined }),
+      ticket({ id: 'v', stage: 'vision' }),
+    ];
+    const cols = stageColumns(WF, tickets);
+    const allInColumns = cols.flatMap((c) => c.tickets.map((t) => t.id));
+    expect(allInColumns).not.toContain('b');
+    expect(allInColumns).toContain('v');
+  });
+
+  it('drops a literal "backlog" first-stage column so the Backlog bar replaces it (no empty ghost)', () => {
+    const wfBacklogFirst: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const cols = stageColumns(wfBacklogFirst, [ticket({ id: 'a', stage: 'backlog' })]);
+    expect(cols.map((c) => c.stage)).toEqual(['code', 'done']);
+  });
+});
+
+describe('terminalStage — the done terminus is the last stage', () => {
+  it('returns the last stage name', () => {
+    expect(terminalStage(WF)).toBe('done');
+  });
+  it('returns null when there is no workflow view', () => {
+    expect(terminalStage(null)).toBeNull();
+    expect(terminalStage({ activeTrack: null, stages: [] })).toBeNull();
+  });
+});
+
+describe('activeSegmentIndex — how far the rail accent reaches (furthest in-progress stage)', () => {
+  it('is the index of the furthest stage holding an in-progress ticket', () => {
+    const tickets = [
+      ticket({ id: 'a', stage: 'vision', status: 'in_progress' }),
+      ticket({ id: 'b', stage: 'code', status: 'in_progress' }),
+      ticket({ id: 'c', stage: 'done', status: 'done' }),
+    ];
+    // vision=0, code=2 → furthest in-progress is code at index 2.
+    expect(activeSegmentIndex(WF, tickets)).toBe(2);
+  });
+  it('is -1 when no stage holds an in-progress ticket (no accent)', () => {
+    expect(activeSegmentIndex(WF, [ticket({ id: 'c', stage: 'done', status: 'done' })])).toBe(-1);
   });
 });
 
@@ -115,6 +227,82 @@ describe('ticketNeedsYou — a chip, derived, not a column', () => {
     expect(ticketNeedsYou(ticket({ gates: [{ name: 'DESIGN_APPROVED', refusal: 'soft', state: 'rejected' }] }))).toBe(
       false,
     );
+  });
+});
+
+describe('cardGateSummary — a compact card gate, never a chip per gate', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'vision', owner: '/po', gate: null },
+      { stage: 'architecture', owner: '/arch', gate: { name: 'ARCH_APPROVED', refusal: 'hard' } },
+      { stage: 'security', owner: '/secops', gate: { name: 'SECOPS_APPROVED', refusal: 'hard' } },
+      { stage: 'done', owner: null, gate: null },
+    ],
+  };
+
+  it('is null when the ticket has no gates (nothing to summarise)', () => {
+    expect(cardGateSummary(ticket({ stage: 'vision', gates: [] }), wf)).toBeNull();
+    expect(cardGateSummary(ticket({ stage: 'vision', gates: undefined }), wf)).toBeNull();
+  });
+
+  it('surfaces the CURRENT-stage gate when it is unmet (rejected) so a blocked card shows why', () => {
+    const s = cardGateSummary(
+      ticket({
+        stage: 'security',
+        gates: [
+          { name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' },
+          { name: 'SECOPS_APPROVED', refusal: 'hard', state: 'rejected' },
+        ],
+      }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'gate', name: 'SECOPS_APPROVED', shape: 'hard', text: 'rejected', tone: 'danger' });
+  });
+
+  it('surfaces the CURRENT-stage gate when it is pending (unmet, not yet decided)', () => {
+    const s = cardGateSummary(
+      ticket({ stage: 'architecture', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'pending' }] }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'gate', name: 'ARCH_APPROVED', text: 'pending' });
+  });
+
+  it('rolls up to a compact passed/total chip when the current-stage gate is already passed', () => {
+    const s = cardGateSummary(
+      ticket({
+        stage: 'security',
+        gates: [
+          { name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' },
+          { name: 'SECOPS_APPROVED', refusal: 'hard', state: 'passed' },
+        ],
+      }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'rollup', passed: 2, total: 2 });
+  });
+
+  it('rolls up when no gate governs the current stage (a stage with no gate, but gates carried)', () => {
+    const s = cardGateSummary(
+      ticket({ stage: 'vision', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' }] }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'rollup', passed: 1, total: 1 });
+  });
+
+  it('counts only passed gates in the roll-up total', () => {
+    const s = cardGateSummary(
+      ticket({
+        stage: 'vision',
+        gates: [
+          { name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' },
+          { name: 'SECOPS_APPROVED', refusal: 'hard', state: 'pending' },
+          { name: 'CODE_REVIEWED', refusal: 'soft', state: 'rejected' },
+        ],
+      }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'rollup', passed: 1, total: 3 });
   });
 });
 

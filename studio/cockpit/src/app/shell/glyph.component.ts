@@ -37,6 +37,9 @@ export const GLYPH_NAMES = [
   'label',
   'caret',
   'help',
+  'stack',
+  'folder-stack',
+  'tag',
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -245,6 +248,25 @@ export type GlyphName = (typeof GLYPH_NAMES)[number];
           <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6" />
           <path d="M9.5 9.5 a2.5 2.5 0 1 1 3.2 2.4 c-0.7 0.3 -0.7 0.8 -0.7 1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
           <circle cx="12" cy="16.5" r="0.9" fill="currentColor" stroke="none" />
+        </svg>
+      }
+      @case ('stack') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <rect x="6" y="5" width="12" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <rect x="5" y="10.5" width="14" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <rect x="4" y="16" width="16" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+      }
+      @case ('folder-stack') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M8 5 h7 v3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" opacity="0.55" />
+          <path d="M4 8 h6 l2 2 h8 v9 H4 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('tag') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M4 11 l7 -7 h7 v7 l-7 7 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <circle cx="15" cy="8" r="1.1" fill="currentColor" stroke="none" />
         </svg>
       }
     }
