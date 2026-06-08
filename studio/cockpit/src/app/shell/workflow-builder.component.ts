@@ -1,7 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { ControlPlaneService, type MutationResult, type SetStagesStage } from '../core/control-plane.service';
-import type { GateDef, ProjectState, WorkflowStageView } from '../core/models';
+import type { GateDef, LabelDef, ProjectState, RuleView, WorkflowStageView } from '../core/models';
+import { denormalizeRules, normalizeLabels, normalizeRules } from '../core/models';
 import { GlyphComponent } from './glyph.component';
+import { StageRulesComponent } from './stage-rules.component';
+
+/** The gate that may never be routed past while unmet (safety override) — mirrored from the engine. */
+const SAFETY_GATE = 'SECOPS_APPROVED';
 
 /** The save lifecycle of the builder — each is glyph + text, never colour alone. */
 type Lifecycle = 'saved' | 'editing' | 'saving' | 'conflict' | 'error';
@@ -26,34 +31,35 @@ interface GateDraft {
 /** What the operator attempted when a 409 interrupted them, shown in the reconcile banner. */
 interface ConflictAttempt {
   readonly summary: string;
-  readonly kind: 'reorder' | 'gate' | 'preset' | 'set-stages';
+  readonly kind: 'reorder' | 'gate' | 'preset' | 'set-stages' | 'rules';
   readonly gate?: string;
   readonly stages?: readonly string[];
 }
 
 /**
  * Editable Workflow builder. Grows the read-only stage rail into a full editor of the active track:
- * reorder (keyboard-first: a focused grip + Alt+Arrow; visible move buttons are the pointer
- * alternative), add a stage (an inline new-stage row with a required unique name + an owner from the
- * allowlist), delete a stage (an inline confirm that counts the tickets that will go off-track and
- * refuses emptying the track), set a stage's owner (an inline allowlist picker on every row), edit a
- * gate's rule (owner from an allowlist, hard/soft by shield SHAPE, trigger chips), and switch the
- * preset (a radiogroup) — all persisted to the project's OVERLAY only, never the base workflow file
- * (a persistent banner states this).
+ * reorder by DRAGGING a stage's grip handle (with a keyboard pick-up/move/drop mode and Alt+Arrow as
+ * pointer-free alternatives), add a stage (an inline new-stage row that APPENDS to the end, then is
+ * dragged into place), delete a stage (an inline confirm that counts the tickets that will go
+ * off-track and refuses emptying the track), set a stage's owner (an inline allowlist picker on every
+ * row), edit a gate's rule (owner from an allowlist, hard/soft by shield SHAPE, trigger chips), author
+ * `when → do` rules per stage (an inline editor reached from a rules pill), and switch the preset (a
+ * radiogroup) — all persisted to the project's OVERLAY only, never the base workflow file (a
+ * persistent banner states this).
  *
- * Add, delete, reorder, and owner are one DECLARATIVE overlay write: the whole working stage list is
- * sent as `track/set-stages` so the four edits are a single atomic CAS. Reorder stays optimistic and
- * batched (committed by Save); add/delete/owner commit immediately; preset and gate-rule edits commit
- * immediately too. Every mutation rides the guarded control plane with the current opaque `rev`. On a
- * 409 the builder adopts the fresh server `state`, rolls back the optimistic change, and surfaces a
- * focused CONFLICT reconcile (Discard keeps server truth; Re-apply re-stages the intent on the fresh
- * model) — never a silent overwrite. Untrusted owner/stage/trigger text reaches the DOM through
- * interpolation only — never `[innerHTML]`.
+ * Reorder, add, delete, and owner are one DECLARATIVE overlay write: the whole working stage list is
+ * sent as `track/set-stages` so the edits are a single atomic CAS. A drag drop, a keyboard move, and
+ * add/delete/owner all commit immediately; preset, gate-rule, and rule edits commit immediately too
+ * (rules ride `workflow/set-rules`, the same overlay/rev). Every mutation rides the guarded control
+ * plane with the current opaque `rev`. On a 409 the builder adopts the fresh server `state`, rolls
+ * back the optimistic change, and surfaces a focused CONFLICT reconcile (Discard keeps server truth;
+ * Re-apply re-stages the intent on the fresh model) — never a silent overwrite. Untrusted
+ * owner/stage/trigger/rule text reaches the DOM through interpolation only — never `[innerHTML]`.
  */
 @Component({
   selector: 'dart-workflow-builder',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GlyphComponent],
+  imports: [GlyphComponent, StageRulesComponent],
   template: `
     <div class="banner banner--overlay" data-testid="overlay-banner">
       <dart-glyph name="info" />
@@ -115,16 +121,28 @@ interface ConflictAttempt {
       <p class="banner banner--error" role="alert" data-testid="builder-error"><dart-glyph name="cross" /> {{ e }}</p>
     }
 
-    <p class="hint" id="reorder-hint">Stages — focus a stage, then Alt+ArrowUp / Alt+ArrowDown to move it.</p>
+    <p class="hint" id="reorder-hint">Drag a stage by its handle to reorder. No mouse? Focus the handle, then Space to pick up / arrows to move / Space to drop (or Alt+ArrowUp / Alt+ArrowDown).</p>
 
     <ol class="rows" role="list" aria-label="Workflow stages" aria-describedby="reorder-hint">
       @for (s of working(); track s.stage; let i = $index) {
-        <li class="row" role="listitem" [attr.data-testid]="'builder-row-' + s.stage">
+        <li
+          class="row"
+          role="listitem"
+          [attr.data-testid]="'builder-row-' + s.stage"
+          [class.row--dragover]="dropIndex() === i && draggingIndex() !== null"
+          [class.row--lifted]="draggingIndex() === i || grabbedIndex() === i"
+          (dragover)="onRowDragOver($event, i)"
+          (drop)="onRowDrop($event, i)"
+        >
           <button
             type="button"
             class="row__grip"
+            draggable="true"
             [attr.data-testid]="'move-grip-' + s.stage"
             [attr.aria-label]="'Move ' + s.stage + ', position ' + (i + 1) + ' of ' + working().length"
+            [attr.aria-grabbed]="grabbedIndex() === i"
+            (dragstart)="onDragStart($event, i)"
+            (dragend)="onDragEnd()"
             (keydown)="onGripKeydown($event, i)"
           >
             <dart-glyph name="grip" />
@@ -178,14 +196,16 @@ interface ConflictAttempt {
           }
 
           <span class="row__moves">
-            <button type="button" class="row__move" [attr.data-testid]="'move-up-' + s.stage" [disabled]="i === 0" aria-label="Move up" (click)="move(i, -1)">
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><polyline points="6,15 12,9 18,15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-            </button>
-            <button type="button" class="row__move" [attr.data-testid]="'move-down-' + s.stage" [disabled]="i === working().length - 1" aria-label="Move down" (click)="move(i, 1)">
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><polyline points="6,9 12,15 18,9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
-            </button>
-            <button type="button" class="row__move" [attr.data-testid]="'insert-after-' + s.stage" [attr.aria-label]="'Add stage after ' + s.stage" [disabled]="lifecycle() === 'saving'" (click)="openAdder(i + 1)">
-              <dart-glyph name="add-stage" />
+            <button
+              type="button"
+              class="row__rules"
+              [class.row__rules--on]="rulesOpenFor() === s.stage"
+              [attr.data-testid]="'rules-pill-' + s.stage"
+              [attr.aria-expanded]="rulesOpenFor() === s.stage"
+              [attr.aria-label]="'Conditions on ' + s.stage + ': ' + rulesCount(s.stage)"
+              (click)="toggleRules(s.stage)"
+            >
+              <dart-glyph name="condition" /> rules {{ rulesCount(s.stage) }}
             </button>
             <button
               type="button"
@@ -199,6 +219,20 @@ interface ConflictAttempt {
               <dart-glyph name="trash" />
             </button>
           </span>
+
+          @if (rulesOpenFor() === s.stage) {
+            <dart-stage-rules
+              [stage]="s.stage"
+              [owner]="s.owner"
+              [rules]="rules()"
+              [labels]="labels()"
+              [stageOrder]="stageNames()"
+              [safetyStages]="safetyStages()"
+              [saving]="lifecycle() === 'saving'"
+              (save)="saveRules($event)"
+              (cancel)="closeRules()"
+            />
+          }
 
           @if (s.gate && editingGate() === s.gate.name && draft(); as d) {
             <div class="ruleeditor" [attr.data-testid]="'gate-rule-editor-' + s.stage">
@@ -313,87 +347,78 @@ interface ConflictAttempt {
       </button>
     </div>
 
-    @if (reorderDirty()) {
-      <div class="footbar" data-testid="builder-reorder-bar">
-        <button type="button" class="btn btn--ghost" data-testid="builder-discard" (click)="discardReorder()">Discard</button>
-        <button type="button" class="btn btn--primary" data-testid="builder-save" [disabled]="lifecycle() === 'saving'" (click)="saveReorder()">
-          @if (lifecycle() === 'saving') { <dart-glyph name="spinner" /> } <dart-glyph name="save" /> Save changes
-        </button>
-      </div>
-    }
-
     <p class="sr-only" role="status" aria-live="assertive" data-testid="builder-live">{{ announce() }}</p>
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: var(--kb-space-3); }
-    .banner { display: flex; gap: 0.5rem; padding: var(--kb-space-2) var(--kb-space-3); border-radius: var(--kb-radius-md); font-size: var(--kb-text-sm); }
-    .banner--overlay { background: var(--kb-surface-muted); color: var(--kb-text-muted); border: 1px solid var(--kb-border); }
+    .banner { display: flex; gap: 0.5rem; padding: var(--kb-space-2) var(--kb-space-3); border-radius: var(--kb-radius-md); font-size: var(--kb-text-sm); border: 1px solid var(--kb-border); }
+    .banner--overlay { background: var(--kb-surface-muted); color: var(--kb-text-muted); }
     .banner--overlay dart-glyph { color: var(--kb-accent); flex: none; }
     .banner__sub { display: block; color: var(--kb-text-subtle); font-size: var(--kb-text-xs); }
-    .banner--conflict { background: color-mix(in srgb, var(--kb-warning) 14%, transparent); border: 1px solid var(--kb-warning); color: var(--kb-text); align-items: flex-start; }
+    .banner--conflict { background: color-mix(in srgb, var(--kb-warning) 14%, transparent); border-color: var(--kb-warning); color: var(--kb-text); align-items: flex-start; }
     .banner--conflict dart-glyph { color: var(--kb-warning); flex: none; }
     .banner__body { display: flex; flex-direction: column; gap: 0.35rem; }
     .banner__title { margin: 0; font-weight: 600; }
     .banner__actions { display: flex; gap: 0.4rem; }
-    .banner--error { color: var(--kb-danger); border: 1px solid var(--kb-danger); align-items: center; }
+    .banner--error { color: var(--kb-danger); border-color: var(--kb-danger); align-items: center; }
     .topbar { display: flex; align-items: center; gap: var(--kb-space-3); flex-wrap: wrap; }
-    .preset__label, .row__owner, .row__gate, .seg, .chip { display: inline-flex; align-items: center; }
-    .preset { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem; border: 1px solid var(--kb-border); border-radius: 999px; }
+    .preset, .preset__label, .preset__seg, .pill, .row__owner, .row__gate, .seg, .chip, .row__rules, .row__edit { display: inline-flex; align-items: center; }
+    .preset { gap: 0.3rem; padding: 0.2rem; border: 1px solid var(--kb-border); border-radius: 999px; }
     .preset__label { gap: 0.25rem; padding: 0 0.4rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
-    .preset__seg { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.25rem 0.6rem; font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-text-muted); background: var(--kb-surface-muted); border: none; border-radius: 999px; cursor: pointer; }
+    .preset__seg { gap: 0.2rem; padding: 0.25rem 0.6rem; font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-text-muted); background: var(--kb-surface-muted); border: none; border-radius: 999px; cursor: pointer; }
     .preset__seg--active { background: var(--kb-accent-soft); color: var(--kb-accent); }
-    .preset__seg:disabled { opacity: 0.55; cursor: default; }
-    .pill { display: inline-flex; align-items: center; gap: 0.3rem; margin-left: auto; padding: 0.2rem 0.6rem; font-size: var(--kb-text-xs); font-weight: 600; border-radius: 999px; border: 1px solid var(--kb-border); color: var(--kb-text-muted); }
+    .preset__seg:disabled, .btn:disabled { opacity: 0.55; cursor: default; }
+    .pill { gap: 0.3rem; margin-left: auto; padding: 0.2rem 0.6rem; font-size: var(--kb-text-xs); font-weight: 600; border-radius: 999px; border: 1px solid var(--kb-border); color: var(--kb-text-muted); }
     .pill--saved { color: var(--kb-success); }
     .pill--editing { color: var(--kb-warning); }
     .pill--conflict, .pill--error { color: var(--kb-danger); }
-    .hint { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
+    .hint { margin: 0; }
     .rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--kb-space-1); }
     .row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.35rem 0.5rem; background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
-    .row__grip { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; color: var(--kb-text-subtle); background: transparent; border: 1px solid transparent; border-radius: var(--kb-radius-sm); cursor: grab; }
+    .row__grip, .row__move { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--kb-text-muted); background: transparent; border: 1px solid transparent; border-radius: var(--kb-radius-sm); cursor: pointer; }
+    .row__grip { width: 1.75rem; height: 1.75rem; color: var(--kb-text-subtle); cursor: grab; }
     .row__grip:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
-    .row__stage { font-weight: 600; color: var(--kb-text); min-width: 6rem; }
+    .row__move { border-color: var(--kb-border); }
+    .row__move:disabled { opacity: 0.4; cursor: default; }
+    .row__stage, .row__gatename { font-weight: 600; }
+    .row__stage { color: var(--kb-text); min-width: 6rem; }
     .row__owner { gap: 0.25rem; color: var(--kb-text-muted); font-size: var(--kb-text-sm); }
     .row__gate { gap: 0.3rem; color: var(--kb-text-muted); font-size: var(--kb-text-xs); }
     .row__gate[data-refusal='hard'] { color: var(--kb-accent); }
-    .row__gatename { font-weight: 600; }
     .row__gaterule { text-transform: uppercase; letter-spacing: 0.03em; color: var(--kb-text-subtle); }
-    .row__nogate { color: var(--kb-text-subtle); font-size: var(--kb-text-xs); }
-    .row__edit { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.15rem 0.4rem; font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text-muted); background: transparent; border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); cursor: pointer; }
-    .row__ownersel, .newstage__name, .newstage__owner { padding: 0.2rem 0.35rem; font: inherit; color: var(--kb-text); background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); }
-    .row__moves { display: inline-flex; gap: 0.2rem; margin-left: auto; }
-    .row__move { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--kb-text-muted); background: transparent; border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); cursor: pointer; }
-    .row__move:disabled { opacity: 0.4; cursor: default; }
+    .row__nogate, .hint { color: var(--kb-text-subtle); font-size: var(--kb-text-xs); }
+    .row__edit { gap: 0.2rem; padding: 0.15rem 0.4rem; font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text-muted); background: transparent; border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); cursor: pointer; }
+    .row__ownersel, .newstage__name, .newstage__owner, .ruleeditor__field select, .chips__add { padding: 0.2rem 0.35rem; font: inherit; color: var(--kb-text); background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); }
+    .row__moves { display: inline-flex; align-items: center; gap: 0.3rem; margin-left: auto; }
+    .row__rules { gap: 0.25rem; padding: 0.15rem 0.5rem; font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-text-muted); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: 999px; cursor: pointer; }
+    .row__rules--on, .seg--active { color: var(--kb-accent); border-color: var(--kb-accent); }
     .row__del { color: var(--kb-danger); }
+    .row--lifted { opacity: 0.85; border-color: var(--kb-accent); box-shadow: var(--kb-shadow-md, 0 2px 8px rgba(0,0,0,0.3)); }
+    .row--dragover { border-top: 2px solid var(--kb-accent); }
+    @media (prefers-reduced-motion: reduce) { .row { transition: none; } }
     .confirm { flex: 1 1 100%; margin-top: 0.35rem; padding: var(--kb-space-2); background: color-mix(in srgb, var(--kb-warning) 10%, var(--kb-surface)); border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); }
     .confirm__body { margin: 0; display: flex; gap: 0.4rem; align-items: flex-start; font-size: var(--kb-text-sm); color: var(--kb-text); }
     .confirm__body dart-glyph { color: var(--kb-warning); flex: none; }
-    .confirm__sub { margin: 0.3rem 0 0; font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
-    .confirm__actions, .newstage__actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+    .confirm__sub, .newstage__count { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
+    .confirm__sub { margin-top: 0.3rem; }
+    .confirm__actions, .newstage__actions, .ruleeditor__actions { display: flex; gap: 0.4rem; justify-content: flex-end; margin-left: auto; }
     .confirm__actions { margin-top: 0.5rem; }
-    .newstage__actions { margin-left: auto; }
     .row--new { background: var(--kb-surface); border-style: dashed; }
     .newstage { display: flex; flex-wrap: wrap; gap: var(--kb-space-3); align-items: flex-end; width: 100%; }
     .newstage__caption, .newstage__err { flex: 1 1 100%; margin: 0; font-size: var(--kb-text-xs); }
     .newstage__caption { color: var(--kb-text-muted); }
     .newstage__err { color: var(--kb-danger); }
-    .newstage__field { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
-    .newstage__count { font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
+    .newstage__field, .ruleeditor__field { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
     .addfoot { display: flex; }
     .btn--danger { background: color-mix(in srgb, var(--kb-danger) 14%, transparent); color: var(--kb-danger); border-color: var(--kb-danger); }
     .ruleeditor { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--kb-space-3); align-items: flex-start; margin-top: 0.35rem; padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
-    .ruleeditor__field { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
-    .ruleeditor__field select { padding: 0.25rem 0.4rem; font: inherit; background: var(--kb-surface-muted); color: var(--kb-text); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); }
-    .seg { gap: 0.25rem; padding: 0.2rem 0.5rem; font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text-muted); background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); cursor: pointer; }
-    .seg--active { color: var(--kb-accent); border-color: var(--kb-accent); }
+    .seg, .chip { gap: 0.2rem; font-size: var(--kb-text-xs); background: var(--kb-surface-muted); border: 1px solid var(--kb-border); }
+    .seg { padding: 0.2rem 0.5rem; font: inherit; color: var(--kb-text-muted); border-radius: var(--kb-radius-sm); cursor: pointer; }
     .chips { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
-    .chip { gap: 0.2rem; padding: 0.1rem 0.4rem; font-size: var(--kb-text-xs); color: var(--kb-text); background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: 999px; }
+    .chip { padding: 0.1rem 0.4rem; color: var(--kb-text); border-radius: 999px; }
     .chip__x { display: inline-flex; padding: 0; color: var(--kb-text-muted); background: transparent; border: none; cursor: pointer; }
-    .chips__add { width: 8rem; padding: 0.2rem 0.4rem; font: inherit; font-size: var(--kb-text-xs); background: var(--kb-surface-muted); color: var(--kb-text); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); }
-    .ruleeditor__actions { display: flex; gap: 0.4rem; align-items: flex-end; margin-left: auto; }
-    .footbar { display: flex; justify-content: flex-end; gap: 0.4rem; padding-top: var(--kb-space-2); border-top: 1px solid var(--kb-border); }
+    .chips__add { width: 8rem; font-size: var(--kb-text-xs); }
     .btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.7rem; font: inherit; font-size: var(--kb-text-sm); font-weight: 600; border-radius: var(--kb-radius-md); border: 1px solid var(--kb-border); background: var(--kb-surface-muted); color: var(--kb-text); cursor: pointer; }
-    .btn:disabled { opacity: 0.55; cursor: default; }
     .btn--ghost { background: transparent; }
     .btn--primary { background: var(--kb-accent-soft); color: var(--kb-accent); border-color: var(--kb-accent); }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -414,6 +439,36 @@ export class WorkflowBuilderComponent {
   readonly activePreset = computed(() => this.state().preset ?? 'solo');
   private readonly rev = computed(() => this.state().rev ?? '');
   private readonly gateDefs = computed<readonly GateDef[]>(() => this.state().gateDefs ?? []);
+
+  /**
+   * The project's `when → do` rules and label contract — read + authored by the inline rule editor.
+   * The hub serialises labels as a name-keyed object and rules in its engine grammar (single `when`
+   * object, verb-keyed `do`); both are adapted here into the array/typed shapes the editor binds.
+   */
+  readonly rules = computed<readonly RuleView[]>(() => normalizeRules(this.state().rules));
+  readonly labels = computed<readonly LabelDef[]>(() => normalizeLabels(this.state().labels));
+
+  /** The active track's stage names in order — for the rule editor's route picker + loop detection. */
+  readonly stageNames = computed<readonly string[]>(() => this.working().map((s) => s.stage));
+
+  /** Stages governed by an unmet safety-override gate — a rule may not route a ticket past one. */
+  readonly safetyStages = computed<readonly string[]>(() =>
+    this.working()
+      .filter((s) => s.gate?.name === SAFETY_GATE && s.gate.refusal === 'hard')
+      .map((s) => s.stage),
+  );
+
+  /** The stage whose inline rule editor is open, or null. */
+  readonly rulesOpenFor = signal<string | null>(null);
+
+  /** The index of the row being dragged (pointer) and the current drop target index. */
+  readonly draggingIndex = signal<number | null>(null);
+  readonly dropIndex = signal<number | null>(null);
+
+  /** The index of the row in keyboard pick-up mode (Space-grabbed), or null. */
+  readonly grabbedIndex = signal<number | null>(null);
+  /** The stage order before a keyboard pick-up began, restored on Escape. */
+  private grabSnapshot: readonly WorkflowStageView[] | null = null;
 
   /** A project with no overlay still resolves stages from the base/default workflow. */
   readonly isDefaultWorkflow = computed(() => !this.state()['overlay']);
@@ -491,37 +546,127 @@ export class WorkflowBuilderComponent {
     });
   }
 
-  // Reorder — optimistic + batched ----------------------------------------------------------------
+  // Reorder — drag + keyboard, each commits immediately --------------------------------------------
 
-  move(index: number, delta: number): void {
-    const next = [...this.working()];
-    const target = index + delta;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    this.workingStages.set(next);
-    if (this.lifecycle() !== 'saving') this.lifecycle.set('editing');
-    this.announce.set(`Moved ${next[target].stage} to position ${target + 1} of ${next.length}.`);
+  /** Move the stage at `from` to `to` and persist the full new order as one set-stages CAS write. */
+  private commitMove(from: number, to: number): void {
+    const next = this.reordered(from, to);
+    if (!next) return;
+    const moved = next[Math.max(0, Math.min(to, next.length - 1))];
+    this.announce.set(`Dropped ${moved.stage} at position ${to + 1} of ${next.length}.`);
+    void this.commitStages(next, { summary: `reorder ${moved.stage}`, kind: 'set-stages', stages: next.map((s) => s.stage) });
   }
 
+  /** The working list with the item at `from` removed and re-inserted at `to`, or null if a no-op. */
+  private reordered(from: number, to: number): WorkflowStageView[] | null {
+    const list = [...this.working()];
+    if (from < 0 || from >= list.length) return null;
+    const clampedTo = Math.max(0, Math.min(to, list.length - 1));
+    if (from === clampedTo) return null;
+    const [item] = list.splice(from, 1);
+    list.splice(clampedTo, 0, item);
+    return list;
+  }
+
+  // Pointer drag (HTML5) — only the grip is draggable; the row body stays clickable.
+
+  onDragStart(event: DragEvent, index: number): void {
+    this.grabbedIndex.set(null);
+    this.draggingIndex.set(index);
+    this.dropIndex.set(index);
+    event.dataTransfer?.setData('text/plain', String(index));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  onRowDragOver(event: DragEvent, index: number): void {
+    if (this.draggingIndex() === null) return;
+    event.preventDefault();
+    this.dropIndex.set(index);
+  }
+
+  onRowDrop(event: DragEvent, index: number): void {
+    const from = this.draggingIndex();
+    if (from === null) return;
+    event.preventDefault();
+    this.draggingIndex.set(null);
+    this.dropIndex.set(null);
+    this.commitMove(from, index);
+  }
+
+  /** A drag that ends without a drop (cancelled or dropped outside a target) writes nothing. */
+  onDragEnd(): void {
+    this.draggingIndex.set(null);
+    this.dropIndex.set(null);
+  }
+
+  // Keyboard — Alt+Arrow (tested primary) + a Space pick-up / arrows move / Space drop mode.
+
   onGripKeydown(event: KeyboardEvent, index: number): void {
-    if (!event.altKey) return;
-    if (event.key === 'ArrowUp') {
+    if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
       event.preventDefault();
-      this.move(index, -1);
-    } else if (event.key === 'ArrowDown') {
+      this.grabbedIndex.set(null);
+      this.commitMove(index, index + (event.key === 'ArrowUp' ? -1 : 1));
+      return;
+    }
+    if (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar') {
       event.preventDefault();
-      this.move(index, 1);
+      this.grabbedIndex() === null ? this.pickUp(index) : this.dropGrabbed(index);
+      return;
+    }
+    if (this.grabbedIndex() !== null && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      event.preventDefault();
+      this.moveGrabbed(event.key === 'ArrowUp' ? -1 : 1);
+      return;
+    }
+    if (event.key === 'Escape') {
+      if (this.draggingIndex() !== null) this.onDragEnd();
+      this.cancelGrab();
     }
   }
 
-  discardReorder(): void {
-    this.workingStages.set(null);
-    this.lifecycle.set('saved');
+  private pickUp(index: number): void {
+    this.grabSnapshot = this.working();
+    this.grabbedIndex.set(index);
+    const total = this.working().length;
+    this.announce.set(
+      `Picked up ${this.working()[index].stage}, position ${index + 1} of ${total}. Use Up and Down arrows to move, Space to drop, Escape to cancel.`,
+    );
   }
 
-  async saveReorder(): Promise<void> {
-    const stages = this.working();
-    await this.commitStages(stages, { summary: 'reorder stages', kind: 'set-stages', stages: stages.map((s) => s.stage) });
+  private moveGrabbed(delta: number): void {
+    const from = this.grabbedIndex();
+    if (from === null) return;
+    const to = from + delta;
+    const next = this.reordered(from, to);
+    if (!next) return;
+    this.workingStages.set(next);
+    const newIndex = Math.max(0, Math.min(to, next.length - 1));
+    this.grabbedIndex.set(newIndex);
+    this.announce.set(`${next[newIndex].stage} now at position ${newIndex + 1} of ${next.length}.`);
+  }
+
+  private dropGrabbed(index: number): void {
+    const to = this.grabbedIndex() ?? index;
+    this.grabbedIndex.set(null);
+    this.grabSnapshot = null;
+    // The live preview already reflects the target order; persist the current working list as-is.
+    const next = [...this.working()];
+    const moved = next[Math.max(0, Math.min(to, next.length - 1))];
+    this.announce.set(`Dropped ${moved?.stage ?? ''} at position ${to + 1} of ${next.length}.`);
+    void this.commitStages(next, { summary: `reorder ${moved?.stage ?? ''}`, kind: 'set-stages', stages: next.map((s) => s.stage) });
+  }
+
+  private cancelGrab(): void {
+    const snapshot = this.grabSnapshot;
+    const index = this.grabbedIndex();
+    this.grabbedIndex.set(null);
+    this.grabSnapshot = null;
+    if (snapshot) {
+      this.workingStages.set([...snapshot]);
+      this.announce.set(
+        index !== null ? `Cancelled. ${snapshot[index]?.stage ?? ''} back at position ${index + 1}.` : 'Cancelled.',
+      );
+    }
   }
 
   // Stage-list edits (add / delete / owner) — one declarative set-stages write -------------------
@@ -558,14 +703,14 @@ export class WorkflowBuilderComponent {
     if (this.lifecycle() === 'editing' && !this.reorderDirty()) this.lifecycle.set('saved');
   }
 
+  /** Add a stage by APPENDING it to the end of the list; the user then drags it into place. */
   async confirmAdd(): Promise<void> {
-    const at = this.adding();
-    if (at === null || this.newNameError()) return;
+    if (this.adding() === null || this.newNameError()) return;
     const owner = this.newOwner();
     const entry: WorkflowStageView = { stage: this.newName().trim(), owner: owner || null, gate: null };
-    const next = [...this.working()];
-    next.splice(Math.max(0, Math.min(at, next.length)), 0, entry);
+    const next = [...this.working(), entry];
     this.adding.set(null);
+    this.announce.set(`Added ${entry.stage} at the end — drag it into place, or use Space to pick it up.`);
     await this.commitStages(next, {
       summary: `add stage ${entry.stage}`,
       kind: 'set-stages',
@@ -599,6 +744,30 @@ export class WorkflowBuilderComponent {
   /** Count the tickets currently recorded against a stage (for the delete confirm's off-track warning). */
   ticketsInStage(stage: string): number {
     return (this.state().tickets ?? []).filter((t) => t.stage === stage).length;
+  }
+
+  // Rule editor — when→do conditions per stage; commits via set-rules (same overlay/rev) ------------
+
+  /** The number of `when → do` rules attached to a given stage. */
+  rulesCount(stage: string): number {
+    return this.rules().filter((r) => (r.stage ?? null) === stage).length;
+  }
+
+  toggleRules(stage: string): void {
+    this.rulesOpenFor.update((open) => (open === stage ? null : stage));
+  }
+
+  closeRules(): void {
+    this.rulesOpenFor.set(null);
+  }
+
+  /** Persist the full new rule list (the editor merged its edit into the project's others). */
+  async saveRules(rules: readonly RuleView[]): Promise<void> {
+    this.lifecycle.set('saving');
+    this.errorText.set(null);
+    const res = await this.cp.setRules({ rules: denormalizeRules(rules), expectedRev: this.rev() });
+    if (res.ok === true) this.closeRules();
+    this.reconcile(res, { summary: 'edit rules', kind: 'rules' });
   }
 
   // Gate-rule edit — commits immediately -----------------------------------------------------------
@@ -696,6 +865,7 @@ export class WorkflowBuilderComponent {
       // Adopt server truth (rolls back the optimistic change), then surface a focused reconcile.
       this.workingStages.set(null);
       this.cancelGateEditor();
+      this.closeRules();
       if (res.state) this.applied.emit(res.state);
       this.lifecycle.set('conflict');
       this.conflict.set(attempt);

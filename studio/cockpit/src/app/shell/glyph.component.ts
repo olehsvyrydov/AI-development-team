@@ -31,6 +31,10 @@ export const GLYPH_NAMES = [
   'remove',
   'add-stage',
   'trash',
+  'condition',
+  'branch',
+  'loop',
+  'label',
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -201,6 +205,32 @@ export type GlyphName = (typeof GLYPH_NAMES)[number];
           <path d="M9 7 V4 h6 v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
           <line x1="10" y1="11" x2="10" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
           <line x1="14" y1="11" x2="14" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      }
+      @case ('condition') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M12 4 L20 12 L12 20 L4 12 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <line x1="12" y1="9" x2="12" y2="12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <circle cx="12" cy="15.5" r="0.9" fill="currentColor" stroke="none" />
+        </svg>
+      }
+      @case ('branch') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M12 4 v6 M12 10 l-5 6 M12 10 l5 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="7" cy="17" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="17" cy="17" r="1.4" fill="currentColor" stroke="none" />
+        </svg>
+      }
+      @case ('loop') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M19 12 a7 7 0 1 1 -3 -5.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <polyline points="16,3 16.5,6.5 13,7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('label') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M4 12 l7 -7 h7 v7 l-7 7 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none" />
         </svg>
       }
     }

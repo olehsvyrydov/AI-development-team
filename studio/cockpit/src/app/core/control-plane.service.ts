@@ -117,6 +117,20 @@ export interface PresetInput {
   readonly expectedRev: string;
 }
 
+/**
+ * Body for `workflow/set-rules`. `rules` is the COMPLETE rule list for the project as one
+ * declarative overlay patch — add/edit/delete are all expressed by sending the full list. The hub
+ * re-runs the full author-time safety validation (rejects a rule that routes past an unmet safety
+ * gate, sets an unauthorized label, or uses an unknown action/event/agent → 400) and is the
+ * authority; the client mirror is UX only. `expectedRev` guards against a stale overlay write
+ * (stale → 409 conflict, never a silent overwrite).
+ */
+export interface SetRulesInput {
+  /** The full rule list in the engine's wire grammar (single `when` object, verb-keyed `do`). */
+  readonly rules: readonly Record<string, unknown>[];
+  readonly expectedRev: string;
+}
+
 interface MutationEnvelope {
   readonly ok?: boolean;
   readonly conflict?: boolean;
@@ -184,6 +198,15 @@ export class ControlPlaneService {
 
   setPreset(input: PresetInput): Promise<MutationResult> {
     return this.mutate('/api/preset', input);
+  }
+
+  /**
+   * Persist the project's full `when → do` rule list in one declarative overlay write, keyed on
+   * `expectedRev`. The server re-validates every rule (safety-gate bypass, label contract, schema)
+   * and is the authority; a stale write returns a `conflict` result, never a silent overwrite.
+   */
+  setRules(input: SetRulesInput): Promise<MutationResult> {
+    return this.mutate('/api/workflow/set-rules', input);
   }
 
   /**

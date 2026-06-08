@@ -84,17 +84,7 @@ describe('WorkflowBuilderComponent', () => {
     expect(hard.getAttribute('stroke-dasharray')).toBeNull();
   });
 
-  it('moves a stage down with the visible move button and reflects the new order optimistically', () => {
-    const { fixture, host, http: h } = mount();
-    http = h;
-    // Move "vision" (first row) down → order [architecture, vision, security, done]
-    $(host, '[data-testid="move-down-vision"]').click();
-    fixture.detectChanges();
-    const names = [...host.querySelectorAll('[data-testid="builder-stage-name"]')].map((e) => e.textContent?.trim());
-    expect(names).toEqual(['architecture', 'vision', 'security', 'done']);
-  });
-
-  it('reorders with Alt+ArrowDown on a focused stage and announces the move', async () => {
+  it('reorders with Alt+ArrowDown on a focused stage, announces the move, and commits it', async () => {
     const { fixture, host, http: h } = mount();
     http = h;
     const grip = $(host, '[data-testid="move-grip-vision"]');
@@ -103,7 +93,16 @@ describe('WorkflowBuilderComponent', () => {
     const names = [...host.querySelectorAll('[data-testid="builder-stage-name"]')].map((e) => e.textContent?.trim());
     expect(names).toEqual(['architecture', 'vision', 'security', 'done']);
     const live = $(host, '[data-testid="builder-live"]');
-    expect(live.textContent ?? '').toMatch(/moved vision to position 2 of 4/i);
+    expect(live.textContent ?? '').toMatch(/vision .*position 2 of 4/i);
+    const req = http.expectOne('/api/track/set-stages');
+    expect(req.request.body.stages.map((s: { name: string }) => s.name)).toEqual([
+      'architecture',
+      'vision',
+      'security',
+      'done',
+    ]);
+    req.flush({ ok: true, state: { ...STATE, rev: 'r2' } });
+    await settle(fixture);
   });
 
   it('opens a gate-rule editor and posts owner/refusal/trigger with the current rev', async () => {
@@ -144,9 +143,9 @@ describe('WorkflowBuilderComponent', () => {
   it('reconciles a 409 from a reorder: adopts fresh state, rolls back the optimistic move, shows the conflict banner', async () => {
     const { fixture, host, http: h, applied } = mount();
     http = h;
-    $(host, '[data-testid="move-down-vision"]').click();
+    const grip = $(host, '[data-testid="move-grip-vision"]');
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true }));
     fixture.detectChanges();
-    $(host, '[data-testid="builder-save"]').click();
     const req = http.expectOne('/api/track/set-stages');
     const fresh: ProjectState = { ...STATE, rev: 'r9' };
     req.flush({ ok: false, conflict: true, state: fresh }, { status: 409, statusText: 'Conflict' });
@@ -199,12 +198,12 @@ describe('WorkflowBuilderComponent', () => {
     expect(host.innerHTML).not.toContain('<script>');
   });
 
-  it('saves a reorder via set-stages, posting the full ordered list (name + owner) + rev', async () => {
+  it('commits a reorder via set-stages, posting the full ordered list (name + owner) + rev', async () => {
     const { fixture, host, http: h, applied } = mount();
     http = h;
-    $(host, '[data-testid="move-down-vision"]').click();
+    const grip = $(host, '[data-testid="move-grip-vision"]');
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true }));
     fixture.detectChanges();
-    $(host, '[data-testid="builder-save"]').click();
     const req = http.expectOne('/api/track/set-stages');
     expect(req.request.body).toEqual({
       track: 'full',
@@ -219,8 +218,6 @@ describe('WorkflowBuilderComponent', () => {
     req.flush({ ok: true, state: { ...STATE, rev: 'r2' } });
     await settle(fixture);
     expect(applied.at(-1)?.rev).toBe('r2');
-    // The reorder bar is gone after a successful persist (move reliably reflected).
-    expect(host.querySelector('[data-testid="builder-reorder-bar"]')).toBeNull();
   });
 
   describe('add a stage', () => {
