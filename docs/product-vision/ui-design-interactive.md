@@ -434,3 +434,269 @@ All icons follow cockpit-v2 §4: **24×24 viewBox, `stroke="currentColor"`, `str
 `DESIGN_APPROVED` (soft) recorded **passed** for ADT-221, ADT-222, ADT-223 — this spec covers every behavioral AC with wireframes, all four lifecycle/error/empty/conflict state sets, the a11y contract (keyboard reorder + board + modal, aria-live, escaped text), and the inline-SVG iconography additions, all on the established `--kb-*` token / panel / shield-shape system and within the arch data contracts + secops C-/N- constraints.
 
 **Next:** ADT-221/222 → `/be` adds the overlay `expectedRev` CAS (C-13) + `/fe` builds the surfaces; ADT-223 → `/be` ships `addKbNote` under TDD (N-1…N-13) → `/fe` builds the form → `/rev`. Then `/sm` — please update sprint status.
+
+---
+---
+
+# Editable stages + stage-aligned board (addendum) — ADT-224 / ADT-225 / ADT-226
+
+**Designer:** Aura (`/ui`)
+**Date:** 2026-06-08
+**Status:** Draft → Approved (DESIGN_APPROVED — ADT-225/226 soft, ADT-224 review)
+**Gate:** `DESIGN_APPROVED` for ADT-224, ADT-225, ADT-226
+**Scope:** A **focused extension** of §1 (builder) and §2 (board) above — not a new spec. User feedback: the builder must also **add / delete a stage** and set a stage's **owner/agent** (ADT-225); the Tasks board must group by **workflow STAGE**, not status (ADT-226); writes/live-updates must target the **viewed** project (ADT-224 — mostly invisible). Everything below reuses the established `--kb-*` tokens, the shield-shape hard/soft convention, the inline-SVG glyph set, the optimistic-write + `expectedRev` + 409 reconcile pattern, and the keyboard/aria conventions already specified in §§1–7. **Design spec only — no production code.** Wireframe symbols are diagram placeholders; each resolves to a §4 / §A.5 inline-SVG glyph — never pasted into a template (`no-tofu-glyphs` stays green).
+
+## A.0 Grounding — what binds (read before §A.1)
+
+Read in full: tickets **ADT-224/225/226**, `DECISION_LOG.md` **D-006…D-009**, and `approvals/{arch,secops}-editable-workflow.md`. The load-bearing facts I honour:
+
+- **Overlay stage model (arch D-5/D-6, secops C-18…C-21).** One declarative op `track/set-stages` carries the **full ordered stage list** for the active track, each entry `{ name, owner?, gate? }`. Add = a new name; delete = an omitted name; move = a reorder; owner = the per-stage `owner` (persisted to `overlay.stageOwners[stage]`). Per-stage `gate` is **advisory view metadata** — the authoritative gate rule stays in `overlay.gates` via the **existing** `gate/trigger` op (the §1.2 gate-rule editor, unchanged). The base `workflow.yaml` is **never** written.
+- **Validation (secops C-19/C-20/C-21).** The server rejects, writing nothing: empty result (a delete that empties the track), a duplicate name, an empty/whitespace name, an over-cap name, an unknown track, and prototype-pollution keys (`__proto__`/`constructor`/`prototype`). Owner is a plain capped string, never a path. **The UI mirrors these client-side for fast feedback, but the server is the authority** — every server `400` maps to a first-class inline error.
+- **Escaped untrusted text (secops C-22/C-26).** Stage names and owners render as **escaped text** — Angular interpolation only, **no `[innerHTML]` / `bypassSecurityTrust*`**. A `<script>`/`<img onerror>` in a stage name or owner shows as literal text.
+- **Board is a pure FE re-projection (arch D-9, secops C-25).** Columns = `workflowView.stages[*].stage` in order; placement by `ticket.stage`; advance = next stage via the **existing** `ticket/advance`. **No new route, no new persistence.** Off-track tickets are surfaced, never dropped or silently re-keyed (D-008, C-27).
+- **Project scoping (ADT-224, D-006).** Every mutation already rides `ControlPlaneService` and every live frame the per-project SSE channel; the id travels server-side. The UI change is **near-zero** — see §A.4.
+- **Conflict pattern is shared (D-005).** `set-stages` and `advance` both reuse the existing optimistic + `expectedRev` + 409 reconcile (§1.4 / §2.3). Append-only and read-only paths need no CAS.
+
+---
+
+## A.1 Add a stage (ADT-225)
+
+The builder's stage list (§1.1) grows two affordances: a **per-row insert** and a **list-foot "Add stage."** Both open the same **new-stage row editor** in place.
+
+### A.1.1 Wireframe — add affordance + new-stage row
+
+```
+│  STAGES  (reorder: focus a row, Alt+↑ / Alt+↓ to move)        [ic glyph-add-stage] Add stage │
+│                                                                                              │
+│  ⋮⋮  vision          [ic glyph-agent] /po        (no gate)              [+] [edit] [ic trash] │  ← row gains [+] insert-below + delete
+│  ⋮⋮  architecture    [ic glyph-agent] /arch  [ic shield-solid] ARCH …  [+] [edit] [ic trash] │
+│  ┌─ new stage (inserting after “architecture”) ───────────────────────────────────────────┐ │
+│  │ Name *   [ design-review                          ]   0/64   ← required, unique, trimmed  │ │
+│  │ Owner    [ /ui                          ▾ ]          ← from the allowed agent set, optional│ │
+│  │ Gate     ( none )  ( attach a gate… )               ← optional; “attach” reuses §1.2 editor│ │
+│  │                                            [ Cancel ]   [ Add stage ]                       │ │
+│  └────────────────────────────────────────────────────────────────────────────────────────┘ │
+│  ⋮⋮  security        [ic glyph-agent] /secops …                        [+] [edit] [ic trash] │
+```
+
+- **Two insert points, one editor.** The list-foot **`[ic glyph-add-stage] Add stage`** appends a new-stage row at the **end**; a per-row **`[+]` (`glyph-add-stage`, "Add stage after {stage}")** inserts **immediately below that row**. The new-stage row is a focusable inline form (no modal — single field-group, consistent with §1.2's inline gate editor). On open, focus moves to the **Name** input; the caption names the insertion point ("inserting after {stage}", or "at the start" / "at the end").
+- **Name** — required; live `N / 64` counter; trimmed; **must be unique** within the working list (case-insensitive compare for the warning; the server compares as stored). **Owner** — an optional `<select>` constrained to the allowed agent set (the gate-owner set ∪ the standard roles already used by §1.2's owner picker: `/po /ba /arch /secops /ui /fe /be /rev /qa /e2e /verify`, plus `—` = derived/none). Free text is not offered. **Gate** — optional: `none` (default) or **`attach a gate…`**, which links the stage to the canonical `stage→gate` and reveals the **existing §1.2 gate-rule editor** inline (owner / refusal shield-shape / trigger chips). No new gate-editing surface is introduced — per-stage `gate` is advisory metadata; the rule lives in `overlay.gates`.
+- **Where it inserts.** The working list is rebuilt with the new entry at the chosen index; on **`Add stage`** the **entire ordered list** is sent as one `track/set-stages` (declarative — add is "a name not previously present at position i"). This is the same batched-commit model as reorder (§1.3): the new row appears optimistically; the single CAS write fires on confirm.
+
+### A.1.2 Validation (client mirrors server — server is authority)
+
+| Rule | Client behaviour | Server backstop (secops) |
+|---|---|---|
+| **Name required** | `Add stage` disabled until non-empty after trim; inline "A stage name is required." | empty/whitespace → `400` (C-19) |
+| **Name unique** | live compare against the working list; on collision, disabled + "A stage named '{name}' already exists." (escaped) | duplicate → `400` (C-19) |
+| **Name length** | live `N / 64`; over → disabled + "Stage name is too long." | over-cap → `400` (C-19) |
+| **Reserved-key name** (`__proto__` etc.) | not pre-blocked (rare); surfaces the server's terse `400` as "That stage name isn't allowed." | rejected/neutralized (C-21, N-20) |
+| **Owner** | from the allowlist only; never free text | plain capped string, never a path (C-20) |
+
+### A.1.3 Lifecycle / states (reuse §1.3 + §1.4)
+
+- **idle → editing (dirty):** opening the new-stage row marks the builder dirty; the status pill shows `[ic glyph-edit] unsaved changes`.
+- **saving:** `Add stage` → `[ic glyph-spinner] adding…`, the row's controls disabled; pill `saving…` (static ring under reduced motion).
+- **added (saved):** the new row takes its place in the rail with grip + owner + gate marker; pill flips to `[ic glyph-check] saved`; `aria-live="polite"` announces "Stage {name} added at position {n} of {m}."
+- **CONFLICT (409):** the existing §1.4 reconcile banner — adopt the 409-body `state` (rail re-renders to server truth, `rev` updated), roll back the optimistic add; **`Re-apply on top`** re-stages the add against the fresh list; **`Discard`** keeps server state. `role="alert"`, focus moved to the banner.
+- **error (non-409):** inline `--kb-danger` alert under the new-stage row: "Couldn't add the stage: {terse reason}." + Retry; nothing persisted; the working list rolls back.
+
+---
+
+## A.2 Delete a stage (ADT-225)
+
+Each stage row gains a **per-row delete** (`[ic glyph-trash]`, "Delete {stage}"). Because a stage may hold tickets and a delete that empties the track is rejected, delete is **confirm-gated** and **honest about orphaned tickets**.
+
+### A.2.1 Wireframe — delete confirm (inline, context-preserving)
+
+```
+│  ⋮⋮  architecture    [ic glyph-agent] /arch  [ic shield-solid] ARCH …  [+] [edit] [ic trash] │
+│  ┌─ delete “architecture”? ───────────────────────────────────────────────────────────────┐ │
+│  │ [ic glyph-warning]  3 tasks are currently in this stage. Deleting it won't lose them —    │ │
+│  │ they'll be shown as OFF-TRACK on the board until you move them to another stage.          │ │
+│  │ This edits the overlay only; the base workflow file is unchanged.                         │ │
+│  │                                                  [ Cancel ]   [ Delete stage ]            │ │
+│  └────────────────────────────────────────────────────────────────────────────────────────┘ │
+```
+
+- **Affordance + confirm.** `[ic glyph-trash]` opens an **inline confirm** under the row (not a separate modal — keeps the list in view). It states the **count of tickets currently in that stage** (derived on the FE: `tickets.filter(t => t.stage === name).length`) and what becomes of them. Focus moves to **Cancel** (the safe default); `Esc` cancels.
+- **What happens to tickets in a deleted stage (D-008 / C-27).** Tickets are **never deleted and never silently re-keyed** server-side. After the stage is removed from the track, those tickets' `stage` no longer matches any column → they surface in the board's **off-track lane** (§A.3.3). The confirm copy says so plainly so the operator isn't surprised. (If the stage is empty, the count line reads "No tasks are in this stage.")
+- **Empty-track guard.** Deleting the **last remaining stage** is refused: the `[ic glyph-trash]` on a single-stage track is disabled with a tooltip "A track needs at least one stage." The server also rejects an empty result (`400`, C-19) — the client guard is just fast feedback.
+- **Commit.** Confirm → the working list omits that name → one `track/set-stages` (declarative delete). Optimistic removal from the rail; CAS write; **409 → §1.4 reconcile** (adopt server state; the stage may reappear if another editor re-added it).
+
+### A.2.2 States
+
+| State | Treatment | aria-live |
+|---|---|---|
+| **confirming** | inline confirm with ticket-count + off-track explanation; focus on Cancel | — |
+| **saving** | `Delete stage` → `[ic glyph-spinner] deleting…`, row dimmed | `polite` "Deleting {name}…" |
+| **deleted** | row removed from the rail; pill `[ic glyph-check] saved`; if the stage held tickets, a quiet note "{n} task(s) are now off-track — move them to a stage." | `polite` "Stage {name} deleted." |
+| **blocked — last stage** | delete disabled + tooltip; no write attempted | — |
+| **CONFLICT (409)** | §1.4 reconcile; adopt server state | `assertive` |
+| **error** | inline "Couldn't delete the stage: {reason}." + Retry; list rolls back | `assertive` |
+
+---
+
+## A.3 Set a stage's owner / agent (ADT-225)
+
+### A.3.1 Inline owner picker on the stage row
+
+Every stage row's **owner** field (previously read-only derived text in §1.1) becomes an **inline owner picker** for *all* stages — not only gate-bearing ones (D-007 adds per-stage non-gate owners via `overlay.stageOwners`). The grip/name stay; the owner segment becomes an activation target:
+
+```
+│  ⋮⋮  design-review   [ic glyph-agent] /ui  ▾      (no gate)             [+] [edit] [ic trash] │
+│                       └─ click / Enter opens a constrained owner select ─┐                    │
+│                          ┌──────────────────────────────────┐            │                    │
+│                          │  —  (derived / none)              │  ← option  │                    │
+│                          │  /po   /ba   /arch   /secops      │            │                    │
+│                          │  /ui   /fe   /be   /rev  …         │  allowlist │                    │
+│                          └──────────────────────────────────┘            │                    │
+```
+
+- **From the allowed set only.** The picker is a `<select>` (native, keyboard-operable, type-ahead for free) constrained to the **allowed agent set** — never free text (secops C-20: owner is a constrained/plain capped string, never a path). `—` clears the explicit owner, letting the stage fall back to the derived precedence (overlay → gate owner → `STAGE_OWNER_DEFAULT` → null, per arch D-6).
+- **Shown on the row, escaped.** The selected owner renders `[ic glyph-agent] {owner}` in `--kb-text-muted`, **interpolated only** (a crafted owner string from a concurrent CLI write still shows as literal text — C-22).
+- **Persisted with the stage list.** Changing the owner is an immediate single-field commit: the working entry's `owner` is set and the **whole list** is sent as `track/set-stages` (the op carries per-stage owner). Optimistic + CAS; **409 → §1.4 reconcile**; error → inline + rollback. Pill follows the §1.3 lifecycle (`saving…` → `saved`, `aria-live` "Owner for {stage} set to {owner}.").
+- **Gate-owner vs stage-owner.** For a gate-bearing stage, the **gate's** owner is still edited in the §1.2 gate-rule editor (it drives the gate rule); the **stage** owner here is the agent that runs the stage. Where both exist the row shows the stage owner; the gate row (under `edit`) shows the gate owner — distinct, each labelled, neither colour-only.
+
+---
+
+## A.4 ADT-224 — viewed-project cue (mostly invisible; review-only)
+
+ADT-224 is a backend scoping fix: writes and the live stream already target the **viewed** project through `ControlPlaneService` + the per-project SSE channel; the id travels server-side and the UI sends nothing new. **No new screen, no new mutation control.** The existing conflict/again states (§1.4, §2.3) already cover the staleness cases. My review conclusion and the **one small affordance** worth adding:
+
+- **Confirm: the existing chrome already names the project.** The Project Shell header (`project-shell.component.ts`) shows the viewed project's name/title; the builder and board live *inside* that shell, so a mutation's target is unambiguous from the surrounding chrome. **No new control is required** to satisfy the ACs.
+- **Small cue worth adding (optional, recommended).** To remove any doubt that a write lands in the **viewed** project (the root-cause bug was writes leaking to the launch project), add a **quiet context line** to the builder's overlay banner and the board header: `[ic glyph-info] Editing **{project name}**` / `[ic glyph-info] Tasks for **{project name}**` — the project name escaped, `--kb-text-muted`, no new interaction. This reuses `glyph-info` (no new glyph) and reassures the operator which project they're acting on when several are open in different tabs.
+- **Cross-project staleness can't mislead.** Because each viewer's SSE channel is per-project (arch D-4), a frame from another project never reaches this board; the existing live-refresh + 409 reconcile already prevent a stale cross-project write from silently landing. **No new staleness UI is needed** beyond what §1.4 / §2.3 specify. If a live frame arrives for the viewed project, the board/builder re-derive in place (quiet `aria-live="polite"`), exactly as §2.5.
+
+**Verdict (ADT-224 DESIGN — review):** no new screen; the existing chrome + conflict/live-refresh states are sufficient. The optional "you're viewing {project}" cue is a low-cost honesty improvement, not a blocker.
+
+---
+
+## A.5 Stage-aligned Tasks board (ADT-226)
+
+Supersedes §2's status-grouped board. **Columns are now the active track's workflow stages, in order.** Status and needs-you move to **card chips** (they are not lost). This is a pure FE re-projection of state the server already delivers (arch D-9) — **no new route**.
+
+### A.5.1 Wireframe — stage-aligned board
+
+```
+┌─ TASKS ───────────────────────────────────  [ic glyph-info] Tasks for “DART Cockpit”  ──────┐
+│  track: full   (columns follow the workflow — edit it in Workflow to change these)           │
+│ ┌─ vision ─────────┐ ┌─ architecture ───┐ ┌─ security ───────┐ ┌─ code ───────┐ ┌─ done ───┐ │
+│ │ [ic agent] /po   │ │ [ic agent] /arch │ │ [ic agent]/secops│ │ [ic agent]/rev│ │ [ic chk] │ │  ← header: stage · owner · count
+│ │            2     │ │            1     │ │            1     │ │       0      │ │     3    │ │
+│ ├──────────────────┤ ├──────────────────┤ ├──────────────────┤ ├──────────────┤ ├──────────┤ │
+│ │ ADT-221          │ │ ADT-219          │ │ ADT-219b         │ │              │ │ ADT-201  │ │
+│ │ Editable Workflow│ │ KB embedder swap │ │ size-cap test    │ │   Nothing    │ │ Memory   │ │
+│ │ [chip] in_prog   │ │ [chip] blocked   │ │ [chip] waiting   │ │   in code.   │ │ [chip]done│ │  ← status = card CHIP
+│ │ [ic need] needs  │ │ [shield-solid]✗  │ │ [ic need] needs  │ │  (muted)     │ │          │ │
+│ │  you     [ ⋯ ▾ ] │ │  SEC      [ ⋯ ▾ ]│ │  you      [ ⋯ ▾ ]│ │              │ │  [ ⋯ ▾ ] │ │
+│ ├──────────────────┤ └──────────────────┘ └──────────────────┘ └──────────────┘ └──────────┘ │
+│ │ ADT-225          │                                                                          │
+│ │ Add/delete stage │              ◀───────────  horizontal scroll for many stages  ──────────▶│
+│ │ [chip] in_prog   │                                                                          │
+│ │          [ ⋯ ▾ ] │                                                                          │
+│ └──────────────────┘                                                                          │
+│ ─────────────────────────────────────────────────────────────────────────────────────────── │
+│  [ic glyph-warning] OFF-TRACK (2)  — these tasks are in a stage that's no longer in the track │
+│ ┌─ stage: “design-review” (removed) ─────────┐ ┌─ stage: “qa” (removed) ────────────────────┐ │
+│ │ ADT-230  Spike  [chip] waiting   [ ⋯ ▾ ]    │ │ ADT-231  Flaky test  [chip] blocked [ ⋯ ▾ ]│ │
+│ └────────────────────────────────────────────┘ └────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### A.5.2 Columns, headers, placement
+
+- **Columns = `workflowView.stages` in order.** The board iterates the **stage list**, not the tickets — so an **empty stage still renders** a labelled column with a muted placeholder ("Nothing in this stage.") (D-008). Column **header** = stage name (escaped) · its **owner** (`[ic glyph-agent] {owner}`, escaped, from `stageOwners`/`workflowView`) · a **count** of tickets in that stage. Header divider uses the existing `--kb-border`; no per-stage hue (stages aren't statuses — colour stays reserved for the status *chip*).
+- **Placement** = each ticket in the column where `ticket.stage === stage`. Counts match underlying state (AC).
+- **Horizontal scroll/overflow.** A track can have many stages; the board is a **horizontally scrollable row of columns** (`overflow-x: auto`, columns `min-width: ~12rem` as today, `scroll-snap-align: start` per column for tidy keyboard/scroll stops). The header's `track: …` line and the off-track lane stay pinned below; only the column strip scrolls. (No column virtualisation needed at this scale.)
+
+### A.5.3 Status + needs-you as card chips
+
+The card keeps §2.2's anatomy **minus the status-as-column meaning**: `id` (mono) · `title` (escaped, 2-line clamp) · **status chip** (`glyph + colour + text`: `glyph-progress`/`in progress`, `glyph-dot`/`waiting`, `glyph-blocked`/`blocked`, `glyph-check`/`done`) · gate-state chips (shield-shape hard/soft + state glyph) · a **`[ic glyph-need]` needs-you chip** when `ticketNeedsYou(t)` · the `[ic glyph-kebab] ⋯ ▾` action menu. Status is **a chip now, never a column** — it is preserved, not lost (D-008, AC).
+
+### A.5.4 Advance = move to the next STAGE
+
+The `⋯ ▾` menu (and the detail header's advance, §2.4) now reads **"Advance to {next stage}"** where next = `stages[indexOf(current)+1]` from the **stage order** (the existing `nextStage()` helper already computes this from `tracks`). On select → optimistic move of the card to the **column to its right** → existing `POST /api/ticket/advance {id, toStage, expectedRev, by}`. At the last stage the item reads "No further stage" (existing). **409 → §2.3 snap-back + inline "changed elsewhere — Retry"** (adopt the 409-body state). No drag (D-002/D-008): advance stays an explicit, labelled, keyboard-reachable action.
+
+### A.5.5 Off-track lane (orphaned stage — never hidden)
+
+A ticket whose `ticket.stage` is **not** in the active track's stage set (e.g. after that stage was deleted in §A.2) is **surfaced in a distinct "OFF-TRACK" lane** below the columns (D-008, C-27) — **never dropped, never silently re-placed**. Derived on the FE by set-difference (`ticket.stage ∉ columnStages`). The lane:
+
+- Has a clear header `[ic glyph-warning] OFF-TRACK ({n})` with a one-line why ("…in a stage that's no longer in the track").
+- Groups orphans by their **recorded stage** (shown escaped, labelled "(removed)") so the operator sees where each was.
+- Each card keeps its full anatomy + the **advance menu**, so the operator can **advance it onto a real stage** to re-home it (advance targets a stage that *is* in the track). The lane is empty-hidden when there are no orphans (absent-not-zero — no "OFF-TRACK (0)").
+
+### A.5.6 Live re-layout when the workflow is edited
+
+Because columns derive from `workflowView.stages`, a workflow edit (ADT-225 add/delete/move, or a CLI agent's change) arrives on the **same per-project SSE channel** (ADT-224) and the board **re-lays-out live, no reload** (AC): columns appear/disappear/reorder; tickets stay in their `stage` columns; a just-deleted stage's tickets drop into the off-track lane; counts refresh. A live change shows a quiet `aria-live="polite"` "Board updated"; an open detail refreshes in place (§2.5). A non-conflicting live change while a card menu is open preserves it where possible.
+
+### A.5.7 Board states
+
+| Surface | Loading | Empty | Error | Conflict |
+|---|---|---|---|---|
+| Board | column skeletons keyed to the stage list | no tickets → "No tasks yet…" (§2.6); a stage with no tickets → muted "Nothing in this stage." placeholder (column still rendered) | "Couldn't load tasks." + Retry; board not blanked | re-derives from SSE (no banner) |
+| Card advance | card `glyph-spinner` busy | — | inline "Couldn't advance: {reason}" + Retry; card snaps back | snap-back + "changed elsewhere — Retry" (§2.3) |
+| Off-track lane | — | hidden when empty (absent-not-zero) | — | re-derives live |
+
+---
+
+## A.6 Iconography additions (inline-SVG concepts — no library, no tofu)
+
+Same rules as §4: 24×24 viewBox, `stroke="currentColor"`, `stroke-width≈1.6`, `fill="none"`, `aria-hidden="true"`, colour inherited, **always paired with text**. New this addendum:
+
+| Name | Where | Concept (build as inline SVG) |
+|---|---|---|
+| `glyph-add-stage` | builder list-foot "Add stage" + per-row `[+]` insert | A short horizontal bar (a stage) with a small `+` at its right edge: `line 4,12→16,12` (bar) + `lines 19,9→19,15 & 16,12→22,12` (plus) — reads "add a stage to the list", distinct from the bare `glyph-plus` (which means "add a project/note"). |
+| `glyph-trash` | per-row "Delete {stage}" | A trash/bin outline: `rect` body + a `line` lid + two short inner `lines` (contents) — the universal "remove this row". Distinct from `glyph-remove` (the small chip `✕`), so deleting a *stage* ≠ removing a *trigger chip*. |
+| `glyph-agent` (owner) | stage-row owner picker, column header owner | **Reuse** cockpit-v2 §4 `glyph-agent` (◆ diamond) — owner/agent is already this glyph; the picker just makes it editable. No new glyph. |
+
+**Reused unchanged:** `glyph-info` (viewed-project cue + overlay banner), `glyph-warning` (delete confirm + off-track lane), `glyph-edit`, `glyph-grip`, `glyph-spinner`, `glyph-check`, `glyph-cross`, `glyph-conflict`, `glyph-kebab`, `glyph-advance`, `glyph-need`, `glyph-progress`, `glyph-dot`, `glyph-blocked`, `glyph-shield` (hard solid / soft dashed), `glyph-preset`, `glyph-remove`. **State-by-glyph+colour+text and hard/soft-by-shield-shape are unchanged** from §4. (Only **two** genuinely new glyphs — `glyph-add-stage`, `glyph-trash`; both must avoid the forbidden literal tofu symbols and resolve to real SVG paths.)
+
+---
+
+## A.7 Accessibility (WCAG 2.2 AA — addendum surfaces)
+
+**Keyboard — add / delete / owner (ADT-225):**
+- **Add stage:** both the list-foot button and each per-row `[+]` are `<button>`s; activating opens the new-stage row and **moves focus to the Name input**. The row is a labelled form (Name `aria-required`, error text associated via `aria-describedby`); `Enter` on a valid form submits, `Esc`/Cancel closes and returns focus to the trigger.
+- **Delete:** `[ic glyph-trash]` is a `<button>` "Delete {stage}"; it opens the inline confirm with **focus on Cancel** (safe default); `Esc` cancels; the confirm's destructive button is reachable by Tab. The single-stage delete button is `disabled` + `aria-disabled` with the tooltip reason.
+- **Owner:** the row owner is a native `<select>` (full keyboard + type-ahead, no custom widget); its accessible name is "Owner for {stage}".
+- Reorder is unchanged from §1.5 (roving tabindex; `Alt+↑/↓` moves the stage; `aria-live` announces position). Add/delete also announce via `aria-live="assertive"` ("Stage {name} added/deleted at position {n} of {m}").
+
+**Keyboard — stage board (ADT-226):**
+- Columns are a `role="list"` of `role="listitem"` stage columns; **the column strip is horizontally scrollable and keyboard-navigable** — `←/→` move focus across columns, `↑/↓` within a column's cards, cards activate with `Enter`/`Space` to open detail, the `⋯` menu is a `role="menu"` (arrow keys, `Esc`). The **off-track lane** is a peer `role="list"` reachable in normal Tab/arrow order — it is **not** a focus trap and never hidden when populated, so an orphaned ticket is always reachable to advance.
+- Focus is **never obscured** by the pinned `track:`/off-track header during horizontal scroll (`scroll-margin` on columns; 2.4.13).
+
+**aria-live:**
+- **builder (225):** the save-status pill stays `aria-live="polite"` (saved/saving); add/delete/owner changes announce on commit; the §1.4 409 reconcile is `role="alert"` and takes focus.
+- **board (226):** live re-layout → `aria-live="polite"` "Board updated"; an advance 409 → `role="alert"` on the card; a stage delete that orphans tickets announces "{n} task(s) are now off-track."
+
+**Escaped untrusted text everywhere (secops C-22/C-26):** stage names, owners, column headers, ticket titles, the off-track lane's "(removed)" stage labels, and the viewed-project name — **Angular interpolation only, never `[innerHTML]`/`bypassSecurityTrust*`** (`no-unsafe-binding` stays green). A `<script>`/`<img onerror>` payload in any of these renders as literal text.
+
+**Contrast / targets / focus:** column header text + count `--kb-text` ≥ 4.5:1; the stage-column divider, the off-track lane border, and chip borders ≥ 3:1; all interactive ≥ 24px (≥ 44px under `pointer:coarse`) — the `[+]` insert, `[ic glyph-trash]` delete, owner select, Add/Delete/Cancel buttons, and the board's `⋯` menu; focus = 2px `--kb-focus-ring`, 2px offset, ≥ 3:1.
+
+**Reduced motion:** the new-stage row entrance, the delete-row collapse, the board's live column re-layout transition, and `glyph-spinner` all respect `prefers-reduced-motion` (no slide/shimmer → instant; spinner → static ring). No essential state is conveyed by motion — the text label always carries it.
+
+**Colour never alone:** stage columns are not coloured by status (colour stays on the status *chip*); every status/gate/needs-you/save-lifecycle pairs **glyph + text**; hard/soft gate stays **shield shape**; the off-track lane is marked by **`glyph-warning` + the word OFF-TRACK + a position-in-track explanation**, never colour alone.
+
+---
+
+## A.8 Buildability & handoff notes (addendum)
+
+- **No new runtime deps, no icon library, no `[innerHTML]`.** Two new inline-SVG glyphs only (`glyph-add-stage`, `glyph-trash`); `no-tofu-glyphs` + `no-unsafe-binding` stay green (resolve wireframe symbols to glyphs, never paste them).
+- **Reuse, don't add.** The builder add/delete/owner all ride the **one** new backend op `track/set-stages` (declarative full-list write) — the FE sends the whole working list; it never invents a path or filename (secops C-19/C-20). The board adds **zero** server surface (arch D-9): columns from `workflowView.stages`, placement by `ticket.stage`, advance via the existing `ticket/advance`. ADT-224 needs **no** new client send — scoping is server-side; the only UI delta is the optional "{project name}" cue (`glyph-info`, no interaction).
+- **Shared conflict helper.** `set-stages` (add/delete/move/owner) and `advance` reuse the existing `conflictReconcile(attempt, serverState)` pattern (§6): adopt server state → roll back optimistic → surface CONFLICT → offer retry/re-apply. Append-only and read paths need none.
+- **Suggested order:** ADT-224 (scoping — unblocks the rest) → ADT-225 builder add/delete/owner (needs `/be`'s `set-stages` + `overlay.stageOwners` first) → ADT-226 board re-projection (pure FE over the now-scoped state + the ADT-225 stage model).
+- **Design QA after `/fe`** (against the **production build served same-origin**): a deleted stage's tickets appear in the off-track lane (not lost); add/delete/owner persist on reload with the base `workflow.yaml` byte-identical; columns re-lay-out live when the workflow is edited; advance moves a card one stage right and 409 snaps it back; horizontal scroll + keyboard column nav; paste `<script>` into a stage name / owner / ticket title → literal text; the owner picker offers only the allowed set; the viewed-project cue names the right project across two tabs.
+
+---
+
+## A.9 Gate (addendum)
+
+`DESIGN_APPROVED` recorded **passed** for:
+- **ADT-225 (soft)** — add-stage (affordance, insert point, validation, states), delete-stage (confirm + ticket-count + off-track handling per D-008, states), set-owner (inline allowlist picker on every stage row, escaped), all on the §1 builder, the overlay stage model, the shared 409 reconcile, and the keyboard/aria contract; two new inline-SVG glyphs.
+- **ADT-226 (soft)** — stage-aligned board (columns = ordered `workflowView.stages` with stage·owner·count headers; placement by `ticket.stage`; advance to next stage; status + needs-you as card chips; empty columns rendered; off-track lane for orphaned-stage tickets; horizontal scroll; live re-layout) with loading/empty/error/conflict states and the board keyboard/aria contract — zero new server surface.
+- **ADT-224 (review)** — no new screen; existing chrome + conflict/live-refresh states are sufficient; an optional low-cost "you're viewing {project}" cue (`glyph-info`) is recommended, not required.
+
+All within the arch data contracts (D-5…D-9) and the secops constraints (C-18…C-27 / N-17…N-23): overlay-only, validated, CAS-safe, escaped-everywhere, no new file-write surface beyond `.aidevteam/workflow.overrides.json`.
+
+**Next:** ADT-224 → `/be` ships `resolveProject` + per-project channels (N-1…N-16) → `/fe` wires the viewed id (+ optional cue); ADT-225 → `/be` ships `track/set-stages` + `overlay.stageOwners` (N-17…N-21) → `/fe` builds add/delete/owner over the §1 builder; ADT-226 → `/fe` re-projects the board (escaped) → `/rev`. Then `/sm` — please update sprint status.

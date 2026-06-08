@@ -30,9 +30,28 @@ The only genuinely new backend is a **Knowledge Base write endpoint** (deferred 
 
 `/arch` (Jorge) holds all three tickets (`assignee: /arch`, stage `ready`). Architecture first, then `/secops` (hard for ADT-223), then `/ui` (Aura) for design, then the Approval Gate, then `/fe` + `/be` under TDD.
 
+## Chunk 2 — root-cause fix + editable workflow + stage-aligned board
+
+User testing of the live interactive Cockpit surfaced a **root-cause multi-project scoping bug** and two product gaps. The Cockpit reads per-project correctly, but `hub/server.js` routes control-plane **writes** through `api.handle(route, data, PROJECT)` and the **live SSE stream** through `buildState()` — both bound to the single project the hub was *launched* with. Every browser mutation and every live update therefore targets the launch project, not the viewed one (proof: a note added while viewing one project was written to the launch project). The two gaps: the workflow is not editable (can't add/delete/move stages or set owner/gate-trigger), and the Tasks board groups by generic status instead of mirroring the workflow stages.
+
+| ID | Title | New backend? | Implementers | Gates |
+|----|-------|--------------|--------------|-------|
+| [ADT-224](tickets/ADT-224-project-scoped-control-plane.md) | Project-scoped control plane + live updates | Yes (write routing + SSE scoped by viewed-project id, registry-resolved + path-confined) | /be (routing) + /fe (send/subscribe with id) | ARCH, **SECOPS (HARD)**, DESIGN (review), APPROVAL, CODE_REVIEW, VERIFY |
+| [ADT-225](tickets/ADT-225-editable-workflow-builder.md) | Fully editable workflow builder (add/delete/move stage + owner + gate-trigger) — supersedes ADT-221 scope | Yes (stage add/delete overlay op + per-stage owner) | /be (overlay op) + /fe (builder) | ARCH, SECOPS (review), DESIGN, APPROVAL, CODE_REVIEW, VERIFY |
+| [ADT-226](tickets/ADT-226-stage-aligned-tasks-board.md) | Stage-aligned Tasks board — supersedes ADT-222 scope | No (re-projection over existing state) | /fe (mostly) + /be (confirm data) | ARCH, SECOPS (review), DESIGN, APPROVAL, CODE_REVIEW, VERIFY |
+
+**Classification (workflow-engine):** `solo` preset; all three **significant → `full` track**. **ADT-224 SECOPS is HARD** (safety override): external input selects a write-target path, so id→path resolution must confine every write to a registered project root (prove the negative: a crafted id can't write outside a registered path) — never downsized. ADT-225/226 get a SECOPS **review** (no new file-write surface beyond the existing overlay; ADT-225 validates new stage/owner input). ARCH and APPROVAL/CODE_REVIEW/VERIFY are hard on all three (full track); DESIGN is soft (review-only for 224, full for the two UIs). ADT-226 depends on ADT-224 (scoped live updates) and shares the stage model with ADT-225.
+
+**Deferred (named backlog in DECISION_LOG):** comment/handoff loop (BL-01), KB edit/delete + interpretation-check (BL-02), the DART↔main-tool plugin / record-intent execution model (BL-03), workflow conditions/loops (BL-04), drag-advance & free-form track authoring (BL-05).
+
+**Next action:** `/arch` (Jorge) holds ADT-224/225/226 (`assignee: /arch`, stage `ready`). Architecture first; then `/secops` (HARD for ADT-224, review for 225/226); then `/ui` (Aura) for design; then the Approval Gate; then `/fe` + `/be` under TDD.
+
 ## Definition of Done (this sprint)
 
 Per the global DoD, plus the sprint-specific negatives that must be proven, not assumed:
 - ADT-221: base `workflow.yaml` left byte-unchanged after edits; a stale-rev save is rejected (409), not applied.
 - ADT-222: a UI-added comment appears in both the timeline and the JSONL; a stale-rev advance/gate action is rejected.
 - ADT-223 (HARD): traversal/absolute/symlink targets rejected; an existing file is never overwritten; oversize/disallowed content rejected; the write is refused without the write-guard.
+- ADT-224 (HARD): a mutation/subscription while viewing project A targets A (not the launch project); an unknown/unregistered id is refused with nothing written; a crafted id/path cannot write outside a registered root (filesystem unchanged) — proven by negative test; guard + CAS preserved; single-project launch still works; two viewers see no cross-talk.
+- ADT-225: base workflow definition byte-identical after a full add/delete/move/owner/gate session; invalid edits (bad rearrangement, duplicate/empty name, empty-track delete) rejected with nothing persisted; a stale-rev save is rejected (409).
+- ADT-226: columns equal the active track's stages in order; advancing moves a task to the next stage; editing the workflow re-lays-out the columns without reload; an out-of-track-stage task stays visible (not dropped); status/needs-you remain as card chips.
