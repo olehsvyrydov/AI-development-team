@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
-import { ControlPlaneService, type MutationResult, type SetStagesStage } from '../core/control-plane.service';
+import { ControlPlaneService, type LabelSpec, type MutationResult, type SetStagesStage } from '../core/control-plane.service';
 import type { GateDef, LabelDef, ProjectState, RuleView, WorkflowStageView } from '../core/models';
 import { denormalizeRules, normalizeLabels, normalizeRules } from '../core/models';
 import { GlyphComponent } from './glyph.component';
+import { LabelsManagerComponent } from './labels-manager.component';
 import { StageRulesComponent } from './stage-rules.component';
 
 /** The gate that may never be routed past while unmet (safety override) — mirrored from the engine. */
@@ -59,19 +60,50 @@ interface ConflictAttempt {
 @Component({
   selector: 'dart-workflow-builder',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GlyphComponent, StageRulesComponent],
+  host: {
+    'data-testid': 'builder-motion-root',
+    '[attr.data-motion]': "motionOk() ? 'on' : 'off'",
+  },
+  imports: [GlyphComponent, StageRulesComponent, LabelsManagerComponent],
   template: `
     <div class="banner banner--overlay" data-testid="overlay-banner">
       <dart-glyph name="info" />
       <span>
-        You're editing this project's OVERLAY — the base workflow file is never changed.
+        Your changes save to this project only — the shared default is never touched.
         @if (isDefaultWorkflow()) {
-          <span class="banner__sub">This project uses the default workflow; your first edit creates an overlay.</span>
+          <span class="banner__sub">This project still uses the default pipeline. Your first edit saves a copy just for here.</span>
         }
       </span>
     </div>
 
+    @if (showFirstRun()) {
+      <div class="firstrun" data-testid="first-run-card">
+        <div class="firstrun__body">
+          <p class="firstrun__head">Build the steps your AI team follows — and the rules that move work between them.</p>
+          <ul class="firstrun__list">
+            <li><span class="firstrun__term">Stage</span> — a step work moves through. Drag to reorder.</li>
+            <li><span class="firstrun__term">Owner</span> — the agent who works that step.</li>
+            <li><span class="firstrun__term">Gate</span> — an approval that must pass before work moves on.</li>
+            <li><span class="firstrun__term">Rule</span> — a "when this happens, do that" automation you write.</li>
+            <li><span class="firstrun__term">Label</span> — a word that routes work between stages.</li>
+            <li><span class="firstrun__term">Route</span> — moving work to a stage.</li>
+          </ul>
+          <p class="firstrun__honest">DART decides what happens next; your AI tool does the work.</p>
+        </div>
+        <button type="button" class="btn btn--ghost" data-testid="first-run-dismiss" (click)="dismissFirstRun()">Got it</button>
+      </div>
+    }
+
     <div class="topbar">
+      <div class="viewtabs" role="tablist" aria-label="Builder view" data-testid="view-tabs">
+        <button type="button" class="viewtab" role="tab" [class.viewtab--active]="view() === 'stages'" [attr.aria-selected]="view() === 'stages'" data-testid="stages-tab" (click)="showStages()">
+          <dart-glyph name="preset" /> Stages
+        </button>
+        <button type="button" class="viewtab" role="tab" [class.viewtab--active]="view() === 'labels'" [attr.aria-selected]="view() === 'labels'" data-testid="labels-tab" (click)="showLabels()">
+          <dart-glyph name="label" /> Labels @if (labels().length > 0) { <span class="viewtab__count">{{ labels().length }}</span> }
+        </button>
+      </div>
+
       <div class="preset" role="radiogroup" aria-label="Workflow preset" data-testid="preset-control">
         <span class="preset__label"><dart-glyph name="preset" /> Preset</span>
         @for (p of presets; track p) {
@@ -121,9 +153,19 @@ interface ConflictAttempt {
       <p class="banner banner--error" role="alert" data-testid="builder-error"><dart-glyph name="cross" /> {{ e }}</p>
     }
 
+    @if (view() === 'labels') {
+      <dart-labels-manager
+        [labels]="labels()"
+        [stages]="stageNames()"
+        [owners]="ownerOptions()"
+        [saving]="lifecycle() === 'saving'"
+        (save)="saveLabels($event)"
+      />
+    } @else {
+
     <p class="hint" id="reorder-hint">Drag a stage by its handle to reorder. No mouse? Focus the handle, then Space to pick up / arrows to move / Space to drop (or Alt+ArrowUp / Alt+ArrowDown).</p>
 
-    <ol class="rows" role="list" aria-label="Workflow stages" aria-describedby="reorder-hint">
+    <ol class="rows" role="list" aria-label="Workflow stages" aria-describedby="reorder-hint" data-testid="builder-rail">
       @for (s of working(); track s.stage; let i = $index) {
         <li
           class="row"
@@ -134,6 +176,20 @@ interface ConflictAttempt {
           (dragover)="onRowDragOver($event, i)"
           (drop)="onRowDrop($event, i)"
         >
+          <span class="rail__node" [attr.data-testid]="'rail-node-' + s.stage" [attr.data-node]="nodeKind(s)" aria-hidden="true">
+            @switch (nodeKind(s)) {
+              @case ('none') {
+                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" /></svg>
+              }
+              @case ('gate-hard') {
+                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 7 L17 12 L12 17 L7 12 Z" fill="currentColor" stroke="none" /></svg>
+              }
+              @case ('gate-soft') {
+                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 7 L17 12 L12 17 L7 12 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2" /></svg>
+              }
+            }
+          </span>
+
           <button
             type="button"
             class="row__grip"
@@ -231,6 +287,7 @@ interface ConflictAttempt {
               [saving]="lifecycle() === 'saving'"
               (save)="saveRules($event)"
               (cancel)="closeRules()"
+              (manageLabels)="showLabels()"
             />
           }
 
@@ -347,6 +404,8 @@ interface ConflictAttempt {
       </button>
     </div>
 
+    }
+
     <p class="sr-only" role="status" aria-live="assertive" data-testid="builder-live">{{ announce() }}</p>
   `,
   styles: `
@@ -355,6 +414,18 @@ interface ConflictAttempt {
     .banner--overlay { background: var(--kb-surface-muted); color: var(--kb-text-muted); }
     .banner--overlay dart-glyph { color: var(--kb-accent); flex: none; }
     .banner__sub { display: block; color: var(--kb-text-subtle); font-size: var(--kb-text-xs); }
+    .firstrun { display: flex; gap: var(--kb-space-3); align-items: flex-start; padding: var(--kb-space-3); background: var(--kb-surface-muted); border: 1px solid var(--kb-accent); border-radius: var(--kb-radius-md); }
+    .firstrun__body { display: flex; flex-direction: column; gap: 0.4rem; }
+    .firstrun__head { margin: 0; font-weight: 600; color: var(--kb-text); }
+    .firstrun__list { margin: 0; padding-left: 1rem; display: flex; flex-direction: column; gap: 0.15rem; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
+    .firstrun__term { font-weight: 600; color: var(--kb-text); }
+    .firstrun__honest { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
+    .firstrun .btn { margin-left: auto; flex: none; }
+    .viewtabs { display: inline-flex; gap: 0.2rem; padding: 0.2rem; border: 1px solid var(--kb-border); border-radius: 999px; }
+    .viewtab { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.7rem; font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-text-muted); background: var(--kb-surface-muted); border: none; border-radius: 999px; cursor: pointer; }
+    .viewtab--active { color: var(--kb-accent); background: var(--kb-accent-soft); }
+    .viewtab:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
+    .viewtab__count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.1rem; height: 1.1rem; padding: 0 0.25rem; font-size: var(--kb-text-xs); background: var(--kb-accent-soft); color: var(--kb-accent); border-radius: 999px; }
     .banner--conflict { background: color-mix(in srgb, var(--kb-warning) 14%, transparent); border-color: var(--kb-warning); color: var(--kb-text); align-items: flex-start; }
     .banner--conflict dart-glyph { color: var(--kb-warning); flex: none; }
     .banner__body { display: flex; flex-direction: column; gap: 0.35rem; }
@@ -373,8 +444,14 @@ interface ConflictAttempt {
     .pill--editing { color: var(--kb-warning); }
     .pill--conflict, .pill--error { color: var(--kb-danger); }
     .hint { margin: 0; }
-    .rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--kb-space-1); }
-    .row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.35rem 0.5rem; background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
+    /* Motion tokens — one place reduced-motion zeroes them; transitions read these. */
+    :host { --kb-dur-fast: 120ms; --kb-dur-base: 160ms; --kb-dur-slow: 200ms; --kb-dur-draw: 240ms; --kb-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --kb-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); }
+    .rows { list-style: none; margin: 0; padding: 0 0 0 1.6rem; position: relative; display: flex; flex-direction: column; gap: var(--kb-space-2); }
+    /* The pipeline spine: a vertical rail the nodes sit on. */
+    .rows::before { content: ''; position: absolute; left: 0.55rem; top: 0.6rem; bottom: 0.6rem; width: 1.5px; background: var(--kb-border); }
+    .rail__node { position: absolute; left: -1.35rem; top: 0.5rem; display: inline-flex; color: var(--kb-text-muted); background: var(--kb-bg, var(--kb-surface)); }
+    .rail__node[data-node='gate-hard'] { color: var(--kb-accent); }
+    .row { position: relative; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: var(--kb-space-2) 0.6rem; background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); transition: transform var(--kb-dur-base) var(--kb-ease-in-out), box-shadow var(--kb-dur-fast) var(--kb-ease-out); }
     .row__grip, .row__move { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--kb-text-muted); background: transparent; border: 1px solid transparent; border-radius: var(--kb-radius-sm); cursor: pointer; }
     .row__grip { width: 1.75rem; height: 1.75rem; color: var(--kb-text-subtle); cursor: grab; }
     .row__grip:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
@@ -393,9 +470,19 @@ interface ConflictAttempt {
     .row__rules { gap: 0.25rem; padding: 0.15rem 0.5rem; font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-text-muted); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: 999px; cursor: pointer; }
     .row__rules--on, .seg--active { color: var(--kb-accent); border-color: var(--kb-accent); }
     .row__del { color: var(--kb-danger); }
-    .row--lifted { opacity: 0.85; border-color: var(--kb-accent); box-shadow: var(--kb-shadow-md, 0 2px 8px rgba(0,0,0,0.3)); }
+    /* M1 drag lift: the card detaches (scale + elevation + accent ring). */
+    .row--lifted { opacity: 0.85; transform: scale(0.97); border-color: var(--kb-accent); box-shadow: var(--kb-shadow-md, 0 2px 8px rgba(0,0,0,0.3)); }
+    /* M2 insertion line: where the drop lands. */
     .row--dragover { border-top: 2px solid var(--kb-accent); }
-    @media (prefers-reduced-motion: reduce) { .row { transition: none; } }
+    /* M9 spinner already self-gates; M1–M8 read the tokens above. Reduced motion zeroes every token
+       in one place AND disables the transform/scale so no state is ever carried by motion alone. */
+    :host([data-motion='off']) .row, .reduced .row { transition: none; }
+    :host([data-motion='off']) .row--lifted { transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      :host { --kb-dur-fast: 0ms; --kb-dur-base: 0ms; --kb-dur-slow: 0ms; --kb-dur-draw: 0ms; }
+      .row { transition: none; }
+      .row--lifted { transform: none; }
+    }
     .confirm { flex: 1 1 100%; margin-top: 0.35rem; padding: var(--kb-space-2); background: color-mix(in srgb, var(--kb-warning) 10%, var(--kb-surface)); border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); }
     .confirm__body { margin: 0; display: flex; gap: 0.4rem; align-items: flex-start; font-size: var(--kb-text-sm); color: var(--kb-text); }
     .confirm__body dart-glyph { color: var(--kb-warning); flex: none; }
@@ -457,6 +544,32 @@ export class WorkflowBuilderComponent {
       .filter((s) => s.gate?.name === SAFETY_GATE && s.gate.refusal === 'hard')
       .map((s) => s.stage),
   );
+
+  /**
+   * Whether tasteful motion is allowed, mirrored from `prefers-reduced-motion`. Every transition reads
+   * its duration from a `--kb-dur-*` token zeroed under the reduced-motion media query, so this signal
+   * is the single behavioural gate (and drives the host `data-motion` attribute) — no state is ever
+   * carried by motion alone; glyph + text always carry it.
+   */
+  readonly motionOk = signal(this.prefersMotion());
+
+  private prefersMotion(): boolean {
+    if (typeof matchMedia !== 'function') return true;
+    return !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /** The rail node shape for a stage: a plain dot for no gate, a diamond (solid/dashed) for hard/soft. */
+  nodeKind(s: WorkflowStageView): 'none' | 'gate-hard' | 'gate-soft' {
+    if (!s.gate) return 'none';
+    return s.gate.refusal === 'hard' ? 'gate-hard' : 'gate-soft';
+  }
+
+  /** Which body the builder shows: the stage pipeline or the workflow-level labels manager. */
+  readonly view = signal<'stages' | 'labels'>('stages');
+
+  /** The dismissible first-run mental-model helper card; hidden once the operator dismisses it. */
+  readonly firstRunDismissed = signal(false);
+  readonly showFirstRun = computed(() => !this.firstRunDismissed());
 
   /** The stage whose inline rule editor is open, or null. */
   readonly rulesOpenFor = signal<string | null>(null);
@@ -768,6 +881,31 @@ export class WorkflowBuilderComponent {
     const res = await this.cp.setRules({ rules: denormalizeRules(rules), expectedRev: this.rev() });
     if (res.ok === true) this.closeRules();
     this.reconcile(res, { summary: 'edit rules', kind: 'rules' });
+  }
+
+  // View + first-run helper ------------------------------------------------------------------------
+
+  showStages(): void {
+    this.view.set('stages');
+  }
+
+  /** Open the workflow-level labels manager (also the target of the rule strip's "manage labels" link). */
+  showLabels(): void {
+    this.view.set('labels');
+  }
+
+  dismissFirstRun(): void {
+    this.firstRunDismissed.set(true);
+  }
+
+  // Label management — full-map declarative write, same overlay/rev as rules ------------------------
+
+  /** Persist the full new label contract (the manager merged its edit into the project's others). */
+  async saveLabels(labels: Record<string, LabelSpec>): Promise<void> {
+    this.lifecycle.set('saving');
+    this.errorText.set(null);
+    const res = await this.cp.setLabels({ labels, expectedRev: this.rev() });
+    this.reconcile(res, { summary: 'edit labels', kind: 'rules' });
   }
 
   // Gate-rule edit — commits immediately -----------------------------------------------------------

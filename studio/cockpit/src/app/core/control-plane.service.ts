@@ -131,6 +131,28 @@ export interface SetRulesInput {
   readonly expectedRev: string;
 }
 
+/**
+ * Body for `workflow/set-labels`. `labels` is the COMPLETE label contract for the project as one
+ * declarative overlay patch — create/edit/delete are all expressed by sending the full name-keyed
+ * map (`{ NAME: { settable_by, routes_to?, owner?, meaning? } }`). The hub re-validates every entry
+ * (name bounded + proto-safe, `settable_by` a list → 400) and is the authority; the client mirror is
+ * UX only. `expectedRev` guards against a stale overlay write (stale → 409 conflict, never a silent
+ * overwrite). Labels share the same overlay/`rev` as stages and rules, so they conflict the same way.
+ */
+export interface SetLabelsInput {
+  /** The full label contract keyed by name, in the engine's snake_case wire shape. */
+  readonly labels: Readonly<Record<string, LabelSpec>>;
+  readonly expectedRev: string;
+}
+
+/** One label's engine-shaped definition: who may set it, where it routes, who owns it, what it means. */
+export interface LabelSpec {
+  readonly settable_by: readonly string[];
+  readonly routes_to?: string;
+  readonly owner?: string;
+  readonly meaning?: string;
+}
+
 interface MutationEnvelope {
   readonly ok?: boolean;
   readonly conflict?: boolean;
@@ -207,6 +229,16 @@ export class ControlPlaneService {
    */
   setRules(input: SetRulesInput): Promise<MutationResult> {
     return this.mutate('/api/workflow/set-rules', input);
+  }
+
+  /**
+   * Persist the project's full label contract in one declarative overlay write, keyed on
+   * `expectedRev`. The server re-validates every entry (name rules, `settable_by` a list) and is the
+   * authority; a stale write returns a `conflict` result, never a silent overwrite. Mirrors
+   * {@link setRules} — labels live in the same overlay/`rev`.
+   */
+  setLabels(input: SetLabelsInput): Promise<MutationResult> {
+    return this.mutate('/api/workflow/set-labels', input);
   }
 
   /**

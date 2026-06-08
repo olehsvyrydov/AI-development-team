@@ -35,6 +35,8 @@ export const GLYPH_NAMES = [
   'branch',
   'loop',
   'label',
+  'caret',
+  'help',
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -231,6 +233,18 @@ export type GlyphName = (typeof GLYPH_NAMES)[number];
         <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
           <path d="M4 12 l7 -7 h7 v7 l-7 7 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
           <circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none" />
+        </svg>
+      }
+      @case ('caret') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <polyline points="8,10 12,14 16,10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('help') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M9.5 9.5 a2.5 2.5 0 1 1 3.2 2.4 c-0.7 0.3 -0.7 0.8 -0.7 1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <circle cx="12" cy="16.5" r="0.9" fill="currentColor" stroke="none" />
         </svg>
       }
     }

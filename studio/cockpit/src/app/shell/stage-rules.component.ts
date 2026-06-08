@@ -19,8 +19,13 @@ const EVENT_NAMES = [
   'ticket.created',
 ] as const;
 
-/** The DO-action kinds the selector offers (fan_out is schema-only). */
-const ACTION_TYPES = ['route_to_stage', 'set_label', 'clear_label', 'instruct', 'fan_out'] as const;
+/**
+ * The DO-action kinds the editor OFFERS as new actions. `fan_out` is deliberately absent: the engine
+ * records but does not execute parallel branches, so authoring a new one would be a control that does
+ * nothing. The model union still carries `fan_out` and any pre-existing one renders read-only — the
+ * editor simply never offers it as a new action.
+ */
+const ACTION_TYPES = ['route_to_stage', 'set_label', 'clear_label', 'instruct'] as const;
 
 /** Agents an Instruct action may target. */
 const INSTRUCT_TARGETS = ['/po', '/ba', '/arch', '/secops', '/ui', '/fe', '/be', '/rev', '/qa', '/e2e', '/verify'] as const;
@@ -60,9 +65,12 @@ interface RuleDraft {
       </div>
 
       @if (stageRules().length === 0 && !draft()) {
-        <p class="rules__empty" [attr.data-testid]="'rules-empty-' + stage()">
-          No conditions yet — add a rule to route, loop, or instruct on this stage.
-        </p>
+        <div class="rules__empty" [attr.data-testid]="'rules-empty-' + stage()">
+          <p class="rules__emptyhead"><dart-glyph name="condition" /> No rules on this stage yet.</p>
+          <p class="rules__emptybody">A rule is "when this happens, do that". For example:</p>
+          <p class="rules__exline"><span class="kw">When</span> the review is rejected and the ticket has label TO_DEV_BE</p>
+          <p class="rules__exline"><span class="kw">Do</span> send it back to /be to fix, then clear the label.</p>
+        </div>
       }
 
       @for (r of stageRules(); track r.id) {
@@ -79,16 +87,24 @@ interface RuleDraft {
             }
           </p>
           @for (a of r.do; track $index) {
-            <p class="rulecard__do">
-              <dart-glyph name="branch" /> <span class="kw">DO</span>
-              <span class="act">{{ actionText(a) }}</span>
-              @if (isBackwardRoute(a)) {
-                <span class="loopback" [attr.data-testid]="'loopback-' + r.id"><dart-glyph name="loop" /> loops back</span>
-              }
-              @if (a.action === 'clear_label') {
-                <span class="oneshot">(one-shot — prevents an infinite loop)</span>
-              }
-            </p>
+            @if (a.action === 'fan_out') {
+              <p class="rulecard__do rulecard__do--inert" [attr.data-testid]="'fanout-' + r.id">
+                <dart-glyph name="pending" /> <span class="kw">DO</span>
+                <span class="act">{{ actionText(a) }}</span>
+                <span class="inertnote">— parallel execution is not available yet; this action is recorded but does not run yet.</span>
+              </p>
+            } @else {
+              <p class="rulecard__do">
+                <dart-glyph name="branch" /> <span class="kw">DO</span>
+                <span class="act">{{ actionText(a) }}</span>
+                @if (isBackwardRoute(a)) {
+                  <span class="loopback" [attr.data-testid]="'loopback-' + r.id"><dart-glyph name="loop" /> loops back</span>
+                }
+                @if (a.action === 'clear_label') {
+                  <span class="oneshot">(clears the label so the loop runs once, not forever)</span>
+                }
+              </p>
+            }
           }
           <div class="rulecard__foot">
             <button type="button" class="btn btn--ghost btn--sm" [attr.data-testid]="'rule-edit-' + r.id" (click)="startEdit(r)">
@@ -102,27 +118,40 @@ interface RuleDraft {
       }
 
       <p class="strip" [attr.data-testid]="'allowed-labels-' + stage()">
-        <dart-glyph name="label" /> {{ ownerLabel() }} may set:
+        <dart-glyph name="label" /> Labels {{ ownerLabel() }} can use here:
         @if (settableLabels().length === 0) {
-          <span class="strip__none">no labels (per the contract)</span>
+          <span class="strip__none">none yet —</span>
+          <button type="button" class="strip__link" [attr.data-testid]="'manage-labels-link-' + stage()" (click)="manageLabels.emit()">create a label</button>
+          <span class="strip__none">and choose {{ ownerLabel() }} under "Who can set this".</span>
         } @else {
           @for (l of settableLabels(); track l.name) {
             <span class="labelchip" [attr.data-testid]="'allowed-chip-' + l.name">{{ l.name }}@if (l.routesTo) { <span class="labelchip__route"> &rarr; {{ l.routesTo }}</span> }</span>
           }
+          <button type="button" class="strip__link" [attr.data-testid]="'manage-labels-link-' + stage()" (click)="manageLabels.emit()">manage labels</button>
         }
       </p>
 
       @if (draft(); as d) {
         <form class="editor" [attr.data-testid]="'rule-editor-' + stage()" (submit)="$event.preventDefault(); emitSave()">
+          <p class="editor__title">{{ d.originalId ? 'Edit rule' : 'New rule — when something happens, do something.' }}</p>
+
           <label class="editor__name">
             <span>Name</span>
             <input data-testid="rule-name" [value]="d.id" (input)="setId($any($event.target).value)" />
+            <span class="editor__hint">A short name so you can find this rule later — e.g. send-rejection-to-backend.</span>
           </label>
 
           <fieldset class="editor__group">
-            <legend><dart-glyph name="condition" /> WHEN</legend>
+            <legend>
+              <span class="editor__legend"><dart-glyph name="condition" /> When this happens…</span>
+              <button type="button" class="editor__help" data-testid="when-help-toggle" [attr.aria-expanded]="whenHelp()" aria-label="Help on conditions" (click)="whenHelp.set(!whenHelp())"><dart-glyph name="help" /></button>
+            </legend>
+            <p class="editor__sub">All of these must be true (AND).</p>
+            @if (whenHelp()) {
+              <p class="editor__helpbody" data-testid="when-help">Pick what makes this rule run — a label on the ticket, text in a comment, or a workflow event like a gate passing or being rejected. Leave it empty to run every time the stage runs.</p>
+            }
             @if (d.when.length === 0) {
-              <p class="editor__hint">No condition — this rule runs whenever the stage runs.</p>
+              <p class="editor__hint">No condition yet — this rule runs every time the stage runs. Add a condition to narrow it.</p>
             }
             @for (c of d.when; track $index) {
               <div class="editor__row" [attr.data-testid]="'condition-row-' + $index">
@@ -150,13 +179,21 @@ interface RuleDraft {
                 <button type="button" class="btn btn--ghost btn--sm" [attr.data-testid]="'condition-remove-' + $index" aria-label="Remove condition" (click)="removeCondition($index)"><dart-glyph name="remove" /></button>
               </div>
             }
-            <button type="button" class="btn btn--ghost btn--sm" data-testid="rule-add-condition" (click)="addCondition()"><dart-glyph name="condition" /> add condition (AND)</button>
+            <button type="button" class="btn btn--ghost btn--sm" data-testid="rule-add-condition" (click)="addCondition()"><dart-glyph name="condition" /> add another condition (all must match)</button>
           </fieldset>
 
           <fieldset class="editor__group">
-            <legend><dart-glyph name="branch" /> DO (in order)</legend>
+            <legend>
+              <span class="editor__legend"><dart-glyph name="branch" /> …do this, in order:</span>
+              <button type="button" class="editor__help" data-testid="do-help-toggle" [attr.aria-expanded]="doHelp()" aria-label="Help on actions" (click)="doHelp.set(!doHelp())"><dart-glyph name="help" /></button>
+            </legend>
+            <p class="editor__sub">These actions run top-to-bottom.</p>
+            @if (doHelp()) {
+              <p class="editor__helpbody" data-testid="do-help">Each action runs in order: send work to a stage, add or remove a label, or instruct an agent. DART records the instruction; your AI tool carries it out.</p>
+            }
             @for (a of d.do; track $index) {
               <div class="editor__row" [attr.data-testid]="'action-row-' + $index">
+                <span class="editor__num">{{ $index + 1 }}</span>
                 <select [attr.data-testid]="'action-type-' + $index" [value]="a.action" (change)="setActionType($index, $any($event.target).value)">
                   @for (t of actionTypes; track t) { <option [value]="t" [selected]="t === a.action">{{ actionTypeLabel(t) }}</option> }
                 </select>
@@ -180,24 +217,26 @@ interface RuleDraft {
                     </select>
                   }
                   @case ('instruct') {
+                    <span class="editor__conn">tell</span>
                     <select [attr.data-testid]="'action-target-' + $index" [value]="firstTarget(a)" (change)="setActionTarget($index, $any($event.target).value)">
                       <option value="">who…</option>
                       @for (t of instructTargets; track t) { <option [value]="t" [selected]="t === firstTarget(a)">{{ t }}</option> }
                     </select>
-                    <input [attr.data-testid]="'action-prompt-' + $index" placeholder="prompt" [value]="a.prompt || ''" (input)="setActionField($index, 'prompt', $any($event.target).value)" />
-                  }
-                  @case ('fan_out') {
-                    <span class="editor__later">parallel — later</span>
+                    <input [attr.data-testid]="'action-prompt-' + $index" placeholder="what should they do?" [value]="a.prompt || ''" (input)="setActionField($index, 'prompt', $any($event.target).value)" />
                   }
                 }
                 <button type="button" class="btn btn--ghost btn--sm" [attr.data-testid]="'action-remove-' + $index" aria-label="Remove action" (click)="removeAction($index)"><dart-glyph name="remove" /></button>
               </div>
             }
-            <button type="button" class="btn btn--ghost btn--sm" data-testid="rule-add-action" (click)="addAction()"><dart-glyph name="branch" /> add action</button>
+            <button type="button" class="btn btn--ghost btn--sm" data-testid="rule-add-action" (click)="addAction()"><dart-glyph name="branch" /> add another action</button>
           </fieldset>
 
+          <p class="editor__preview" data-testid="rule-preview">
+            <span class="editor__previewlabel">This rule:</span> {{ previewSentence() }}
+          </p>
+
           <p class="editor__loopnote" data-testid="rule-loop-note">
-            <dart-glyph name="warning" /> A backward route loops. A per-ticket loop budget applies; on exceedance the ticket gets NEEDS_HUMAN.
+            <dart-glyph name="warning" /> This rule can send work backward — that's a loop, and it's fine. If a ticket loops too many times, DART stops and hands it to you instead of looping forever.
           </p>
 
           @if (draftError(); as e) {
@@ -219,7 +258,12 @@ interface RuleDraft {
     .rules { display: flex; flex-direction: column; gap: 0.5rem; padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
     .rules__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
     .rules__title { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; font-size: var(--kb-text-sm); color: var(--kb-text); }
-    .rules__empty { margin: 0; font-size: var(--kb-text-sm); color: var(--kb-text-subtle); }
+    .rules__empty { display: flex; flex-direction: column; gap: 0.15rem; margin: 0; font-size: var(--kb-text-sm); color: var(--kb-text-subtle); }
+    .rules__emptyhead { display: flex; align-items: center; gap: 0.3rem; margin: 0; font-weight: 600; color: var(--kb-text-muted); }
+    .rules__emptybody { margin: 0; }
+    .rules__exline { margin: 0; padding-left: 0.5rem; color: var(--kb-text-muted); }
+    .rulecard__do--inert { color: var(--kb-text-subtle); }
+    .inertnote { font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
     .rulecard { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.4rem 0.5rem; background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); }
     .rulecard__when, .rulecard__do { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin: 0; font-size: var(--kb-text-sm); color: var(--kb-text); }
     .kw { font-weight: 700; letter-spacing: 0.03em; color: var(--kb-text-muted); }
@@ -232,12 +276,24 @@ interface RuleDraft {
     .labelchip { display: inline-flex; align-items: center; padding: 0.05rem 0.4rem; background: var(--kb-accent-soft); color: var(--kb-accent); border-radius: 999px; }
     .labelchip__route { color: var(--kb-text-muted); }
     .strip__none { color: var(--kb-text-subtle); }
+    .strip__link { padding: 0; font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-accent); background: transparent; border: none; text-decoration: underline; cursor: pointer; }
+    .strip__link:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
     .editor { display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
+    .editor__title { margin: 0; font-weight: 600; color: var(--kb-text); }
     .editor__name { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
     .editor__group { display: flex; flex-direction: column; gap: 0.35rem; margin: 0; padding: 0.4rem; border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); }
-    .editor__group legend { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--kb-text-xs); font-weight: 700; color: var(--kb-text-muted); }
+    .editor__group legend { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; width: 100%; }
+    .editor__legend { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--kb-text-sm); font-weight: 700; color: var(--kb-text); }
+    .editor__help { display: inline-flex; padding: 0.1rem; color: var(--kb-text-muted); background: transparent; border: none; cursor: pointer; }
+    .editor__help:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; border-radius: var(--kb-radius-sm); }
+    .editor__sub { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
+    .editor__helpbody { margin: 0; padding: 0.3rem 0.4rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); background: var(--kb-surface); border-radius: var(--kb-radius-sm); }
+    .editor__num { display: inline-flex; align-items: center; justify-content: center; width: 1.3rem; height: 1.3rem; font-size: var(--kb-text-xs); font-weight: 700; color: var(--kb-text-muted); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: 999px; flex: none; }
+    .editor__conn { font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
+    .editor__preview { margin: 0; padding: 0.4rem 0.5rem; font-size: var(--kb-text-sm); color: var(--kb-text); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); }
+    .editor__previewlabel { font-weight: 700; color: var(--kb-text-muted); }
     .editor__row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
-    .editor__hint, .editor__later { font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
+    .editor__hint { font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
     .editor select, .editor input { padding: 0.2rem 0.35rem; font: inherit; font-size: var(--kb-text-sm); color: var(--kb-text); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm); }
     .editor__loopnote { display: flex; align-items: center; gap: 0.3rem; margin: 0; font-size: var(--kb-text-xs); color: var(--kb-warning); }
     .editor__err { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-danger); }
@@ -263,6 +319,8 @@ export class StageRulesComponent {
   /** The full new rule list (the edited rule merged into the project's others), to persist. */
   readonly save = output<readonly RuleView[]>();
   readonly cancel = output<void>();
+  /** Asks the parent builder to open the Labels management surface (the strip's create/manage link). */
+  readonly manageLabels = output<void>();
 
   readonly conditionTypes = CONDITION_TYPES;
   readonly eventNames = EVENT_NAMES;
@@ -271,6 +329,37 @@ export class StageRulesComponent {
 
   private readonly draftSig = signal<RuleDraft | null>(null);
   readonly draft = this.draftSig.asReadonly();
+
+  /** Collapsed-by-default inline help disclosures for the WHEN / DO sections. */
+  readonly whenHelp = signal(false);
+  readonly doHelp = signal(false);
+
+  /**
+   * The draft echoed as one plain sentence, reusing the read renderers ({@link conditionText} /
+   * {@link actionText}) so what the user sees while authoring matches the saved card exactly.
+   */
+  readonly previewSentence = computed<string>(() => {
+    const d = this.draftSig();
+    if (!d) return '';
+    const conds = d.when.filter((c) => this.conditionFilled(c)).map((c) => this.conditionText(c));
+    const acts = d.do.filter((a) => this.actionFilled(a)).map((a) => this.actionText(a));
+    const when = conds.length ? `When ${conds.join(' and ')}, ` : 'Whenever this stage runs, ';
+    const then = acts.length ? acts.join(', then ') : '(no actions yet)';
+    return `${when}${then}.`;
+  });
+
+  private conditionFilled(c: RuleCondition): boolean {
+    if (c.type === 'label') return !!c.label;
+    if (c.type === 'pattern') return !!c.pattern;
+    return !!c.event;
+  }
+
+  private actionFilled(a: RuleAction): boolean {
+    if (a.action === 'route_to_stage') return !!a.stage;
+    if (a.action === 'set_label' || a.action === 'clear_label') return !!a.label;
+    if (a.action === 'instruct') return !!(a.target && a.target[0]);
+    return true;
+  }
 
   /** The rules attached to this stage (read cards). */
   readonly stageRules = computed(() => this.rules().filter((r) => (r.stage ?? null) === this.stage()));
@@ -286,19 +375,19 @@ export class StageRulesComponent {
   readonly ownerLabel = computed(() => this.owner() ?? 'this stage');
 
   conditionTypeLabel(t: string): string {
-    return t === 'pattern' ? 'Comment matches' : t === 'event' ? 'Event' : 'Label';
+    return t === 'pattern' ? 'A comment matches text' : t === 'event' ? 'Something happened' : 'The ticket has a label';
   }
 
   actionTypeLabel(t: string): string {
     switch (t) {
       case 'route_to_stage':
-        return 'Route to stage';
+        return 'Send work to a stage';
       case 'set_label':
-        return 'Set label';
+        return 'Add a label';
       case 'clear_label':
-        return 'Clear label';
+        return 'Remove a label';
       case 'instruct':
-        return 'Instruct';
+        return 'Tell an agent to do something';
       case 'fan_out':
         return 'Fan out';
       default:
@@ -344,6 +433,8 @@ export class StageRulesComponent {
   }
 
   startNew(): void {
+    this.whenHelp.set(false);
+    this.doHelp.set(false);
     this.draftSig.set({ originalId: null, id: '', when: [], do: [] });
   }
 

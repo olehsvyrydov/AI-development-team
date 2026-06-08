@@ -181,6 +181,46 @@ describe('ControlPlaneService', () => {
     expect(res.ok).toBe('conflict');
   });
 
+  it('setLabels posts the COMPLETE name-keyed label map + expectedRev with the guard', async () => {
+    const promise = cp.setLabels({
+      labels: {
+        TO_DEV_BE: { settable_by: ['/rev', '/qa'], routes_to: 'implement', owner: '/be', meaning: 'send back to backend dev' },
+      },
+      expectedRev: 'r1',
+    });
+    const req = http.expectOne('/api/workflow/set-labels');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBe('1');
+    expect(req.request.body).toEqual({
+      labels: {
+        TO_DEV_BE: { settable_by: ['/rev', '/qa'], routes_to: 'implement', owner: '/be', meaning: 'send back to backend dev' },
+      },
+      expectedRev: 'r1',
+    });
+    req.flush({ ok: true, state: { rev: 'r2' } });
+    const res = await promise;
+    expect(res.ok).toBe(true);
+    if (res.ok === true) expect(res.state?.rev).toBe('r2');
+  });
+
+  it('setLabels surfaces a 409 as a conflict carrying the fresh server state', async () => {
+    const promise = cp.setLabels({ labels: { A: { settable_by: ['*'] } }, expectedRev: 'stale' });
+    const req = http.expectOne('/api/workflow/set-labels');
+    req.flush({ ok: false, conflict: true, state: { rev: 'r9' } }, { status: 409, statusText: 'Conflict' });
+    const res = await promise;
+    expect(res.ok).toBe('conflict');
+    if (res.ok === 'conflict') expect(res.state?.rev).toBe('r9');
+  });
+
+  it('setLabels maps a 400 (invalid contract) to an error result with the hub message', async () => {
+    const promise = cp.setLabels({ labels: { BAD: { settable_by: '/rev' as unknown as string[] } }, expectedRev: 'r1' });
+    const req = http.expectOne('/api/workflow/set-labels');
+    req.flush({ ok: false, error: 'settable_by must be a list' }, { status: 400, statusText: 'Bad Request' });
+    const res = await promise;
+    expect(res.ok).toBe(false);
+    if (res.ok === false) expect(res.error).toBe('settable_by must be a list');
+  });
+
   it('addKbNote posts ONLY title + body (never a path/filename) with the X-AIDT guard', async () => {
     const promise = cp.addKbNote({ title: 'Code review rules', body: '# rules\nbe kind' });
     const req = http.expectOne('/api/kb/add');
@@ -237,6 +277,7 @@ describe('ControlPlaneService', () => {
         { call: cp.setStages({ track: 'full', stages: [{ name: 'a' }], expectedRev: 'r1' }), url: '/api/track/set-stages' },
         { call: cp.gateTrigger({ gate: 'ARCH_APPROVED', owner: '/arch', expectedRev: 'r1' }), url: '/api/gate/trigger' },
         { call: cp.setPreset({ preset: 'solo', expectedRev: 'r1' }), url: '/api/preset' },
+        { call: cp.setLabels({ labels: { A: { settable_by: ['*'] } }, expectedRev: 'r1' }), url: '/api/workflow/set-labels' },
         { call: cp.addKbNote({ title: 'note', body: 'x' }), url: '/api/kb/add' },
       ];
       for (const c of checks) {

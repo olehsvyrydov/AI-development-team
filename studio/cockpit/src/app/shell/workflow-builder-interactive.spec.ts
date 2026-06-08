@@ -320,13 +320,15 @@ describe('WorkflowBuilder — ADT-229 when→do rule editor', () => {
     expect($(host, '[data-testid="rule-card-loopy"]').textContent ?? '').toMatch(/loops back/i);
   });
 
-  it('shows the loop-budget → NEEDS_HUMAN safety note (read-only) in the editor', () => {
+  it('shows the de-jargoned backward-loop safety note (read-only) in the editor', () => {
     const { fixture, host, http: h } = mount();
     http = h;
     openRules(host, fixture, 'code_review');
     $(host, '[data-testid="rule-add-code_review"]').click();
     fixture.detectChanges();
-    expect($(host, '[data-testid="rule-loop-note"]').textContent ?? '').toMatch(/NEEDS_HUMAN/);
+    const note = $(host, '[data-testid="rule-loop-note"]').textContent ?? '';
+    expect(note).toMatch(/send work backward/i);
+    expect(note).toMatch(/hands it to you/i);
   });
 
   it('shows the allowed-labels strip for the stage owner from the contract', () => {

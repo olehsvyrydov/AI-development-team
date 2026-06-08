@@ -69,12 +69,12 @@ describe('WorkflowBuilderComponent', () => {
     expect(names).toEqual(['vision', 'architecture', 'security', 'done']);
   });
 
-  it('shows the persistent overlay-not-base banner', () => {
+  it('shows the persistent this-project-only banner (de-jargoned: no "overlay"/"base file")', () => {
     const { host, http: h } = mount();
     http = h;
     const banner = $(host, '[data-testid="overlay-banner"]');
-    expect(banner.textContent ?? '').toMatch(/overlay/i);
-    expect(banner.textContent ?? '').toMatch(/base workflow file is never changed/i);
+    expect(banner.textContent ?? '').toMatch(/this project only/i);
+    expect(banner.textContent ?? '').toMatch(/shared default is never touched/i);
   });
 
   it('encodes a hard gate with a solid shield and a soft gate with a dashed shield (shape not colour)', () => {
@@ -184,7 +184,7 @@ describe('WorkflowBuilderComponent', () => {
     const { host, http: h } = mount(solo);
     http = h;
     const banner = $(host, '[data-testid="overlay-banner"]');
-    expect(banner.textContent ?? '').toMatch(/base/i);
+    expect(banner.textContent ?? '').toMatch(/default pipeline/i);
   });
 
   it('escapes untrusted owner/trigger text through interpolation (no raw HTML)', () => {
