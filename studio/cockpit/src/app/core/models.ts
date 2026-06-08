@@ -105,16 +105,60 @@ export interface TicketGate {
   readonly name: string;
   readonly refusal?: 'hard' | 'soft';
   readonly state?: string;
+  /** Role that owns the gate decision; from gate defs / overlay. UNTRUSTED — escape on render. */
+  readonly owner?: string | null;
+  /** Role that recorded the current state, when decided. UNTRUSTED — escape on render. */
+  readonly by?: string | null;
+  /** ISO timestamp of the current state's decision, when decided. */
+  readonly at?: string | null;
+  /** Deciding rationale carried on the gate. UNTRUSTED — escape on render. */
+  readonly note?: string | null;
+  /** Trigger labels that arm the gate. Each entry is UNTRUSTED — escape on render. */
+  readonly trigger?: readonly string[];
   readonly [key: string]: unknown;
 }
 
-/** A ticket as the detail state exposes it (gates carry live ledger state). */
+/**
+ * One entry in a ticket's append-only comment log. `author`, `body`, `gate` and `kind` are all
+ * UNTRUSTED — they originate from agents / the operator and reach the DOM through interpolation
+ * only (escaped). `body` is server-capped at 8 KB.
+ */
+export interface TicketComment {
+  readonly id?: string;
+  readonly ticket?: string;
+  readonly ts?: string;
+  readonly author?: string;
+  readonly kind?: string;
+  readonly body?: string;
+  readonly gate?: string;
+  readonly state?: string;
+}
+
+/** A ticket as the board/detail expose it (gates carry live ledger state; comments are the log). */
 export interface TicketView {
   readonly id?: string;
+  /** Human title. UNTRUSTED README/ledger text — escape on render. */
+  readonly title?: string;
   readonly status?: string;
   readonly stage?: string;
+  readonly track?: string | null;
   readonly assignee?: string | null;
+  /** Role the workflow expects to act at this stage when unassigned. */
+  readonly expectedOwner?: string | null;
   readonly gates?: readonly TicketGate[];
+  readonly comments?: readonly TicketComment[];
+  /** Free-form description. UNTRUSTED — escape on render. */
+  readonly description?: string;
+  readonly [key: string]: unknown;
+}
+
+/** A workflow gate definition (name + hard/soft + owner + arming triggers). */
+export interface GateDef {
+  readonly name: string;
+  readonly refusal?: 'hard' | 'soft';
+  readonly owner?: string | null;
+  readonly trigger?: readonly string[];
+  readonly required?: boolean;
   readonly [key: string]: unknown;
 }
 
@@ -126,6 +170,11 @@ export interface ProjectState {
   readonly taskSummary?: TaskSummary | null;
   readonly workflowView?: WorkflowView | null;
   readonly base?: BaseView | null;
+  readonly gateDefs?: readonly GateDef[];
+  /** Track name → ordered stage list. Drives "advance to next stage". */
+  readonly tracks?: Readonly<Record<string, readonly string[]>>;
+  /** Opaque optimistic-concurrency token round-tripped unchanged on every mutation. */
+  readonly rev?: string;
   readonly [key: string]: unknown;
 }
 

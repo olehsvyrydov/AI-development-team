@@ -4,6 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiService } from '../core/api.service';
+import { BrowserPlatformBridge, PLATFORM_BRIDGE } from '../core/platform-bridge';
+import { EVENT_SOURCE_FACTORY } from '../core/events.service';
 import { ProjectShellComponent } from './project-shell.component';
 import { settle } from '../testing/settle';
 import type { ProjectView } from '../core/models';
@@ -45,6 +47,11 @@ describe('ProjectShellComponent', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: ApiService, useValue: api },
+        { provide: PLATFORM_BRIDGE, useValue: new BrowserPlatformBridge() },
+        {
+          provide: EVENT_SOURCE_FACTORY,
+          useValue: () => ({ addEventListener() {}, close() {} }),
+        },
       ],
     });
     const fixture = TestBed.createComponent(ProjectShellComponent);
@@ -143,5 +150,60 @@ describe('ProjectShellComponent', () => {
     api.getProject.mockRejectedValue(new Error('unknown project'));
     const fixture = await mount('zzzzzzzzzzzz');
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="shell-error"]')?.textContent).toContain('unknown project');
+  });
+
+  it('opens the in-shell tasks board from the Tasks panel and can return to the panels', async () => {
+    api.getProject.mockResolvedValue(
+      view({ title: 'p', description: 'd' }, {
+        ...RICH_STATE,
+        rev: 'r1',
+        tracks: { full: ['vision', 'architecture', 'design', 'done'] },
+        gateDefs: [{ name: 'ARCH_APPROVED', refusal: 'hard', owner: '/arch' }],
+        tickets: [{ id: 'ADT-9', title: 'Board task', status: 'in_progress', stage: 'vision', track: 'full', assignee: '/be', gates: [], comments: [] }],
+      }),
+    );
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeNull();
+    host.querySelector<HTMLButtonElement>('[data-testid="tasks-open-board"]')!.click();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="column-in_progress"]')?.textContent).toContain('ADT-9');
+
+    host.querySelector<HTMLButtonElement>('[data-testid="board-back"]')!.click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeNull();
+    expect(host.querySelector('[data-testid="panel-tasks"]')).toBeTruthy();
+  });
+
+  it('opens the in-shell workflow builder from the Workflow panel and can return to the panels', async () => {
+    api.getProject.mockResolvedValue(
+      view({ title: 'p', description: 'd' }, {
+        ...RICH_STATE,
+        rev: 'r1',
+        tracks: { full: ['vision', 'architecture', 'design'] },
+        gateDefs: [{ name: 'ARCH_APPROVED', refusal: 'hard', owner: '/arch', trigger: ['change-class'] }],
+      }),
+    );
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-testid="workflow-builder-view"]')).toBeNull();
+    host.querySelector<HTMLButtonElement>('[data-testid="workflow-full-link"]')!.click();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    expect(host.querySelector('[data-testid="workflow-builder-view"]')).toBeTruthy();
+    // The builder shows the editable rows and the overlay banner.
+    expect(host.querySelector('[data-testid="overlay-banner"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="builder-row-architecture"]')).toBeTruthy();
+
+    host.querySelector<HTMLButtonElement>('[data-testid="builder-back"]')!.click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="workflow-builder-view"]')).toBeNull();
+    expect(host.querySelector('[data-testid="panel-workflow"]')).toBeTruthy();
   });
 });

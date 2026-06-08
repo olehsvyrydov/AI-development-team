@@ -1,17 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import type { BaseDoc, BaseView } from '../core/models';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import type { BaseDoc, BaseView, ProjectState } from '../core/models';
+import { AddNoteFormComponent } from './add-note-form.component';
 
 const REPRESENTATIVE_DOC_LIMIT = 3;
 
 /**
- * Base panel — how many knowledge documents the project holds, how they are indexed, and an
- * invitation to add more. The method line is honest about recall: semantic when an embedder is
- * wired, otherwise a plain filename index. Document names originate from the project's files and
- * are untrusted, so they render through interpolation only (escaped).
+ * Base panel — how many knowledge documents the project holds, how they are indexed, and a live
+ * control to add more. The method line is honest about recall: semantic when an embedder is wired,
+ * otherwise a plain filename index. Document names originate from the project's files and are
+ * untrusted, so they render through interpolation only (escaped).
  *
- * This slice has no add-document write endpoint and no Manage-base view: the "Add documents" and
- * "Manage base" controls are inert "coming soon" affordances (disabled, `aria-disabled`) that
- * signal where those features will live — they neither navigate nor fake a write.
+ * "Add documents" opens an inline paste-a-note form that writes one contained markdown file to the
+ * project's knowledge base. The form sends only a title + body; on success the hub returns the fresh
+ * project state, which this panel re-emits up so the shell adopts it — the count increments and the
+ * new doc appears from that single source of truth. "Manage base" remains an inert "coming soon"
+ * affordance (disabled, `aria-disabled`) that neither navigates nor fakes a write.
  *
  * Empty (no docs, or no base facts at all): an invitation plus the Add control — never a bare
  * "No data".
@@ -19,6 +22,7 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
 @Component({
   selector: 'dart-base-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [AddNoteFormComponent],
   template: `
     <header class="ph">
       <span class="ph__tile ph__tile--base" aria-hidden="true">
@@ -81,37 +85,44 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
 
     <hr class="ph__rule" aria-hidden="true" />
 
-    <footer class="ph__footrow">
-      <button
-        type="button"
-        class="ph__add"
-        data-testid="base-add"
-        disabled
-        aria-disabled="true"
-        aria-label="Add documents (coming soon)"
-      >
-        <svg class="ph__addglyph" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
-          <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-        </svg>
-        Add documents
-        <span class="ph__soon">soon</span>
-      </button>
-      <button
-        type="button"
-        class="ph__foot"
-        data-testid="base-manage"
-        disabled
-        aria-disabled="true"
-        aria-label="Manage base (coming soon)"
-      >
-        Manage base
-        <span class="ph__soon">soon</span>
-        <svg class="ph__arrow" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
-          <polyline points="9,6 15,12 9,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </button>
-    </footer>
+    @if (formOpen()) {
+      <dart-add-note-form
+        [base]="base()"
+        (applied)="onApplied($event)"
+        (cancel)="closeForm()"
+      />
+    } @else {
+      <footer class="ph__footrow">
+        <button
+          type="button"
+          class="ph__add ph__add--live"
+          data-testid="base-add"
+          aria-label="Add a note"
+          [attr.aria-expanded]="formOpen()"
+          (click)="openForm()"
+        >
+          <svg class="ph__addglyph" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
+            <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          Add a note
+        </button>
+        <button
+          type="button"
+          class="ph__foot"
+          data-testid="base-manage"
+          disabled
+          aria-disabled="true"
+          aria-label="Manage base (coming soon)"
+        >
+          Manage base
+          <span class="ph__soon">soon</span>
+          <svg class="ph__arrow" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
+            <polyline points="9,6 15,12 9,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </footer>
+    }
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: var(--kb-space-2); height: 100%; }
@@ -144,6 +155,10 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
       text-decoration: none; font-size: var(--kb-text-sm); font-weight: 600;
     }
     .ph__add[disabled], .ph__add[aria-disabled='true'] { cursor: default; }
+    .ph__add--live { color: var(--kb-accent); cursor: pointer; }
+    .ph__add--live:hover { border-color: var(--kb-accent); }
+    .ph__add--live:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
+    .ph__add--live .ph__addglyph { opacity: 1; }
     .ph__addglyph { flex: none; opacity: 0.6; }
     .ph__foot { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0; font: inherit; color: var(--kb-text-subtle); background: transparent; border: none; text-decoration: none; font-size: var(--kb-text-sm); font-weight: 600; }
     .ph__foot[disabled], .ph__foot[aria-disabled='true'] { cursor: default; }
@@ -153,6 +168,24 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
 })
 export class BasePanelComponent {
   readonly base = input.required<BaseView | null>();
+  /** Fresh project state from a successful note add, lifted for the shell to adopt as truth. */
+  readonly applied = output<ProjectState>();
+
+  private readonly formOpen_ = signal(false);
+  readonly formOpen = this.formOpen_.asReadonly();
+
+  openForm(): void {
+    this.formOpen_.set(true);
+  }
+
+  closeForm(): void {
+    this.formOpen_.set(false);
+  }
+
+  /** Lift the form's success state to the shell; keep the form open so further notes can be added. */
+  onApplied(state: ProjectState): void {
+    this.applied.emit(state);
+  }
 
   readonly counts = computed(() => this.base()?.counts ?? { indexed: 0, indexing: 0, failed: 0 });
   readonly total = computed(() => {

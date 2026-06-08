@@ -70,13 +70,18 @@ describe('TasksPanelComponent', () => {
     expect(host.querySelector('[data-testid="tasks-open-board"]')?.textContent).toMatch(/Open board/i);
   });
 
-  it('renders the board affordance as inert (no navigation) while the board view does not exist yet', () => {
-    const el = host.querySelector('[data-testid="tasks-open-board"]')!;
-    expect(el.hasAttribute('routerLink')).toBe(false);
-    const href = el.getAttribute('href');
-    expect(href === null || href === '' || href === '#').toBe(true);
-    const disabled = el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true';
-    expect(disabled).toBe(true);
-    expect(el.getAttribute('aria-label') ?? el.textContent ?? '').toMatch(/coming soon/i);
+  it('the board affordance is a live, enabled control (no "coming soon", not inert)', () => {
+    const el = host.querySelector('[data-testid="tasks-open-board"]') as HTMLButtonElement;
+    expect(el.disabled).toBe(false);
+    expect(el.getAttribute('aria-disabled')).not.toBe('true');
+    expect((el.getAttribute('aria-label') ?? '') + (el.textContent ?? '')).not.toMatch(/coming soon|soon/i);
+  });
+
+  it('emits openBoard when the board affordance is activated', () => {
+    const fixture = mount(FULL);
+    let opened = 0;
+    fixture.componentInstance.openBoard.subscribe(() => opened++);
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="tasks-open-board"]')!.click();
+    expect(opened).toBe(1);
   });
 });

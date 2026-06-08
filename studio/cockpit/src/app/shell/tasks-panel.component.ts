@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import type { TaskSummary } from '../core/models';
 
 interface StatusRow {
@@ -95,12 +95,10 @@ interface StatusRow {
       type="button"
       class="ph__foot"
       data-testid="tasks-open-board"
-      disabled
-      aria-disabled="true"
-      aria-label="Open board (coming soon)"
+      aria-label="Open board"
+      (click)="openBoard.emit()"
     >
       Open board
-      <span class="ph__soon">soon</span>
       <svg class="ph__arrow" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
         <polyline points="9,6 15,12 9,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
@@ -132,14 +130,16 @@ interface StatusRow {
     .bar__seg--blocked { background: var(--kb-danger); }
     .bar__seg--done { background: var(--kb-success); }
     .bar__seg--waiting { background: var(--kb-text-subtle); }
-    .ph__foot { margin-top: auto; display: inline-flex; align-items: center; gap: 0.25rem; align-self: flex-start; padding: 0; font: inherit; color: var(--kb-text-subtle); background: transparent; border: none; text-decoration: none; font-size: var(--kb-text-sm); font-weight: 600; }
-    .ph__foot[disabled], .ph__foot[aria-disabled='true'] { cursor: default; }
-    .ph__soon { padding: 0 0.3rem; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-text-subtle); background: var(--kb-surface-muted); border-radius: 999px; }
-    .ph__arrow { flex: none; opacity: 0.6; }
+    .ph__foot { margin-top: auto; display: inline-flex; align-items: center; gap: 0.25rem; align-self: flex-start; padding: 0; font: inherit; color: var(--kb-accent); background: transparent; border: none; text-decoration: none; font-size: var(--kb-text-sm); font-weight: 600; cursor: pointer; }
+    .ph__foot:hover { text-decoration: underline; }
+    .ph__arrow { flex: none; }
   `,
 })
 export class TasksPanelComponent {
   readonly summary = input.required<TaskSummary | null>();
+
+  /** Activated when the operator opens the full board from this summary panel. */
+  readonly openBoard = output<void>();
 
   readonly isEmpty = computed(() => {
     const s = this.summary();

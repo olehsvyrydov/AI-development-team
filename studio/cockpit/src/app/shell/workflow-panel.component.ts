@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import type { WorkflowStageView, WorkflowView } from '../core/models';
 
 /**
@@ -80,12 +80,12 @@ import type { WorkflowStageView, WorkflowView } from '../core/models';
       type="button"
       class="ph__foot"
       data-testid="workflow-full-link"
-      disabled
-      aria-disabled="true"
-      aria-label="View full workflow (coming soon)"
+      [disabled]="!stages().length"
+      [attr.aria-disabled]="stages().length ? null : 'true'"
+      [attr.aria-label]="stages().length ? 'Edit workflow' : 'Edit workflow (no workflow to edit yet)'"
+      (click)="openBuilder.emit()"
     >
-      View full workflow
-      <span class="ph__soon">soon</span>
+      Edit workflow
       <svg class="ph__arrow" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
         <polyline points="9,6 15,12 9,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
@@ -117,8 +117,8 @@ import type { WorkflowStageView, WorkflowView } from '../core/models';
     .chip__gate--hard { color: var(--kb-accent); }
     .connector { flex: none; color: var(--kb-text-subtle); }
     .ph__foot { margin-top: auto; display: inline-flex; align-items: center; gap: 0.25rem; align-self: flex-start; padding: 0; font: inherit; color: var(--kb-text-subtle); background: transparent; border: none; text-decoration: none; font-size: var(--kb-text-sm); font-weight: 600; }
+    .ph__foot:not([disabled]) { color: var(--kb-accent); cursor: pointer; }
     .ph__foot[disabled], .ph__foot[aria-disabled='true'] { cursor: default; }
-    .ph__soon { padding: 0 0.3rem; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-text-subtle); background: var(--kb-surface-muted); border-radius: 999px; }
     .ph__arrow { flex: none; opacity: 0.6; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
     @media (max-width: 32rem) {
@@ -130,6 +130,8 @@ import type { WorkflowStageView, WorkflowView } from '../core/models';
 })
 export class WorkflowPanelComponent {
   readonly workflow = input.required<WorkflowView | null>();
+  /** Activated by the footer affordance to open the editable workflow builder in place. */
+  readonly openBuilder = output<void>();
 
   readonly stages = computed<readonly WorkflowStageView[]>(() => this.workflow()?.stages ?? []);
   readonly activeTrack = computed(() => this.workflow()?.activeTrack ?? '');

@@ -85,17 +85,26 @@ describe('WorkflowPanelComponent', () => {
     expect(emptyStages.textContent).toContain('Using the default solo workflow.');
   });
 
-  it('offers a footer affordance to the full workflow', () => {
-    expect(host.querySelector('[data-testid="workflow-full-link"]')?.textContent).toMatch(/View full workflow/i);
+  it('offers a live footer affordance that opens the workflow builder', () => {
+    const el = host.querySelector('[data-testid="workflow-full-link"]')!;
+    expect(el.textContent).toMatch(/edit workflow/i);
+    // It is an active control, not an inert "coming soon" placeholder.
+    expect(el.hasAttribute('disabled')).toBe(false);
+    expect(el.getAttribute('aria-disabled')).not.toBe('true');
   });
 
-  it('renders the full-workflow affordance as inert (no navigation) while the view does not exist yet', () => {
-    const el = host.querySelector('[data-testid="workflow-full-link"]')!;
-    expect(el.hasAttribute('routerLink')).toBe(false);
-    const href = el.getAttribute('href');
-    expect(href === null || href === '' || href === '#').toBe(true);
-    const disabled = el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true';
-    expect(disabled).toBe(true);
-    expect(el.getAttribute('aria-label') ?? el.textContent ?? '').toMatch(/coming soon/i);
+  it('emits openBuilder when the footer affordance is activated', () => {
+    const fixture = mount(FULL);
+    let opened = 0;
+    fixture.componentRef.instance.openBuilder.subscribe(() => (opened += 1));
+    const el = fixture.nativeElement.querySelector('[data-testid="workflow-full-link"]') as HTMLElement;
+    el.click();
+    expect(opened).toBe(1);
+  });
+
+  it('disables the builder affordance only when there are no stages to edit', () => {
+    const empty = mount({ activeTrack: null, stages: [] }).nativeElement as HTMLElement;
+    const el = empty.querySelector('[data-testid="workflow-full-link"]')!;
+    expect(el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true').toBe(true);
   });
 });

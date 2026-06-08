@@ -1,16 +1,21 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../core/api.service';
+import { ProjectEventsService } from '../core/events.service';
 import {
   displayDescription,
   displayTitle,
   type BaseView,
+  type ProjectState,
   type ProjectView,
   type TaskSummary,
   type WorkflowView,
 } from '../core/models';
 import { BasePanelComponent } from './base-panel.component';
+import { TasksBoardComponent } from './tasks-board.component';
 import { TasksPanelComponent } from './tasks-panel.component';
+import { WorkflowBuilderComponent } from './workflow-builder.component';
 import { WorkflowPanelComponent } from './workflow-panel.component';
 
 /** A guarded panel input: either the derived value, or the derivation error message. */
@@ -38,7 +43,14 @@ function derive<T>(fn: () => T): Derived<T> {
 @Component({
   selector: 'dart-project-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, WorkflowPanelComponent, TasksPanelComponent, BasePanelComponent],
+  imports: [
+    RouterLink,
+    WorkflowPanelComponent,
+    TasksPanelComponent,
+    BasePanelComponent,
+    TasksBoardComponent,
+    WorkflowBuilderComponent,
+  ],
   template: `
     <header class="shell-head">
       <a class="back" routerLink="/" data-testid="back-to-projects" aria-label="Back to projects">
@@ -83,12 +95,38 @@ function derive<T>(fn: () => T): Derived<T> {
         <p class="banner banner--error" role="alert" data-testid="shell-error">Couldn't open this project: {{ err }}</p>
       } @else if (!view()) {
         <p class="muted" role="status" aria-live="polite">Loading project…</p>
+      } @else if (boardOpen()) {
+        <section class="board-view" data-testid="tasks-board-view" aria-label="Tasks board">
+          <div class="board-view__head">
+            <button type="button" class="board-view__back" data-testid="board-back" (click)="closeBoard()">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+                <polyline points="14,6 8,12 14,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Back to panels
+            </button>
+            <h2 class="board-view__title">Tasks board</h2>
+          </div>
+          <dart-tasks-board [state]="liveState()" (applied)="adoptState($event)" />
+        </section>
+      } @else if (builderOpen()) {
+        <section class="board-view" data-testid="workflow-builder-view" aria-label="Workflow builder">
+          <div class="board-view__head">
+            <button type="button" class="board-view__back" data-testid="builder-back" (click)="closeBuilder()">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+                <polyline points="14,6 8,12 14,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Back to panels
+            </button>
+            <h2 class="board-view__title">Workflow builder</h2>
+          </div>
+          <dart-workflow-builder [state]="liveState()" (applied)="adoptState($event)" />
+        </section>
       } @else {
         <section class="panels" aria-label="Project areas">
           <article class="panel" data-testid="panel-workflow">
             @if (workflow(); as w) {
               @if (w.ok) {
-                <dart-workflow-panel [workflow]="w.value" />
+                <dart-workflow-panel [workflow]="w.value" (openBuilder)="openBuilder()" />
               } @else {
                 <p class="panel-error" role="alert" data-testid="panel-workflow-error">Couldn't load workflow.</p>
               }
@@ -97,7 +135,7 @@ function derive<T>(fn: () => T): Derived<T> {
           <article class="panel" data-testid="panel-tasks">
             @if (tasks(); as t) {
               @if (t.ok) {
-                <dart-tasks-panel [summary]="t.value" />
+                <dart-tasks-panel [summary]="t.value" (openBoard)="openBoard()" />
               } @else {
                 <p class="panel-error" role="alert" data-testid="panel-tasks-error">Couldn't load tasks.</p>
               }
@@ -106,7 +144,7 @@ function derive<T>(fn: () => T): Derived<T> {
           <article class="panel" data-testid="panel-base">
             @if (base(); as b) {
               @if (b.ok) {
-                <dart-base-panel [base]="b.value" />
+                <dart-base-panel [base]="b.value" (applied)="adoptState($event)" />
               } @else {
                 <p class="panel-error" role="alert" data-testid="panel-base-error">Couldn't load base.</p>
               }
@@ -173,19 +211,57 @@ function derive<T>(fn: () => T): Derived<T> {
     }
     .panel > * { flex: 1 1 auto; }
     .panel-error { margin: 0; color: var(--kb-danger); font-size: var(--kb-text-sm); }
+    .board-view__head { display: flex; align-items: center; gap: var(--kb-space-3); margin-bottom: var(--kb-space-4); }
+    .board-view__back { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0; font: inherit; font-size: var(--kb-text-sm); color: var(--kb-text-muted); background: transparent; border: none; cursor: pointer; }
+    .board-view__back:hover { color: var(--kb-text); }
+    .board-view__title { margin: 0; font-size: var(--kb-text-lg); font-weight: 600; }
   `,
 })
 export class ProjectShellComponent {
   private readonly api = inject(ApiService);
+  private readonly events = inject(ProjectEventsService);
+  private readonly destroyRef = inject(DestroyRef);
 
   /** Project id from the route (`projects/:id`), bound via component-input binding. */
   readonly id = input.required<string>();
 
   private readonly loaded = signal<ProjectView | null>(null);
   private readonly failure = signal<string | null>(null);
+  private readonly boardOpen_ = signal(false);
+  private readonly builderOpen_ = signal(false);
 
   readonly view = this.loaded.asReadonly();
   readonly error = this.failure.asReadonly();
+  /** Whether the in-shell tasks board is showing in place of the summary panels. */
+  readonly boardOpen = this.boardOpen_.asReadonly();
+  /** Whether the in-shell workflow builder is showing in place of the summary panels. */
+  readonly builderOpen = this.builderOpen_.asReadonly();
+  /** The current project state — the board binds against this so SSE pushes flow through live. */
+  readonly liveState = computed<ProjectState>(() => this.loaded()?.state ?? {});
+
+  openBoard(): void {
+    this.builderOpen_.set(false);
+    this.boardOpen_.set(true);
+  }
+
+  closeBoard(): void {
+    this.boardOpen_.set(false);
+  }
+
+  openBuilder(): void {
+    this.boardOpen_.set(false);
+    this.builderOpen_.set(true);
+  }
+
+  closeBuilder(): void {
+    this.builderOpen_.set(false);
+  }
+
+  /** Adopt fresh state returned by a board/detail mutation (200 or 409 re-sync) as the new truth. */
+  adoptState(state: ProjectState): void {
+    const current = this.loaded();
+    if (current) this.loaded.set({ ...current, state });
+  }
   readonly title = computed(() => {
     const v = this.loaded();
     return v ? displayTitle(v) : '';
@@ -229,5 +305,13 @@ export class ProjectShellComponent {
           if (this.id() === id) this.failure.set(err instanceof Error ? err.message : String(err));
         });
     });
+
+    // Live updates: the hub pushes the full read-model on any change. Adopt each push so the board
+    // and an open detail re-derive without a manual reload. A transport that cannot open (no SSE in
+    // this host) simply yields no pushes — the one-shot fetch above still populates the view.
+    this.events
+      .connect()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (state) => this.adoptState(state), error: () => undefined });
   }
 }
