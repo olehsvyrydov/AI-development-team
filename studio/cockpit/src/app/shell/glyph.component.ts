@@ -39,7 +39,6 @@ export const GLYPH_NAMES = [
   'help',
   'stack',
   'folder-stack',
-  'tag',
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -261,12 +260,6 @@ export type GlyphName = (typeof GLYPH_NAMES)[number];
         <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
           <path d="M8 5 h7 v3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" opacity="0.55" />
           <path d="M4 8 h6 l2 2 h8 v9 H4 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-        </svg>
-      }
-      @case ('tag') {
-        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
-          <path d="M4 11 l7 -7 h7 v7 l-7 7 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-          <circle cx="15" cy="8" r="1.1" fill="currentColor" stroke="none" />
         </svg>
       }
     }
