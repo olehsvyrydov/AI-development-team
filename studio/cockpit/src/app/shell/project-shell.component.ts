@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../core/api.service';
+import { ControlPlaneService } from '../core/control-plane.service';
 import { ProjectEventsService } from '../core/events.service';
 import {
   displayDescription,
@@ -106,7 +107,7 @@ function derive<T>(fn: () => T): Derived<T> {
             </button>
             <h2 class="board-view__title">Tasks board</h2>
           </div>
-          <dart-tasks-board [state]="liveState()" (applied)="adoptState($event)" />
+          <dart-tasks-board [state]="liveState()" [projectName]="title()" (applied)="adoptState($event)" />
         </section>
       } @else if (builderOpen()) {
         <section class="board-view" data-testid="workflow-builder-view" aria-label="Workflow builder">
@@ -220,10 +221,13 @@ function derive<T>(fn: () => T): Derived<T> {
 export class ProjectShellComponent {
   private readonly api = inject(ApiService);
   private readonly events = inject(ProjectEventsService);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly controlPlane = inject(ControlPlaneService);
 
   /** Project id from the route (`projects/:id`), bound via component-input binding. */
   readonly id = input.required<string>();
+
+  /** The live-stream subscription for the currently viewed project; replaced when the id changes. */
+  private liveSub: Subscription | null = null;
 
   private readonly loaded = signal<ProjectView | null>(null);
   private readonly failure = signal<string | null>(null);
@@ -290,12 +294,18 @@ export class ProjectShellComponent {
   });
 
   constructor() {
-    // Load whenever the route id changes (including its first binding). The effect tracks the
-    // id signal; each new id clears prior state and refetches.
-    effect(() => {
+    // Load + scope whenever the route id changes (including its first binding). The effect tracks
+    // the id signal; each new id clears prior state, scopes the control plane to that project so
+    // every mutation targets it, refetches, and re-opens the per-project live stream.
+    effect((onCleanup) => {
       const id = this.id();
       this.loaded.set(null);
       this.failure.set(null);
+
+      // Scope every mutation to the viewed project so a write lands in THIS project, never the
+      // hub's launch directory (the root-cause scoping bug this closes).
+      this.controlPlane.setProject(id);
+
       this.api
         .getProject(id)
         .then((view) => {
@@ -304,14 +314,14 @@ export class ProjectShellComponent {
         .catch((err: unknown) => {
           if (this.id() === id) this.failure.set(err instanceof Error ? err.message : String(err));
         });
-    });
 
-    // Live updates: the hub pushes the full read-model on any change. Adopt each push so the board
-    // and an open detail re-derive without a manual reload. A transport that cannot open (no SSE in
-    // this host) simply yields no pushes — the one-shot fetch above still populates the view.
-    this.events
-      .connect()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({ next: (state) => this.adoptState(state), error: () => undefined });
+      // Live updates from THIS project's isolated channel: the hub pushes the full read-model on any
+      // change. Adopt each push so the board and an open detail re-derive without a reload — and so a
+      // board re-lays out live when the workflow is edited. A transport that cannot open (no SSE in
+      // this host) simply yields no pushes; the one-shot fetch above still populates the view.
+      this.liveSub?.unsubscribe();
+      this.liveSub = this.events.connect(id).subscribe({ next: (state) => this.adoptState(state), error: () => undefined });
+      onCleanup(() => this.liveSub?.unsubscribe());
+    });
   }
 }

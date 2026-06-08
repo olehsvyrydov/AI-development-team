@@ -37,10 +37,28 @@ describe('ProjectEventsService', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
+  it('subscribes to the viewed project channel via ?project= on the events URL', () => {
+    const svc = TestBed.inject(ProjectEventsService);
+    const sub = svc.connect('abcdef123456').subscribe();
+    const es = FakeEventSource.instances[0];
+    expect(es.url).toContain('/api/events');
+    expect(es.url).toContain('project=abcdef123456');
+    sub.unsubscribe();
+  });
+
+  it('opens an unscoped /api/events stream when no project id is given (back-compat)', () => {
+    const svc = TestBed.inject(ProjectEventsService);
+    const sub = svc.connect().subscribe();
+    const es = FakeEventSource.instances[0];
+    expect(es.url).toContain('/api/events');
+    expect(es.url).not.toContain('project=');
+    sub.unsubscribe();
+  });
+
   it('opens an EventSource against /api/events and pushes parsed update payloads', () => {
     const svc = TestBed.inject(ProjectEventsService);
     const received: unknown[] = [];
-    const sub = svc.connect().subscribe((s) => received.push(s));
+    const sub = svc.connect('abcdef123456').subscribe((s) => received.push(s));
 
     const es = FakeEventSource.instances[0];
     expect(es.url).toContain('/api/events');

@@ -186,6 +186,20 @@ describe('TaskDetailComponent', () => {
     expect((host.textContent ?? '')).toMatch(/changed|reloaded|retry/i);
   });
 
+  it('advances to the next stage in the workflowView order (not the raw tracks map) when provided', async () => {
+    const { fixture, host, http } = mount(baseTicket());
+    // tracks map next after "security" would be "code"; the workflowView order makes it "done".
+    fixture.componentRef.setInput('stageOrder', ['vision', 'architecture', 'security', 'done']);
+    fixture.detectChanges();
+    const advance = host.querySelector('[data-testid="detail-advance"]') as HTMLButtonElement;
+    expect(advance.textContent ?? '').toMatch(/advance to done/i);
+    advance.click();
+    const req = http.expectOne('/api/ticket/advance');
+    expect(req.request.body).toMatchObject({ id: 'ADT-219', toStage: 'done', expectedRev: 'r1' });
+    req.flush({ ok: true, state: { rev: 'r2' } });
+    await settle(fixture);
+  });
+
   it('emits close on Escape and on the close button', () => {
     const { fixture, host } = mount(baseTicket());
     let closed = 0;

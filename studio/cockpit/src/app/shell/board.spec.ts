@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { ProjectState, TicketComment, TicketView } from '../core/models';
+import type { ProjectState, TicketComment, TicketView, WorkflowView } from '../core/models';
 import {
-  BOARD_COLUMNS,
   commentsNewestFirst,
-  groupByColumn,
+  nextStageInOrder,
   nextStage,
+  offTrackGroups,
+  stageColumns,
+  statusChip,
   ticketNeedsYou,
 } from './board';
 
@@ -12,31 +14,93 @@ function ticket(t: Partial<TicketView>): TicketView {
   return { id: 't', title: 't', status: 'in_progress', stage: 'code', ...t };
 }
 
-describe('BOARD_COLUMNS', () => {
-  it('has exactly the four real status columns, left→right, and not needsYou', () => {
-    expect(BOARD_COLUMNS.map((c) => c.key)).toEqual(['in_progress', 'waiting', 'blocked', 'done']);
-    expect(BOARD_COLUMNS.map((c) => c.key)).not.toContain('needsYou');
+const WF: WorkflowView = {
+  activeTrack: 'full',
+  stages: [
+    { stage: 'vision', owner: '/po', gate: null },
+    { stage: 'architecture', owner: '/arch', gate: { name: 'ARCH_APPROVED', refusal: 'hard' } },
+    { stage: 'code', owner: '/be', gate: null },
+    { stage: 'done', owner: null, gate: null },
+  ],
+};
+
+describe('stageColumns — columns follow the active track stages in order', () => {
+  it('returns one column per workflow stage, in order, each placing tickets whose stage matches', () => {
+    const tickets = [
+      ticket({ id: 'a', stage: 'vision' }),
+      ticket({ id: 'b', stage: 'code' }),
+      ticket({ id: 'c', stage: 'code' }),
+    ];
+    const cols = stageColumns(WF, tickets);
+    expect(cols.map((c) => c.stage)).toEqual(['vision', 'architecture', 'code', 'done']);
+    expect(cols.map((c) => c.owner)).toEqual(['/po', '/arch', '/be', null]);
+    expect(cols.find((c) => c.stage === 'vision')!.tickets.map((t) => t.id)).toEqual(['a']);
+    expect(cols.find((c) => c.stage === 'code')!.tickets.map((t) => t.id)).toEqual(['b', 'c']);
+  });
+
+  it('renders an empty stage column (no tickets) rather than dropping it — count is zero', () => {
+    const cols = stageColumns(WF, [ticket({ id: 'a', stage: 'vision' })]);
+    const arch = cols.find((c) => c.stage === 'architecture')!;
+    expect(arch.tickets).toEqual([]);
+  });
+
+  it('returns no columns when there is no workflow view (board falls back to empty)', () => {
+    expect(stageColumns(null, [])).toEqual([]);
+    expect(stageColumns(undefined, [])).toEqual([]);
   });
 });
 
-describe('groupByColumn', () => {
-  it('distributes tickets into a bucket per real status, with counts that match', () => {
+describe('offTrackGroups — a ticket in a stage not in the track is surfaced, never dropped', () => {
+  it('groups orphaned tickets by their recorded stage and excludes in-track tickets', () => {
     const tickets = [
-      ticket({ id: 'a', status: 'in_progress' }),
-      ticket({ id: 'b', status: 'in_progress' }),
-      ticket({ id: 'c', status: 'blocked' }),
-      ticket({ id: 'd', status: 'done' }),
+      ticket({ id: 'a', stage: 'code' }),
+      ticket({ id: 'orphan1', stage: 'design-review' }),
+      ticket({ id: 'orphan2', stage: 'design-review' }),
+      ticket({ id: 'orphan3', stage: 'qa' }),
     ];
-    const grouped = groupByColumn(tickets);
-    expect(grouped.in_progress.map((t) => t.id)).toEqual(['a', 'b']);
-    expect(grouped.waiting).toEqual([]);
-    expect(grouped.blocked.map((t) => t.id)).toEqual(['c']);
-    expect(grouped.done.map((t) => t.id)).toEqual(['d']);
+    const groups = offTrackGroups(WF, tickets);
+    expect(groups.map((g) => g.stage)).toEqual(['design-review', 'qa']);
+    expect(groups[0].tickets.map((t) => t.id)).toEqual(['orphan1', 'orphan2']);
+    expect(groups[1].tickets.map((t) => t.id)).toEqual(['orphan3']);
   });
 
-  it('routes an unknown / missing status to waiting rather than dropping the ticket', () => {
-    const grouped = groupByColumn([ticket({ id: 'x', status: undefined }), ticket({ id: 'y', status: 'mystery' })]);
-    expect(grouped.waiting.map((t) => t.id)).toEqual(['x', 'y']);
+  it('is empty when every ticket sits on a real stage (absent-not-zero off-track lane)', () => {
+    expect(offTrackGroups(WF, [ticket({ id: 'a', stage: 'code' })])).toEqual([]);
+  });
+
+  it('treats a ticket with no stage as off-track under a blank-stage group rather than losing it', () => {
+    const groups = offTrackGroups(WF, [ticket({ id: 'x', stage: undefined })]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].tickets.map((t) => t.id)).toEqual(['x']);
+  });
+});
+
+describe('nextStageInOrder — advance follows the workflow stage order', () => {
+  const order = ['vision', 'architecture', 'code', 'done'];
+  it('returns the stage after the current one', () => {
+    expect(nextStageInOrder('architecture', order)).toBe('code');
+  });
+  it('returns null at the last stage (nothing to advance to)', () => {
+    expect(nextStageInOrder('done', order)).toBeNull();
+  });
+  it('returns the first real stage for an off-track ticket so it can be re-homed onto the track', () => {
+    expect(nextStageInOrder('design-review', order)).toBe('vision');
+  });
+  it('returns null with no stages', () => {
+    expect(nextStageInOrder('code', [])).toBeNull();
+  });
+});
+
+describe('statusChip — status becomes a card chip, never a column', () => {
+  it('maps each status to a glyph + label', () => {
+    expect(statusChip('in_progress')).toMatchObject({ glyph: 'progress', label: 'in progress' });
+    expect(statusChip('waiting')).toMatchObject({ glyph: 'dot', label: 'waiting' });
+    expect(statusChip('blocked')).toMatchObject({ glyph: 'blocked', label: 'blocked' });
+    expect(statusChip('done')).toMatchObject({ glyph: 'check', label: 'done' });
+  });
+  it('falls back to a neutral waiting chip for an unknown status (never blank)', () => {
+    expect(statusChip('mystery')).toMatchObject({ glyph: 'dot' });
+    expect(statusChip(undefined)).toMatchObject({ glyph: 'dot' });
   });
 });
 

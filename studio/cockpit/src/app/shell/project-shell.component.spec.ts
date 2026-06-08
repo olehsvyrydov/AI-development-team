@@ -5,7 +5,8 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiService } from '../core/api.service';
 import { BrowserPlatformBridge, PLATFORM_BRIDGE } from '../core/platform-bridge';
-import { EVENT_SOURCE_FACTORY } from '../core/events.service';
+import { EVENT_SOURCE_FACTORY, ProjectEventsService } from '../core/events.service';
+import { ControlPlaneService } from '../core/control-plane.service';
 import { ProjectShellComponent } from './project-shell.component';
 import { settle } from '../testing/settle';
 import type { ProjectView } from '../core/models';
@@ -63,6 +64,18 @@ describe('ProjectShellComponent', () => {
 
   beforeEach(() => {
     api = { getProject: vi.fn().mockResolvedValue(view({ title: 'payments-api', description: 'VAT-aware billing.' })) };
+  });
+
+  it('scopes the control plane to the route project id so every mutation targets the viewed project', async () => {
+    const setProject = vi.spyOn(ControlPlaneService.prototype, 'setProject');
+    await mount('abcdef123456');
+    expect(setProject).toHaveBeenCalledWith('abcdef123456');
+  });
+
+  it('subscribes to the viewed project live stream with ?project=<route id>', async () => {
+    const connect = vi.spyOn(ProjectEventsService.prototype, 'connect');
+    await mount('abcdef123456');
+    expect(connect).toHaveBeenCalledWith('abcdef123456');
   });
 
   it('loads the project by route id and shows its title and description', async () => {
@@ -171,7 +184,7 @@ describe('ProjectShellComponent', () => {
     await settle(fixture);
 
     expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="column-in_progress"]')?.textContent).toContain('ADT-9');
+    expect(host.querySelector('[data-testid="column-stage-vision"]')?.textContent).toContain('ADT-9');
 
     host.querySelector<HTMLButtonElement>('[data-testid="board-back"]')!.click();
     fixture.detectChanges();

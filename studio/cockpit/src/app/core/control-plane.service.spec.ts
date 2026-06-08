@@ -109,6 +109,44 @@ describe('ControlPlaneService', () => {
     if (res.ok === false) expect(res.error).toBe('stages must be a permutation of the track');
   });
 
+  it('setStages posts track + the full ordered stage list (name + owner) + expectedRev with the guard', async () => {
+    const promise = cp.setStages({
+      track: 'full',
+      stages: [{ name: 'vision', owner: '/po' }, { name: 'design-review', owner: '/ui' }, { name: 'done' }],
+      expectedRev: 'r1',
+    });
+    const req = http.expectOne('/api/track/set-stages');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBe('1');
+    expect(req.request.body).toEqual({
+      track: 'full',
+      stages: [{ name: 'vision', owner: '/po' }, { name: 'design-review', owner: '/ui' }, { name: 'done' }],
+      expectedRev: 'r1',
+    });
+    req.flush({ ok: true, state: { rev: 'r2' } });
+    const res = await promise;
+    expect(res.ok).toBe(true);
+    if (res.ok === true) expect(res.state?.rev).toBe('r2');
+  });
+
+  it('setStages surfaces a 409 as a conflict carrying the fresh server state', async () => {
+    const promise = cp.setStages({ track: 'full', stages: [{ name: 'vision' }], expectedRev: 'stale' });
+    const req = http.expectOne('/api/track/set-stages');
+    req.flush({ ok: false, conflict: true, state: { rev: 'r9' } }, { status: 409, statusText: 'Conflict' });
+    const res = await promise;
+    expect(res.ok).toBe('conflict');
+    if (res.ok === 'conflict') expect(res.state?.rev).toBe('r9');
+  });
+
+  it('setStages maps a 400 (invalid list) to an error result with the hub message', async () => {
+    const promise = cp.setStages({ track: 'full', stages: [{ name: 'a' }, { name: 'a' }], expectedRev: 'r1' });
+    const req = http.expectOne('/api/track/set-stages');
+    req.flush({ ok: false, error: 'duplicate stage name' }, { status: 400, statusText: 'Bad Request' });
+    const res = await promise;
+    expect(res.ok).toBe(false);
+    if (res.ok === false) expect(res.error).toBe('duplicate stage name');
+  });
+
   it('gateTrigger posts only the changed fields (owner/refusal/trigger) + expectedRev', async () => {
     const promise = cp.gateTrigger({ gate: 'ARCH_APPROVED', owner: '/arch', refusal: 'hard', trigger: ['change-class'], expectedRev: 'r1' });
     const req = http.expectOne('/api/gate/trigger');
@@ -183,5 +221,47 @@ describe('ControlPlaneService', () => {
     req.flush({ ok: false, error: 'write refused' }, { status: 403, statusText: 'Forbidden' });
     const res = await promise;
     expect(res.ok).toBe(false);
+  });
+
+  describe('viewed-project scoping (the id travels on every mutation)', () => {
+    const PID = 'abcdef123456';
+
+    it('threads the scoped project id into EVERY mutation body', async () => {
+      cp.setProject(PID);
+
+      const checks: { call: Promise<unknown>; url: string }[] = [
+        { call: cp.advance({ id: 'ADT-1', toStage: 'security', expectedRev: 'r1', by: '/you' }), url: '/api/ticket/advance' },
+        { call: cp.comment({ id: 'ADT-1', author: '/you', body: 'hi', kind: 'comment' }), url: '/api/ticket/comment' },
+        { call: cp.gateSet({ id: 'ADT-1', gate: 'SECOPS_APPROVED', state: 'passed', by: '/secops', expectedRev: 'r1' }), url: '/api/gate/set' },
+        { call: cp.reorderTrack({ track: 'full', stages: ['a', 'b'], expectedRev: 'r1' }), url: '/api/track/reorder' },
+        { call: cp.setStages({ track: 'full', stages: [{ name: 'a' }], expectedRev: 'r1' }), url: '/api/track/set-stages' },
+        { call: cp.gateTrigger({ gate: 'ARCH_APPROVED', owner: '/arch', expectedRev: 'r1' }), url: '/api/gate/trigger' },
+        { call: cp.setPreset({ preset: 'solo', expectedRev: 'r1' }), url: '/api/preset' },
+        { call: cp.addKbNote({ title: 'note', body: 'x' }), url: '/api/kb/add' },
+      ];
+      for (const c of checks) {
+        const req = http.expectOne(c.url);
+        expect((req.request.body as { project?: string }).project, `${c.url} carries project`).toBe(PID);
+        req.flush({ ok: true, state: { rev: 'r2' }, doc: { name: 'note' } });
+        await c.call;
+      }
+    });
+
+    it('omits project when no project is scoped (single-project launch back-compat)', async () => {
+      const promise = cp.advance({ id: 'ADT-1', toStage: 'security', expectedRev: 'r1', by: '/you' });
+      const req = http.expectOne('/api/ticket/advance');
+      expect('project' in (req.request.body as object)).toBe(false);
+      req.flush({ ok: true, state: { rev: 'r2' } });
+      await promise;
+    });
+
+    it('does not let a client field named project override the scoped id', async () => {
+      cp.setProject(PID);
+      const promise = cp.advance({ id: 'ADT-1', toStage: 'security', expectedRev: 'r1', by: '/you' });
+      const req = http.expectOne('/api/ticket/advance');
+      expect((req.request.body as { project?: string }).project).toBe(PID);
+      req.flush({ ok: true, state: { rev: 'r2' } });
+      await promise;
+    });
   });
 });

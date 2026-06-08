@@ -84,22 +84,14 @@ describe('WorkflowBuilderComponent', () => {
     expect(hard.getAttribute('stroke-dasharray')).toBeNull();
   });
 
-  it('moves a stage down with the visible move button and posts the full new permutation + rev', async () => {
-    const { fixture, host, http: h, applied } = mount();
+  it('moves a stage down with the visible move button and reflects the new order optimistically', () => {
+    const { fixture, host, http: h } = mount();
     http = h;
-    // Move "vision" (first row) down → permutation [architecture, vision, security, done]
+    // Move "vision" (first row) down → order [architecture, vision, security, done]
     $(host, '[data-testid="move-down-vision"]').click();
     fixture.detectChanges();
     const names = [...host.querySelectorAll('[data-testid="builder-stage-name"]')].map((e) => e.textContent?.trim());
     expect(names).toEqual(['architecture', 'vision', 'security', 'done']);
-
-    // Save the batched reorder.
-    $(host, '[data-testid="builder-save"]').click();
-    const req = http.expectOne('/api/track/reorder');
-    expect(req.request.body).toEqual({ track: 'full', stages: ['architecture', 'vision', 'security', 'done'], expectedRev: 'r1' });
-    req.flush({ ok: true, state: { ...STATE, rev: 'r2' } });
-    await settle(fixture);
-    expect(applied.at(-1)?.rev).toBe('r2');
   });
 
   it('reorders with Alt+ArrowDown on a focused stage and announces the move', async () => {
@@ -155,7 +147,7 @@ describe('WorkflowBuilderComponent', () => {
     $(host, '[data-testid="move-down-vision"]').click();
     fixture.detectChanges();
     $(host, '[data-testid="builder-save"]').click();
-    const req = http.expectOne('/api/track/reorder');
+    const req = http.expectOne('/api/track/set-stages');
     const fresh: ProjectState = { ...STATE, rev: 'r9' };
     req.flush({ ok: false, conflict: true, state: fresh }, { status: 409, statusText: 'Conflict' });
     await settle(fixture);
@@ -205,5 +197,206 @@ describe('WorkflowBuilderComponent', () => {
     http = h;
     expect(host.querySelector('img[onerror]')).toBeNull();
     expect(host.innerHTML).not.toContain('<script>');
+  });
+
+  it('saves a reorder via set-stages, posting the full ordered list (name + owner) + rev', async () => {
+    const { fixture, host, http: h, applied } = mount();
+    http = h;
+    $(host, '[data-testid="move-down-vision"]').click();
+    fixture.detectChanges();
+    $(host, '[data-testid="builder-save"]').click();
+    const req = http.expectOne('/api/track/set-stages');
+    expect(req.request.body).toEqual({
+      track: 'full',
+      stages: [
+        { name: 'architecture', owner: '/arch' },
+        { name: 'vision', owner: '/po' },
+        { name: 'security', owner: '/secops' },
+        { name: 'done' },
+      ],
+      expectedRev: 'r1',
+    });
+    req.flush({ ok: true, state: { ...STATE, rev: 'r2' } });
+    await settle(fixture);
+    expect(applied.at(-1)?.rev).toBe('r2');
+    // The reorder bar is gone after a successful persist (move reliably reflected).
+    expect(host.querySelector('[data-testid="builder-reorder-bar"]')).toBeNull();
+  });
+
+  describe('add a stage', () => {
+    function openAdder(host: HTMLElement, fixture: ComponentFixture<WorkflowBuilderComponent>): void {
+      $(host, '[data-testid="add-stage-foot"]').click();
+      fixture.detectChanges();
+    }
+    function setName(host: HTMLElement, value: string): void {
+      const input = $(host, '[data-testid="new-stage-name"]') as HTMLInputElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    }
+
+    it('opens an inline new-stage row from the list-foot Add stage control', () => {
+      const { fixture, host, http: h } = mount();
+      http = h;
+      expect(host.querySelector('[data-testid="new-stage-row"]')).toBeNull();
+      openAdder(host, fixture);
+      expect(host.querySelector('[data-testid="new-stage-row"]')).toBeTruthy();
+      expect(host.querySelector('[data-testid="new-stage-name"]')).toBeTruthy();
+    });
+
+    it('confirms an add, posting the existing stages PLUS the new one with project + rev', async () => {
+      const { fixture, host, http: h, applied } = mount();
+      http = h;
+      openAdder(host, fixture);
+      setName(host, '  design-review  ');
+      const owner = $(host, '[data-testid="new-stage-owner"]') as HTMLSelectElement;
+      owner.value = '/ui';
+      owner.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      $(host, '[data-testid="new-stage-confirm"]').click();
+
+      const req = http.expectOne('/api/track/set-stages');
+      expect(req.request.body.track).toBe('full');
+      expect(req.request.body.stages).toEqual([
+        { name: 'vision', owner: '/po' },
+        { name: 'architecture', owner: '/arch' },
+        { name: 'security', owner: '/secops' },
+        { name: 'done' },
+        { name: 'design-review', owner: '/ui' },
+      ]);
+      expect(req.request.body.expectedRev).toBe('r1');
+      req.flush({ ok: true, state: { ...STATE, rev: 'r2' } });
+      await settle(fixture);
+      expect(applied.at(-1)?.rev).toBe('r2');
+    });
+
+    it('blocks a blank name client-side (confirm disabled, nothing posted)', () => {
+      const { fixture, host, http: h } = mount();
+      http = h;
+      openAdder(host, fixture);
+      setName(host, '   ');
+      fixture.detectChanges();
+      expect(($(host, '[data-testid="new-stage-confirm"]') as HTMLButtonElement).disabled).toBe(true);
+      http.expectNone('/api/track/set-stages');
+    });
+
+    it('blocks a duplicate name client-side (confirm disabled, shows a reason, nothing posted)', () => {
+      const { fixture, host, http: h } = mount();
+      http = h;
+      openAdder(host, fixture);
+      setName(host, 'security');
+      fixture.detectChanges();
+      expect(($(host, '[data-testid="new-stage-confirm"]') as HTMLButtonElement).disabled).toBe(true);
+      expect($(host, '[data-testid="new-stage-error"]').textContent ?? '').toMatch(/already exists/i);
+      http.expectNone('/api/track/set-stages');
+    });
+  });
+
+  describe('delete a stage', () => {
+    it('opens an inline confirm warning how many tickets are in the stage and that they go off-track', () => {
+      const withTickets: ProjectState = {
+        ...STATE,
+        tickets: [
+          { id: 'T1', stage: 'architecture' },
+          { id: 'T2', stage: 'architecture' },
+        ],
+      };
+      const { fixture, host, http: h } = mount(withTickets);
+      http = h;
+      $(host, '[data-testid="delete-stage-architecture"]').click();
+      fixture.detectChanges();
+      const confirm = $(host, '[data-testid="delete-confirm-architecture"]');
+      expect(confirm.textContent ?? '').toMatch(/2 task/i);
+      expect(confirm.textContent ?? '').toMatch(/off-track/i);
+    });
+
+    it('confirms a delete, posting the list WITHOUT that stage + rev', async () => {
+      const { fixture, host, http: h, applied } = mount();
+      http = h;
+      $(host, '[data-testid="delete-stage-security"]').click();
+      fixture.detectChanges();
+      $(host, '[data-testid="delete-confirm-go-security"]').click();
+      const req = http.expectOne('/api/track/set-stages');
+      expect(req.request.body.stages).toEqual([
+        { name: 'vision', owner: '/po' },
+        { name: 'architecture', owner: '/arch' },
+        { name: 'done' },
+      ]);
+      expect(req.request.body.expectedRev).toBe('r1');
+      req.flush({ ok: true, state: { ...STATE, rev: 'r2' } });
+      await settle(fixture);
+      expect(applied.at(-1)?.rev).toBe('r2');
+    });
+
+    it('refuses deleting the last remaining stage (button disabled, nothing posted)', () => {
+      const single: ProjectState = {
+        ...STATE,
+        workflowView: { activeTrack: 'solo', stages: [{ stage: 'do', owner: '/you', gate: null }] },
+        tracks: { solo: ['do'] },
+      };
+      const { host, http: h } = mount(single);
+      http = h;
+      expect(($(host, '[data-testid="delete-stage-do"]') as HTMLButtonElement).disabled).toBe(true);
+      http.expectNone('/api/track/set-stages');
+    });
+  });
+
+  describe('set a stage owner', () => {
+    it('changing the row owner posts set-stages with that stage owner updated', async () => {
+      const { fixture, host, http: h } = mount();
+      http = h;
+      const select = $(host, '[data-testid="owner-select-done"]') as HTMLSelectElement;
+      select.value = '/qa';
+      select.dispatchEvent(new Event('change'));
+      const req = http.expectOne('/api/track/set-stages');
+      expect(req.request.body.stages).toEqual([
+        { name: 'vision', owner: '/po' },
+        { name: 'architecture', owner: '/arch' },
+        { name: 'security', owner: '/secops' },
+        { name: 'done', owner: '/qa' },
+      ]);
+      req.flush({ ok: true, state: { ...STATE, rev: 'r2' } });
+      await settle(fixture);
+    });
+
+    it('selecting the "—" option clears the owner to the derived default', async () => {
+      const { fixture, host, http: h } = mount();
+      http = h;
+      const select = $(host, '[data-testid="owner-select-vision"]') as HTMLSelectElement;
+      select.value = '';
+      select.dispatchEvent(new Event('change'));
+      const req = http.expectOne('/api/track/set-stages');
+      // vision's owner cleared → it carries no owner field; the rest are unchanged.
+      expect(req.request.body.stages).toEqual([
+        { name: 'vision' },
+        { name: 'architecture', owner: '/arch' },
+        { name: 'security', owner: '/secops' },
+        { name: 'done' },
+      ]);
+      req.flush({ ok: true, state: { ...STATE, rev: 'r2' } });
+      await settle(fixture);
+    });
+
+    it('constrains the owner picker to the allowed agent set plus the clear option', () => {
+      const { host, http: h } = mount();
+      http = h;
+      const select = $(host, '[data-testid="owner-select-vision"]') as HTMLSelectElement;
+      const values = [...select.options].map((o) => o.value);
+      expect(values).toContain('');
+      expect(values).toContain('/secops');
+      expect(values).toContain('/qa');
+    });
+  });
+
+  it('reconciles a 409 from set-stages: adopts fresh state and surfaces the conflict reconcile', async () => {
+    const { fixture, host, http: h, applied } = mount();
+    http = h;
+    const select = $(host, '[data-testid="owner-select-done"]') as HTMLSelectElement;
+    select.value = '/qa';
+    select.dispatchEvent(new Event('change'));
+    const req = http.expectOne('/api/track/set-stages');
+    req.flush({ ok: false, conflict: true, state: { ...STATE, rev: 'r9' } }, { status: 409, statusText: 'Conflict' });
+    await settle(fixture);
+    expect($(host, '[data-testid="builder-conflict"]').getAttribute('role')).toBe('alert');
+    expect(applied.at(-1)?.rev).toBe('r9');
   });
 });

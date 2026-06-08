@@ -1,7 +1,26 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { ControlPlaneService } from '../core/control-plane.service';
 import type { ProjectState, TicketView } from '../core/models';
-import { BOARD_COLUMNS, type ColumnKey, groupByColumn, nextStage, ticketNeedsYou } from './board';
+import {
+  nextStageInOrder,
+  offTrackGroups,
+  stageColumns,
+  statusChip,
+  ticketNeedsYou,
+  type OffTrackGroup,
+  type StageColumn,
+} from './board';
 import { gateStateView } from './gate-view';
 import { GlyphComponent } from './glyph.component';
 import { TaskDetailComponent } from './task-detail.component';
@@ -15,111 +34,142 @@ interface CardGateChip {
   readonly text: string;
 }
 
-/** A column with its tickets — every column is rendered even when empty (slim placeholder). */
-interface ColumnView {
-  readonly key: ColumnKey;
-  readonly label: string;
-  readonly glyph: string;
-  readonly tickets: readonly TicketView[];
-}
-
-const COLUMN_GLYPH: Readonly<Record<ColumnKey, string>> = {
-  in_progress: 'progress',
-  waiting: 'dot',
-  blocked: 'blocked',
-  done: 'check',
-};
-
 /**
- * Tasks board — columns by real status (needsYou is a card chip, never a column), task cards with
- * a kebab advance menu, and a focus-trapped detail modal opened from a card. The board is a pure
- * projection of the single `state` input; the shell refreshes it on every SSE push, so a CLI
- * agent's change appears live — cards re-bucket, counts update, and the open detail refreshes in
- * place because the selected ticket is re-derived from the latest state by id (not snapshotted).
+ * Tasks board — columns are the active track's workflow STAGES, in order, each holding the tickets
+ * whose current stage matches (an empty stage still renders a placeholder column). Status and
+ * needs-you are card CHIPS, never columns. A ticket whose stage is no longer in the track is
+ * surfaced in a distinct OFF-TRACK lane below the columns — never dropped, never silently re-keyed;
+ * it stays openable and advanceable so the operator can re-home it onto a real stage.
  *
- * Advance rides the guarded control plane with the current `rev`; a 409 surfaces an inline conflict
- * on the card and the shell adopts the returned fresh state. Untrusted card text (title, assignee)
- * is interpolated only — never `[innerHTML]`.
+ * The board is a pure projection of the single `state` input; the shell refreshes it on every SSE
+ * push, so a workflow edit re-lays the columns out live (columns appear/disappear/reorder; a just-
+ * removed stage's tickets fall into the off-track lane) and a CLI agent's change appears with no
+ * reload. Advance moves a ticket to the NEXT stage in the workflow order via the guarded control
+ * plane with the current `rev`; a 409 surfaces an inline conflict and the shell adopts the returned
+ * state. Untrusted text (stage, owner, title) is interpolated only — never `[innerHTML]`.
  */
 @Component({
   selector: 'dart-tasks-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GlyphComponent, TaskDetailComponent],
+  imports: [GlyphComponent, TaskDetailComponent, NgTemplateOutlet],
   template: `
+    <p class="board-live" data-testid="board-live" aria-live="polite" role="status">{{ liveAnnounce() }}</p>
+
+    @if (projectName()) {
+      <p class="board-cue" data-testid="board-project-cue"><dart-glyph name="info" /> Tasks for <strong>{{ projectName() }}</strong></p>
+    }
+
     @if (isEmpty()) {
       <p class="board-empty" data-testid="board-empty">No tasks yet — the team will create them as work starts.</p>
     } @else {
-      <div class="board" role="list" aria-label="Tasks by status">
-        @for (col of columns(); track col.key) {
-          <section class="col" [attr.data-testid]="'column-' + col.key" role="listitem">
-            <header class="col__head" [class]="'col__head--' + col.key">
-              <dart-glyph [name]="col.glyph" />
-              <span class="col__label">{{ col.label }}</span>
+      <div class="board" role="list" aria-label="Tasks by workflow stage" (keydown)="onColumnKeydown($event)">
+        @for (col of columns(); track col.stage; let ci = $index) {
+          <section
+            class="col"
+            [attr.data-testid]="'column-stage-' + col.stage"
+            role="listitem"
+            tabindex="0"
+            [attr.data-col-index]="ci"
+            [attr.aria-label]="'Stage ' + col.stage + ', ' + col.tickets.length + ' tasks'"
+          >
+            <header class="col__head">
+              <span class="col__stage">{{ col.stage }}</span>
+              @if (col.owner) {
+                <span class="col__owner"><dart-glyph name="agent" /> {{ col.owner }}</span>
+              }
               <span class="col__count" data-testid="column-count">{{ col.tickets.length }}</span>
             </header>
             <ul class="col__cards" role="list">
               @for (t of col.tickets; track t.id) {
-                <li class="card" [attr.data-testid]="'card-' + t.id" role="listitem">
-                  <button type="button" class="card__open" data-testid="card-open" (click)="openDetail(t)">
-                    <span class="card__id">{{ t.id }}</span>
-                    <span class="card__title">{{ t.title }}</span>
-                    <span class="card__owner"><dart-glyph name="agent" /> {{ t.assignee || t.expectedOwner || 'unassigned' }}</span>
-                    <span class="card__gates">
-                      @for (g of cardGates(t); track g.name) {
-                        <span class="chip" [class]="'tone--' + g.tone" [attr.data-shape]="g.shape">
-                          <dart-glyph [name]="g.glyph" /> {{ g.name }} {{ g.text }}
-                        </span>
-                      }
-                      @if (needsYou(t)) {
-                        <span class="chip chip--need" data-testid="chip-needs-you"><dart-glyph name="need" /> needs you</span>
-                      }
-                    </span>
-                  </button>
-
-                  <div class="card__menuwrap">
-                    <button type="button" class="card__kebab" data-testid="card-menu" [attr.aria-expanded]="menuFor() === t.id" aria-haspopup="menu" aria-label="Task actions" (click)="toggleMenu(t.id ?? '')">
-                      <dart-glyph name="kebab" />
-                    </button>
-                    @if (menuFor() === t.id) {
-                      <div class="menu" role="menu">
-                        @if (advanceTarget(t); as to) {
-                          <button type="button" class="menu__item" role="menuitem" data-testid="menu-advance" [disabled]="busyFor() === t.id" (click)="advance(t, to)">
-                            <dart-glyph name="advance" /> Advance to {{ to }}
-                          </button>
-                        } @else {
-                          <span class="menu__none" data-testid="menu-no-advance">No further stage</span>
-                        }
-                        <button type="button" class="menu__item" role="menuitem" data-testid="menu-open" (click)="openDetail(t)">Open detail</button>
-                      </div>
-                    }
-                  </div>
-
-                  @if (conflictFor() === t.id) {
-                    <p class="card__conflict" role="alert" data-testid="card-conflict">
-                      <dart-glyph name="conflict" /> This task changed elsewhere — reloaded.
-                      @if (advanceTarget(t); as to) {
-                        <button type="button" class="card__retry" data-testid="card-retry" (click)="advance(t, to)">Retry advance</button>
-                      }
-                    </p>
-                  }
-                  @if (errorFor() === t.id) {
-                    <p class="card__conflict" role="alert" data-testid="card-error"><dart-glyph name="cross" /> {{ errorText() }}</p>
-                  }
-                </li>
+                <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
               } @empty {
-                <li class="col__empty" [attr.data-testid]="'column-empty-' + col.key">Nothing {{ col.label.toLowerCase() }}.</li>
+                <li class="col__empty" [attr.data-testid]="'column-empty-' + col.stage">Nothing in this stage.</li>
               }
             </ul>
           </section>
         }
       </div>
+
+      @if (offTrack().length) {
+        <section class="offtrack" data-testid="off-track-lane" aria-label="Off-track tasks">
+          <header class="offtrack__head">
+            <dart-glyph name="warning" />
+            <span class="offtrack__title">Off-track ({{ offTrackCount() }})</span>
+            <span class="offtrack__why">— these tasks are in a stage that's no longer in the track</span>
+          </header>
+          <div class="offtrack__groups">
+            @for (g of offTrack(); track g.stage) {
+              <div class="offtrack__group" [attr.data-testid]="'off-track-group-' + g.stage">
+                <p class="offtrack__stage">stage: “{{ g.stage }}” (removed)</p>
+                <ul class="col__cards" role="list">
+                  @for (t of g.tickets; track t.id) {
+                    <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        </section>
+      }
     }
+
+    <ng-template #cardTpl let-t>
+      <li class="card" [attr.data-testid]="'card-' + t.id" role="listitem">
+        <button type="button" class="card__open" data-testid="card-open" (click)="openDetail(t)">
+          <span class="card__id">{{ t.id }}</span>
+          <span class="card__title">{{ t.title }}</span>
+          <span class="card__owner"><dart-glyph name="agent" /> {{ t.assignee || t.expectedOwner || 'unassigned' }}</span>
+          <span class="card__chips">
+            <span class="chip chip--status" data-testid="chip-status"><dart-glyph [name]="status(t).glyph" /> {{ status(t).label }}</span>
+            @for (g of cardGates(t); track g.name) {
+              <span class="chip" [class]="'tone--' + g.tone" [attr.data-shape]="g.shape">
+                <dart-glyph [name]="g.glyph" /> {{ g.name }} {{ g.text }}
+              </span>
+            }
+            @if (needsYou(t)) {
+              <span class="chip chip--need" data-testid="chip-needs-you"><dart-glyph name="need" /> needs you</span>
+            }
+          </span>
+        </button>
+
+        <div class="card__menuwrap">
+          <button type="button" class="card__kebab" data-testid="card-menu" [attr.aria-expanded]="menuFor() === t.id" aria-haspopup="menu" aria-label="Task actions" (click)="toggleMenu(t.id ?? '')">
+            <dart-glyph name="kebab" />
+          </button>
+          @if (menuFor() === t.id) {
+            <div class="menu" role="menu">
+              @if (advanceTarget(t); as to) {
+                <button type="button" class="menu__item" role="menuitem" data-testid="menu-advance" [disabled]="busyFor() === t.id" (click)="advance(t, to)">
+                  <dart-glyph name="advance" /> Advance to {{ to }}
+                </button>
+              } @else {
+                <span class="menu__none" data-testid="menu-no-advance">No further stage</span>
+              }
+              <button type="button" class="menu__item" role="menuitem" data-testid="menu-open" (click)="openDetail(t)">Open detail</button>
+            </div>
+          }
+        </div>
+
+        @if (conflictFor() === t.id) {
+          <p class="card__conflict" role="alert" data-testid="card-conflict">
+            <dart-glyph name="conflict" /> This task changed elsewhere — reloaded.
+            @if (advanceTarget(t); as to) {
+              <button type="button" class="card__retry" data-testid="card-retry" (click)="advance(t, to)">Retry advance</button>
+            }
+          </p>
+        }
+        @if (errorFor() === t.id) {
+          <p class="card__conflict" role="alert" data-testid="card-error"><dart-glyph name="cross" /> {{ errorText() }}</p>
+        }
+      </li>
+    </ng-template>
 
     @if (selected(); as sel) {
       <dart-task-detail
         [ticket]="sel"
         [gateDefs]="state().gateDefs ?? []"
         [tracks]="state().tracks ?? {}"
+        [stageOrder]="stageOrder()"
         [rev]="state().rev ?? ''"
         (applied)="applied.emit($event)"
         (close)="closeDetail()"
@@ -127,15 +177,16 @@ const COLUMN_GLYPH: Readonly<Record<ColumnKey, string>> = {
     }
   `,
   styles: `
+    .board-live { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .board-cue { display: flex; align-items: center; gap: 0.3rem; margin: 0 0 var(--kb-space-3); color: var(--kb-text-muted); font-size: var(--kb-text-sm); overflow-wrap: anywhere; }
+    .board-cue strong { font-weight: 600; color: var(--kb-text); }
     .board-empty { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
-    .board { display: grid; grid-template-columns: repeat(4, minmax(12rem, 1fr)); gap: var(--kb-space-3); align-items: start; }
-    .col { display: flex; flex-direction: column; gap: var(--kb-space-2); min-width: 0; }
-    .col__head { display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0.3rem; border-bottom: 2px solid var(--kb-border); font-weight: 600; }
-    .col__head--in_progress { color: var(--kb-accent); }
-    .col__head--waiting { color: var(--kb-text-subtle); }
-    .col__head--blocked { color: var(--kb-danger); }
-    .col__head--done { color: var(--kb-success); }
-    .col__label { font-size: var(--kb-text-sm); }
+    .board { display: flex; gap: var(--kb-space-3); align-items: start; overflow-x: auto; padding-bottom: var(--kb-space-2); }
+    .col { flex: 0 0 12rem; min-width: 12rem; display: flex; flex-direction: column; gap: var(--kb-space-2); scroll-snap-align: start; scroll-margin: var(--kb-space-3); border-radius: var(--kb-radius-md); }
+    .col:focus-visible { outline: 2px solid var(--kb-focus-ring, var(--kb-accent)); outline-offset: 2px; }
+    .col__head { display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); font-weight: 600; }
+    .col__stage { font-size: var(--kb-text-sm); overflow-wrap: anywhere; }
+    .col__owner { display: inline-flex; align-items: center; gap: 0.2rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); font-weight: 500; }
     .col__count { margin-left: auto; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
     .col__cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--kb-space-2); }
     .col__empty { color: var(--kb-text-subtle); font-size: var(--kb-text-xs); font-style: italic; padding: var(--kb-space-2); border: 1px dashed var(--kb-border); border-radius: var(--kb-radius-md); }
@@ -144,10 +195,11 @@ const COLUMN_GLYPH: Readonly<Record<ColumnKey, string>> = {
     .card__id { font-family: var(--kb-font-mono, monospace); font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
     .card__title { font-weight: 600; font-size: var(--kb-text-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
     .card__owner { display: inline-flex; align-items: center; gap: 0.25rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
-    .card__gates { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+    .card__chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
     .chip { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.05rem 0.35rem; font-size: var(--kb-text-xs); border: 1px solid var(--kb-border); border-radius: 999px; }
     .chip[data-shape='soft'] { border-style: dashed; }
     .chip--need { color: var(--kb-warning); border-color: var(--kb-warning); }
+    .chip--status { color: var(--kb-text-muted); }
     .tone--success { color: var(--kb-success); }
     .tone--danger { color: var(--kb-danger); }
     .tone--muted { color: var(--kb-text-muted); }
@@ -160,12 +212,25 @@ const COLUMN_GLYPH: Readonly<Record<ColumnKey, string>> = {
     .menu__none { padding: 0.45rem 0.6rem; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
     .card__conflict { display: flex; align-items: center; gap: 0.35rem; margin: 0; padding: 0.3rem var(--kb-space-2) var(--kb-space-2); color: var(--kb-warning); font-size: var(--kb-text-xs); }
     .card__retry, .card__kebab + .card__conflict button { font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-accent); background: transparent; border: none; cursor: pointer; text-decoration: underline; }
+    .offtrack { margin-top: var(--kb-space-4); padding-top: var(--kb-space-3); border-top: 1px solid var(--kb-border); }
+    .offtrack__head { display: flex; align-items: center; gap: 0.4rem; color: var(--kb-warning); font-weight: 600; }
+    .offtrack__title { font-size: var(--kb-text-sm); }
+    .offtrack__why { color: var(--kb-text-muted); font-weight: 400; font-size: var(--kb-text-xs); }
+    .offtrack__groups { display: flex; flex-wrap: wrap; gap: var(--kb-space-3); margin-top: var(--kb-space-2); }
+    .offtrack__group { flex: 0 1 16rem; border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); padding: var(--kb-space-2); }
+    .offtrack__stage { margin: 0 0 var(--kb-space-2); font-size: var(--kb-text-xs); color: var(--kb-text-muted); overflow-wrap: anywhere; }
   `,
 })
 export class TasksBoardComponent {
   private readonly cp = inject(ControlPlaneService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly state = input.required<ProjectState>();
+  /**
+   * The viewed project's display name, shown as a quiet context cue so the operator is never in
+   * doubt which project a write lands in (untrusted — interpolated, escaped). Absent → no cue.
+   */
+  readonly projectName = input<string>('');
   /** A successful (or conflict-resync) mutation returns fresh state for the shell to adopt. */
   readonly applied = output<ProjectState>();
 
@@ -175,14 +240,20 @@ export class TasksBoardComponent {
   readonly conflictFor = signal<string | null>(null);
   readonly errorFor = signal<string | null>(null);
   readonly errorText = signal('');
+  /** A quiet message announced to assistive tech when the board re-lays out from a live push. */
+  readonly liveAnnounce = signal('');
+  private firstRender = true;
+  private prevRev: string | undefined;
 
   private readonly tickets = computed<readonly TicketView[]>(() => this.state().tickets ?? []);
-  readonly isEmpty = computed(() => this.tickets().length === 0);
+  readonly stageOrder = computed<readonly string[]>(() => (this.state().workflowView?.stages ?? []).map((s) => s.stage));
 
-  readonly columns = computed<readonly ColumnView[]>(() => {
-    const grouped = groupByColumn(this.tickets());
-    return BOARD_COLUMNS.map((c) => ({ key: c.key, label: c.label, glyph: COLUMN_GLYPH[c.key], tickets: grouped[c.key] }));
-  });
+  readonly columns = computed<readonly StageColumn[]>(() => stageColumns(this.state().workflowView, this.tickets()));
+  readonly offTrack = computed<readonly OffTrackGroup[]>(() => offTrackGroups(this.state().workflowView, this.tickets()));
+  readonly offTrackCount = computed(() => this.offTrack().reduce((n, g) => n + g.tickets.length, 0));
+
+  /** Empty board: no stage columns and no off-track tickets to surface. */
+  readonly isEmpty = computed(() => this.columns().length === 0 && this.offTrack().length === 0);
 
   /** The open ticket, re-derived from the latest state by id so live pushes refresh it in place. */
   readonly selected = computed<TicketView | null>(() => {
@@ -190,12 +261,31 @@ export class TasksBoardComponent {
     return id ? (this.tickets().find((t) => t.id === id) ?? null) : null;
   });
 
+  constructor() {
+    // Announce a board re-layout when a fresh state (new rev) arrives after the initial render — a
+    // quiet polite cue, never on first paint.
+    effect(() => {
+      const rev = this.state().rev;
+      if (this.firstRender) {
+        this.firstRender = false;
+      } else if (rev !== this.prevRev) {
+        this.liveAnnounce.set('Board updated');
+      }
+      this.prevRev = rev;
+    });
+  }
+
+  status(ticket: TicketView) {
+    return statusChip(ticket.status);
+  }
+
   needsYou(ticket: TicketView): boolean {
     return ticketNeedsYou(ticket);
   }
 
+  /** The next workflow stage to advance to; an off-track ticket targets the first stage to re-home. */
   advanceTarget(ticket: TicketView): string | null {
-    return nextStage(ticket, this.state().tracks);
+    return nextStageInOrder(ticket.stage ?? '', this.stageOrder());
   }
 
   cardGates(ticket: TicketView): readonly CardGateChip[] {
@@ -216,6 +306,19 @@ export class TasksBoardComponent {
 
   closeDetail(): void {
     this.openId.set(null);
+  }
+
+  /** Roving focus across the stage columns: ←/→ move between columns for keyboard navigation. */
+  onColumnKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+    const cols = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-col-index]')];
+    const active = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('[data-col-index]') : null;
+    const idx = active ? cols.indexOf(active) : -1;
+    if (idx < 0) return;
+    const next = event.key === 'ArrowRight' ? idx + 1 : idx - 1;
+    if (next < 0 || next >= cols.length) return;
+    event.preventDefault();
+    cols[next].focus();
   }
 
   async advance(ticket: TicketView, toStage: string): Promise<void> {

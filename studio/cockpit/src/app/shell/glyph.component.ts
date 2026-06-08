@@ -27,7 +27,10 @@ export const GLYPH_NAMES = [
   'save',
   'preset',
   'info',
+  'warning',
   'remove',
+  'add-stage',
+  'trash',
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -171,10 +174,33 @@ export type GlyphName = (typeof GLYPH_NAMES)[number];
           <line x1="12" y1="11" x2="12" y2="16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
         </svg>
       }
+      @case ('warning') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M12 4 L21 19 H3 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <line x1="12" y1="10" x2="12" y2="14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none" />
+        </svg>
+      }
       @case ('remove') {
         <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
           <line x1="7" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           <line x1="17" y1="7" x2="7" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+      }
+      @case ('add-stage') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <line x1="4" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <line x1="19" y1="9" x2="19" y2="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <line x1="16" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      }
+      @case ('trash') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M6 7 h12 v13 H6 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <path d="M9 7 V4 h6 v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <line x1="10" y1="11" x2="10" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <line x1="14" y1="11" x2="14" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
         </svg>
       }
     }

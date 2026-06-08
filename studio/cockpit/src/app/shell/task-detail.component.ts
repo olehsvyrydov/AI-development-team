@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { ControlPlaneService, type MutationResult } from '../core/control-plane.service';
 import type { GateDef, ProjectState, TicketView } from '../core/models';
-import { commentsNewestFirst, nextStage } from './board';
+import { commentsNewestFirst, nextStage, nextStageInOrder } from './board';
 import { GlyphComponent } from './glyph.component';
 import { gateRowsFor, type GateRowView } from './gate-view';
 
@@ -246,6 +246,12 @@ export class TaskDetailComponent {
   readonly ticket = input.required<TicketView>();
   readonly gateDefs = input<readonly GateDef[]>([]);
   readonly tracks = input<Readonly<Record<string, readonly string[]>>>({});
+  /**
+   * The active track's stage order from `workflowView`. When present it is the authority for the
+   * "advance to next stage" target, so the detail's advance matches the board's exactly. Falls back
+   * to deriving the next stage from {@link tracks} when no explicit order is supplied.
+   */
+  readonly stageOrder = input<readonly string[]>([]);
   readonly rev = input<string>('');
   readonly author = input<string>('/you');
 
@@ -277,7 +283,11 @@ export class TaskDetailComponent {
 
   readonly comments = computed(() => commentsNewestFirst(this.ticket().comments));
   readonly gateRows = computed<readonly GateRowView[]>(() => gateRowsFor(this.ticket(), this.gateDefs()));
-  readonly advanceTo = computed(() => nextStage(this.ticket(), this.tracks()));
+  readonly advanceTo = computed(() => {
+    const order = this.stageOrder();
+    if (order.length > 0) return nextStageInOrder(this.ticket().stage ?? '', order);
+    return nextStage(this.ticket(), this.tracks());
+  });
 
   readonly overCap = computed(() => this.draft().length > COMMENT_BODY_MAX);
   readonly canPost = computed(() => this.draft().trim().length > 0 && !this.overCap() && !this.posting());

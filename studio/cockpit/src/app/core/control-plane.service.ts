@@ -75,6 +75,31 @@ export interface ReorderInput {
 }
 
 /**
+ * One stage of a {@link SetStagesInput} list. `name` is the stage's identity; `owner` is the agent
+ * that runs it (omitted/empty falls back to the derived default); `gate` is advisory view metadata —
+ * the authoritative gate rule lives in `overlay.gates`, edited via {@link GateTriggerInput}.
+ */
+export interface SetStagesStage {
+  readonly name: string;
+  readonly owner?: string;
+  readonly gate?: string;
+}
+
+/**
+ * Body for `track/set-stages`. `stages` is the COMPLETE new ordered stage list for the track — add
+ * is a name not previously present, delete is an omitted name, move is a reorder, owner is the
+ * per-stage `owner`. One declarative overlay write makes all four a single atomic CAS. The hub
+ * validates the list (non-empty, unique, trimmed, capped, known track, owner from the plain-string
+ * set) and writes only the overlay; the base workflow file is never changed. `expectedRev` guards
+ * against a stale overlay write.
+ */
+export interface SetStagesInput {
+  readonly track: string;
+  readonly stages: readonly SetStagesStage[];
+  readonly expectedRev: string;
+}
+
+/**
  * Body for `gate/trigger`. Only the fields the operator changed are sent; an omitted field leaves
  * that part of the gate rule untouched on the overlay. `refusal` chooses hard (blocking) vs soft.
  */
@@ -105,11 +130,28 @@ interface MutationEnvelope {
  * call rides the existing X-AIDT write guard via the injected bridge — the UI never sets headers
  * itself. A 409 is decoded into a `conflict` result carrying the fresh state, never thrown, so the
  * optimistic-write + re-sync contract holds at one place for every mutating surface.
+ *
+ * Project scoping: the workspace shell calls {@link setProject} with the viewed project's registry
+ * id, and every mutation then carries that id as a `project` body field so the hub resolves the
+ * write to the viewed project (not the launch directory). The id is a lookup key the hub validates
+ * and resolves via its registry — the client never sends a path. With no id set (single-project
+ * launch), the field is omitted and the hub falls back to its launch project.
  */
 @Injectable({ providedIn: 'root' })
 export class ControlPlaneService {
   private readonly http = inject(HttpClient);
   private readonly bridge = inject(PLATFORM_BRIDGE);
+
+  private projectId: string | null = null;
+
+  /**
+   * Scope every subsequent mutation to a project by its registry id, or clear scoping with `null`.
+   * The id is sent verbatim as the `project` body field; the hub validates and resolves it. The
+   * scoped id always wins over any incoming `project` field on a mutation body.
+   */
+  setProject(id: string | null): void {
+    this.projectId = id;
+  }
 
   advance(input: AdvanceInput): Promise<MutationResult> {
     return this.mutate('/api/ticket/advance', input);
@@ -127,6 +169,15 @@ export class ControlPlaneService {
     return this.mutate('/api/track/reorder', input);
   }
 
+  /**
+   * Set the active track's full ordered stage list in one declarative overlay write. Carries every
+   * stage with its per-stage owner, so add / delete / move / set-owner persist as a single atomic
+   * CAS keyed on `expectedRev`; a stale write returns a `conflict` result, never a silent overwrite.
+   */
+  setStages(input: SetStagesInput): Promise<MutationResult> {
+    return this.mutate('/api/track/set-stages', input);
+  }
+
   gateTrigger(input: GateTriggerInput): Promise<MutationResult> {
     return this.mutate('/api/gate/trigger', input);
   }
@@ -142,7 +193,7 @@ export class ControlPlaneService {
    * This is an additive create, not a CAS mutation, so there is no `expectedRev` and no conflict.
    */
   async addKbNote(input: KbAddInput): Promise<KbAddResult> {
-    const body: KbAddInput = { title: input.title, body: input.body };
+    const body = this.scoped({ title: input.title, body: input.body });
     try {
       const res = await firstValueFrom(
         this.http.post<MutationEnvelope>(this.bridge.apiUrl('/api/kb/add'), body, {
@@ -156,10 +207,10 @@ export class ControlPlaneService {
     }
   }
 
-  private async mutate(apiPath: string, body: unknown): Promise<MutationResult> {
+  private async mutate(apiPath: string, body: object): Promise<MutationResult> {
     try {
       const res = await firstValueFrom(
-        this.http.post<MutationEnvelope>(this.bridge.apiUrl(apiPath), body, {
+        this.http.post<MutationEnvelope>(this.bridge.apiUrl(apiPath), this.scoped(body), {
           headers: this.bridge.writeHeaders(),
         }),
       );
@@ -172,6 +223,15 @@ export class ControlPlaneService {
       }
       return { ok: false, error: httpErrorMessage(err) };
     }
+  }
+
+  /**
+   * Stamp the scoped project id onto a mutation body. When a project is scoped its id is appended
+   * last so it always wins over any `project` field already on the body; when none is scoped the
+   * body is sent unchanged (single-project launch — the hub falls back to its launch project).
+   */
+  private scoped<T extends object>(body: T): T | (T & { project: string }) {
+    return this.projectId === null ? body : { ...body, project: this.projectId };
   }
 }
 

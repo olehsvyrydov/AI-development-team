@@ -29,10 +29,17 @@ export class ProjectEventsService {
   private readonly bridge = inject(PLATFORM_BRIDGE);
   private readonly open = inject(EVENT_SOURCE_FACTORY);
 
-  /** A cold stream of fresh project states. Opening happens on subscribe; closing on unsubscribe. */
-  connect(): Observable<ProjectState> {
+  /**
+   * A cold stream of fresh project states. Opening happens on subscribe; closing on unsubscribe.
+   * Pass the viewed project's registry id to subscribe to that project's isolated channel
+   * (`/api/events?project=<id>`), so a viewer receives only this project's pushes — never another
+   * project's frames. With no id the stream is unscoped (`/api/events`) and the hub serves its
+   * launch project (single-project back-compat).
+   */
+  connect(projectId?: string): Observable<ProjectState> {
     return new Observable<ProjectState>((subscriber) => {
-      const source = this.open(this.bridge.apiUrl('/api/events'));
+      const path = projectId ? `/api/events?project=${encodeURIComponent(projectId)}` : '/api/events';
+      const source = this.open(this.bridge.apiUrl(path));
       const onUpdate = (ev: MessageEvent) => {
         let parsed: ProjectState;
         try {
