@@ -1,32 +1,82 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../core/api.service';
-import { displayDescription, displayTitle, type ProjectView } from '../core/models';
+import {
+  displayDescription,
+  displayTitle,
+  type BaseView,
+  type ProjectView,
+  type TaskSummary,
+  type WorkflowView,
+} from '../core/models';
+import { BasePanelComponent } from './base-panel.component';
+import { TasksPanelComponent } from './tasks-panel.component';
+import { WorkflowPanelComponent } from './workflow-panel.component';
+
+/** A guarded panel input: either the derived value, or the derivation error message. */
+type Derived<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string };
+
+function derive<T>(fn: () => T): Derived<T> {
+  try {
+    return { ok: true, value: fn() };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 /**
- * Project Shell — the per-project workspace entered from a launcher card. For this slice it
- * shows the project header (title + auto-collected description) and placeholder regions for the
- * Workflow / Tasks / Base panels, which arrive in later tickets. The route id binds via
- * component-input binding; the view loads from getProject.
+ * Project Shell — the per-project workspace entered from a launcher card. A header row carries the
+ * back link, a glyph tile, the title, a settings affordance, and a live connection dot; the full
+ * auto-collected description sits in its own full-width block below, wrapping to as many lines as
+ * needed (no truncation). Below that are three read surfaces — Workflow, Tasks, and Base — each
+ * derived independently so one panel failing to build never blanks the others.
  *
- * Security: title and description are untrusted README/manifest text, rendered with
- * interpolation only (escaped) — no `[innerHTML]`.
+ * Security: title and description are untrusted README/manifest text, rendered with interpolation
+ * only (escaped) — no `[innerHTML]`. The route id binds via component-input binding; the view loads
+ * from getProject.
  */
 @Component({
   selector: 'dart-project-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, WorkflowPanelComponent, TasksPanelComponent, BasePanelComponent],
   template: `
     <header class="shell-head">
-      <a class="back" routerLink="/" data-testid="back-to-projects" aria-label="Back to projects">‹ Projects</a>
+      <a class="back" routerLink="/" data-testid="back-to-projects" aria-label="Back to projects">
+        <svg class="back__chevron" aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+          <polyline points="14,6 8,12 14,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Projects
+      </a>
       @if (view(); as v) {
-        <span class="shell-head__glyph" aria-hidden="true">◧</span>
+        <span class="shell-head__tile" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <line x1="10" y1="4.5" x2="10" y2="19.5" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+        </span>
         <h1 class="shell-head__title">{{ title() }}</h1>
-        @if (description()) {
-          <p class="shell-head__desc" [attr.title]="description()">{{ description() }}</p>
-        }
+        <button type="button" class="shell-head__settings" data-testid="shell-settings" aria-label="Project settings" aria-disabled="true">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+            <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M12 3 v2.4 M12 18.6 V21 M3 12 h2.4 M18.6 12 H21 M5.3 5.3 l1.7 1.7 M17 17 l1.7 1.7 M18.7 5.3 L17 7 M7 17 l-1.7 1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </button>
+        <span class="shell-head__conn" data-testid="shell-conn" [class]="'shell-head__conn--' + v.record.status">
+          <span class="shell-head__dot" aria-hidden="true"></span>
+          <span>{{ connectionLabel() }}</span>
+        </span>
       }
     </header>
+
+    @if (view()) {
+      <div class="shell-descwrap">
+        @if (description()) {
+          <p class="shell-desc" data-testid="shell-description">{{ description() }}</p>
+        } @else {
+          <p class="shell-desc shell-desc--empty" data-testid="shell-description">No description collected yet.</p>
+        }
+      </div>
+    }
 
     <main id="main" class="shell-body">
       @if (error(); as err) {
@@ -36,16 +86,31 @@ import { displayDescription, displayTitle, type ProjectView } from '../core/mode
       } @else {
         <section class="panels" aria-label="Project areas">
           <article class="panel" data-testid="panel-workflow">
-            <h2 class="panel__title">Workflow</h2>
-            <p class="panel__hint">Visual orchestration builder — coming soon.</p>
+            @if (workflow(); as w) {
+              @if (w.ok) {
+                <dart-workflow-panel [workflow]="w.value" />
+              } @else {
+                <p class="panel-error" role="alert" data-testid="panel-workflow-error">Couldn't load workflow.</p>
+              }
+            }
           </article>
           <article class="panel" data-testid="panel-tasks">
-            <h2 class="panel__title">Tasks</h2>
-            <p class="panel__hint">Agent-managed board — coming soon.</p>
+            @if (tasks(); as t) {
+              @if (t.ok) {
+                <dart-tasks-panel [summary]="t.value" />
+              } @else {
+                <p class="panel-error" role="alert" data-testid="panel-tasks-error">Couldn't load tasks.</p>
+              }
+            }
           </article>
           <article class="panel" data-testid="panel-base">
-            <h2 class="panel__title">Base</h2>
-            <p class="panel__hint">Knowledge documents the agents follow — coming soon.</p>
+            @if (base(); as b) {
+              @if (b.ok) {
+                <dart-base-panel [base]="b.value" />
+              } @else {
+                <p class="panel-error" role="alert" data-testid="panel-base-error">Couldn't load base.</p>
+              }
+            }
           </article>
         </section>
       }
@@ -61,19 +126,34 @@ import { displayDescription, displayTitle, type ProjectView } from '../core/mode
       background: linear-gradient(120deg, var(--kb-header-from), var(--kb-header-to));
       border-bottom: 1px solid var(--kb-border);
     }
-    .back { color: var(--kb-text-muted); text-decoration: none; font-size: var(--kb-text-sm); }
+    .back { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--kb-text-muted); text-decoration: none; font-size: var(--kb-text-sm); }
     .back:hover { color: var(--kb-text); }
-    .shell-head__glyph { color: var(--kb-accent); }
-    .shell-head__title { margin: 0; font-size: var(--kb-text-xl); font-weight: 700; }
-    .shell-head__desc {
-      margin: 0;
-      color: var(--kb-text-muted);
-      font-size: var(--kb-text-sm);
-      max-width: 42rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .back__chevron { flex: none; }
+    .shell-head__tile {
+      flex: none; display: inline-flex; align-items: center; justify-content: center;
+      width: 2.25rem; height: 2.25rem; border-radius: var(--kb-radius-md);
+      background: var(--kb-accent-soft); color: var(--kb-accent);
     }
+    .shell-head__title { margin: 0; font-size: var(--kb-text-xl); font-weight: 700; margin-right: auto; overflow-wrap: anywhere; }
+    .shell-head__settings {
+      flex: none; display: inline-flex; align-items: center; justify-content: center;
+      width: 2rem; height: 2rem; padding: 0;
+      color: var(--kb-text-muted); background: transparent;
+      border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); cursor: pointer;
+    }
+    .shell-head__settings:hover { color: var(--kb-text); border-color: var(--kb-border-strong); }
+    .shell-head__conn { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
+    .shell-head__dot { width: 0.55rem; height: 0.55rem; border-radius: 999px; background: var(--kb-text-subtle); }
+    .shell-head__conn--connected .shell-head__dot { background: var(--kb-success); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--kb-success) 22%, transparent); }
+    .shell-head__conn--analyzing .shell-head__dot { background: var(--kb-warning); }
+    .shell-head__conn--error .shell-head__dot, .shell-head__conn--offline .shell-head__dot { background: var(--kb-danger); }
+    .shell-descwrap { padding: var(--kb-space-4) var(--kb-space-4) 0; }
+    .shell-desc {
+      max-width: 60rem; margin: 0 auto;
+      color: var(--kb-text-muted); font-size: var(--kb-text-sm); line-height: 1.55;
+      white-space: normal; overflow-wrap: anywhere;
+    }
+    .shell-desc--empty { color: var(--kb-text-subtle); font-style: italic; }
     .shell-body { max-width: 76rem; margin: 0 auto; padding: var(--kb-space-5) var(--kb-space-4); }
     .muted { color: var(--kb-text-muted); }
     .banner--error { padding: var(--kb-space-3); border-radius: var(--kb-radius-md); background: var(--kb-accent-soft); color: var(--kb-danger); border: 1px solid var(--kb-danger); }
@@ -81,16 +161,18 @@ import { displayDescription, displayTitle, type ProjectView } from '../core/mode
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
       gap: var(--kb-space-3);
+      align-items: stretch;
     }
     .panel {
+      display: flex;
       padding: var(--kb-space-4);
       background: var(--kb-surface);
       border: 1px solid var(--kb-border);
       border-radius: var(--kb-radius-lg);
       box-shadow: var(--kb-shadow-sm);
     }
-    .panel__title { margin: 0 0 var(--kb-space-2); font-size: var(--kb-text-lg); }
-    .panel__hint { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
+    .panel > * { flex: 1 1 auto; }
+    .panel-error { margin: 0; color: var(--kb-danger); font-size: var(--kb-text-sm); }
   `,
 })
 export class ProjectShellComponent {
@@ -109,6 +191,27 @@ export class ProjectShellComponent {
     return v ? displayTitle(v) : '';
   });
   readonly description = computed(() => displayDescription(this.loaded()?.profile ?? null));
+  readonly connectionLabel = computed(() => {
+    const status = this.loaded()?.record.status;
+    return status === 'connected' ? 'connected' : status === 'analyzing' ? 'analysing' : (status ?? '');
+  });
+
+  /**
+   * Each panel input is derived behind its own guard so a malformed slice of `state` fails only
+   * that panel — the other two still render. `null` while the view is loading.
+   */
+  readonly workflow = computed<Derived<WorkflowView | null> | null>(() => {
+    const v = this.loaded();
+    return v ? derive(() => v.state?.workflowView ?? null) : null;
+  });
+  readonly tasks = computed<Derived<TaskSummary | null> | null>(() => {
+    const v = this.loaded();
+    return v ? derive(() => v.state?.taskSummary ?? null) : null;
+  });
+  readonly base = computed<Derived<BaseView | null> | null>(() => {
+    const v = this.loaded();
+    return v ? derive(() => v.state?.base ?? null) : null;
+  });
 
   constructor() {
     // Load whenever the route id changes (including its first binding). The effect tracks the

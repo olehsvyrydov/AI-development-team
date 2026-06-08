@@ -19,6 +19,19 @@ export interface PlatformBridge {
   apiUrl(path: string): string;
   /** Headers that must accompany a mutating request for the hub to accept it. */
   writeHeaders(): Record<string, string>;
+  /**
+   * Whether this host provides a NATIVE OS folder picker. When `false` (the browser host), the
+   * cockpit falls back to its in-app Core-directory-browser dialog. When `true` (e.g. a Tauri
+   * shell), the connect flow calls {@link pickDirectory} directly.
+   */
+  hasNativePicker(): boolean;
+  /**
+   * Pick a directory using the host's native OS picker, resolving to the chosen absolute path or
+   * `null` if the user cancelled. In the browser host this resolves to `null` — there is no
+   * native picker, so the caller opens the in-app dialog instead (gated on {@link hasNativePicker}).
+   * This indirection lets a Tauri host swap in the native picker with no change downstream.
+   */
+  pickDirectory(): Promise<string | null>;
 }
 
 /** Injection token so a host can provide its own bridge at bootstrap. */
@@ -43,5 +56,13 @@ export class BrowserPlatformBridge implements PlatformBridge {
 
   writeHeaders(): Record<string, string> {
     return { [WRITE_GUARD_HEADER]: '1' };
+  }
+
+  hasNativePicker(): boolean {
+    return false;
+  }
+
+  async pickDirectory(): Promise<string | null> {
+    return null;
   }
 }

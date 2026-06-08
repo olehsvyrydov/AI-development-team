@@ -26,9 +26,14 @@ import { RouterOutlet } from '@angular/router';
       box-shadow: var(--kb-shadow-md);
       transition: top 0.15s ease;
       z-index: 10;
+      /* Off-screen and raised, this link is the only positioned element that could ever sit over
+         content; opt it out of hit-testing so a real mouse click always reaches the controls
+         beneath it. Focus (keyboard) restores it. */
+      pointer-events: none;
     }
     .skip-link:focus {
       top: var(--kb-space-3);
+      pointer-events: auto;
     }
   `,
 })

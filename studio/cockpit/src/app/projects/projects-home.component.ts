@@ -4,11 +4,19 @@ import { ProjectsStore } from '../core/projects.store';
 import type { ProjectView } from '../core/models';
 import { ProjectCardComponent } from './project-card.component';
 import { ConnectPanelComponent } from './connect-panel.component';
+import { ANCHOR_LINE, CTA_HELPER, HOW_STEPS, TRUST_CHIPS, WHAT_IT_IS } from './copy';
+
+const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
 
 /**
- * Projects Home — the launcher. A responsive grid of connected-project cards plus an always-last
- * "Connect a project" affordance, and a first-run empty state. The list endpoint returns records
- * only, so each card's profile (title/description) is hydrated lazily here via getProject.
+ * Projects Home — the launcher. A first-run pitch when no project is connected, otherwise a
+ * responsive grid of project cards above an "Add a project" cell, with a thin global strip that
+ * surfaces cross-project momentum (how many tasks need you). The list endpoint returns records
+ * with a compact `{ open, needsYou }` roll-up; each card's profile/state is hydrated lazily here
+ * so the governance badge and full title/description appear without an N+1 on first paint.
+ *
+ * Every at-a-glance signal is absent-not-zero: the needs-you strip omits the "need you" figure
+ * when the cross-project sum is 0, and a project with no roll-up contributes nothing.
  */
 @Component({
   selector: 'dart-projects-home',
@@ -18,32 +26,116 @@ import { ConnectPanelComponent } from './connect-panel.component';
     <header class="topbar">
       <div class="brand">
         <span class="brand__dot" aria-hidden="true"></span>
-        <span class="brand__name">AI Dev Team · Studio</span>
+        <span class="brand__name">DART · Studio</span>
       </div>
     </header>
 
     <main id="main" class="page">
-      <h1 class="page__title">Your projects</h1>
-
       @if (store.loadError(); as err) {
         <p class="banner banner--error" role="alert" data-testid="load-error">Couldn't load projects: {{ err }}</p>
       }
 
       @if (store.isEmpty() && store.connectStatus() === 'idle') {
         <section class="empty" data-testid="empty-state" aria-labelledby="empty-h">
-          <span class="empty__glyph" aria-hidden="true">◧</span>
-          <h2 id="empty-h" class="empty__title">No projects yet</h2>
-          <p class="empty__lead">
-            Connect a folder and the team will read it, summarise it, and get to work.
-          </p>
-          <dart-connect-panel [status]="store.connectStatus()" [error]="store.connectError()" (connect)="onConnect($event)" (reset)="store.resetConnect()" />
+          <span class="empty__tile" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="40" height="40">
+              <rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+              <line x1="10" y1="4.5" x2="10" y2="19.5" stroke="currentColor" stroke-width="1.6" />
+            </svg>
+          </span>
+          <h1 id="empty-h" class="empty__name">DART</h1>
+          <p class="empty__anchor">{{ anchor }}</p>
+          <p class="empty__lead">{{ whatItIs }}</p>
+
+          <ol class="steps" aria-label="How it works">
+            @for (step of steps; track step.label; let i = $index) {
+              <li class="step" data-testid="empty-step">
+                <span class="step__icon" aria-hidden="true">
+                  @switch (i) {
+                    @case (0) {
+                      <svg viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M3 7 h5 l2 2 h11 v9 a1 1 0 0 1 -1 1 H4 a1 1 0 0 1 -1 -1 z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+                      </svg>
+                    }
+                    @case (1) {
+                      <svg viewBox="0 0 24 24" width="20" height="20">
+                        <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.6" />
+                        <line x1="15.5" y1="15.5" x2="20" y2="20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                      </svg>
+                    }
+                    @default {
+                      <svg viewBox="0 0 24 24" width="20" height="20">
+                        <circle cx="5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+                        <circle cx="12" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+                        <circle cx="19" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+                        <line x1="7" y1="12" x2="10" y2="12" stroke="currentColor" stroke-width="1.6" />
+                        <line x1="14" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.6" />
+                      </svg>
+                    }
+                  }
+                </span>
+                <span class="step__body">
+                  <span class="step__label">{{ step.label }}</span>
+                  <span class="step__line">{{ step.line }}</span>
+                </span>
+              </li>
+            }
+          </ol>
+
+          <dart-connect-panel
+            [status]="store.connectStatus()"
+            [error]="store.connectError()"
+            [outcome]="store.connectOutcome()"
+            (connect)="onConnect($event)"
+            (reset)="store.resetConnect()"
+          />
+          <p class="empty__helper">{{ ctaHelper }}</p>
+
+          <ul class="trust" aria-label="What you can rely on">
+            @for (chip of trustChips; track chip) {
+              <li class="trust__chip" data-testid="trust-chip">
+                <span class="trust__dot" aria-hidden="true"></span>{{ chip }}
+              </li>
+            }
+          </ul>
+
+          <a class="docs" data-testid="read-docs" [href]="docsUrl" target="_blank" rel="noopener noreferrer">
+            Read the docs
+            <svg class="docs__arrow" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
+              <line x1="4" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <polyline points="13,6 19,12 13,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </a>
         </section>
       } @else {
+        <header class="head">
+          <h1 class="page__title">Your projects</h1>
+          <div class="signals" data-testid="needs-you-strip" aria-live="polite">
+            @if (store.projectCount() > 0) {
+              <span class="signals__count">{{ store.projectCount() }} {{ projectNoun() }}</span>
+            }
+            @if (store.totalNeedsYou() > 0) {
+              <span class="signals__need" data-testid="global-needs-you">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13">
+                  <path d="M6 3 h12 M6 21 h12 M7 3 c0 5 4 6 5 9 c1 -3 5 -4 5 -9 M7 21 c0 -5 4 -6 5 -9 c1 3 5 4 5 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                {{ store.totalNeedsYou() }} need you
+              </span>
+            }
+          </div>
+        </header>
+
         <section class="grid" aria-label="Connected projects">
           @for (view of hydrated(); track view.record.id) {
             <dart-project-card [view]="view" />
           }
-          <dart-connect-panel [status]="store.connectStatus()" [error]="store.connectError()" (connect)="onConnect($event)" (reset)="store.resetConnect()" />
+          <dart-connect-panel
+            [status]="store.connectStatus()"
+            [error]="store.connectError()"
+            [outcome]="store.connectOutcome()"
+            (connect)="onConnect($event)"
+            (reset)="store.resetConnect()"
+          />
         </section>
       }
     </main>
@@ -63,7 +155,11 @@ import { ConnectPanelComponent } from './connect-panel.component';
       box-shadow: 0 0 0.6rem var(--kb-accent);
     }
     .page { max-width: 76rem; margin: 0 auto; padding: var(--kb-space-5) var(--kb-space-4); }
-    .page__title { margin: 0 0 var(--kb-space-4); font-size: var(--kb-text-2xl); font-weight: 700; }
+    .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--kb-space-3); margin-bottom: var(--kb-space-4); }
+    .page__title { margin: 0; font-size: var(--kb-text-2xl); font-weight: 700; }
+    .signals { display: inline-flex; align-items: center; gap: var(--kb-space-3); font-size: var(--kb-text-sm); }
+    .signals__count { color: var(--kb-text-muted); }
+    .signals__need { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; color: var(--kb-warning); }
     .banner { padding: var(--kb-space-2) var(--kb-space-3); border-radius: var(--kb-radius-md); margin-bottom: var(--kb-space-3); }
     .banner--error { background: var(--kb-accent-soft); color: var(--kb-danger); border: 1px solid var(--kb-danger); }
     .grid {
@@ -72,22 +168,85 @@ import { ConnectPanelComponent } from './connect-panel.component';
       gap: var(--kb-space-3);
     }
     .empty {
-      max-width: 34rem;
-      margin: var(--kb-space-6) auto;
+      max-width: 40rem;
+      margin: var(--kb-space-5) auto;
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: var(--kb-space-3);
     }
-    .empty__glyph { font-size: 2.5rem; color: var(--kb-accent); }
-    .empty__title { margin: 0; font-size: var(--kb-text-xl); }
-    .empty__lead { margin: 0; color: var(--kb-text-muted); }
+    .empty__tile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: var(--kb-radius-lg);
+      background: var(--kb-accent-soft);
+      color: var(--kb-accent);
+    }
+    .empty__name { margin: 0; font-size: var(--kb-text-2xl); font-weight: 800; letter-spacing: 0.02em; }
+    .empty__anchor { margin: 0; font-size: var(--kb-text-lg); font-weight: 600; }
+    .empty__lead { margin: 0; max-width: 36rem; color: var(--kb-text-muted); font-size: var(--kb-text-sm); line-height: 1.5; }
+    .empty__helper { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-text-subtle); }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+      gap: var(--kb-space-3);
+      width: 100%;
+      margin: var(--kb-space-2) 0;
+      padding: 0;
+      list-style: none;
+      text-align: left;
+    }
+    .step { display: flex; gap: var(--kb-space-2); }
+    .step__icon {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: var(--kb-radius-md);
+      background: var(--kb-surface-muted);
+      color: var(--kb-accent);
+    }
+    .step__body { display: flex; flex-direction: column; gap: 0.15rem; }
+    .step__label { font-weight: 600; font-size: var(--kb-text-sm); }
+    .step__line { color: var(--kb-text-muted); font-size: var(--kb-text-xs); line-height: 1.45; }
+    .trust { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--kb-space-2); margin: 0; padding: 0; list-style: none; }
+    .trust__chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.6rem;
+      font-size: var(--kb-text-xs);
+      color: var(--kb-text-muted);
+      background: var(--kb-surface);
+      border: 1px solid var(--kb-border);
+      border-radius: 999px;
+    }
+    .trust__dot { width: 0.45rem; height: 0.45rem; border-radius: 999px; background: var(--kb-accent); }
+    .docs { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--kb-accent); font-size: var(--kb-text-sm); text-decoration: none; }
+    .docs:hover { text-decoration: underline; }
+    .docs__arrow { flex: none; }
   `,
 })
 export class ProjectsHomeComponent implements OnInit {
   protected readonly store = inject(ProjectsStore);
   private readonly api = inject(ApiService);
+
+  protected readonly anchor = ANCHOR_LINE;
+  protected readonly whatItIs = WHAT_IT_IS;
+  protected readonly steps = HOW_STEPS;
+  protected readonly trustChips = TRUST_CHIPS;
+  protected readonly ctaHelper = CTA_HELPER;
+  protected readonly docsUrl = DOCS_URL;
+
+  protected projectNoun(): string {
+    return this.store.projectCount() === 1 ? 'project' : 'projects';
+  }
 
   /** Profiles fetched per project id, merged over the store's record-only views for display. */
   private readonly profiles = signal<ReadonlyMap<string, ProjectView>>(new Map());

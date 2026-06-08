@@ -27,4 +27,14 @@ describe('BrowserPlatformBridge', () => {
   it('publishes a stable injection token for host swapping', () => {
     expect(PLATFORM_BRIDGE.toString()).toContain('PlatformBridge');
   });
+
+  it('reports no native directory picker in the browser host (the in-app dialog handles picking)', () => {
+    const bridge = new BrowserPlatformBridge();
+    expect(bridge.hasNativePicker()).toBe(false);
+  });
+
+  it('pickDirectory resolves to null in the browser host (no native picker; the dialog is used instead)', async () => {
+    const bridge = new BrowserPlatformBridge();
+    await expect(bridge.pickDirectory()).resolves.toBeNull();
+  });
 });

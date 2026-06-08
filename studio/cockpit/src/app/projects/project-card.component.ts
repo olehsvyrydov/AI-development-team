@@ -1,10 +1,21 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { displayDescription, displayTitle, type ProjectView } from '../core/models';
+import { displayDescription, displayTitle, governanceSignal, type ProjectView } from '../core/models';
+import { SECURITY_REVIEWED_TOOLTIP } from './copy';
 
 /**
- * One project tile in the launcher grid: title, the auto-collected description, detected stack
- * chips, and a status / last-seen indicator. The whole card is a router link into the shell.
+ * One project tile in the launcher grid: a header row carrying the glyph tile and an optional
+ * governance badge, the title on its own full-width line below them, the auto-collected
+ * description, detected stack chips, an at-a-glance pulse (open tasks + a "needs you" chip), and a
+ * demoted status / last-seen line. The whole card is a router link.
+ *
+ * The title sits on its own line — never sharing a flex row with the badge — so a long hyphenated
+ * name is not squeezed into a thin column. It wraps on whitespace only (no break at hyphens),
+ * clamps to two lines with an ellipsis, and exposes the full name via the native `title` tooltip.
+ *
+ * At-a-glance signals are absent-not-zero: the needs-you chip shows only when `needsYou > 0`,
+ * and the open count and governance badge appear only when their data is present. A project with
+ * no task summary or no gate facts shows no fabricated zeros.
  *
  * Security: `title` and `description` come from the project's README/manifest and are untrusted.
  * They are rendered with Angular interpolation only ({{ }}), which HTML-escapes — never via
@@ -22,9 +33,36 @@ import { displayDescription, displayTitle, type ProjectView } from '../core/mode
       [attr.aria-label]="'Open project ' + title()"
     >
       <header class="card__head">
-        <span class="card__glyph" aria-hidden="true">◧</span>
-        <h2 class="card__title">{{ title() }}</h2>
+        <span class="card__tile" aria-hidden="true">
+          <svg class="card__glyph" viewBox="0 0 24 24" width="20" height="20">
+            <rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <line x1="10" y1="4.5" x2="10" y2="19.5" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+        </span>
+        @if (governance(); as gov) {
+          @if (gov.kind === 'security-reviewed') {
+            <span
+              class="badge badge--ok"
+              data-testid="governance-badge"
+              [attr.title]="securityTooltip"
+            >
+              <svg class="badge__glyph" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M12 3 19 6 v5 c0 5 -3 7 -7 9 c-4 -2 -7 -4 -7 -9 V6 z" fill="currentColor" stroke="none" />
+              </svg>
+              <span>Security-reviewed</span>
+            </span>
+          } @else {
+            <span class="badge badge--danger" data-testid="governance-badge">
+              <svg class="badge__glyph" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M12 3 19 6 v5 c0 5 -3 7 -7 9 c-4 -2 -7 -4 -7 -9 V6 z" fill="none" stroke="currentColor" stroke-width="1.6" />
+              </svg>
+              <span>blocked at {{ gov.stage }}</span>
+            </span>
+          }
+        }
       </header>
+
+      <h2 class="card__title" [attr.title]="title()">{{ title() }}</h2>
 
       @if (stack().length) {
         <ul class="card__chips" aria-label="Detected stack">
@@ -39,6 +77,22 @@ import { displayDescription, displayTitle, type ProjectView } from '../core/mode
       } @else {
         <p class="card__desc card__desc--empty">No description collected yet.</p>
       }
+
+      @if (pulse(); as p) {
+        <div class="pulse" data-testid="pulse">
+          <span class="pulse__open">{{ p.open }} open</span>
+          @if (p.needsYou > 0) {
+            <span class="pulse__need" data-testid="needs-you">
+              <svg class="pulse__glyph" aria-hidden="true" viewBox="0 0 24 24" width="13" height="13">
+                <path d="M6 3 h12 M6 21 h12 M7 3 c0 5 4 6 5 9 c1 -3 5 -4 5 -9 M7 21 c0 -5 4 -6 5 -9 c1 3 5 4 5 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>{{ p.needsYou }} need you</span>
+            </span>
+          }
+        </div>
+      }
+
+      <hr class="card__rule" aria-hidden="true" />
 
       <footer class="card__foot">
         <span class="status" data-testid="status">
@@ -72,13 +126,46 @@ import { displayDescription, displayTitle, type ProjectView } from '../core/mode
       transform: translateY(-2px);
     }
     .card__head { display: flex; align-items: center; gap: var(--kb-space-2); }
-    .card__glyph { color: var(--kb-accent); font-size: var(--kb-text-lg); }
+    .card__tile {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: var(--kb-radius-md);
+      background: var(--kb-accent-soft);
+      color: var(--kb-accent);
+    }
     .card__title {
       margin: 0;
+      min-width: 0;
       font-size: var(--kb-text-lg);
       font-weight: 600;
-      overflow-wrap: anywhere;
+      word-break: normal;
+      overflow-wrap: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
+    .badge {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-left: auto;
+      padding: 0.1rem 0.45rem;
+      font-size: var(--kb-text-xs);
+      font-weight: 600;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      white-space: nowrap;
+    }
+    .badge__glyph { flex: none; }
+    .badge--ok { color: var(--kb-success); }
+    .badge--danger { color: var(--kb-danger); }
     .card__chips { display: flex; flex-wrap: wrap; gap: var(--kb-space-1); margin: 0; padding: 0; list-style: none; }
     .chip {
       padding: 0.1rem 0.5rem;
@@ -94,12 +181,28 @@ import { displayDescription, displayTitle, type ProjectView } from '../core/mode
       font-size: var(--kb-text-sm);
       line-height: 1.45;
       display: -webkit-box;
-      -webkit-line-clamp: 3;
-      line-clamp: 3;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
     .card__desc--empty { color: var(--kb-text-subtle); font-style: italic; }
+    .pulse {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+      font-size: var(--kb-text-xs);
+      font-weight: 600;
+    }
+    .pulse__open { color: var(--kb-text-muted); }
+    .pulse__need {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--kb-warning);
+    }
+    .pulse__glyph { flex: none; }
+    .card__rule { margin: var(--kb-space-1) 0 0; border: none; border-top: 1px solid var(--kb-border); }
     .card__foot {
       margin-top: auto;
       display: flex;
@@ -120,11 +223,19 @@ import { displayDescription, displayTitle, type ProjectView } from '../core/mode
 export class ProjectCardComponent {
   readonly view = input.required<ProjectView>();
 
+  protected readonly securityTooltip = SECURITY_REVIEWED_TOOLTIP;
+
   readonly title = computed(() => displayTitle(this.view()));
   readonly description = computed(() => displayDescription(this.view().profile));
   readonly stack = computed(() => this.view().profile?.stack ?? []);
   readonly statusLabel = computed(() => this.view().record.status);
   readonly lastSeen = computed(() => formatRelative(this.view().record.lastSeen));
+
+  /** The compact `{ open, needsYou }` roll-up from the list payload, or null when absent. */
+  readonly pulse = computed(() => this.view().record.taskSummary ?? null);
+
+  /** The governance badge signal derived from the hydrated detail state, or null when absent. */
+  readonly governance = computed(() => governanceSignal(this.view().state));
 }
 
 /** Render an ISO timestamp as a coarse relative string ("2h ago"); empty if unparseable. */

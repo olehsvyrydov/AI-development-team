@@ -8,13 +8,31 @@ import { ProjectShellComponent } from './project-shell.component';
 import { settle } from '../testing/settle';
 import type { ProjectView } from '../core/models';
 
-function view(profile: ProjectView['profile']): ProjectView {
+function view(profile: ProjectView['profile'], state: ProjectView['state'] = { preset: 'solo' }): ProjectView {
   return {
     record: { id: 'aaaaaaaaaaaa', path: '/p', label: 'lbl', addedAt: 't', lastSeen: 't', status: 'connected' },
     profile,
-    state: { preset: 'solo' },
+    state,
   };
 }
+
+const RICH_STATE: ProjectView['state'] = {
+  preset: 'full',
+  taskSummary: { total: 14, byStatus: { in_progress: 8, waiting: 0, needsYou: 2, blocked: 1, done: 3 } },
+  workflowView: {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'vision', owner: '/po', gate: null },
+      { stage: 'architecture', owner: '/arch', gate: { name: 'ARCH_APPROVED', refusal: 'hard' } },
+      { stage: 'design', owner: '/ui', gate: { name: 'DESIGN_APPROVED', refusal: 'soft' } },
+    ],
+  },
+  base: {
+    method: 'local-embeddings',
+    counts: { indexed: 8, indexing: 0, failed: 0 },
+    docs: [{ name: 'code-rules', index: 'indexed' }],
+  },
+};
 
 describe('ProjectShellComponent', () => {
   let api: { getProject: ReturnType<typeof vi.fn> };
@@ -48,12 +66,57 @@ describe('ProjectShellComponent', () => {
     expect(host.textContent).toContain('VAT-aware billing.');
   });
 
-  it('renders placeholders for the Workflow / Tasks / Base panels (later tickets)', async () => {
+  it('renders the Workflow / Tasks / Base panels', async () => {
     const fixture = await mount();
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('[data-testid="panel-workflow"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="panel-tasks"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="panel-base"]')).toBeTruthy();
+  });
+
+  it('shows the FULL description in its own block, untruncated (no single-line ellipsis clamp)', async () => {
+    const long =
+      'A VAT-aware billing and invoicing service for UK merchants. It generates compliant ' +
+      'invoices, handles refunds, and reconciles payments against orders across many lines of prose.';
+    api.getProject.mockResolvedValue(view({ title: 'payments-api', description: long }));
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+    const block = host.querySelector<HTMLElement>('[data-testid="shell-description"]')!;
+    expect(block).toBeTruthy();
+    expect(block.textContent).toContain(long);
+    // The description lives in its own full-width block, not the truncated header line.
+    expect(getComputedStyle(block).whiteSpace).not.toBe('nowrap');
+  });
+
+  it('drives the panels from the project state (counts, workflow stages, base method)', async () => {
+    api.getProject.mockResolvedValue(view({ title: 'payments-api', description: 'd' }, RICH_STATE));
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[data-testid="panel-tasks"]')?.textContent).toContain('14');
+    expect(host.querySelector('[data-testid="panel-workflow"]')?.textContent).toContain('/arch');
+    expect(host.querySelector('[data-testid="panel-base"]')?.textContent).toContain('Indexed via: local embeddings (semantic)');
+  });
+
+  it('renders the live connection dot in the header', async () => {
+    const fixture = await mount();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="shell-conn"]')).toBeTruthy();
+  });
+
+  it('isolates a panel failure: one panel erroring still renders the other two', async () => {
+    // Make ONLY the Tasks derivation throw (a getter that blows up); Workflow + Base must survive.
+    const broken: ProjectView['state'] = { ...RICH_STATE };
+    Object.defineProperty(broken, 'taskSummary', {
+      enumerable: true,
+      get() {
+        throw new Error('bad summary');
+      },
+    });
+    api.getProject.mockResolvedValue(view({ title: 'p', description: 'd' }, broken));
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[data-testid="panel-tasks-error"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="panel-workflow"]')?.textContent).toContain('/arch');
+    expect(host.querySelector('[data-testid="panel-base"]')?.textContent).toContain('docs');
   });
 
   it('offers a way back to the launcher', async () => {
@@ -67,7 +130,11 @@ describe('ProjectShellComponent', () => {
     api.getProject.mockResolvedValue(view({ title: evil, description: `d ${evil}` }));
     const fixture = await mount();
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('svg')).toBeNull();
+    // The header renders a decorative inline-SVG glyph, so an svg element legitimately exists.
+    // The XSS guard is that NO svg parsed from the untrusted payload reaches the DOM: none carries
+    // the injected handler, and the side-effect never runs.
+    const injected = [...host.querySelectorAll('svg')].filter((el) => el.hasAttribute('onload'));
+    expect(injected).toEqual([]);
     expect((window as unknown as Record<string, unknown>)['__xssShell']).toBeUndefined();
     expect(host.textContent).toContain('<svg');
   });
