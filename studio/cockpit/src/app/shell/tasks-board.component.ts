@@ -283,23 +283,28 @@ import { TaskDetailComponent } from './task-detail.component';
     .rollup__total, .rollup__need { display: inline-flex; align-items: center; gap: 0.3rem; }
     .rollup__need { color: var(--kb-warning); font-weight: 600; }
     .board-empty { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
-    .train { display: flex; gap: var(--kb-space-3); align-items: stretch; width: 100%; overflow-x: auto; padding-bottom: var(--kb-space-2); scroll-snap-type: x proximity; }
-    .backlog { position: sticky; left: 0; z-index: 4; flex: 0 0 12rem; min-width: 12rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); scroll-margin: var(--kb-space-3); }
+    /* The board is a single non-scrolling flex row of four regions: [Backlog][rail][Done][Off-track].
+       Backlog, Done and Off-track are fixed-width columns (flex: 0 0 auto) that hold their place; only
+       the middle rail scrolls horizontally, so the side panels never float over the scrolled stages. */
+    .train { display: flex; gap: var(--kb-space-3); align-items: stretch; width: 100%; padding-bottom: var(--kb-space-2); }
+    .backlog { flex: 0 0 auto; width: 12rem; min-width: 12rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
     .backlog__head { display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); }
     .backlog__title { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; font-size: var(--kb-text-sm); }
     .backlog__count { margin-left: auto; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
     .backlog__cards { max-height: 60vh; overflow-y: auto; }
     .backlog__empty { color: var(--kb-text-subtle); font-size: var(--kb-text-xs); font-style: italic; }
     .backlog__add { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.5rem; font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text-subtle); background: transparent; border: 1px dashed var(--kb-border); border-radius: var(--kb-radius-md); cursor: default; opacity: 0.7; }
-    /* Adaptive rail: it grows to fill the train, and its columns flex-grow to share that width
-       (min-width keeps a column legible; max-width stops a lone column from stretching absurdly).
-       Horizontal scroll appears only when the columns can no longer fit at their min-width. */
-    .rail { flex: 1 1 auto; display: flex; gap: var(--kb-space-3); align-items: start; min-width: 0; }
+    /* The middle region — the ONLY horizontally-scrolling part of the board. It grows to fill the
+       space between the fixed side panels (flex: 1 1 0) and may shrink to zero (min-width: 0) so it
+       never pushes them off-screen. Its columns flex-grow to share the width (min-width keeps a column
+       legible; max-width stops a lone column from stretching absurdly); horizontal scroll appears
+       inside this region only when the columns can no longer fit at their min-width. */
+    .rail { flex: 1 1 0; min-width: 0; display: flex; gap: var(--kb-space-3); align-items: start; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: var(--kb-space-2); }
     .col { flex: 1 1 12rem; min-width: 11rem; max-width: 22rem; display: flex; flex-direction: column; gap: var(--kb-space-2); scroll-snap-align: start; scroll-margin: var(--kb-space-3); border-radius: var(--kb-radius-md); }
     .rail__node { display: inline-flex; align-items: center; justify-content: center; color: var(--kb-text-muted); transition: color var(--kb-dur-base) var(--kb-ease-out); }
     .rail__node[data-active='true'] { color: var(--kb-accent); }
     .done__face .rail__node { display: none; }
-    .done { position: sticky; right: 0; z-index: 4; flex: 0 0 9rem; min-width: 9rem; display: flex; flex-direction: column; gap: var(--kb-space-2); align-items: stretch; }
+    .done { flex: 0 0 auto; width: 9rem; min-width: 9rem; display: flex; flex-direction: column; gap: var(--kb-space-2); align-items: stretch; }
     .done__face { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: var(--kb-space-3) var(--kb-space-2); font: inherit; color: var(--kb-text); background: var(--kb-surface); border: 1px solid var(--kb-border-strong, var(--kb-border)); border-radius: var(--kb-radius-md); cursor: pointer; box-shadow: 2px 2px 0 -1px var(--kb-surface-muted), 4px 4px 0 -2px var(--kb-surface-muted); transition: transform var(--kb-dur-fast) var(--kb-ease-out); }
     .done__face:hover { transform: translateY(-1px); }
     .done__face:focus-visible { outline: 2px solid var(--kb-focus-ring, var(--kb-accent)); outline-offset: 2px; }
@@ -340,9 +345,9 @@ import { TaskDetailComponent } from './task-detail.component';
     .menu__none { padding: 0.45rem 0.6rem; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
     .card__conflict { display: flex; align-items: center; gap: 0.35rem; margin: 0; padding: 0.3rem var(--kb-space-2) var(--kb-space-2); color: var(--kb-warning); font-size: var(--kb-text-xs); }
     .card__retry, .card__kebab + .card__conflict button { font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-accent); background: transparent; border: none; cursor: pointer; text-decoration: underline; }
-    /* Off-track is a sticky RIGHT-side lane (mirrors the sticky left Backlog) at the end of the train,
+    /* Off-track is a fixed RIGHT-side panel (mirrors the fixed left Backlog) at the end of the row,
        absent when empty. It holds the orphans whose stage left the pipeline, still advanceable. */
-    .offtrack { position: sticky; right: 0; z-index: 4; flex: 0 0 15rem; min-width: 14rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); scroll-margin: var(--kb-space-3); }
+    .offtrack { flex: 0 0 auto; width: 15rem; min-width: 14rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); }
     .offtrack__head { display: flex; align-items: center; gap: 0.4rem; color: var(--kb-warning); font-weight: 600; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); }
     .offtrack__title { font-size: var(--kb-text-sm); }
     .offtrack__why { margin: 0; color: var(--kb-text-muted); font-size: var(--kb-text-xs); }

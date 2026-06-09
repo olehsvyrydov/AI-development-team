@@ -628,7 +628,7 @@ describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / p
     expect(host.querySelector('[data-testid="done-folder-list"]')!.textContent).toContain('DN-0');
   });
 
-  it('renders the off-track lane as a sticky right-side region after the done folder, within the train', () => {
+  it('renders the off-track lane as a fixed right-side panel after the done folder, within the train', () => {
     const { host } = mount(MIXED_STATE);
     const train = host.querySelector('[data-testid="pipeline-train"]')!;
     expect(train).toBeTruthy();
@@ -639,6 +639,51 @@ describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / p
     // The done folder precedes the off-track lane in document order (off-track is the right-most region).
     const done = host.querySelector('[data-testid="done-folder"]')!;
     expect(done.compareDocumentPosition(lane) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('lays the train out as four direct-child regions in order: Backlog → rail → Done → Off-track', () => {
+    const { host } = mount(MIXED_STATE);
+    const train = host.querySelector('[data-testid="pipeline-train"]')!;
+    // The four regions are DIRECT children of the train (a single flex row), in this exact order.
+    const directRegions = [...train.children]
+      .map((el) => el.getAttribute('data-testid'))
+      .filter((id): id is string => id !== null);
+    expect(directRegions).toEqual([
+      'backlog-bar',
+      'pipeline-rail',
+      'done-folder',
+      'off-track-lane',
+    ]);
+  });
+
+  it('nests every stage column inside the middle rail, with the side panels as the rail\'s siblings (not nested in it)', () => {
+    const { host } = mount(MIXED_STATE);
+    const rail = host.querySelector('[data-testid="pipeline-rail"]')!;
+    // The horizontally-scrolling middle region holds the stage columns...
+    const cols = [...host.querySelectorAll('[data-testid^="column-stage-"]')];
+    expect(cols.length).toBeGreaterThan(0);
+    for (const col of cols) {
+      expect(rail.contains(col)).toBe(true);
+    }
+    // ...while the fixed side panels live OUTSIDE the scrolling rail (siblings, so the rail can scroll
+    // beneath/between them without the panels moving or floating over the scrolled stages).
+    for (const id of ['backlog-bar', 'done-folder', 'off-track-lane']) {
+      const panel = host.querySelector(`[data-testid="${id}"]`)!;
+      expect(panel).toBeTruthy();
+      expect(rail.contains(panel)).toBe(false);
+      expect(panel.contains(rail)).toBe(false);
+    }
+  });
+
+  it('keeps the four regions as direct children of the single train row so each side panel holds its own track', () => {
+    const { host } = mount(MIXED_STATE);
+    const train = host.querySelector('[data-testid="pipeline-train"]')!;
+    const ids = ['backlog-bar', 'pipeline-rail', 'done-folder', 'off-track-lane'];
+    // Each region is a DIRECT child of the train (a peer in the flex row), not buried inside another.
+    for (const id of ids) {
+      const region = host.querySelector(`[data-testid="${id}"]`)!;
+      expect(region.parentElement).toBe(train);
+    }
   });
 
   it('keeps the off-track lane absent when every ticket sits on a real stage (absent-not-zero, right side)', () => {
