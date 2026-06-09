@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { ProjectState, TicketComment, TicketView, WorkflowView } from '../core/models';
 import {
+  activeSegmentIndex,
+  backlogTickets,
+  cardGateSummary,
   commentsNewestFirst,
+  doneStage,
+  isBacklog,
   nextStageInOrder,
   nextStage,
   offTrackGroups,
+  partitionBoard,
+  PRE_START_STAGES,
   stageColumns,
   statusChip,
   ticketNeedsYou,
@@ -68,10 +75,353 @@ describe('offTrackGroups — a ticket in a stage not in the track is surfaced, n
     expect(offTrackGroups(WF, [ticket({ id: 'a', stage: 'code' })])).toEqual([]);
   });
 
-  it('treats a ticket with no stage as off-track under a blank-stage group rather than losing it', () => {
-    const groups = offTrackGroups(WF, [ticket({ id: 'x', stage: undefined })]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].tickets.map((t) => t.id)).toEqual(['x']);
+  it('excludes a ticket the Backlog bar claims (unstaged or backlog-staged) from the off-track lane', () => {
+    const groups = offTrackGroups(WF, [
+      ticket({ id: 'x', stage: undefined }),
+      ticket({ id: 'y', stage: 'backlog' }),
+      ticket({ id: 'orphan', stage: 'design-review' }),
+    ]);
+    expect(groups.map((g) => g.stage)).toEqual(['design-review']);
+    expect(groups[0].tickets.map((t) => t.id)).toEqual(['orphan']);
+  });
+
+  it('excludes a pre-start ticket (e.g. "ready") yet keeps a genuine orphan (e.g. "superseded")', () => {
+    const groups = offTrackGroups(WF, [
+      ticket({ id: 'ready', stage: 'ready' }),
+      ticket({ id: 'super', stage: 'superseded' }),
+    ]);
+    expect(groups.map((g) => g.stage)).toEqual(['superseded']);
+    expect(groups[0].tickets.map((t) => t.id)).toEqual(['super']);
+  });
+});
+
+describe('isBacklog / backlogTickets — the holding-pen predicate (unstaged or backlog-staged)', () => {
+  it('treats an unset, empty, or "unknown" stage as Backlog (never routed onto the track)', () => {
+    expect(isBacklog(ticket({ stage: undefined }), WF)).toBe(true);
+    expect(isBacklog(ticket({ stage: '' }), WF)).toBe(true);
+    expect(isBacklog(ticket({ stage: 'unknown' }), WF)).toBe(true);
+  });
+
+  it('treats the conventional first-stage token "backlog" as Backlog (case-insensitive)', () => {
+    expect(isBacklog(ticket({ stage: 'backlog' }), WF)).toBe(true);
+    expect(isBacklog(ticket({ stage: 'Backlog' }), WF)).toBe(true);
+  });
+
+  it('treats any pre-start lifecycle token as Backlog (un-started, not yet a workflow stage)', () => {
+    for (const token of PRE_START_STAGES) {
+      expect(isBacklog(ticket({ stage: token }), WF), `${token} → Backlog`).toBe(true);
+      expect(isBacklog(ticket({ stage: token.toUpperCase() }), WF), `${token.toUpperCase()} → Backlog`).toBe(true);
+    }
+    // A real lifecycle observed live — `ready` un-started tickets belong in Backlog, not off-track.
+    expect(isBacklog(ticket({ stage: 'ready' }), WF)).toBe(true);
+  });
+
+  it('is false for a ticket sitting at a real track stage', () => {
+    expect(isBacklog(ticket({ stage: 'vision' }), WF)).toBe(false);
+    expect(isBacklog(ticket({ stage: 'code' }), WF)).toBe(false);
+  });
+
+  it('is false for an unrecognized non-pre-start token (a genuine orphan → off-track, not Backlog)', () => {
+    expect(isBacklog(ticket({ stage: 'superseded' }), WF)).toBe(false);
+    expect(isBacklog(ticket({ stage: 'cancelled' }), WF)).toBe(false);
+  });
+
+  it('is workflow-aware: a pre-start token the workflow DEFINES as a real stage is NOT Backlog', () => {
+    const wfWithReady: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'ready', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    // `ready` is a real workflow stage here → routes to its column, not Backlog.
+    expect(isBacklog(ticket({ stage: 'ready' }), wfWithReady)).toBe(false);
+    expect(isBacklog(ticket({ stage: 'Ready' }), wfWithReady)).toBe(false);
+    // The same token, in a workflow that does NOT define it, still falls to Backlog (pre-start).
+    expect(isBacklog(ticket({ stage: 'ready' }), WF)).toBe(true);
+  });
+
+  it('keeps the intake token `backlog` in Backlog even when the workflow names it a stage', () => {
+    const wfBacklogStage: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+      ],
+    };
+    expect(isBacklog(ticket({ stage: 'backlog' }), wfBacklogStage)).toBe(true);
+  });
+
+  it('collects the backlog tickets, preserving first-seen order', () => {
+    const tickets = [
+      ticket({ id: 'a', stage: 'code' }),
+      ticket({ id: 'b', stage: undefined }),
+      ticket({ id: 'c', stage: 'backlog' }),
+      ticket({ id: 'd', stage: 'vision' }),
+    ];
+    expect(backlogTickets(WF, tickets).map((t) => t.id)).toEqual(['b', 'c']);
+  });
+});
+
+describe('stageColumns — Backlog claims its set first (disjoint by set-difference)', () => {
+  it('excludes backlog-claimed tickets from the stage columns (no double-placement)', () => {
+    const tickets = [
+      ticket({ id: 'b', stage: undefined }),
+      ticket({ id: 'v', stage: 'vision' }),
+    ];
+    const cols = stageColumns(WF, tickets);
+    const allInColumns = cols.flatMap((c) => c.tickets.map((t) => t.id));
+    expect(allInColumns).not.toContain('b');
+    expect(allInColumns).toContain('v');
+  });
+
+  it('drops a literal "backlog" first-stage column so the Backlog bar replaces it (no empty ghost)', () => {
+    const wfBacklogFirst: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const cols = stageColumns(wfBacklogFirst, [ticket({ id: 'a', stage: 'backlog' })]);
+    expect(cols.map((c) => c.stage)).toEqual(['code', 'done']);
+  });
+
+  it('workflow-aware: a pre-start token that is a REAL stage routes to its COLUMN, not Backlog', () => {
+    // The workflow legitimately names `ready` as a stage (the builder allows arbitrary stage names).
+    const wfReadyStage: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'ready', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const tickets = [
+      ticket({ id: 'r', stage: 'ready' }),
+      ticket({ id: 'c', stage: 'code' }),
+    ];
+    // The `ready` column renders AND holds its ticket (not misclassified into Backlog).
+    const cols = stageColumns(wfReadyStage, tickets);
+    expect(cols.map((c) => c.stage)).toEqual(['ready', 'code', 'done']);
+    expect(cols.find((c) => c.stage === 'ready')!.tickets.map((t) => t.id)).toEqual(['r']);
+    // And the Backlog set is empty: the `ready` ticket is NOT claimed by Backlog.
+    expect(backlogTickets(wfReadyStage, tickets).map((t) => t.id)).toEqual([]);
+    // DISJOINTNESS: each ticket lands in exactly one region (column XOR Backlog XOR off-track).
+    expect(offTrackGroups(wfReadyStage, tickets)).toEqual([]);
+
+    // Contrast: the SAME `ready` token, in a workflow that does NOT define it, falls to Backlog.
+    expect(backlogTickets(WF, [ticket({ id: 'r', stage: 'ready' })]).map((t) => t.id)).toEqual(['r']);
+  });
+});
+
+describe('doneStage — the conventional DONE stage (by name), not blindly the last stage', () => {
+  it('targets a stage named "done" even when a later stage follows it (e.g. a Test stage after done)', () => {
+    const wf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+        { stage: 'Test', owner: '/qa', gate: null },
+      ],
+    };
+    expect(doneStage(wf)).toBe('done');
+  });
+
+  it('matches any conventional done-name, case-insensitively (complete/completed/closed/shipped/released)', () => {
+    for (const name of ['Done', 'complete', 'COMPLETED', 'Closed', 'shipped', 'Released']) {
+      const wf: WorkflowView = {
+        activeTrack: 'full',
+        stages: [
+          { stage: 'code', owner: '/be', gate: null },
+          { stage: name, owner: null, gate: null },
+          { stage: 'audit', owner: '/qa', gate: null },
+        ],
+      };
+      expect(doneStage(wf), `${name} → done folder`).toBe(name);
+    }
+  });
+
+  it('falls back to the LAST stage when no stage carries a conventional done-name', () => {
+    const wf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'review', owner: '/rev', gate: null },
+        { stage: 'ship-it', owner: null, gate: null },
+      ],
+    };
+    expect(doneStage(wf)).toBe('ship-it');
+  });
+
+  it('returns null when there is no workflow view (no done folder)', () => {
+    expect(doneStage(null)).toBeNull();
+    expect(doneStage({ activeTrack: null, stages: [] })).toBeNull();
+  });
+});
+
+describe('partitionBoard — one pass partitions every ticket into exactly one region', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'backlog', owner: '/po', gate: null },
+      { stage: 'code', owner: '/be', gate: null },
+      { stage: 'done', owner: null, gate: null },
+      { stage: 'Test', owner: '/qa', gate: null },
+    ],
+  };
+  const tickets = [
+    ticket({ id: 'b', stage: undefined, status: 'waiting' }),
+    ticket({ id: 'c1', stage: 'code', status: 'in_progress' }),
+    ticket({ id: 'd1', stage: 'done', status: 'done' }),
+    ticket({ id: 'd2', stage: 'done', status: 'done' }),
+    ticket({ id: 't1', stage: 'Test', status: 'waiting' }),
+    ticket({ id: 'o1', stage: 'gone', status: 'waiting' }),
+  ];
+
+  it('drops both the backlog stage and the done stage from the rendered columns (a Test-after-done stays a column)', () => {
+    const p = partitionBoard(wf, tickets);
+    expect(p.columns.map((c) => c.stage)).toEqual(['code', 'Test']);
+    expect(p.doneStage).toBe('done');
+  });
+
+  it('collapses the done-named stage tickets into the done bucket (real count, not the trailing stage)', () => {
+    const p = partitionBoard(wf, tickets);
+    expect(p.doneTickets.map((t) => t.id)).toEqual(['d1', 'd2']);
+    // The trailing `Test` column holds its own ticket, not the done ones.
+    expect(p.columns.find((c) => c.stage === 'Test')!.tickets.map((t) => t.id)).toEqual(['t1']);
+  });
+
+  it('routes unstaged tickets to backlog and unknown-stage tickets to off-track', () => {
+    const p = partitionBoard(wf, tickets);
+    expect(p.backlog.map((t) => t.id)).toEqual(['b']);
+    expect(p.offTrack.map((g) => g.stage)).toEqual(['gone']);
+    expect(p.offTrack[0].tickets.map((t) => t.id)).toEqual(['o1']);
+  });
+
+  it('R1 disjointness: every ticket lands in exactly one region', () => {
+    const p = partitionBoard(wf, tickets);
+    const ids = new Set<string>();
+    const add = (id: string | undefined) => {
+      expect(ids.has(id!), `duplicate ${id}`).toBe(false);
+      ids.add(id!);
+    };
+    p.backlog.forEach((t) => add(t.id));
+    p.columns.forEach((c) => c.tickets.forEach((t) => add(t.id)));
+    p.doneTickets.forEach((t) => add(t.id));
+    p.offTrack.forEach((g) => g.tickets.forEach((t) => add(t.id)));
+    expect([...ids].sort()).toEqual(['b', 'c1', 'd1', 'd2', 'o1', 't1']);
+  });
+
+  it('matches the standalone helpers (parity) so the single pass changes no behavior', () => {
+    const p = partitionBoard(wf, tickets);
+    expect(p.backlog.map((t) => t.id)).toEqual(backlogTickets(wf, tickets).map((t) => t.id));
+    expect(p.offTrack.map((g) => g.stage)).toEqual(offTrackGroups(wf, tickets).map((g) => g.stage));
+  });
+
+  it('empties to all-empty regions when there is no workflow view', () => {
+    const p = partitionBoard(null, []);
+    expect(p.columns).toEqual([]);
+    expect(p.backlog).toEqual([]);
+    expect(p.doneTickets).toEqual([]);
+    expect(p.offTrack).toEqual([]);
+    expect(p.doneStage).toBeNull();
+  });
+});
+
+describe('activeSegmentIndex — how far the rail accent reaches (furthest in-progress stage)', () => {
+  it('is the index of the furthest stage holding an in-progress ticket', () => {
+    const tickets = [
+      ticket({ id: 'a', stage: 'vision', status: 'in_progress' }),
+      ticket({ id: 'b', stage: 'code', status: 'in_progress' }),
+      ticket({ id: 'c', stage: 'done', status: 'done' }),
+    ];
+    // vision=0, code=2 → furthest in-progress is code at index 2.
+    expect(activeSegmentIndex(WF, tickets)).toBe(2);
+  });
+  it('is -1 when no stage holds an in-progress ticket (no accent)', () => {
+    expect(activeSegmentIndex(WF, [ticket({ id: 'c', stage: 'done', status: 'done' })])).toBe(-1);
+  });
+
+  it('indexes against the rendered rail (stages minus the dropped `backlog`), so the accent aligns with the nodes', () => {
+    // The workflow opens with a literal `backlog` stage that the rail drops, so the rendered
+    // columns are [code, review, done] — `code` is rail index 0, not 1.
+    const wfBacklogFirst: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'review', owner: '/rev', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const tickets = [ticket({ id: 'a', stage: 'code', status: 'in_progress' })];
+    const cols = stageColumns(wfBacklogFirst, tickets);
+    expect(cols.map((c) => c.stage)).toEqual(['code', 'review', 'done']);
+    // `code` is the furthest in-progress stage; in the rendered rail it sits at index 0.
+    const idx = activeSegmentIndex(wfBacklogFirst, tickets);
+    expect(idx).toBe(0);
+    expect(cols[idx].stage).toBe('code');
+  });
+
+  it('returns the furthest (not the last-seen) in-progress stage across a mix of tickets', () => {
+    const tickets = [
+      ticket({ id: 'a', stage: 'code', status: 'in_progress' }),
+      ticket({ id: 'b', stage: 'vision', status: 'in_progress' }),
+      ticket({ id: 'c', stage: 'review', status: 'in_progress' }),
+      ticket({ id: 'd', stage: 'vision', status: 'in_progress' }),
+    ];
+    // WF rail order: vision=0, code=2, review=... ; review is furthest regardless of ticket order.
+    const rail = partitionBoard(WF, tickets).columns.map((c) => c.stage);
+    const expected = Math.max(...tickets.map((t) => rail.indexOf(t.stage!)));
+    expect(activeSegmentIndex(WF, tickets)).toBe(expected);
+  });
+
+  it('matches a per-ticket indexOf over the rendered rail (precomputed map equals indexOf semantics)', () => {
+    const wf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'review', owner: '/rev', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const tickets = [
+      ticket({ id: 'a', stage: 'review', status: 'in_progress' }),
+      ticket({ id: 'b', stage: 'code', status: 'in_progress' }),
+      ticket({ id: 'c', stage: 'unknown', status: 'in_progress' }),
+      ticket({ id: 'd', stage: 'code', status: 'done' }),
+    ];
+    const rail = partitionBoard(wf, tickets).columns.map((c) => c.stage);
+    let furthest = -1;
+    for (const t of tickets) {
+      if (t.status !== 'in_progress') continue;
+      furthest = Math.max(furthest, rail.indexOf(t.stage ?? ''));
+    }
+    expect(activeSegmentIndex(wf, tickets)).toBe(furthest);
+  });
+
+  it('indexes against the rail with the done stage dropped too (a stage after done does not shift the accent)', () => {
+    // The rail drops the literal `backlog` stage AND the done-named stage (now the folder), so the
+    // rendered nodes are [code, Test]. A `code` in-progress ticket lights index 0.
+    const wf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+        { stage: 'Test', owner: '/qa', gate: null },
+      ],
+    };
+    const tickets = [ticket({ id: 'a', stage: 'code', status: 'in_progress' })];
+    const rail = partitionBoard(wf, tickets).columns;
+    expect(rail.map((c) => c.stage)).toEqual(['code', 'Test']);
+    const idx = activeSegmentIndex(wf, tickets);
+    expect(idx).toBe(0);
+    expect(rail[idx].stage).toBe('code');
   });
 });
 
@@ -115,6 +465,82 @@ describe('ticketNeedsYou — a chip, derived, not a column', () => {
     expect(ticketNeedsYou(ticket({ gates: [{ name: 'DESIGN_APPROVED', refusal: 'soft', state: 'rejected' }] }))).toBe(
       false,
     );
+  });
+});
+
+describe('cardGateSummary — a compact card gate, never a chip per gate', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'vision', owner: '/po', gate: null },
+      { stage: 'architecture', owner: '/arch', gate: { name: 'ARCH_APPROVED', refusal: 'hard' } },
+      { stage: 'security', owner: '/secops', gate: { name: 'SECOPS_APPROVED', refusal: 'hard' } },
+      { stage: 'done', owner: null, gate: null },
+    ],
+  };
+
+  it('is null when the ticket has no gates (nothing to summarise)', () => {
+    expect(cardGateSummary(ticket({ stage: 'vision', gates: [] }), wf)).toBeNull();
+    expect(cardGateSummary(ticket({ stage: 'vision', gates: undefined }), wf)).toBeNull();
+  });
+
+  it('surfaces the CURRENT-stage gate when it is unmet (rejected) so a blocked card shows why', () => {
+    const s = cardGateSummary(
+      ticket({
+        stage: 'security',
+        gates: [
+          { name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' },
+          { name: 'SECOPS_APPROVED', refusal: 'hard', state: 'rejected' },
+        ],
+      }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'gate', name: 'SECOPS_APPROVED', shape: 'hard', text: 'rejected', tone: 'danger' });
+  });
+
+  it('surfaces the CURRENT-stage gate when it is pending (unmet, not yet decided)', () => {
+    const s = cardGateSummary(
+      ticket({ stage: 'architecture', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'pending' }] }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'gate', name: 'ARCH_APPROVED', text: 'pending' });
+  });
+
+  it('rolls up to a compact passed/total chip when the current-stage gate is already passed', () => {
+    const s = cardGateSummary(
+      ticket({
+        stage: 'security',
+        gates: [
+          { name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' },
+          { name: 'SECOPS_APPROVED', refusal: 'hard', state: 'passed' },
+        ],
+      }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'rollup', passed: 2, total: 2 });
+  });
+
+  it('rolls up when no gate governs the current stage (a stage with no gate, but gates carried)', () => {
+    const s = cardGateSummary(
+      ticket({ stage: 'vision', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' }] }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'rollup', passed: 1, total: 1 });
+  });
+
+  it('counts only passed gates in the roll-up total', () => {
+    const s = cardGateSummary(
+      ticket({
+        stage: 'vision',
+        gates: [
+          { name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' },
+          { name: 'SECOPS_APPROVED', refusal: 'hard', state: 'pending' },
+          { name: 'CODE_REVIEWED', refusal: 'soft', state: 'rejected' },
+        ],
+      }),
+      wf,
+    );
+    expect(s).toMatchObject({ kind: 'rollup', passed: 1, total: 3 });
   });
 });
 
