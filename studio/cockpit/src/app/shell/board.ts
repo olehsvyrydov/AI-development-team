@@ -230,10 +230,14 @@ export function activeSegmentIndex(
   const rail = (workflowView?.stages ?? [])
     .map((s) => s.stage)
     .filter((stage) => stage.trim().toLowerCase() !== BACKLOG_STAGE && stage !== done);
+  const railIndex = new Map<string, number>();
+  rail.forEach((stage, i) => {
+    if (!railIndex.has(stage)) railIndex.set(stage, i);
+  });
   let furthest = -1;
   for (const t of tickets) {
     if (t.status !== 'in_progress') continue;
-    const idx = rail.indexOf(ticketStage(t));
+    const idx = railIndex.get(ticketStage(t)) ?? -1;
     if (idx > furthest) furthest = idx;
   }
   return furthest;

@@ -377,6 +377,44 @@ describe('activeSegmentIndex — how far the rail accent reaches (furthest in-pr
     expect(cols[idx].stage).toBe('code');
   });
 
+  it('returns the furthest (not the last-seen) in-progress stage across a mix of tickets', () => {
+    const tickets = [
+      ticket({ id: 'a', stage: 'code', status: 'in_progress' }),
+      ticket({ id: 'b', stage: 'vision', status: 'in_progress' }),
+      ticket({ id: 'c', stage: 'review', status: 'in_progress' }),
+      ticket({ id: 'd', stage: 'vision', status: 'in_progress' }),
+    ];
+    // WF rail order: vision=0, code=2, review=... ; review is furthest regardless of ticket order.
+    const rail = partitionBoard(WF, tickets).columns.map((c) => c.stage);
+    const expected = Math.max(...tickets.map((t) => rail.indexOf(t.stage!)));
+    expect(activeSegmentIndex(WF, tickets)).toBe(expected);
+  });
+
+  it('matches a per-ticket indexOf over the rendered rail (precomputed map equals indexOf semantics)', () => {
+    const wf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'review', owner: '/rev', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const tickets = [
+      ticket({ id: 'a', stage: 'review', status: 'in_progress' }),
+      ticket({ id: 'b', stage: 'code', status: 'in_progress' }),
+      ticket({ id: 'c', stage: 'unknown', status: 'in_progress' }),
+      ticket({ id: 'd', stage: 'code', status: 'done' }),
+    ];
+    const rail = partitionBoard(wf, tickets).columns.map((c) => c.stage);
+    let furthest = -1;
+    for (const t of tickets) {
+      if (t.status !== 'in_progress') continue;
+      furthest = Math.max(furthest, rail.indexOf(t.stage ?? ''));
+    }
+    expect(activeSegmentIndex(wf, tickets)).toBe(furthest);
+  });
+
   it('indexes against the rail with the done stage dropped too (a stage after done does not shift the accent)', () => {
     // The rail drops the literal `backlog` stage AND the done-named stage (now the folder), so the
     // rendered nodes are [code, Test]. A `code` in-progress ticket lights index 0.
