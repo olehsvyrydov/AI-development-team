@@ -10,7 +10,8 @@ import { describe, expect, it } from 'vitest';
  *
  * Asserting on the source string is deliberate: jsdom does not evaluate `@media` queries or the
  * cascade, so a behavioural assertion is not available here — the cascade math is the contract,
- * and the contract lives in the stylesheet text.
+ * and the contract lives in the stylesheet text. The override must therefore appear in the LAST
+ * reduced-motion block that targets the scope, since that block wins among the scoped rules.
  */
 
 const DIR = __dirname;
@@ -19,8 +20,8 @@ function source(file: string): string {
   return readFileSync(join(DIR, file), 'utf8');
 }
 
-/** Extract the body of the LAST `@media (prefers-reduced-motion: reduce) { … }` block. */
-function reducedMotionBlock(src: string): string {
+/** Bodies of every `@media (prefers-reduced-motion: reduce) { … }` block, in source order. */
+function reducedMotionBlocks(src: string): string[] {
   const marker = '@media (prefers-reduced-motion: reduce)';
   const blocks: string[] = [];
   let from = 0;
@@ -37,25 +38,33 @@ function reducedMotionBlock(src: string): string {
     blocks.push(src.slice(open + 1, i));
     from = i + 1;
   }
-  return blocks.join('\n');
+  return blocks;
+}
+
+/**
+ * Body of the LAST reduced-motion block that targets `scope` — the one that wins the cascade
+ * among the scoped overrides. Concatenating all blocks (the previous behaviour) would let the
+ * `animation: none` assertion pass on text from a non-winning block while the final scoped block
+ * silently dropped the override; selecting the last scoped block prevents that false pass.
+ */
+function winningScopedBlock(src: string, scope: string): string {
+  const scoped = reducedMotionBlocks(src).filter((block) => block.includes(scope));
+  return scoped.at(-1) ?? '';
 }
 
 describe('reduced-motion disables motion at matching specificity', () => {
   it('projects-home: the reduced-motion override targets the data-motion=on grid scope', () => {
-    const block = reducedMotionBlock(source('projects-home.component.ts'));
-    expect(block).toContain(".grid[data-motion='on']");
+    const block = winningScopedBlock(source('projects-home.component.ts'), ".grid[data-motion='on']");
     expect(block).toMatch(/animation:\s*none/);
   });
 
   it('project-card: the reduced-motion override targets the data-motion=on card scope', () => {
-    const block = reducedMotionBlock(source('project-card.component.ts'));
-    expect(block).toContain(".card[data-motion='on']");
+    const block = winningScopedBlock(source('project-card.component.ts'), ".card[data-motion='on']");
     expect(block).toMatch(/animation:\s*none/);
   });
 
   it('connect-panel: the reduced-motion override targets the data-motion=on connect scope', () => {
-    const block = reducedMotionBlock(source('connect-panel.component.ts'));
-    expect(block).toContain(".connect[data-motion='on']");
+    const block = winningScopedBlock(source('connect-panel.component.ts'), ".connect[data-motion='on']");
     expect(block).toMatch(/animation:\s*none/);
   });
 });
