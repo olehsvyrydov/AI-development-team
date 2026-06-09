@@ -1,0 +1,18 @@
+{
+  "_comment": "Shared cross-implementation fixture for the scope/stack visibility predicate. The hub (JS) scopeMatches and the memory (TS) mirror must produce byte-identical results for every row. A row that matches on one side but not the other fails the parity test on both sides.",
+  "rows": [
+    { "name": "own project note, java project", "doc": { "scope": "project", "status": "approved-project", "stack": ["any"], "ownProject": true }, "project": { "stack": ["java"] }, "expected": true },
+    { "name": "another project's project note", "doc": { "scope": "project", "status": "approved-project", "stack": ["any"], "ownProject": false }, "project": { "stack": ["java"] }, "expected": false },
+    { "name": "java common to java project", "doc": { "scope": "common", "status": "approved-common", "stack": ["java"] }, "project": { "stack": ["java"] }, "expected": true },
+    { "name": "python common to java project", "doc": { "scope": "common", "status": "approved-common", "stack": ["python"] }, "project": { "stack": ["java"] }, "expected": false },
+    { "name": "any common to java project", "doc": { "scope": "common", "status": "approved-common", "stack": ["any"] }, "project": { "stack": ["java"] }, "expected": true },
+    { "name": "java common to no-stack project", "doc": { "scope": "common", "status": "approved-common", "stack": ["java"] }, "project": { "stack": ["any"] }, "expected": false },
+    { "name": "any common to no-stack project", "doc": { "scope": "common", "status": "approved-common", "stack": ["any"] }, "project": { "stack": ["any"] }, "expected": true },
+    { "name": "intersecting common to java project", "doc": { "scope": "common", "status": "approved-common", "stack": ["python", "java"] }, "project": { "stack": ["java"] }, "expected": true },
+    { "name": "pending common not recalled", "doc": { "scope": "common", "status": "pending", "stack": ["java"] }, "project": { "stack": ["java"] }, "expected": false },
+    { "name": "rejected common not recalled", "doc": { "scope": "common", "status": "rejected", "stack": ["java"] }, "project": { "stack": ["java"] }, "expected": false },
+    { "name": "approved-project status on a common-scope doc not recalled", "doc": { "scope": "common", "status": "approved-project", "stack": ["java"] }, "project": { "stack": ["java"] }, "expected": false },
+    { "name": "multi-stack project, frontend common", "doc": { "scope": "common", "status": "approved-common", "stack": ["typescript"] }, "project": { "stack": ["typescript", "node"] }, "expected": true },
+    { "name": "multi-stack project, unrelated common", "doc": { "scope": "common", "status": "approved-common", "stack": ["go"] }, "project": { "stack": ["typescript", "node"] }, "expected": false }
+  ]
+}

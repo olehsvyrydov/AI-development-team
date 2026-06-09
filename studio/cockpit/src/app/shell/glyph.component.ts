@@ -39,6 +39,9 @@ export const GLYPH_NAMES = [
   'help',
   'stack',
   'folder-stack',
+  'scope-common',
+  'scope-project',
+  'tag',
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -260,6 +263,26 @@ export type GlyphName = (typeof GLYPH_NAMES)[number];
         <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
           <path d="M8 5 h7 v3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" opacity="0.55" />
           <path d="M4 8 h6 l2 2 h8 v9 H4 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('scope-common') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <circle cx="6" cy="6" r="1.6" fill="currentColor" stroke="none" />
+          <circle cx="18" cy="6" r="1.6" fill="currentColor" stroke="none" />
+          <circle cx="18" cy="18" r="1.6" fill="currentColor" stroke="none" />
+        </svg>
+      }
+      @case ('scope-project') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <rect x="5" y="5" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+        </svg>
+      }
+      @case ('tag') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M4 5 h8 l8 8 -7 7 -8 -8 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <circle cx="8" cy="9" r="1.2" fill="currentColor" stroke="none" />
         </svg>
       }
     }

@@ -225,8 +225,8 @@ async function handle(route, data, project) {
       return ok(st());
     }
     case 'kb/add': {
-      const { title, body } = data;
-      const r = w.addKbNote(project, { title, body });
+      const { title, body, scope, stack, kind } = data;
+      const r = w.addKbNote(project, { title, body, scope, stack, kind });
       if (!r.ok) return bad(r.error);
       return ok(st(), { doc: r.doc });
     }

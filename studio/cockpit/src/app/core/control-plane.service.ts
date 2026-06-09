@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PLATFORM_BRIDGE } from './platform-bridge';
-import type { BaseDoc, ProjectState } from './models';
+import type { BaseDoc, KnowledgeScope, ProjectState } from './models';
 
 /**
  * The outcome of a control-plane mutation. The hub answers every guarded mutation with one of
@@ -28,14 +28,21 @@ export type KbAddResult =
   | { readonly ok: false; readonly error: string };
 
 /**
- * Body for `kb/add`. The client supplies ONLY a title and a markdown body — never a path, filename,
- * directory, or extension. The hub slugs the title into a contained `*.md` filename server-side; a
- * client that named the file could escape the knowledge-base directory, so the boundary is enforced
- * here by sending these two fields and nothing else.
+ * Body for `kb/add`. The client supplies a title, a markdown body, and the note's classifying
+ * metadata — `scope` (a fixed enum the server validates and uses to pick the vault), and optional
+ * `stack`/`kind` tags. It NEVER supplies a path, filename, directory, or extension: the hub slugs
+ * the title into a contained `*.md` filename server-side, and `scope` selects one of two
+ * server-known vault roots, so the client can never escape the knowledge-base directory.
  */
 export interface KbAddInput {
   readonly title: string;
   readonly body: string;
+  /** Which vault to write to. A fixed enum the server re-validates; default `project` (narrowest). */
+  readonly scope?: KnowledgeScope;
+  /** Optional stack tags from the project's allowed set. */
+  readonly stack?: readonly string[];
+  /** Optional kind classifier. */
+  readonly kind?: string;
 }
 
 /** Body for `ticket/advance`. `expectedRev` is the opaque token from the last received state. */
@@ -248,7 +255,11 @@ export class ControlPlaneService {
    * This is an additive create, not a CAS mutation, so there is no `expectedRev` and no conflict.
    */
   async addKbNote(input: KbAddInput): Promise<KbAddResult> {
-    const body = this.scoped({ title: input.title, body: input.body });
+    const note: Record<string, unknown> = { title: input.title, body: input.body };
+    if (input.scope !== undefined) note['scope'] = input.scope;
+    if (input.stack !== undefined) note['stack'] = input.stack;
+    if (input.kind !== undefined) note['kind'] = input.kind;
+    const body = this.scoped(note);
     try {
       const res = await firstValueFrom(
         this.http.post<MutationEnvelope>(this.bridge.apiUrl('/api/kb/add'), body, {

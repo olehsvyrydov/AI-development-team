@@ -133,12 +133,14 @@ function messageOf(err: unknown): string {
 /** Derive the init-vs-adopt outcome from a connect result and the returned view. */
 function outcomeOf(created: boolean, view: ProjectView): ConnectOutcomeState {
   const summary = view.state?.taskSummary;
-  const base = view.state?.base;
+  const knowledge = view.state?.knowledge ?? view.state?.base;
+  const counts = knowledge?.counts;
+  const docs = counts ? counts.project + counts.common : undefined;
   return {
     created,
     source: view.profile?.source,
     title: displayTitle(view),
     tickets: summary?.total,
-    docs: base?.counts?.indexed,
+    docs,
   };
 }

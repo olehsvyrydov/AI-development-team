@@ -18,6 +18,8 @@ import { getEmbedder } from "../embeddings/factory.ts";
 import { getStore } from "../stores/factory.ts";
 import type { ScoredPoint } from "../types.ts";
 import { formatContext, readStdinJson, withDeadline } from "./common.ts";
+import { scopeMatches } from "../lib/knowledge-match.ts";
+import { projectStackOf } from "../lib/project-stack.ts";
 
 /** Hub digest CLI path, resolved relative to this hook (repo/hub/lib/digest.js). */
 const HUB_DIGEST = path.resolve(import.meta.dirname, "../../../../hub/lib/digest.js");
@@ -68,7 +70,18 @@ async function main(): Promise<void> {
       for (const c of ["session-context", "decisions", "learnings"]) {
         hits.push(...(await store.query(c, qv, { project_id: pid, scope: "project" }, 8)));
       }
-      const globalHits = await store.query("dev-rules", qv, { scope: "global" }, 5);
+      const globalHitsRaw = await store.query("dev-rules", qv, { scope: "global" }, 5);
+      // Narrow cross-project (global/common) rows by the project's declared stack via
+      // the SHARED scope predicate — the same any-wildcard/intersection rule the hub
+      // panel applies — so a stack-specific shared rule never leaks into a project of
+      // a different stack. A row with no stack tag is treated as "any" (recalled).
+      const declaredStack = projectStackOf(cwd);
+      const globalHits = globalHitsRaw.filter((h) => {
+        const tags = (h.payload && Array.isArray((h.payload as Record<string, unknown>).stack)
+          ? ((h.payload as Record<string, unknown>).stack as string[])
+          : ["any"]);
+        return scopeMatches({ scope: "common", status: "approved-common", stack: tags }, { stack: declaredStack });
+      });
       const out = [
         formatContext(hits, "Restored Context from Previous Sessions"),
         formatContext(globalHits, "Global Dev Rules"),

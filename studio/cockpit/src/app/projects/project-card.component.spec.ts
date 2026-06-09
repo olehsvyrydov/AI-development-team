@@ -160,7 +160,7 @@ describe('ProjectCardComponent', () => {
   it('does not surface any knowledge count on the card (knowledge demoted off the card)', async () => {
     const v: ProjectView = {
       ...view(),
-      state: { base: { method: 'filename', counts: { indexed: 9, indexing: 0, failed: 0 }, docs: [] }, tickets: [] },
+      state: { knowledge: { method: 'filename', stack: ['any'], counts: { project: 9, common: 0 }, docs: [] }, tickets: [] },
     };
     const host = (await mount(v)).nativeElement as HTMLElement;
     expect(host.textContent).not.toContain('knowledge');

@@ -1,28 +1,33 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import type { BaseDoc, BaseView, ProjectState } from '../core/models';
+import type { KnowledgeDoc, KnowledgeScope, KnowledgeView, ProjectState } from '../core/models';
 import { AddNoteFormComponent } from './add-note-form.component';
+import { GlyphComponent } from './glyph.component';
 
-const REPRESENTATIVE_DOC_LIMIT = 3;
+/** Scope filter for the displayed list: a single vault, or every visible doc. */
+type ScopeFilter = KnowledgeScope | 'all';
 
 /**
- * Base panel — how many knowledge documents the project holds, how they are indexed, and a live
- * control to add more. The method line is honest about recall: semantic when an embedder is wired,
- * otherwise a plain filename index. Document names originate from the project's files and are
- * untrusted, so they render through interpolation only (escaped).
+ * Knowledge panel — the merged view of what the project's AI team remembers: its own project-scoped
+ * notes unioned with the approved common notes whose stack matches the project. It shows how many
+ * docs of each scope are visible, an honest method line (semantic only when an embedder is wired,
+ * else a plain filename index), and a live control to add more.
  *
- * "Add documents" opens an inline paste-a-note form that writes one contained markdown file to the
- * project's knowledge base. The form sends only a title + body; on success the hub returns the fresh
- * project state, which this panel re-emits up so the shell adopts it — the count increments and the
- * new doc appears from that single source of truth. "Manage base" remains an inert "coming soon"
- * affordance (disabled, `aria-disabled`) that neither navigates nor fakes a write.
+ * The scope toggle (This project / Common / All) filters the displayed docs by their vault; Common
+ * is framed honestly as shared across the operator's own projects on this machine, never a cloud.
+ * Each doc carries a scope badge (glyph + text, never colour alone), its stack tags, and its kind.
+ * Simple client-side stack/kind filters narrow the loaded set without a refetch.
  *
- * Empty (no docs, or no base facts at all): an invitation plus the Add control — never a bare
- * "No data".
+ * Security: doc names, stack tags, and kinds originate from project files / front-matter and are
+ * UNTRUSTED, so they reach the DOM through interpolation only (escaped) — never `[innerHTML]`. The
+ * scoped add form's scope is a fixed enum, never a free path. "Manage knowledge" stays an inert
+ * "coming soon" affordance (disabled, `aria-disabled`) that neither navigates nor fakes a write.
+ *
+ * Empty (no docs, or no facts at all): an invitation plus the Add control — never a bare "No data".
  */
 @Component({
   selector: 'dart-base-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AddNoteFormComponent],
+  imports: [AddNoteFormComponent, GlyphComponent],
   template: `
     <header class="ph">
       <span class="ph__tile ph__tile--base" aria-hidden="true">
@@ -34,52 +39,111 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
           <line x1="7" y1="16" x2="11" y2="16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
         </svg>
       </span>
-      <h2 class="ph__title">Base</h2>
+      <h2 class="ph__title" data-testid="knowledge-title">Knowledge</h2>
       @if (!isEmpty()) {
         <span class="ph__count" data-testid="base-count">{{ total() }} docs</span>
       }
     </header>
+
+    <p class="local" data-testid="knowledge-local">Local-first — nothing is uploaded. Indexed on this machine.</p>
 
     <hr class="ph__rule" aria-hidden="true" />
 
     @if (isEmpty()) {
       <p class="ph__empty" data-testid="base-empty">No knowledge yet — add the rules and context your team must follow.</p>
     } @else {
-      <ul class="breakdown" aria-label="Index status">
-        <li class="bk bk--indexed" data-testid="base-indexed">
-          <svg class="bk__glyph" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
-            <polyline points="5,12 10,17 19,7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <span class="bk__num">{{ counts().indexed }}</span> indexed
-        </li>
-        <li class="bk bk--indexing" data-testid="base-indexing">
-          <svg class="bk__glyph" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
-            <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6" />
-            <path d="M12 4 a8 8 0 0 1 0 16 z" fill="currentColor" stroke="none" />
-          </svg>
-          <span class="bk__num">{{ counts().indexing }}</span> indexing
-        </li>
-        <li class="bk bk--failed" data-testid="base-failed">
-          <svg class="bk__glyph" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
-            <path d="M12 4 L21 19 H3 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-            <line x1="12" y1="10" x2="12" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            <circle cx="12" cy="16.5" r="0.9" fill="currentColor" stroke="none" />
-          </svg>
-          <span class="bk__num">{{ counts().failed }}</span> failed
-        </li>
-      </ul>
+      <div class="scope" role="radiogroup" aria-label="Knowledge scope">
+        <button
+          type="button"
+          class="seg__opt"
+          data-testid="knowledge-scope-project"
+          role="radio"
+          [attr.aria-checked]="scopeFilter() === 'project'"
+          [class.seg__opt--on]="scopeFilter() === 'project'"
+          (click)="setScope('project')"
+        >
+          <dart-glyph name="scope-project" /> This project
+          <span class="seg__count">{{ counts().project }}</span>
+        </button>
+        <button
+          type="button"
+          class="seg__opt"
+          data-testid="knowledge-scope-common"
+          role="radio"
+          [attr.aria-checked]="scopeFilter() === 'common'"
+          [class.seg__opt--on]="scopeFilter() === 'common'"
+          (click)="setScope('common')"
+        >
+          <dart-glyph name="scope-common" /> Common
+          <span class="seg__count">{{ counts().common }}</span>
+        </button>
+        <button
+          type="button"
+          class="seg__opt"
+          data-testid="knowledge-scope-all"
+          role="radio"
+          [attr.aria-checked]="scopeFilter() === 'all'"
+          [class.seg__opt--on]="scopeFilter() === 'all'"
+          (click)="setScope('all')"
+        >
+          All
+          <span class="seg__count">{{ total() }}</span>
+        </button>
+      </div>
+
+      <div class="filters">
+        <label class="filters__field">
+          <span class="filters__lbl"><dart-glyph name="tag" /> Stack</span>
+          <select class="filters__sel" data-testid="knowledge-filter-stack" [value]="stackFilter()" (change)="onStackFilter($event)">
+            <option value="">any</option>
+            @for (s of stackOptions(); track s) {
+              <option [value]="s">{{ s }}</option>
+            }
+          </select>
+        </label>
+        <label class="filters__field">
+          <span class="filters__lbl"><dart-glyph name="tag" /> Kind</span>
+          <select class="filters__sel" data-testid="knowledge-filter-kind" [value]="kindFilter()" (change)="onKindFilter($event)">
+            <option value="">all</option>
+            @for (k of kindOptions(); track k) {
+              <option [value]="k">{{ k }}</option>
+            }
+          </select>
+        </label>
+      </div>
 
       <p class="method" data-testid="base-method">{{ methodLine() }}</p>
 
-      @if (docs().length) {
-        <ul class="docs" aria-label="Recent documents">
-          @for (doc of docs(); track doc.name) {
-            <li class="doc">
+      @if (visibleDocs().length) {
+        <ul class="docs" aria-label="Knowledge documents">
+          @for (doc of visibleDocs(); track doc.name) {
+            <li class="doc" data-testid="knowledge-doc">
               <span class="doc__name">{{ doc.name }}</span>
-              <span class="doc__index">{{ doc.index ?? 'indexed' }}</span>
+              <span class="doc__chips">
+                <span
+                  class="chip chip--scope"
+                  data-testid="doc-scope-badge"
+                  [class.chip--common]="doc.scope === 'common'"
+                >
+                  @if (doc.scope === 'common') {
+                    <dart-glyph name="scope-common" [size]="12" /> Common
+                  } @else {
+                    <dart-glyph name="scope-project" [size]="12" /> Project
+                  }
+                </span>
+                @for (s of docStack(doc); track s) {
+                  <span class="chip chip--stack"><dart-glyph name="tag" [size]="12" /> {{ s }}</span>
+                }
+                @if (doc.kind) {
+                  <span class="chip chip--kind">{{ doc.kind }}</span>
+                }
+                <span class="doc__index">{{ doc.index ?? 'indexed' }}</span>
+              </span>
             </li>
           }
         </ul>
+      } @else {
+        <p class="docs-empty" data-testid="knowledge-scope-empty">{{ emptyScopeLine() }}</p>
       }
     }
 
@@ -97,7 +161,7 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
           type="button"
           class="ph__add ph__add--live"
           data-testid="base-add"
-          aria-label="Add a note"
+          aria-label="Add knowledge"
           [attr.aria-expanded]="formOpen()"
           (click)="openForm()"
         >
@@ -105,7 +169,7 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
             <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
             <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
           </svg>
-          Add a note
+          Add knowledge
         </button>
         <button
           type="button"
@@ -113,9 +177,9 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
           data-testid="base-manage"
           disabled
           aria-disabled="true"
-          aria-label="Manage base (coming soon)"
+          aria-label="Manage knowledge (coming soon)"
         >
-          Manage base
+          Manage knowledge
           <span class="ph__soon">soon</span>
           <svg class="ph__arrow" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
             <polyline points="9,6 15,12 9,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -131,20 +195,30 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
     .ph__tile--base { background: color-mix(in srgb, var(--kb-accent) 12%, transparent); color: color-mix(in srgb, var(--kb-accent) 70%, var(--kb-text)); }
     .ph__title { margin: 0; font-size: var(--kb-text-lg); font-weight: 600; margin-right: auto; }
     .ph__count { font-size: var(--kb-text-lg); font-weight: 700; }
+    .local { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
     .ph__rule { width: 100%; margin: 0; border: none; border-top: 1px solid var(--kb-border); }
     .ph__empty { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
-    .breakdown { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--kb-space-3); font-size: var(--kb-text-sm); }
-    .bk { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--kb-text-muted); }
-    .bk__glyph { flex: none; }
-    .bk__num { font-weight: 700; color: var(--kb-text); }
-    .bk--indexed { color: var(--kb-success); }
-    .bk--indexing { color: var(--kb-text-muted); }
-    .bk--failed { color: var(--kb-danger); }
+    .scope { display: inline-flex; gap: 0.25rem; padding: 0.2rem; background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); width: fit-content; }
+    .seg__opt { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.6rem; font: inherit; font-size: var(--kb-text-sm); font-weight: 600; color: var(--kb-text-subtle); background: transparent; border: none; border-radius: var(--kb-radius-sm, 0.3rem); cursor: pointer; }
+    .seg__opt--on { color: var(--kb-accent-contrast, #fff); background: var(--kb-accent); }
+    .seg__opt:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
+    .seg__count { font-size: var(--kb-text-xs); font-weight: 700; padding: 0 0.3rem; border-radius: 999px; background: color-mix(in srgb, currentColor 18%, transparent); }
+    .filters { display: flex; gap: var(--kb-space-3); flex-wrap: wrap; }
+    .filters__field { display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
+    .filters__lbl { display: inline-flex; align-items: center; gap: 0.25rem; }
+    .filters__sel { font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm, 0.3rem); padding: 0.15rem 0.3rem; }
+    .filters__sel:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
     .method { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
-    .docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+    .docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
     .doc { display: flex; align-items: center; justify-content: space-between; gap: var(--kb-space-2); font-size: var(--kb-text-sm); }
     .doc__name { color: var(--kb-text); overflow-wrap: anywhere; }
+    .doc__chips { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; justify-content: flex-end; }
+    .chip { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.05rem 0.35rem; font-size: var(--kb-text-xs); border-radius: 999px; border: 1px solid var(--kb-border); color: var(--kb-text-muted); }
+    .chip--scope { font-weight: 600; color: var(--kb-text-subtle); }
+    .chip--common { color: var(--kb-accent); border-color: color-mix(in srgb, var(--kb-accent) 50%, var(--kb-border)); }
+    .chip--kind { text-transform: capitalize; }
     .doc__index { color: var(--kb-text-subtle); font-size: var(--kb-text-xs); }
+    .docs-empty { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
     .ph__footrow { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: var(--kb-space-2); }
     .ph__add {
       display: inline-flex; align-items: center; gap: 0.3rem;
@@ -167,12 +241,19 @@ const REPRESENTATIVE_DOC_LIMIT = 3;
   `,
 })
 export class BasePanelComponent {
-  readonly base = input.required<BaseView | null>();
+  readonly base = input.required<KnowledgeView | null>();
   /** Fresh project state from a successful note add, lifted for the shell to adopt as truth. */
   readonly applied = output<ProjectState>();
 
   private readonly formOpen_ = signal(false);
   readonly formOpen = this.formOpen_.asReadonly();
+
+  /** Which scope the list is filtered to. Defaults to the project's own notes. */
+  readonly scopeFilter = signal<ScopeFilter>('project');
+  /** Client-side stack tag filter; empty string = any. */
+  readonly stackFilter = signal('');
+  /** Client-side kind filter; empty string = all. */
+  readonly kindFilter = signal('');
 
   openForm(): void {
     this.formOpen_.set(true);
@@ -187,14 +268,68 @@ export class BasePanelComponent {
     this.applied.emit(state);
   }
 
-  readonly counts = computed(() => this.base()?.counts ?? { indexed: 0, indexing: 0, failed: 0 });
+  setScope(scope: ScopeFilter): void {
+    this.scopeFilter.set(scope);
+  }
+
+  onStackFilter(event: Event): void {
+    this.stackFilter.set((event.target as HTMLSelectElement).value);
+  }
+
+  onKindFilter(event: Event): void {
+    this.kindFilter.set((event.target as HTMLSelectElement).value);
+  }
+
+  readonly counts = computed(() => this.base()?.counts ?? { project: 0, common: 0 });
   readonly total = computed(() => {
     const c = this.counts();
-    return c.indexed + c.indexing + c.failed;
+    return c.project + c.common;
   });
   readonly isEmpty = computed(() => !this.base() || this.total() <= 0);
 
-  readonly docs = computed<readonly BaseDoc[]>(() => (this.base()?.docs ?? []).slice(0, REPRESENTATIVE_DOC_LIMIT));
+  private readonly allDocs = computed<readonly KnowledgeDoc[]>(() => this.base()?.docs ?? []);
+
+  /** The stack tags actually present across the loaded docs, for the filter options. */
+  readonly stackOptions = computed(() => {
+    const set = new Set<string>();
+    for (const doc of this.allDocs()) for (const s of doc.stack ?? []) if (s) set.add(s);
+    return [...set].sort();
+  });
+
+  /** The kinds actually present across the loaded docs, for the filter options. */
+  readonly kindOptions = computed(() => {
+    const set = new Set<string>();
+    for (const doc of this.allDocs()) if (doc.kind) set.add(doc.kind);
+    return [...set].sort();
+  });
+
+  /** The docs after scope + stack + kind filtering. */
+  readonly visibleDocs = computed<readonly KnowledgeDoc[]>(() => {
+    const scope = this.scopeFilter();
+    const stack = this.stackFilter();
+    const kind = this.kindFilter();
+    return this.allDocs().filter((doc) => {
+      if (scope !== 'all' && doc.scope !== scope) return false;
+      if (stack && !(doc.stack ?? []).includes(stack)) return false;
+      if (kind && doc.kind !== kind) return false;
+      return true;
+    });
+  });
+
+  /** A doc's stack tags, with the noise-only `any` dropped when more specific tags exist. */
+  docStack(doc: KnowledgeDoc): readonly string[] {
+    const stack = (doc.stack ?? []).filter((s) => !!s);
+    const specific = stack.filter((s) => s !== 'any');
+    return specific.length ? specific : stack;
+  }
+
+  readonly emptyScopeLine = computed(() => {
+    if (this.stackFilter() || this.kindFilter()) return 'No knowledge matches these filters.';
+    if (this.scopeFilter() === 'common') {
+      return 'No common knowledge yet — add a shared note, or promote a project note.';
+    }
+    return 'No knowledge in this scope yet.';
+  });
 
   readonly methodLine = computed(() =>
     this.base()?.method === 'local-embeddings'

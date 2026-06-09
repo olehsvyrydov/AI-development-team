@@ -165,6 +165,38 @@ test('N-18 mutation routes and kb/add are refused 403 without X-AIDT; allowed wi
   }
 });
 
+test('N-205 a scoped kb/add (project + common) is refused 403 without X-AIDT and with a non-loopback Host; nothing written', async () => {
+  const dir = proj();
+  const port = await freePort();
+  // a fresh tmp HOME so a leaked common write would land somewhere we control + can inspect
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'aidt-guardhome-')));
+  const prevHome = process.env.HOME;
+  process.env.HOME = home;
+  const { stop } = await startServer(dir, port);
+  try {
+    // missing X-AIDT
+    for (const scope of ['project', 'common']) {
+      const res = await post(port, 'kb/add', { title: 'NoHeader ' + scope, body: 'x', scope });
+      assert.equal(res.status, 403, `scope:${scope} refused without X-AIDT`);
+    }
+    // present X-AIDT but a non-loopback Host header → still 403
+    for (const scope of ['project', 'common']) {
+      const res = await post(port, 'kb/add', { title: 'BadHost ' + scope, body: 'x', scope },
+        { 'x-aidt': '1', host: 'evil.example.com' });
+      assert.equal(res.status, 403, `scope:${scope} refused with non-loopback Host`);
+    }
+    assert.ok(!fs.existsSync(path.join(dir, '.aidevteam', 'kb')), 'no project KB note written under 403');
+    const commonDir = path.join(home, '.aidevteam', 'kb-common');
+    const commonFiles = fs.existsSync(commonDir) ? fs.readdirSync(commonDir).filter((f) => f.endsWith('.md')) : [];
+    assert.deepEqual(commonFiles, [], 'no common note written under 403');
+  } finally {
+    await stop();
+    if (prevHome === undefined) delete process.env.HOME; else process.env.HOME = prevHome;
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('N-16 the rule/label authoring routes are refused 403 without X-AIDT; nothing written', async () => {
   const dir = proj();
   const port = await freePort();

@@ -290,7 +290,7 @@ export class ProjectShellComponent {
   });
   readonly base = computed<Derived<BaseView | null> | null>(() => {
     const v = this.loaded();
-    return v ? derive(() => v.state?.base ?? null) : null;
+    return v ? derive(() => v.state?.knowledge ?? v.state?.base ?? null) : null;
   });
 
   constructor() {
