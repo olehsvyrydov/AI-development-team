@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PLATFORM_BRIDGE } from './platform-bridge';
-import type { BaseDoc, ProjectState } from './models';
+import type { KnowledgeDoc, KnowledgeScope, ProjectState } from './models';
 
 /**
  * The outcome of a control-plane mutation. The hub answers every guarded mutation with one of
@@ -19,23 +19,30 @@ export type MutationResult =
 
 /**
  * The outcome of adding a knowledge-base note. On success the hub returns the fresh `state` (whose
- * base projection already carries the new doc + incremented count) AND the `doc` it actually wrote
- * — the server derives the filename from the title, so on a duplicate it reports the unique name it
- * chose (e.g. `code-rules-2`) and the UI names what was really created rather than what was asked.
+ * knowledge projection already carries the new doc + incremented count) AND the `doc` it actually
+ * wrote — the server derives the filename from the title, so on a duplicate it reports the unique
+ * name it chose (e.g. `code-rules-2`) and the UI names what was really created rather than asked.
  */
 export type KbAddResult =
-  | { readonly ok: true; readonly state: ProjectState | null; readonly doc: BaseDoc | null }
+  | { readonly ok: true; readonly state: ProjectState | null; readonly doc: KnowledgeDoc | null }
   | { readonly ok: false; readonly error: string };
 
 /**
- * Body for `kb/add`. The client supplies ONLY a title and a markdown body — never a path, filename,
- * directory, or extension. The hub slugs the title into a contained `*.md` filename server-side; a
- * client that named the file could escape the knowledge-base directory, so the boundary is enforced
- * here by sending these two fields and nothing else.
+ * Body for `kb/add`. The client supplies a title, a markdown body, and the note's classifying
+ * metadata — `scope` (a fixed enum the server validates and uses to pick the vault), and optional
+ * `stack`/`kind` tags. It NEVER supplies a path, filename, directory, or extension: the hub slugs
+ * the title into a contained `*.md` filename server-side, and `scope` selects one of two
+ * server-known vault roots, so the client can never escape the knowledge-base directory.
  */
 export interface KbAddInput {
   readonly title: string;
   readonly body: string;
+  /** Which vault to write to. A fixed enum the server re-validates; default `project` (narrowest). */
+  readonly scope?: KnowledgeScope;
+  /** Optional stack tags from the project's allowed set. */
+  readonly stack?: readonly string[];
+  /** Optional kind classifier. */
+  readonly kind?: string;
 }
 
 /** Body for `ticket/advance`. `expectedRev` is the opaque token from the last received state. */
@@ -158,7 +165,7 @@ interface MutationEnvelope {
   readonly conflict?: boolean;
   readonly error?: string;
   readonly state?: ProjectState | null;
-  readonly doc?: BaseDoc | null;
+  readonly doc?: KnowledgeDoc | null;
 }
 
 /**
@@ -242,13 +249,20 @@ export class ControlPlaneService {
   }
 
   /**
-   * Add a knowledge-base note. Sends ONLY `{ title, body }` — the server derives a contained
-   * filename. On success returns the fresh `state` to adopt (count/list refresh) plus the `doc` the
-   * server actually wrote; any failure (size/slug 400, guard 403, network) is a terse error result.
-   * This is an additive create, not a CAS mutation, so there is no `expectedRev` and no conflict.
+   * Add a knowledge-base note. Always sends `{ title, body }` and conditionally includes the
+   * classifying metadata the operator set — `scope` (which vault), `stack` tags, and `kind` — each
+   * omitted from the body when not provided. It never sends a path, filename, or extension: the
+   * server slugs the title into a contained filename and `scope` selects a server-known vault root.
+   * On success returns the fresh `state` to adopt (count/list refresh) plus the `doc` the server
+   * actually wrote; any failure (size/slug 400, guard 403, network) is a terse error result. This is
+   * an additive create, not a CAS mutation, so there is no `expectedRev` and no conflict.
    */
   async addKbNote(input: KbAddInput): Promise<KbAddResult> {
-    const body = this.scoped({ title: input.title, body: input.body });
+    const note: Record<string, unknown> = { title: input.title, body: input.body };
+    if (input.scope !== undefined) note['scope'] = input.scope;
+    if (input.stack !== undefined) note['stack'] = input.stack;
+    if (input.kind !== undefined) note['kind'] = input.kind;
+    const body = this.scoped(note);
     try {
       const res = await firstValueFrom(
         this.http.post<MutationEnvelope>(this.bridge.apiUrl('/api/kb/add'), body, {

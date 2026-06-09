@@ -12,8 +12,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { fileRev } = require('./state');
+const { fileRev, containedCommonVaultDir } = require('./state');
 const { safeId, commentFile, readComments } = require('./comments');
+const { commonVaultRoot, aidevteamHome, normalizeStack, normalizeKind } = require('./knowledge');
 
 const MAX_COMMENT_BODY = 8192;
 const MAX_KB_BODY = 64 * 1024;
@@ -156,6 +157,48 @@ function resolveKbDir(projectDir) {
   try { return fs.realpathSync(def); } catch { return null; }
 }
 
+// Resolve the user-level common-vault directory for WRITING. The intended root comes
+// from the knowledge module (default ~/.aidevteam/kb-common, or an absolute config
+// override). The default is created on demand (like the project default). An absolute
+// commonVaultDir override is NOT created here: it must already resolve to a real
+// directory. In every case the resolved real path must be realpath-contained within
+// the user-global home root (~/.aidevteam) — a symlink (or override path) escaping
+// $HOME is refused so an override cannot redirect common writes outside the user's own
+// state. The containment decision is the shared `containedCommonVaultDir` (the same
+// gate the read path uses). Returns the realpath of the common vault, or null when it
+// cannot be safely resolved (caller refuses the write).
+function resolveCommonKbDir() {
+  const home = aidevteamHome();
+  const intended = commonVaultRoot();
+  const isDefault = intended === path.join(home, 'kb-common');
+
+  if (isDefault) {
+    try { fs.mkdirSync(intended, { recursive: true }); } catch { return null; }
+  } else {
+    // a non-existent / non-directory override is refused rather than created or followed
+    let real;
+    try { real = fs.realpathSync(intended); } catch { return null; }
+    try { if (!fs.statSync(real).isDirectory()) return null; } catch { return null; }
+  }
+  return containedCommonVaultDir();
+}
+
+const SCOPE_ENUM = new Set(['project', 'common']);
+
+// Build the YAML-ish front-matter header the writer emits (and the reader parses).
+// Values are the server-validated scope/stack/kind; never client paths.
+function frontMatterHeader({ scope, stack, kind, status, by }) {
+  const lines = ['---'];
+  lines.push(`scope: ${scope}`);
+  lines.push(`stack: [${stack.join(', ')}]`);
+  lines.push(`kind: ${kind}`);
+  lines.push(`status: ${status}`);
+  lines.push(`created: ${new Date().toISOString()}`);
+  lines.push(`by: ${by || 'user'}`);
+  lines.push('---');
+  return lines.join('\n') + '\n';
+}
+
 // Body must be a non-empty, UTF-8-encodable text string within the size cap, with
 // no NUL byte and no C0 control char other than tab/newline/carriage-return
 // (i.e. a text/markdown content shape, not binary).
@@ -172,44 +215,73 @@ function kbBodyError(body) {
 const reject = (error) => ({ ok: false, code: 400, error });
 
 /**
- * Write a knowledge-base note as a new markdown file inside the project's KB dir.
+ * Write a knowledge-base note as a new markdown file inside one of two server-known
+ * vaults selected by the `scope` enum.
  *
- * The filename is server-derived from a slug of `title` (`<slug>.md`); the client
- * never supplies a path, filename, directory, or extension. The target's parent is
- * realpath-contained to the KB dir before any write, the file is created with
- * O_EXCL (never overwriting; a name collision gets a unique numeric suffix), and the
- * body is capped and required to be UTF-8 text. All file creation is atomic.
+ * `scope` is a server-validated enum — `project` (the project's KB dir) or `common`
+ * (the user-level shared vault) — never a client path, directory, filename, or vault
+ * path. The filename is server-derived from a slug of `title` (`<slug>.md`); the body
+ * carries a server-emitted front-matter header recording the validated scope/stack/
+ * kind/status. The target's parent is realpath-contained to the CHOSEN vault root
+ * before any write, the file is created with O_EXCL (never overwriting; a collision
+ * gets a unique numeric suffix), and the body is capped and required to be UTF-8 text.
  *
  * @param projectDir the server-resolved project root (never client-supplied)
- * @param note `{ title, body }` — both client-supplied untrusted text
- * @returns `{ ok:true, doc:{ name, file } }` on success, or `{ ok:false, code:400, error }`
- *          with a terse message (no absolute paths, no stack traces) on rejection
+ * @param note `{ title, body, scope?, stack?, kind? }` — title/body untrusted text;
+ *        scope an enum (default `project`); stack/kind tags normalized to the closed vocab
+ * @returns `{ ok:true, doc:{ name, file, scope, stack, kind, status } }` on success, or
+ *          `{ ok:false, code:400, error }` with a terse message (no paths, no stack traces)
  */
-function addKbNote(projectDir, { title, body } = {}) {
+function addKbNote(projectDir, { title, body, scope, stack, kind, status } = {}) {
   if (typeof title !== 'string' || title.length > MAX_KB_TITLE) return reject('invalid title');
   const bodyErr = kbBodyError(body);
   if (bodyErr) return reject(bodyErr);
   const slug = slugify(title);
   if (!slug) return reject('title has no usable characters');
 
-  const kbDir = resolveKbDir(projectDir);
-  if (!kbDir) return reject('knowledge base location is not writable');
+  // scope is a server-validated enum that SELECTS one of two known roots — it is
+  // never concatenated into a path. Absent → project (safest). Out-of-enum → reject.
+  const effScope = scope === undefined || scope === null ? 'project' : scope;
+  if (!SCOPE_ENUM.has(effScope)) return reject('invalid scope');
 
-  const root = fs.realpathSync(projectDir);
+  const normStack = normalizeStack(stack);
+  const normKind = normalizeKind(kind);
+  const effStatus = effScope === 'common'
+    ? 'approved-common'
+    : (status === 'approved-project' || status === 'pending' || status === 'rejected' ? status : 'approved-project');
+
+  let vaultDir;
+  let relRoot; // the root the returned file path is reported relative to
+  if (effScope === 'common') {
+    vaultDir = resolveCommonKbDir();
+    if (!vaultDir) return reject('knowledge base location is not writable');
+    relRoot = vaultDir;
+  } else {
+    vaultDir = resolveKbDir(projectDir);
+    if (!vaultDir) return reject('knowledge base location is not writable');
+    relRoot = fs.realpathSync(projectDir);
+  }
+
+  const header = frontMatterHeader({ scope: effScope, stack: normStack, kind: normKind, status: effStatus });
+  const fileContent = header + body;
+
   for (let n = 1; n <= KB_COLLISION_LIMIT; n++) {
     const name = n === 1 ? slug : `${slug}-${n}`;
-    const target = path.join(kbDir, `${name}.md`);
-    // realpath the parent and confirm containment BEFORE any write syscall
+    const target = path.join(vaultDir, `${name}.md`);
+    // realpath the parent and confirm containment to the CHOSEN vault BEFORE any write
     let realParent;
     try { realParent = fs.realpathSync(path.dirname(target)); } catch { return reject('invalid location'); }
-    if (!isContained(kbDir, realParent)) return reject('invalid location');
+    if (!isContained(vaultDir, realParent)) return reject('invalid location');
     try {
-      writeNewFileExclusive(target, body);
+      writeNewFileExclusive(target, fileContent);
     } catch (e) {
       if (e && e.code === 'EEXIST') continue; // never clobber — try the next suffix
       return reject('could not write the note');
     }
-    return { ok: true, doc: { name: `${name}`, file: path.relative(root, target) } };
+    return {
+      ok: true,
+      doc: { name, file: path.relative(relRoot, target), scope: effScope, stack: normStack, kind: normKind, status: effStatus },
+    };
   }
   return reject('too many notes with this title');
 }

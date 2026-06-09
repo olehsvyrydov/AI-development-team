@@ -15,6 +15,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { expectedOwner, stageGate } = require('./stage-map');
 const { readComments } = require('./comments');
+const { parseFrontMatter, scopeMatches, projectStack, commonVaultRoot, aidevteamHome } = require('./knowledge');
 
 function safeExists(p) { try { return fs.existsSync(p); } catch { return false; } }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
@@ -275,14 +276,113 @@ function readTickets(project) {
   return out;
 }
 
-function readKb(project) {
+// Read one vault dir into doc records carrying parsed front-matter. The holding
+// vault decides authorization scope (`enforcedScope`), so a hand-edited file whose
+// front-matter disagrees with its vault cannot widen its reach. `fileRel` is relative
+// to `relRoot`; `ownProject` marks the scanning project's own project-scoped notes.
+function readVault(dir, relRoot, enforcedScope, ownProject) {
+  let files = [];
+  try { files = fs.readdirSync(dir).filter((f) => f.endsWith('.md')); } catch { return []; }
+  const out = [];
+  for (const f of files) {
+    const fm = parseFrontMatter(safeRead(path.join(dir, f)));
+    out.push({
+      name: f.replace(/\.md$/, ''),
+      file: path.relative(relRoot, path.join(dir, f)),
+      scope: enforcedScope, // the HOLDING VAULT wins (front-matter is intent only)
+      stack: fm.stack,
+      kind: fm.kind,
+      status: enforcedScope === 'common'
+        ? (fm.status === 'approved-common' ? 'approved-common' : fm.status)
+        : (fm.status === 'approved-project' || fm.status === 'pending' || fm.status === 'rejected' ? fm.status : 'approved-project'),
+      created: fm.created,
+      by: fm.by,
+      ownProject: ownProject === true,
+    });
+  }
+  return out;
+}
+
+function projectKbDir(project) {
   const dirs = ['docs', 'kb', '.aidevteam/kb'].map((d) => path.join(project, d));
-  const dir = dirs.find(safeExists);
+  return dirs.find(safeExists) || null;
+}
+
+// Back-compat shape: the flat {name,file} list the existing callers (and base view)
+// rely on. Now sourced from the project vault scan.
+function readKb(project) {
+  const dir = projectKbDir(project);
   if (!dir) return [];
+  return readVault(dir, project, 'project', true).map((d) => ({ name: d.name, file: d.file }));
+}
+
+// The project's own project-scoped doc records (with front-matter facts).
+function readProjectKb(project) {
+  const dir = projectKbDir(project);
+  if (!dir) return [];
+  return readVault(dir, project, 'project', true);
+}
+
+// True only when `child` is `root` itself or lies strictly beneath it. The
+// trailing-separator compare rejects the sibling-prefix trap (/home vs /home-evil).
+function isContained(root, child) {
+  return child === root || child.startsWith(root + path.sep);
+}
+
+// Resolve the common-vault root for READING, applying the SAME containment rule the
+// write path enforces: the intended root (default ~/.aidevteam/kb-common, or a bounded
+// commonVaultDir override) is realpath-resolved and must be contained within the
+// realpath'd user-global home (~/.aidevteam) — an override (or symlink) escaping that
+// home is refused so a read can never reach files outside the user's own state.
+// Returns the contained realpath, or null when it cannot be safely resolved. Reads
+// only; creates nothing (the writer owns on-demand creation of the default).
+function containedCommonVaultDir() {
+  let root;
   try {
-    return fs.readdirSync(dir).filter((f) => f.endsWith('.md'))
-      .map((f) => ({ name: f.replace(/\.md$/, ''), file: path.relative(project, path.join(dir, f)) }));
-  } catch { return []; }
+    const intended = commonVaultRoot();
+    if (!safeExists(intended)) return null;
+    root = fs.realpathSync(intended);
+  } catch { return null; }
+  let realHome;
+  try { realHome = fs.realpathSync(aidevteamHome()); } catch { return null; }
+  if (!isContained(realHome, root)) return null;
+  return root;
+}
+
+// The common-vault doc records. Read-only scan of the SINGLE shared vault; the
+// resolved root must be a real directory contained to the user-global home (so a
+// commonVaultDir override escaping it is refused), else the scan is empty (never
+// reads an uncontained path).
+function readCommonKb() {
+  const root = containedCommonVaultDir();
+  if (!root) return [];
+  return readVault(root, root, 'common', false);
+}
+
+/**
+ * Build the merged Knowledge projection a project sees: its own project-scoped notes
+ * unioned with approved-common notes whose stack matches the project's declared stack.
+ * The cross-type match predicate is the shared `scopeMatches` — the single source of
+ * truth the memory recall path mirrors. Reads only; never throws.
+ */
+function buildKnowledge(project) {
+  const declaredStack = projectStack(project);
+  const own = readProjectKb(project);
+  const common = readCommonKb();
+  const projectMeta = { stack: declaredStack };
+
+  const visibleCommon = common.filter((d) => scopeMatches(d, projectMeta));
+  const docs = [];
+  for (const d of own) docs.push({ name: d.name, file: d.file, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
+  for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
+
+  const configured = embedderConfigured(project);
+  return {
+    method: configured ? 'local-embeddings' : 'filename-only',
+    stack: declaredStack,
+    counts: { project: own.length, common: visibleCommon.length },
+    docs,
+  };
 }
 
 // strip YAML front-matter and a leading title heading, returning the prose body
@@ -495,6 +595,8 @@ function buildState(project) {
   } catch { workflowView = null; }
   let baseView = null;
   try { baseView = buildBase(project, kb); } catch { baseView = null; }
+  let knowledgeView = null;
+  try { knowledgeView = buildKnowledge(project); } catch { knowledgeView = null; }
 
   return {
     project: path.basename(project),
@@ -511,6 +613,7 @@ function buildState(project) {
     taskSummary,
     workflowView,
     base: baseView,
+    knowledge: knowledgeView,
     ledgerError,
     kb,
     rev: fileRev(project),
@@ -535,4 +638,4 @@ function listSummary(project) {
   } catch { return null; }
 }
 
-module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS };
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb };

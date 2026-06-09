@@ -86,18 +86,39 @@ export interface WorkflowView {
   readonly stages: readonly WorkflowStageView[];
 }
 
-/** One known knowledge-base document plus its index state. */
-export interface BaseDoc {
+/** Which vault a knowledge document lives in: only this project, or the shared common vault. */
+export type KnowledgeScope = 'project' | 'common';
+
+/**
+ * One document in the merged Knowledge projection. `scope` is the authorization boundary the
+ * holding vault decided (common = shared across the operator's own projects on this machine).
+ * `name`, `stack` tags, `kind`, and any author field originate from project files / front-matter
+ * and are UNTRUSTED — they reach the DOM through interpolation only (escaped), never `[innerHTML]`.
+ */
+export interface KnowledgeDoc {
   readonly name: string;
   readonly file?: string;
+  readonly scope: KnowledgeScope;
+  /** Closed-vocabulary stack tags (e.g. `java`, `python`, or `any`). UNTRUSTED — escape on render. */
+  readonly stack?: readonly string[];
+  /** Plain-language kind (`rule` / `style` / `pattern` / `context`). UNTRUSTED — escape on render. */
+  readonly kind?: string;
+  readonly status?: string;
   readonly index?: string;
 }
 
-/** Knowledge-base facts for the project: how docs are indexed and how many. */
-export interface BaseView {
+/**
+ * The merged Knowledge projection a project sees: its own project-scoped notes unioned with the
+ * approved common notes whose stack matches the project's. `counts` reports how many of each scope
+ * are visible (absent-not-zero is the panel's job, never the wire's). `method` stays honest —
+ * `filename-only` unless a real embedder is configured, never claimed for scope/tags alone.
+ */
+export interface KnowledgeView {
   readonly method: string;
-  readonly counts: { readonly indexed: number; readonly indexing: number; readonly failed: number };
-  readonly docs?: readonly BaseDoc[];
+  /** The project's declared stack, the allowed-set the add form offers as tags. */
+  readonly stack?: readonly string[];
+  readonly counts: { readonly project: number; readonly common: number };
+  readonly docs?: readonly KnowledgeDoc[];
 }
 
 /** A gate as it appears on a ticket: its definition plus current ledger state. */
@@ -412,7 +433,8 @@ export interface ProjectState {
   readonly tickets?: readonly TicketView[];
   readonly taskSummary?: TaskSummary | null;
   readonly workflowView?: WorkflowView | null;
-  readonly base?: BaseView | null;
+  /** The merged Knowledge projection (project + matching common). The panel's source of truth. */
+  readonly knowledge?: KnowledgeView | null;
   readonly gateDefs?: readonly GateDef[];
   /** Track name → ordered stage list. Drives "advance to next stage". */
   readonly tracks?: Readonly<Record<string, readonly string[]>>;

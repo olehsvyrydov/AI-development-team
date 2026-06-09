@@ -30,10 +30,11 @@ const RICH_STATE: ProjectView['state'] = {
       { stage: 'design', owner: '/ui', gate: { name: 'DESIGN_APPROVED', refusal: 'soft' } },
     ],
   },
-  base: {
+  knowledge: {
     method: 'local-embeddings',
-    counts: { indexed: 8, indexing: 0, failed: 0 },
-    docs: [{ name: 'code-rules', index: 'indexed' }],
+    stack: ['java'],
+    counts: { project: 8, common: 0 },
+    docs: [{ name: 'code-rules', scope: 'project', stack: ['java'], kind: 'rule', index: 'indexed' }],
   },
 };
 

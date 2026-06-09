@@ -51,7 +51,9 @@ test('addKbNote writes a server-slugged .md into a freshly created .aidevteam/kb
     const kb = path.join(dir, '.aidevteam', 'kb');
     assert.ok(fs.existsSync(kb), 'KB dir created on demand');
     assert.equal(r.doc.file, path.join('.aidevteam', 'kb', 'my-first-note.md'));
-    assert.equal(fs.readFileSync(path.join(kb, 'my-first-note.md'), 'utf8'), '# hello\n\nworld');
+    const written = fs.readFileSync(path.join(kb, 'my-first-note.md'), 'utf8');
+    assert.match(written, /^---\n[\s\S]*?\n---\n/, 'self-describing front-matter header');
+    assert.ok(written.endsWith('# hello\n\nworld'), 'body stored verbatim after the header');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -188,8 +190,8 @@ test('N-8 same title twice never clobbers — unique suffix', async () => {
     assert.equal(a.ok, true); assert.equal(b.ok, true);
     assert.notEqual(a.doc.file, b.doc.file, 'distinct files');
     const kb = path.join(dir, '.aidevteam', 'kb');
-    assert.equal(fs.readFileSync(path.join(kb, 'dup.md'), 'utf8'), 'first', 'first file unchanged');
-    assert.equal(fs.readFileSync(path.join(dir, b.doc.file), 'utf8'), 'second');
+    assert.ok(fs.readFileSync(path.join(kb, 'dup.md'), 'utf8').endsWith('first'), 'first file body unchanged');
+    assert.ok(fs.readFileSync(path.join(dir, b.doc.file), 'utf8').endsWith('second'));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -246,7 +248,7 @@ test('N-12 a script/onerror body is stored verbatim (inert — not pre-rendered)
     const r = await w.addKbNote(dir, { title: 'XSS', body: payload });
     assert.equal(r.ok, true);
     const stored = fs.readFileSync(path.join(dir, r.doc.file), 'utf8');
-    assert.equal(stored, payload, 'body stored byte-for-byte, never HTML-escaped or pre-rendered');
+    assert.ok(stored.endsWith(payload), 'body stored byte-for-byte, never HTML-escaped or pre-rendered');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 

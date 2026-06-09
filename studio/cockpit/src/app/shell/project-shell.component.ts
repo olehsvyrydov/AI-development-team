@@ -7,7 +7,7 @@ import { ProjectEventsService } from '../core/events.service';
 import {
   displayDescription,
   displayTitle,
-  type BaseView,
+  type KnowledgeView,
   type ProjectState,
   type ProjectView,
   type TaskSummary,
@@ -288,9 +288,9 @@ export class ProjectShellComponent {
     const v = this.loaded();
     return v ? derive(() => v.state?.taskSummary ?? null) : null;
   });
-  readonly base = computed<Derived<BaseView | null> | null>(() => {
+  readonly base = computed<Derived<KnowledgeView | null> | null>(() => {
     const v = this.loaded();
-    return v ? derive(() => v.state?.base ?? null) : null;
+    return v ? derive(() => v.state?.knowledge ?? null) : null;
   });
 
   constructor() {
