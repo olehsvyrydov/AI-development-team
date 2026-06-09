@@ -81,7 +81,8 @@ function normStackList(raw) {
 function parseScalarValue(raw) {
   let s = String(raw == null ? '' : raw).trim();
   if (s === '') return undefined; // a bare `key:` opens a nested block → reject
-  // strip a trailing inline comment that is clearly a comment (not inside quotes)
+  // No inline-comment stripping: the whole value after the colon is taken and
+  // trimmed, so a trailing `# ...` stays part of the value. A `#` is significant.
   if (s[0] === '[') {
     const close = s.lastIndexOf(']');
     if (close < 0) return undefined;
