@@ -170,6 +170,7 @@ describe('AddNoteFormComponent (scoped)', () => {
     let applied: ProjectState | null = null;
     fixture.componentInstance.applied.subscribe((s) => (applied = s));
     type(field(host, 'note-title') as HTMLInputElement, 'New note');
+    type(field(host, 'note-body') as HTMLTextAreaElement, 'a body');
     fixture.detectChanges();
     submitButton(host).click();
     const next: ProjectState = { rev: 'r2', knowledge: { method: 'filename-only', stack: ['java'], counts: { project: 9, common: 0 }, docs: [{ name: 'new-note', scope: 'project', stack: ['any'], kind: 'context', index: 'filename-only' }] } };
@@ -192,6 +193,28 @@ describe('AddNoteFormComponent (scoped)', () => {
     const live = host.querySelector('[data-testid="note-status"]');
     expect(live?.getAttribute('aria-live')).toBe('polite');
     expect(live?.textContent).toMatch(/added/i);
+  });
+
+  it('blocks an empty/whitespace-only body before sending — Add disabled and no request fires', () => {
+    const { fixture, host, http } = mount();
+    type(field(host, 'note-title') as HTMLInputElement, 'Has a title');
+    type(field(host, 'note-body') as HTMLTextAreaElement, '   \n\t  ');
+    fixture.detectChanges();
+    expect(submitButton(host).disabled).toBe(true);
+    submitButton(host).click();
+    http.expectNone('/api/kb/add');
+  });
+
+  it('enables Add and posts once both a title and a non-empty body are present', () => {
+    const { fixture, host, http } = mount();
+    type(field(host, 'note-title') as HTMLInputElement, 'Has a title');
+    type(field(host, 'note-body') as HTMLTextAreaElement, 'a real body');
+    fixture.detectChanges();
+    expect(submitButton(host).disabled).toBe(false);
+    submitButton(host).click();
+    const req = http.expectOne('/api/kb/add');
+    expect(req.request.body.body).toBe('a real body');
+    req.flush({ ok: true, doc: { name: 'has-a-title', file: 'docs/has-a-title.md', scope: 'project' }, state: { rev: 'r2' } });
   });
 
   it('blocks an oversize body client-side before sending and shows a too-large message', () => {
@@ -221,6 +244,7 @@ describe('AddNoteFormComponent (scoped)', () => {
   it('surfaces a 403 write-guard refusal honestly', async () => {
     const { fixture, host, http } = mount();
     type(field(host, 'note-title') as HTMLInputElement, 'Note');
+    type(field(host, 'note-body') as HTMLTextAreaElement, 'a body');
     fixture.detectChanges();
     submitButton(host).click();
     http.expectOne('/api/kb/add').flush({ ok: false, error: 'write refused' }, { status: 403, statusText: 'Forbidden' });

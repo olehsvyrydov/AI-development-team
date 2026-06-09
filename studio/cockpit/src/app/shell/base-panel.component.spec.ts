@@ -308,6 +308,9 @@ describe('Knowledge panel', () => {
     const title = host.querySelector('[data-testid="note-title"]') as HTMLInputElement;
     title.value = 'A new note';
     title.dispatchEvent(new Event('input'));
+    const body = host.querySelector('[data-testid="note-body"]') as HTMLTextAreaElement;
+    body.value = 'a body';
+    body.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     (host.querySelector('[data-testid="note-submit"]') as HTMLButtonElement).click();
     const http = TestBed.inject(HttpTestingController);

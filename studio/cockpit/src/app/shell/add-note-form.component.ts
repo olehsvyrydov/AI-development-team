@@ -70,7 +70,7 @@ const UTF8 = new TextEncoder();
         <p class="field-hint field-hint--bad">Title is too long (max {{ maxTitle }}).</p>
       }
 
-      <label class="lbl" for="add-note-body">Body (markdown)</label>
+      <label class="lbl" for="add-note-body">Body (markdown) <span class="req" aria-hidden="true">*</span></label>
       <textarea
         id="add-note-body"
         class="ctl ctl--area"
@@ -78,11 +78,13 @@ const UTF8 = new TextEncoder();
         rows="6"
         [value]="body()"
         (input)="onBody($event)"
-        [attr.aria-invalid]="bodyTooLarge() ? 'true' : null"
+        [attr.aria-invalid]="bodyTooLarge() || bodyEmpty() ? 'true' : null"
       ></textarea>
       <p class="meter" data-testid="note-size">{{ bodySizeLabel() }} / 64 KB</p>
       @if (bodyTooLarge()) {
         <p class="field-hint field-hint--bad">Note is too large (max 64 KB).</p>
+      } @else if (bodyEmpty()) {
+        <p class="field-hint field-hint--bad" data-testid="note-body-empty">Body is required.</p>
       }
 
       @if (body().length) {
@@ -249,8 +251,11 @@ export class AddNoteFormComponent {
   readonly titleTooLong = computed(() => this.title().length > MAX_TITLE_CHARS);
 
   private readonly titleValid = computed(() => this.title().trim().length > 0 && !this.titleTooLong());
+  private readonly bodyValid = computed(() => this.body().trim().length > 0 && !this.bodyTooLarge());
+  /** Surface the "body required" hint only once a title is present, so an untouched form isn't nagged. */
+  readonly bodyEmpty = computed(() => this.title().trim().length > 0 && this.body().trim().length === 0);
   readonly canSubmit = computed(
-    () => this.lifecycle() !== 'saving' && this.titleValid() && !this.bodyTooLarge(),
+    () => this.lifecycle() !== 'saving' && this.titleValid() && this.bodyValid(),
   );
 
   readonly indexPreview = computed(() =>
