@@ -41,6 +41,12 @@ describe('ConnectPanelComponent', () => {
     expect(host.querySelector('[data-testid="connect-path"]')).toBeNull();
   });
 
+  it('uses the approved add-project cell body copy in the idle state', async () => {
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).toContain('Point DART at another folder on this machine');
+  });
+
   it('opens the folder-picker dialog when the button is clicked', async () => {
     const fixture = await mount();
     const host = fixture.nativeElement as HTMLElement;

@@ -14,6 +14,14 @@ export interface ConnectOutcomeState {
 /** The connect → analyse → ready/error sequence, surfaced to the card UI. */
 export type ConnectStatus = 'idle' | 'analyzing' | 'ready' | 'error';
 
+/** One project that has tasks waiting on the human — a cockpit-strip click-target. */
+export interface WaitingProject {
+  readonly id: string;
+  /** The project's display name. UNTRUSTED — escape on render. */
+  readonly name: string;
+  readonly needsYou: number;
+}
+
 /**
  * Signals-first store for the Projects Home launcher. Holds the connected-project list and the
  * state machine for the in-place connect flow. No external state library — plain signals plus
@@ -47,6 +55,19 @@ export class ProjectsStore {
   readonly totalNeedsYou = computed(() =>
     this.items().reduce((sum, v) => sum + (v.record.taskSummary?.needsYou ?? 0), 0),
   );
+
+  /**
+   * The projects with at least one task waiting on the human, as click-targets for the cockpit
+   * strip: `{ id, name, needsYou }` ordered by descending need. A project whose roll-up is absent
+   * or whose `needsYou` is 0 contributes nothing — absent-not-zero.
+   */
+  readonly waiting = computed<readonly WaitingProject[]>(() =>
+    this.items()
+      .filter((v) => (v.record.taskSummary?.needsYou ?? 0) > 0)
+      .map((v) => ({ id: v.record.id, name: displayTitle(v), needsYou: v.record.taskSummary!.needsYou }))
+      .sort((a, b) => b.needsYou - a.needsYou),
+  );
+
   /** Count of connected projects. */
   readonly projectCount = computed(() => this.items().length);
 

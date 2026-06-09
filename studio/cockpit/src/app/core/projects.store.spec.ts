@@ -4,8 +4,9 @@ import { ApiService, type ConnectResult } from './api.service';
 import { ProjectsStore } from './projects.store';
 import type { ProjectRecord, ProjectView } from './models';
 
-function record(id: string, label = id): ProjectRecord {
-  return { id, path: `/p/${label}`, label, addedAt: 't', lastSeen: 't', status: 'connected' };
+function record(id: string, label = id, needsYou?: number): ProjectRecord {
+  const base: ProjectRecord = { id, path: `/p/${label}`, label, addedAt: 't', lastSeen: 't', status: 'connected' };
+  return needsYou === undefined ? base : { ...base, taskSummary: { open: 9, needsYou } };
 }
 
 function view(id: string, title: string, description: string): ProjectView {
@@ -95,6 +96,28 @@ describe('ProjectsStore', () => {
     expect(store.connectStatus()).toBe('error');
     expect(store.connectError()).toBe('path does not exist');
     expect(store.projects()).toHaveLength(0);
+  });
+
+  it('lists projects waiting on the human, descending by need, omitting the all-clear ones', async () => {
+    api.listProjects.mockResolvedValue([
+      record('aaaaaaaaaaaa', 'a', 1),
+      record('bbbbbbbbbbbb', 'b', 3),
+      record('cccccccccccc', 'c', 0),
+      record('dddddddddddd', 'd'), // no summary → absent
+    ]);
+    const store = makeStore();
+    await store.load();
+    expect(store.waiting().map((w) => w.name)).toEqual(['b', 'a']);
+    expect(store.waiting().map((w) => w.needsYou)).toEqual([3, 1]);
+    expect(store.totalNeedsYou()).toBe(4);
+  });
+
+  it('reports no waiting projects when nothing needs the human (absent-not-zero)', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'a', 0), record('bbbbbbbbbbbb', 'b')]);
+    const store = makeStore();
+    await store.load();
+    expect(store.waiting()).toEqual([]);
+    expect(store.totalNeedsYou()).toBe(0);
   });
 
   it('resets the connect flow back to idle', async () => {

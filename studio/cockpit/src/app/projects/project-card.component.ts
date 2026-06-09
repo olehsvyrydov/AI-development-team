@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { displayDescription, displayTitle, governanceSignal, type ProjectView } from '../core/models';
+import { GlyphComponent } from '../shell/glyph.component';
+import { prefersMotion } from '../shell/motion';
 import { SECURITY_REVIEWED_TOOLTIP } from './copy';
 
 /**
@@ -24,11 +26,12 @@ import { SECURITY_REVIEWED_TOOLTIP } from './copy';
 @Component({
   selector: 'dart-project-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, GlyphComponent],
   template: `
     <a
       class="card"
       data-testid="project-card"
+      [attr.data-motion]="motionOk() ? 'on' : 'off'"
       [routerLink]="['/projects', view().record.id]"
       [attr.aria-label]="'Open project ' + title()"
     >
@@ -62,50 +65,56 @@ import { SECURITY_REVIEWED_TOOLTIP } from './copy';
         }
       </header>
 
-      <h2 class="card__title" [attr.title]="title()">{{ title() }}</h2>
+      <div class="card__body" data-testid="card-body" [attr.data-hydrated]="hydrated()">
+        <h2 class="card__title" [attr.title]="title()">{{ title() }}</h2>
 
-      @if (stack().length) {
-        <ul class="card__chips" aria-label="Detected stack">
-          @for (tech of stack(); track tech) {
-            <li class="chip">{{ tech }}</li>
-          }
-        </ul>
-      }
+        @if (description()) {
+          <p class="card__desc">{{ description() }}</p>
+        } @else {
+          <p class="card__desc card__desc--empty">No description collected yet.</p>
+        }
 
-      @if (description()) {
-        <p class="card__desc">{{ description() }}</p>
-      } @else {
-        <p class="card__desc card__desc--empty">No description collected yet.</p>
-      }
-
-      @if (pulse(); as p) {
-        <div class="pulse" data-testid="pulse">
-          <span class="pulse__open">{{ p.open }} open</span>
-          @if (p.needsYou > 0) {
-            <span class="pulse__need" data-testid="needs-you">
-              <svg class="pulse__glyph" aria-hidden="true" viewBox="0 0 24 24" width="13" height="13">
-                <path d="M6 3 h12 M6 21 h12 M7 3 c0 5 4 6 5 9 c1 -3 5 -4 5 -9 M7 21 c0 -5 4 -6 5 -9 c1 3 5 4 5 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <span>{{ p.needsYou }} need you</span>
+        @if (pulse(); as p) {
+          <div class="pulse" data-testid="pulse">
+            <span class="pulse__open">
+              <dart-glyph name="check" [size]="13" />
+              {{ p.open }} open
             </span>
-          }
-        </div>
-      }
+            @if (p.needsYou > 0) {
+              <span class="pulse__need" data-testid="needs-you">
+                <dart-glyph name="need" [size]="13" />
+                <span>{{ p.needsYou }} need you</span>
+              </span>
+            }
+          </div>
+        }
+
+        @if (stack().length) {
+          <ul class="card__chips" aria-label="Detected stack">
+            @for (tech of stack(); track tech) {
+              <li class="chip">{{ tech }}</li>
+            }
+          </ul>
+        }
+      </div>
 
       <hr class="card__rule" aria-hidden="true" />
 
-      <footer class="card__foot">
-        <span class="status" data-testid="status">
+      <footer class="card__foot" data-testid="status">
+        <span class="status">
           <span class="status__dot" [class]="'status__dot--' + view().record.status" aria-hidden="true"></span>
           <span>{{ statusLabel() }}</span>
         </span>
         @if (lastSeen()) {
-          <span class="card__seen">updated {{ lastSeen() }}</span>
+          <span class="card__seen">· updated {{ lastSeen() }}</span>
         }
       </footer>
     </a>
   `,
   styles: `
+    /* Motion tokens — one place reduced-motion zeroes them; hover lift + hydrate crossfade read these. */
+    :host { --kb-dur-fast: 120ms; --kb-dur-base: 160ms; --kb-ease-out: cubic-bezier(0.16, 1, 0.3, 1); }
+    @media (prefers-reduced-motion: reduce) { :host { --kb-dur-fast: 0ms; --kb-dur-base: 0ms; } }
     .card {
       display: flex;
       flex-direction: column;
@@ -118,12 +127,27 @@ import { SECURITY_REVIEWED_TOOLTIP } from './copy';
       box-shadow: var(--kb-shadow-sm);
       color: var(--kb-text);
       text-decoration: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+      transition: border-color var(--kb-dur-fast) var(--kb-ease-out), box-shadow var(--kb-dur-base) var(--kb-ease-out), transform var(--kb-dur-fast) var(--kb-ease-out);
     }
+    /* Hover lift confirms the card is a live target; under reduced motion the tokens above
+       zero the durations, so the border/elevation swap instantly with no translate. */
     .card:hover {
       border-color: var(--kb-border-strong);
       box-shadow: var(--kb-shadow-md);
       transform: translateY(-2px);
+    }
+    @media (prefers-reduced-motion: reduce) { .card:hover { transform: none; } }
+    .card:focus-visible { outline: 2px solid var(--kb-focus-ring, var(--kb-accent)); outline-offset: 2px; }
+    .card:hover .card__tile { color: var(--kb-accent-strong, var(--kb-accent)); }
+    .card__body { display: flex; flex-direction: column; gap: var(--kb-space-2); }
+    /* When lazy hydration swaps record-only for the full profile, the arriving text cross-fades
+       instead of hard-popping; gated by the data hook + the reduced-motion-zeroed tokens. */
+    .card[data-motion='on'] .card__body[data-hydrated='true'] { animation: card-hydrate var(--kb-dur-base) var(--kb-ease-out); }
+    @keyframes card-hydrate { from { opacity: 0.35; } to { opacity: 1; } }
+    /* Disable at the enabling rule's specificity (the [data-motion='on'] scope) so the override
+       wins; a bare '.card__body' is lower specificity and the crossfade would keep running. */
+    @media (prefers-reduced-motion: reduce) {
+      .card[data-motion='on'] .card__body[data-hydrated='true'] { animation: none; transition: none; transform: none; }
     }
     .card__head { display: flex; align-items: center; gap: var(--kb-space-2); }
     .card__tile {
@@ -194,21 +218,20 @@ import { SECURITY_REVIEWED_TOOLTIP } from './copy';
       font-size: var(--kb-text-xs);
       font-weight: 600;
     }
-    .pulse__open { color: var(--kb-text-muted); }
+    .pulse__open { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--kb-text-muted); }
     .pulse__need {
       display: inline-flex;
       align-items: center;
       gap: 0.25rem;
       color: var(--kb-warning);
     }
-    .pulse__glyph { flex: none; }
     .card__rule { margin: var(--kb-space-1) 0 0; border: none; border-top: 1px solid var(--kb-border); }
+    /* The connection + freshness line is the calmest signal — a single demoted footer row. */
     .card__foot {
       margin-top: auto;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: var(--kb-space-2);
+      gap: 0.3rem;
       font-size: var(--kb-text-xs);
       color: var(--kb-text-subtle);
     }
@@ -224,6 +247,16 @@ export class ProjectCardComponent {
   readonly view = input.required<ProjectView>();
 
   protected readonly securityTooltip = SECURITY_REVIEWED_TOOLTIP;
+
+  /** Whether the hover lift + hydrate crossfade are allowed; zeroed under reduced motion. */
+  protected readonly motionOk = signal(prefersMotion());
+
+  /**
+   * True once the lazy profile fetch has merged in (a non-null profile or state). Drives the
+   * hydrate crossfade so the description/badge arrive smoothly rather than popping; a record-only
+   * view stays `false` so it can present calmly until its profile lands.
+   */
+  readonly hydrated = computed(() => this.view().profile !== null || this.view().state !== null);
 
   readonly title = computed(() => displayTitle(this.view()));
   readonly description = computed(() => displayDescription(this.view().profile));
