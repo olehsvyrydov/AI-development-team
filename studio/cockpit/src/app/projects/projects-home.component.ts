@@ -4,6 +4,7 @@ import { ApiService } from '../core/api.service';
 import { ProjectsStore } from '../core/projects.store';
 import type { ProjectView } from '../core/models';
 import { GlyphComponent } from '../shell/glyph.component';
+import { prefersMotion } from '../shell/motion';
 import { ProjectCardComponent } from './project-card.component';
 import { ConnectPanelComponent } from './connect-panel.component';
 import { ANCHOR_LINE, CTA_HELPER, HOME_SUBHEAD, HOME_TITLE, HOW_STEPS, TRUST_CHIPS, WHAT_IT_IS } from './copy';
@@ -129,8 +130,8 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
         </header>
 
         @if (store.totalNeedsYou() > 0) {
-          <aside class="cockpit" data-testid="cockpit-strip" role="status" aria-live="polite">
-            <span class="cockpit__lead">
+          <aside class="cockpit" data-testid="cockpit-strip">
+            <span class="cockpit__lead" role="status" aria-live="polite">
               <dart-glyph name="need" [size]="15" />
               <span>{{ store.totalNeedsYou() }} {{ taskNoun() }} across {{ waitingNoun() }} waiting on you</span>
             </span>
@@ -234,7 +235,11 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
     .grid[data-motion='on'] > *:nth-child(4) { animation-delay: 120ms; }
     .grid[data-motion='on'] > *:nth-child(n+5) { animation-delay: 160ms; }
     @keyframes card-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-    @media (prefers-reduced-motion: reduce) { .grid > * { animation: none; } }
+    /* Disable at the same specificity as the enabling rule (the [data-motion='on'] scope) so the
+       override wins the cascade — a lower-specificity '.grid > *' would lose and motion would run. */
+    @media (prefers-reduced-motion: reduce) {
+      .grid[data-motion='on'] > * { animation: none; transition: none; transform: none; }
+    }
     .empty {
       max-width: 40rem;
       margin: var(--kb-space-5) auto;
@@ -366,10 +371,4 @@ export class ProjectsHomeComponent implements OnInit {
     }
     this.profiles.set(next);
   }
-}
-
-/** Read the user's reduced-motion preference; defaults to allowing motion when unavailable. */
-function prefersMotion(): boolean {
-  if (typeof matchMedia !== 'function') return true;
-  return !matchMedia('(prefers-reduced-motion: reduce)').matches;
 }

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import type { ConnectStatus } from '../core/projects.store';
+import { prefersMotion } from '../shell/motion';
 import { FolderPickerComponent } from './folder-picker.component';
 import { ADD_PROJECT_BODY } from './copy';
 
@@ -108,7 +109,11 @@ export interface ConnectOutcome {
        "I picked a folder" action ties to its result; zeroed (instant) under reduced motion. */
     .connect[data-motion='on'] .state { animation: connect-settle var(--kb-dur-slow) var(--kb-ease-out); }
     @keyframes connect-settle { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-    @media (prefers-reduced-motion: reduce) { .connect .state { animation: none; } }
+    /* Disable at the enabling rule's specificity (the [data-motion='on'] scope) so the override
+       wins; a bare '.connect .state' is lower specificity and the settle would keep running. */
+    @media (prefers-reduced-motion: reduce) {
+      .connect[data-motion='on'] .state { animation: none; transition: none; transform: none; }
+    }
     .connect__title { margin: 0; font-size: var(--kb-text-base); font-weight: 600; display: flex; align-items: center; gap: 0.4rem; }
     .connect__plus { flex: none; color: var(--kb-accent); }
     .connect__lead { margin: 0; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
@@ -199,10 +204,4 @@ export class ConnectPanelComponent {
     this.opener = null;
     if (opener?.isConnected) opener.focus();
   }
-}
-
-/** Read the user's reduced-motion preference; defaults to allowing motion when unavailable. */
-function prefersMotion(): boolean {
-  if (typeof matchMedia !== 'function') return true;
-  return !matchMedia('(prefers-reduced-motion: reduce)').matches;
 }

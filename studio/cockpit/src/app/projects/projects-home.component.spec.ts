@@ -218,6 +218,26 @@ describe('ProjectsHomeComponent', () => {
     expect(cockpit!.textContent).not.toContain('marketing-site');
   });
 
+  it('keeps the cockpit live region announcing only the text summary, with the link chips outside it', async () => {
+    api.listProjects.mockResolvedValue([
+      record('aaaaaaaaaaaa', 'payments-api', { taskSummary: { open: 5, needsYou: 2 } }),
+      record('bbbbbbbbbbbb', 'data-pipeline', { taskSummary: { open: 3, needsYou: 1 } }),
+    ]);
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+    const live = host.querySelector('[data-testid="cockpit-strip"] [aria-live="polite"]')!;
+    expect(live).toBeTruthy();
+    // The live region announces the rolled-up summary text.
+    expect(live.textContent).toContain('3');
+    expect(live.textContent).toContain('2 projects');
+    // A live region must not wrap focusable controls: no router-link chips inside it.
+    expect(live.querySelector('[data-testid="cockpit-chip"]')).toBeNull();
+    expect(live.querySelector('a')).toBeNull();
+    // The chips still render in the strip, just outside the announced region.
+    const chips = host.querySelectorAll('[data-testid="cockpit-chip"]');
+    expect(chips).toHaveLength(2);
+  });
+
   it('does not render the cockpit strip at all when nothing needs you (absent-not-zero)', async () => {
     api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'a', { taskSummary: { open: 5, needsYou: 0 } })]);
     const fixture = await mount();

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, signal } from '@an
 import { RouterLink } from '@angular/router';
 import { displayDescription, displayTitle, governanceSignal, type ProjectView } from '../core/models';
 import { GlyphComponent } from '../shell/glyph.component';
+import { prefersMotion } from '../shell/motion';
 import { SECURITY_REVIEWED_TOOLTIP } from './copy';
 
 /**
@@ -143,7 +144,11 @@ import { SECURITY_REVIEWED_TOOLTIP } from './copy';
        instead of hard-popping; gated by the data hook + the reduced-motion-zeroed tokens. */
     .card[data-motion='on'] .card__body[data-hydrated='true'] { animation: card-hydrate var(--kb-dur-base) var(--kb-ease-out); }
     @keyframes card-hydrate { from { opacity: 0.35; } to { opacity: 1; } }
-    @media (prefers-reduced-motion: reduce) { .card__body { animation: none; } }
+    /* Disable at the enabling rule's specificity (the [data-motion='on'] scope) so the override
+       wins; a bare '.card__body' is lower specificity and the crossfade would keep running. */
+    @media (prefers-reduced-motion: reduce) {
+      .card[data-motion='on'] .card__body[data-hydrated='true'] { animation: none; transition: none; transform: none; }
+    }
     .card__head { display: flex; align-items: center; gap: var(--kb-space-2); }
     .card__tile {
       flex: none;
@@ -264,12 +269,6 @@ export class ProjectCardComponent {
 
   /** The governance badge signal derived from the hydrated detail state, or null when absent. */
   readonly governance = computed(() => governanceSignal(this.view().state));
-}
-
-/** Read the user's reduced-motion preference; defaults to allowing motion when unavailable. */
-function prefersMotion(): boolean {
-  if (typeof matchMedia !== 'function') return true;
-  return !matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /** Render an ISO timestamp as a coarse relative string ("2h ago"); empty if unparseable. */
