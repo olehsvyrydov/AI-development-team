@@ -12,9 +12,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { fileRev } = require('./state');
+const { fileRev, containedCommonVaultDir } = require('./state');
 const { safeId, commentFile, readComments } = require('./comments');
-const { parseFrontMatter, commonVaultRoot, aidevteamHome, normalizeStack, normalizeKind } = require('./knowledge');
+const { commonVaultRoot, aidevteamHome, normalizeStack, normalizeKind } = require('./knowledge');
 
 const MAX_COMMENT_BODY = 8192;
 const MAX_KB_BODY = 64 * 1024;
@@ -157,42 +157,30 @@ function resolveKbDir(projectDir) {
   try { return fs.realpathSync(def); } catch { return null; }
 }
 
-// Resolve the user-level common-vault directory. The intended root comes from the
-// knowledge module (default ~/.aidevteam/kb-common, or a bounded config override);
-// it is created if absent (like the project default) and realpath-resolved. The
-// resolved real path must be contained to the home root UNLESS an absolute override
-// deliberately points elsewhere — in which case the override path is itself the
-// containment root and must resolve to a real directory. Returns the realpath of the
-// common vault, or null when it cannot be safely resolved (caller refuses the write).
+// Resolve the user-level common-vault directory for WRITING. The intended root comes
+// from the knowledge module (default ~/.aidevteam/kb-common, or an absolute config
+// override). The default is created on demand (like the project default). An absolute
+// commonVaultDir override is NOT created here: it must already resolve to a real
+// directory. In every case the resolved real path must be realpath-contained within
+// the user-global home root (~/.aidevteam) — a symlink (or override path) escaping
+// $HOME is refused so an override cannot redirect common writes outside the user's own
+// state. The containment decision is the shared `containedCommonVaultDir` (the same
+// gate the read path uses). Returns the realpath of the common vault, or null when it
+// cannot be safely resolved (caller refuses the write).
 function resolveCommonKbDir() {
   const home = aidevteamHome();
   const intended = commonVaultRoot();
   const isDefault = intended === path.join(home, 'kb-common');
 
-  // The default lives under ~/.aidevteam; create it on demand like the project default.
   if (isDefault) {
     try { fs.mkdirSync(intended, { recursive: true }); } catch { return null; }
+  } else {
+    // a non-existent / non-directory override is refused rather than created or followed
     let real;
     try { real = fs.realpathSync(intended); } catch { return null; }
-    // a symlinked common vault whose target escapes ~/.aidevteam is refused
-    let realHome;
-    try { realHome = fs.realpathSync(home); } catch { return null; }
-    if (!isContained(realHome, real)) return null;
-    return real;
+    try { if (!fs.statSync(real).isDirectory()) return null; } catch { return null; }
   }
-
-  // An absolute override must already resolve to a real DIRECTORY whose realpath is
-  // contained within the user-global home root — a symlink (or path) escaping $HOME is
-  // refused so an override cannot redirect common writes outside the user's own state.
-  // We do not create arbitrary override paths; a non-existent / non-directory /
-  // escaping override is refused rather than silently created or followed.
-  let real;
-  try { real = fs.realpathSync(intended); } catch { return null; }
-  try { if (!fs.statSync(real).isDirectory()) return null; } catch { return null; }
-  let realHome;
-  try { realHome = fs.realpathSync(home); } catch { return null; }
-  if (!isContained(realHome, real)) return null;
-  return real;
+  return containedCommonVaultDir();
 }
 
 const SCOPE_ENUM = new Set(['project', 'common']);

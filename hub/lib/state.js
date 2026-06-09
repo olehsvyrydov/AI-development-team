@@ -15,7 +15,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { expectedOwner, stageGate } = require('./stage-map');
 const { readComments } = require('./comments');
-const { parseFrontMatter, scopeMatches, projectStack, commonVaultRoot } = require('./knowledge');
+const { parseFrontMatter, scopeMatches, projectStack, commonVaultRoot, aidevteamHome } = require('./knowledge');
 
 function safeExists(p) { try { return fs.existsSync(p); } catch { return false; } }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
@@ -323,16 +323,39 @@ function readProjectKb(project) {
   return readVault(dir, project, 'project', true);
 }
 
-// The common-vault doc records. Read-only scan of the SINGLE shared vault; the
-// resolved root must be a real directory contained to the user home (or its bounded
-// override), else the scan is empty (never reads an uncontained path).
-function readCommonKb() {
+// True only when `child` is `root` itself or lies strictly beneath it. The
+// trailing-separator compare rejects the sibling-prefix trap (/home vs /home-evil).
+function isContained(root, child) {
+  return child === root || child.startsWith(root + path.sep);
+}
+
+// Resolve the common-vault root for READING, applying the SAME containment rule the
+// write path enforces: the intended root (default ~/.aidevteam/kb-common, or a bounded
+// commonVaultDir override) is realpath-resolved and must be contained within the
+// realpath'd user-global home (~/.aidevteam) — an override (or symlink) escaping that
+// home is refused so a read can never reach files outside the user's own state.
+// Returns the contained realpath, or null when it cannot be safely resolved. Reads
+// only; creates nothing (the writer owns on-demand creation of the default).
+function containedCommonVaultDir() {
   let root;
   try {
     const intended = commonVaultRoot();
-    if (!safeExists(intended)) return [];
+    if (!safeExists(intended)) return null;
     root = fs.realpathSync(intended);
-  } catch { return []; }
+  } catch { return null; }
+  let realHome;
+  try { realHome = fs.realpathSync(aidevteamHome()); } catch { return null; }
+  if (!isContained(realHome, root)) return null;
+  return root;
+}
+
+// The common-vault doc records. Read-only scan of the SINGLE shared vault; the
+// resolved root must be a real directory contained to the user-global home (so a
+// commonVaultDir override escaping it is refused), else the scan is empty (never
+// reads an uncontained path).
+function readCommonKb() {
+  const root = containedCommonVaultDir();
+  if (!root) return [];
   return readVault(root, root, 'common', false);
 }
 
@@ -615,4 +638,4 @@ function listSummary(project) {
   } catch { return null; }
 }
 
-module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS, buildKnowledge, readKb };
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb };

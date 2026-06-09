@@ -192,6 +192,33 @@ test('knowledge projection reports per-scope counts', async () => {
   } finally { fs.rmSync(proj, { recursive: true, force: true }); }
 });
 
+// ---- read-path containment: an escaping commonVaultDir override is NOT read -
+
+test('N-214r a commonVaultDir override outside $HOME is NOT read (read path is bounded like the write path)', async () => {
+  const proj = tmpProject(['java']);
+  const outside = freshTmp('aidt-readesc-');
+  try {
+    await withTmpHome(async (home) => {
+      const adt = path.join(home, '.aidevteam');
+      fs.mkdirSync(adt, { recursive: true });
+      // plant a "common" note in a REAL directory outside $HOME and point the override at it
+      fs.writeFileSync(
+        path.join(outside, 'leaked.md'),
+        '---\nscope: common\nstack: [any]\nstatus: approved-common\n---\n# leaked\n\nsecret',
+      );
+      fs.writeFileSync(path.join(adt, 'config.json'), JSON.stringify({ knowledge: { commonVaultDir: outside } }));
+
+      const st = buildState(proj);
+      const commonNames = knowledgeBySource(st, 'common');
+      assert.ok(!commonNames.includes('leaked'), 'escaping override note is NOT read into the projection');
+      assert.equal(st.knowledge.counts.common, 0, 'no common notes read from an uncontained override');
+    });
+  } finally {
+    fs.rmSync(proj, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 // ---- N-208 malformed front-matter in a file never breaks the scan ---------
 
 test('N-208proj a __proto__ / malformed front-matter file does not pollute or throw', async () => {
