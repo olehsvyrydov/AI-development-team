@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import type { ConnectStatus } from '../core/projects.store';
 import { FolderPickerComponent } from './folder-picker.component';
+import { ADD_PROJECT_BODY } from './copy';
 
 /**
  * Facts the ready state needs to tell the user WHICH path happened — a fresh init or an adopt of
@@ -34,7 +35,7 @@ export interface ConnectOutcome {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FolderPickerComponent],
   template: `
-    <section class="connect" aria-labelledby="connect-h">
+    <section class="connect" aria-labelledby="connect-h" [attr.data-motion]="motionOk() ? 'on' : 'off'">
       <h2 id="connect-h" class="connect__title">
         <svg class="connect__plus" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
           <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -74,7 +75,7 @@ export interface ConnectOutcome {
           </div>
         }
         @default {
-          <p class="connect__lead">Pick a folder on this machine — DART analyses it right here.</p>
+          <p class="connect__lead">{{ addBody }}</p>
           <button type="button" class="btn" data-testid="open-picker" (click)="openPicker($event)">
             <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
               <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -90,6 +91,9 @@ export interface ConnectOutcome {
     <dart-folder-picker [open]="pickerOpen()" (chosen)="onChosen($event)" (cancelled)="closePicker()" />
   `,
   styles: `
+    /* Motion tokens — one place reduced-motion zeroes them; the state-flip settle reads these. */
+    :host { --kb-dur-fast: 120ms; --kb-dur-base: 160ms; --kb-dur-slow: 220ms; --kb-ease-out: cubic-bezier(0.16, 1, 0.3, 1); }
+    @media (prefers-reduced-motion: reduce) { :host { --kb-dur-fast: 0ms; --kb-dur-base: 0ms; --kb-dur-slow: 0ms; } }
     .connect {
       display: flex;
       flex-direction: column;
@@ -100,6 +104,11 @@ export interface ConnectOutcome {
       border: 1.5px dashed var(--kb-border-strong);
       border-radius: var(--kb-radius-lg);
     }
+    /* When the cell flips to analysing / ready the new state fades + settles in place so the
+       "I picked a folder" action ties to its result; zeroed (instant) under reduced motion. */
+    .connect[data-motion='on'] .state { animation: connect-settle var(--kb-dur-slow) var(--kb-ease-out); }
+    @keyframes connect-settle { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .connect .state { animation: none; } }
     .connect__title { margin: 0; font-size: var(--kb-text-base); font-weight: 600; display: flex; align-items: center; gap: 0.4rem; }
     .connect__plus { flex: none; color: var(--kb-accent); }
     .connect__lead { margin: 0; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
@@ -143,6 +152,11 @@ export class ConnectPanelComponent {
   readonly connect = output<string>();
   readonly reset = output<void>();
 
+  protected readonly addBody = ADD_PROJECT_BODY;
+
+  /** Whether the state-flip settle is allowed; zeroed under reduced motion. */
+  protected readonly motionOk = signal(prefersMotion());
+
   protected readonly pickerOpen = signal(false);
 
   /** The control that opened the picker, refocused on close so keyboard focus is never lost. */
@@ -185,4 +199,10 @@ export class ConnectPanelComponent {
     this.opener = null;
     if (opener?.isConnected) opener.focus();
   }
+}
+
+/** Read the user's reduced-motion preference; defaults to allowing motion when unavailable. */
+function prefersMotion(): boolean {
+  if (typeof matchMedia !== 'function') return true;
+  return !matchMedia('(prefers-reduced-motion: reduce)').matches;
 }

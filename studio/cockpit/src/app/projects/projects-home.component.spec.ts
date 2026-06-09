@@ -192,4 +192,61 @@ describe('ProjectsHomeComponent', () => {
     // The strip still shows the projects count, but no "need you" signal.
     expect(strip?.textContent ?? '').not.toContain('need you');
   });
+
+  it('renders a dedicated cockpit strip routing to each waiting project when the sum is > 0', async () => {
+    api.listProjects.mockResolvedValue([
+      record('aaaaaaaaaaaa', 'payments-api', { taskSummary: { open: 5, needsYou: 2 } }),
+      record('bbbbbbbbbbbb', 'data-pipeline', { taskSummary: { open: 3, needsYou: 1 } }),
+      record('cccccccccccc', 'marketing-site', { taskSummary: { open: 4, needsYou: 0 } }),
+    ]);
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+    const cockpit = host.querySelector('[data-testid="cockpit-strip"]');
+    expect(cockpit).toBeTruthy();
+    // Sums across projects and names how many projects are waiting.
+    expect(cockpit!.textContent).toContain('3');
+    expect(cockpit!.textContent).toContain('2 projects');
+    // One router-link chip per project with needsYou > 0, ordered by descending need; the
+    // all-clear project contributes no chip (absent-not-zero).
+    const chips = cockpit!.querySelectorAll<HTMLAnchorElement>('[data-testid="cockpit-chip"]');
+    expect(chips).toHaveLength(2);
+    expect(chips[0].getAttribute('href')).toContain('/projects/aaaaaaaaaaaa');
+    expect(chips[0].textContent).toContain('payments-api');
+    expect(chips[0].textContent).toContain('2');
+    expect(chips[1].textContent).toContain('data-pipeline');
+    // The all-clear project must not appear as a waiting chip.
+    expect(cockpit!.textContent).not.toContain('marketing-site');
+  });
+
+  it('does not render the cockpit strip at all when nothing needs you (absent-not-zero)', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'a', { taskSummary: { open: 5, needsYou: 0 } })]);
+    const fixture = await mount();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="cockpit-strip"]')).toBeNull();
+  });
+
+  it('escapes an untrusted project name in the cockpit strip chip (never live markup)', async () => {
+    const evil = '<img src=x onerror="window.__xss2=1">';
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', evil, { taskSummary: { open: 1, needsYou: 1 } })]);
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[data-testid="cockpit-strip"] img[src="x"]')).toBeNull();
+    expect((window as unknown as Record<string, unknown>)['__xss2']).toBeUndefined();
+  });
+
+  it('shows the populated header one-liner that frames the roster (not just a bare title)', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'payments-api')]);
+    const fixture = await mount();
+    const sub = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="home-subhead"]');
+    expect(sub).toBeTruthy();
+    expect(sub!.textContent).toMatch(/AI (dev )?team/i);
+  });
+
+  it('gates the grid stagger-enter motion behind a reduced-motion check (data-motion attribute)', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'payments-api')]);
+    const fixture = await mount();
+    const grid = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="home-grid"]')!;
+    // The grid exposes a single motion gate; the keyframes are zeroed in one place by the
+    // reduced-motion media query, so the attribute is the only thing tests need to assert.
+    expect(grid.getAttribute('data-motion')).toMatch(/^(on|off)$/);
+  });
 });

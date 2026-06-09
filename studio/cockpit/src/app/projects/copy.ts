@@ -35,6 +35,13 @@ export const HOW_STEPS: readonly HowStep[] = [
 /** Helper under the primary CTA. */
 export const CTA_HELPER = 'No account, no API key to paste. Takes about a minute.';
 
+/** Populated-state title and the one-liner that frames the roster (not a bare "Your projects"). */
+export const HOME_TITLE = 'Your projects';
+export const HOME_SUBHEAD = 'Your AI dev team, across every project on this machine.';
+
+/** Body copy for the "Add a project" cell in the populated grid — the returning-user door. */
+export const ADD_PROJECT_BODY = 'Point DART at another folder on this machine — it analyses it right here.';
+
 /** Trust-strip chips — each a literal, checkable fact, not a slogan. */
 export const TRUST_CHIPS: readonly string[] = [
   'Local-first',

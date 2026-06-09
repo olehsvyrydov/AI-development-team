@@ -127,4 +127,57 @@ describe('ProjectCardComponent', () => {
     // The badge must not be a direct sibling competing for width in the same row as the title.
     expect(title.parentElement).not.toBe(badge.parentElement);
   });
+
+  it('orders the calm signal hierarchy top-to-bottom: title → description → pulse → footer', async () => {
+    const fixture = await mount(withRecord({ taskSummary: { open: 12, needsYou: 2 } }));
+    const host = fixture.nativeElement as HTMLElement;
+    const card = host.querySelector('[data-testid="project-card"]')!;
+    const order = (sel: string) => Array.from(card.querySelectorAll('*')).indexOf(card.querySelector(sel)!);
+    const title = order('.card__title');
+    const desc = order('.card__desc');
+    const pulse = order('[data-testid="pulse"]');
+    const foot = order('.card__foot');
+    expect(title).toBeGreaterThanOrEqual(0);
+    expect(title).toBeLessThan(desc);
+    expect(desc).toBeLessThan(pulse);
+    expect(pulse).toBeLessThan(foot);
+  });
+
+  it('pairs the open count with a check glyph so it reads at a glance', async () => {
+    const fixture = await mount(withRecord({ taskSummary: { open: 12, needsYou: 0 } }));
+    const open = (fixture.nativeElement as HTMLElement).querySelector('.pulse__open')!;
+    expect(open.textContent).toContain('12 open');
+    expect(open.querySelector('svg')).toBeTruthy();
+  });
+
+  it('demotes connection + freshness to a single footer line ("connected · updated …")', async () => {
+    const fixture = await mount(view());
+    const foot = (fixture.nativeElement as HTMLElement).querySelector('.card__foot')!;
+    expect(foot.textContent).toContain('connected');
+    expect(foot.textContent).toContain('updated');
+  });
+
+  it('does not surface any knowledge count on the card (knowledge demoted off the card)', async () => {
+    const v: ProjectView = {
+      ...view(),
+      state: { base: { method: 'filename', counts: { indexed: 9, indexing: 0, failed: 0 }, docs: [] }, tickets: [] },
+    };
+    const host = (await mount(v)).nativeElement as HTMLElement;
+    expect(host.textContent).not.toContain('knowledge');
+    expect(host.textContent).not.toContain('in knowledge');
+  });
+
+  it('marks the body as hydrated so the crossfade is gated and reduced-motion-safe', async () => {
+    const fixture = await mount(view());
+    const body = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="card-body"]')!;
+    // Hydrated (profile present) bodies carry the data hook the crossfade animation reads; the
+    // animation itself is zeroed by the reduced-motion media query in one place.
+    expect(body.getAttribute('data-hydrated')).toBe('true');
+  });
+
+  it('marks an un-hydrated (record-only) body so it can skeleton, not pop', async () => {
+    const fixture = await mount({ ...view(), profile: null, state: null });
+    const body = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="card-body"]')!;
+    expect(body.getAttribute('data-hydrated')).toBe('false');
+  });
 });

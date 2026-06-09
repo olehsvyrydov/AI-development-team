@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ApiService } from '../core/api.service';
 import { ProjectsStore } from '../core/projects.store';
 import type { ProjectView } from '../core/models';
+import { GlyphComponent } from '../shell/glyph.component';
 import { ProjectCardComponent } from './project-card.component';
 import { ConnectPanelComponent } from './connect-panel.component';
-import { ANCHOR_LINE, CTA_HELPER, HOW_STEPS, TRUST_CHIPS, WHAT_IT_IS } from './copy';
+import { ANCHOR_LINE, CTA_HELPER, HOME_SUBHEAD, HOME_TITLE, HOW_STEPS, TRUST_CHIPS, WHAT_IT_IS } from './copy';
 
 const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
 
@@ -21,7 +23,7 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
 @Component({
   selector: 'dart-projects-home',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectCardComponent, ConnectPanelComponent],
+  imports: [RouterLink, GlyphComponent, ProjectCardComponent, ConnectPanelComponent],
   template: `
     <header class="topbar">
       <div class="brand">
@@ -109,23 +111,43 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
         </section>
       } @else {
         <header class="head">
-          <h1 class="page__title">Your projects</h1>
+          <div class="head__titles">
+            <h1 class="page__title">{{ homeTitle }}</h1>
+            <p class="head__sub" data-testid="home-subhead">{{ homeSubhead }}</p>
+          </div>
           <div class="signals" data-testid="needs-you-strip" aria-live="polite">
             @if (store.projectCount() > 0) {
               <span class="signals__count">{{ store.projectCount() }} {{ projectNoun() }}</span>
             }
             @if (store.totalNeedsYou() > 0) {
               <span class="signals__need" data-testid="global-needs-you">
-                <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13">
-                  <path d="M6 3 h12 M6 21 h12 M7 3 c0 5 4 6 5 9 c1 -3 5 -4 5 -9 M7 21 c0 -5 4 -6 5 -9 c1 3 5 4 5 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
+                <dart-glyph name="need" [size]="13" />
                 {{ store.totalNeedsYou() }} need you
               </span>
             }
           </div>
         </header>
 
-        <section class="grid" aria-label="Connected projects">
+        @if (store.totalNeedsYou() > 0) {
+          <aside class="cockpit" data-testid="cockpit-strip" role="status" aria-live="polite">
+            <span class="cockpit__lead">
+              <dart-glyph name="need" [size]="15" />
+              <span>{{ store.totalNeedsYou() }} {{ taskNoun() }} across {{ waitingNoun() }} waiting on you</span>
+            </span>
+            <span class="cockpit__chips">
+              @for (w of store.waiting(); track w.id) {
+                <a
+                  class="cockpit__chip"
+                  data-testid="cockpit-chip"
+                  [routerLink]="['/projects', w.id]"
+                  [attr.aria-label]="'Open ' + w.name + ', ' + w.needsYou + ' tasks need you'"
+                >{{ w.name }} ({{ w.needsYou }})</a>
+              }
+            </span>
+          </aside>
+        }
+
+        <section class="grid" data-testid="home-grid" [attr.data-motion]="motionOk() ? 'on' : 'off'" aria-label="Connected projects">
           @for (view of hydrated(); track view.record.id) {
             <dart-project-card [view]="view" />
           }
@@ -154,12 +176,47 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
       background: var(--kb-accent);
       box-shadow: 0 0 0.6rem var(--kb-accent);
     }
+    /* Motion tokens — one place reduced-motion zeroes them; the grid stagger reads these. */
+    :host { --kb-dur-base: 200ms; --kb-ease-out: cubic-bezier(0.16, 1, 0.3, 1); }
+    @media (prefers-reduced-motion: reduce) { :host { --kb-dur-base: 0ms; } }
     .page { max-width: 76rem; margin: 0 auto; padding: var(--kb-space-5) var(--kb-space-4); }
-    .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--kb-space-3); margin-bottom: var(--kb-space-4); }
+    .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--kb-space-3); margin-bottom: var(--kb-space-3); }
+    .head__titles { display: flex; flex-direction: column; gap: 0.15rem; }
     .page__title { margin: 0; font-size: var(--kb-text-2xl); font-weight: 700; }
+    .head__sub { margin: 0; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
     .signals { display: inline-flex; align-items: center; gap: var(--kb-space-3); font-size: var(--kb-text-sm); }
     .signals__count { color: var(--kb-text-muted); }
     .signals__need { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; color: var(--kb-warning); }
+    /* The needs-you cockpit strip: a calm, full-width banner that routes the human straight to the
+       work waiting on them. Warning hue on the left edge, never alarming red fill. Absent at 0. */
+    .cockpit {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--kb-space-2) var(--kb-space-3);
+      margin-bottom: var(--kb-space-4);
+      padding: var(--kb-space-2) var(--kb-space-3);
+      background: var(--kb-surface);
+      border: 1px solid var(--kb-border);
+      border-left: 3px solid var(--kb-warning);
+      border-radius: var(--kb-radius-md);
+    }
+    .cockpit__lead { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; color: var(--kb-warning); font-size: var(--kb-text-sm); }
+    .cockpit__chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--kb-space-2); }
+    .cockpit__chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.15rem 0.55rem;
+      font-size: var(--kb-text-xs);
+      font-weight: 600;
+      color: var(--kb-text);
+      background: var(--kb-surface-muted);
+      border: 1px solid var(--kb-border);
+      border-radius: 999px;
+      text-decoration: none;
+    }
+    .cockpit__chip:hover { border-color: var(--kb-border-strong); }
+    .cockpit__chip:focus-visible { outline: 2px solid var(--kb-focus-ring, var(--kb-accent)); outline-offset: 2px; }
     .banner { padding: var(--kb-space-2) var(--kb-space-3); border-radius: var(--kb-radius-md); margin-bottom: var(--kb-space-3); }
     .banner--error { background: var(--kb-accent-soft); color: var(--kb-danger); border: 1px solid var(--kb-danger); }
     .grid {
@@ -167,6 +224,17 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
       grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
       gap: var(--kb-space-3);
     }
+    /* Cards fade + rise in a short stagger on load so the launcher reads as composed, not a
+       wall snapping in. The per-card delay is capped so a large grid never cascades slowly; the
+       reduced-motion-zeroed token collapses the whole effect to an instant appearance. */
+    .grid[data-motion='on'] > * { animation: card-enter var(--kb-dur-base) var(--kb-ease-out) both; }
+    .grid[data-motion='on'] > *:nth-child(1) { animation-delay: 0ms; }
+    .grid[data-motion='on'] > *:nth-child(2) { animation-delay: 40ms; }
+    .grid[data-motion='on'] > *:nth-child(3) { animation-delay: 80ms; }
+    .grid[data-motion='on'] > *:nth-child(4) { animation-delay: 120ms; }
+    .grid[data-motion='on'] > *:nth-child(n+5) { animation-delay: 160ms; }
+    @keyframes card-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .grid > * { animation: none; } }
     .empty {
       max-width: 40rem;
       margin: var(--kb-space-5) auto;
@@ -242,10 +310,24 @@ export class ProjectsHomeComponent implements OnInit {
   protected readonly steps = HOW_STEPS;
   protected readonly trustChips = TRUST_CHIPS;
   protected readonly ctaHelper = CTA_HELPER;
+  protected readonly homeTitle = HOME_TITLE;
+  protected readonly homeSubhead = HOME_SUBHEAD;
   protected readonly docsUrl = DOCS_URL;
+
+  /** Whether the grid stagger-enter is allowed; zeroed under reduced motion. */
+  protected readonly motionOk = signal(prefersMotion());
 
   protected projectNoun(): string {
     return this.store.projectCount() === 1 ? 'project' : 'projects';
+  }
+
+  protected taskNoun(): string {
+    return this.store.totalNeedsYou() === 1 ? 'task' : 'tasks';
+  }
+
+  protected waitingNoun(): string {
+    const n = this.store.waiting().length;
+    return n === 1 ? '1 project' : `${n} projects`;
   }
 
   /** Profiles fetched per project id, merged over the store's record-only views for display. */
@@ -284,4 +366,10 @@ export class ProjectsHomeComponent implements OnInit {
     }
     this.profiles.set(next);
   }
+}
+
+/** Read the user's reduced-motion preference; defaults to allowing motion when unavailable. */
+function prefersMotion(): boolean {
+  if (typeof matchMedia !== 'function') return true;
+  return !matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
