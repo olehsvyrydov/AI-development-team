@@ -126,6 +126,34 @@ describe('Knowledge panel', () => {
     expect(scopeButton(host, 'project').getAttribute('aria-checked')).toBe('false');
   });
 
+  it('moves the scope selection to the next option on ArrowRight from a focused radio', () => {
+    const fixture = mount(MERGED);
+    const host = fixture.nativeElement as HTMLElement;
+    const project = scopeButton(host, 'project');
+    project.focus();
+    project.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    const common = scopeButton(host, 'common');
+    expect(common.getAttribute('aria-checked')).toBe('true');
+    expect(project.getAttribute('aria-checked')).toBe('false');
+    expect(document.activeElement).toBe(common);
+  });
+
+  it('moves the scope selection to the previous option on ArrowLeft from a focused radio', () => {
+    const fixture = mount(MERGED);
+    const host = fixture.nativeElement as HTMLElement;
+    scopeButton(host, 'common').click();
+    fixture.detectChanges();
+    const common = scopeButton(host, 'common');
+    common.focus();
+    common.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    fixture.detectChanges();
+    const project = scopeButton(host, 'project');
+    expect(project.getAttribute('aria-checked')).toBe('true');
+    expect(common.getAttribute('aria-checked')).toBe('false');
+    expect(document.activeElement).toBe(project);
+  });
+
   it('an All scope shows every doc regardless of scope', () => {
     const fixture = mount(MERGED);
     const host = fixture.nativeElement as HTMLElement;

@@ -1,10 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
 import type { KnowledgeDoc, KnowledgeScope, KnowledgeView, ProjectState } from '../core/models';
 import { AddNoteFormComponent } from './add-note-form.component';
 import { GlyphComponent } from './glyph.component';
 
 /** Scope filter for the displayed list: a single vault, or every visible doc. */
 type ScopeFilter = KnowledgeScope | 'all';
+
+/** The scope radios in segment order — the roving arrow keys walk this sequence. */
+const SCOPE_ORDER: readonly ScopeFilter[] = ['project', 'common', 'all'];
 
 /**
  * Knowledge panel — the merged view of what the project's AI team remembers: its own project-scoped
@@ -59,8 +62,10 @@ type ScopeFilter = KnowledgeScope | 'all';
           data-testid="knowledge-scope-project"
           role="radio"
           [attr.aria-checked]="scopeFilter() === 'project'"
+          [attr.tabindex]="scopeFilter() === 'project' ? 0 : -1"
           [class.seg__opt--on]="scopeFilter() === 'project'"
           (click)="setScope('project')"
+          (keydown)="onScopeKeydown($event, 'project')"
         >
           <dart-glyph name="scope-project" /> This project
           <span class="seg__count">{{ counts().project }}</span>
@@ -71,8 +76,10 @@ type ScopeFilter = KnowledgeScope | 'all';
           data-testid="knowledge-scope-common"
           role="radio"
           [attr.aria-checked]="scopeFilter() === 'common'"
+          [attr.tabindex]="scopeFilter() === 'common' ? 0 : -1"
           [class.seg__opt--on]="scopeFilter() === 'common'"
           (click)="setScope('common')"
+          (keydown)="onScopeKeydown($event, 'common')"
         >
           <dart-glyph name="scope-common" /> Common
           <span class="seg__count">{{ counts().common }}</span>
@@ -83,8 +90,10 @@ type ScopeFilter = KnowledgeScope | 'all';
           data-testid="knowledge-scope-all"
           role="radio"
           [attr.aria-checked]="scopeFilter() === 'all'"
+          [attr.tabindex]="scopeFilter() === 'all' ? 0 : -1"
           [class.seg__opt--on]="scopeFilter() === 'all'"
           (click)="setScope('all')"
+          (keydown)="onScopeKeydown($event, 'all')"
         >
           All
           <span class="seg__count">{{ total() }}</span>
@@ -268,8 +277,28 @@ export class BasePanelComponent {
     this.applied.emit(state);
   }
 
+  private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
+
   setScope(scope: ScopeFilter): void {
     this.scopeFilter.set(scope);
+  }
+
+  /** Roving radiogroup nav: Left/Up select the previous scope, Right/Down the next (wrapping), focusing it. */
+  onScopeKeydown(event: KeyboardEvent, scope: ScopeFilter): void {
+    const delta =
+      event.key === 'ArrowRight' || event.key === 'ArrowDown'
+        ? 1
+        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+          ? -1
+          : 0;
+    if (delta === 0) return;
+    event.preventDefault();
+    const idx = SCOPE_ORDER.indexOf(scope);
+    const next = SCOPE_ORDER[(idx + delta + SCOPE_ORDER.length) % SCOPE_ORDER.length];
+    this.setScope(next);
+    this.hostEl.nativeElement
+      .querySelector<HTMLElement>(`[data-testid="knowledge-scope-${next}"]`)
+      ?.focus();
   }
 
   onStackFilter(event: Event): void {

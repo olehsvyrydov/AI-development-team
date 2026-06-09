@@ -97,6 +97,32 @@ describe('AddNoteFormComponent (scoped)', () => {
     expect(scopePick(host, 'common').getAttribute('aria-checked')).toBe('false');
   });
 
+  it('moves the scope selection to the next option on ArrowRight from a focused radio', () => {
+    const { fixture, host } = mount();
+    const project = scopePick(host, 'project');
+    project.focus();
+    project.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    const common = scopePick(host, 'common');
+    expect(common.getAttribute('aria-checked')).toBe('true');
+    expect(project.getAttribute('aria-checked')).toBe('false');
+    expect(document.activeElement).toBe(common);
+  });
+
+  it('moves the scope selection to the previous option on ArrowLeft from a focused radio', () => {
+    const { fixture, host } = mount();
+    scopePick(host, 'common').click();
+    fixture.detectChanges();
+    const common = scopePick(host, 'common');
+    common.focus();
+    common.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    fixture.detectChanges();
+    const project = scopePick(host, 'project');
+    expect(project.getAttribute('aria-checked')).toBe('true');
+    expect(common.getAttribute('aria-checked')).toBe('false');
+    expect(document.activeElement).toBe(project);
+  });
+
   it('explains Common as shared across your own projects on this machine, never a cloud', () => {
     const { fixture, host } = mount();
     scopePick(host, 'common').click();
@@ -135,7 +161,7 @@ describe('AddNoteFormComponent (scoped)', () => {
     expect(req.request.body.scope).toBe('common');
     expect(req.request.body.stack).toEqual(['java']);
     expect(req.request.body.kind).toBe('rule');
-    req.flush({ ok: true, doc: { name: 'code-review-rules', file: 'kb/code-review-rules.md', scope: 'common', stack: ['java'], kind: 'rule' }, state: { rev: 'r2' } });
+    req.flush({ ok: true, doc: { name: 'code-review-rules', file: 'code-review-rules.md', scope: 'common', stack: ['java'], kind: 'rule' }, state: { rev: 'r2' } });
     await settle(fixture);
   });
 

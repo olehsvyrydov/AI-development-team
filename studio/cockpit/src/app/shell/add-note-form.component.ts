@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
 import { ControlPlaneService } from '../core/control-plane.service';
 import type { KnowledgeScope, KnowledgeView, ProjectState } from '../core/models';
 import { GlyphComponent } from './glyph.component';
@@ -10,6 +10,8 @@ const MAX_TITLE_CHARS = 200;
 
 /** Plain-language note kinds, matching the hub's closed vocabulary. */
 const KINDS = ['context', 'rule', 'style', 'pattern'] as const;
+/** The scope radios in segment order — the roving arrow keys walk this sequence. */
+const SCOPE_ORDER: readonly KnowledgeScope[] = ['project', 'common'];
 /** Stack tags the form offers in addition to the project's declared stack; `any` always present. */
 const STACK_TAGS = ['any', 'node', 'typescript', 'python', 'rust', 'go', 'java', 'kotlin', 'ruby', 'php', 'docker', 'ci'] as const;
 
@@ -99,8 +101,10 @@ const UTF8 = new TextEncoder();
             data-testid="note-scope-project"
             role="radio"
             [attr.aria-checked]="scope() === 'project'"
+            [attr.tabindex]="scope() === 'project' ? 0 : -1"
             [class.seg__opt--on]="scope() === 'project'"
             (click)="setScope('project')"
+            (keydown)="onScopeKeydown($event, 'project')"
           >
             <dart-glyph name="scope-project" /> This project
           </button>
@@ -110,8 +114,10 @@ const UTF8 = new TextEncoder();
             data-testid="note-scope-common"
             role="radio"
             [attr.aria-checked]="scope() === 'common'"
+            [attr.tabindex]="scope() === 'common' ? 0 : -1"
             [class.seg__opt--on]="scope() === 'common'"
             (click)="setScope('common')"
+            (keydown)="onScopeKeydown($event, 'common')"
           >
             <dart-glyph name="scope-common" /> Common
           </button>
@@ -271,8 +277,28 @@ export class AddNoteFormComponent {
     this.kind.set((event.target as HTMLSelectElement).value);
   }
 
+  private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
+
   setScope(scope: KnowledgeScope): void {
     this.scope.set(scope);
+  }
+
+  /** Roving radiogroup nav: Left/Up select the previous scope, Right/Down the next (wrapping), focusing it. */
+  onScopeKeydown(event: KeyboardEvent, scope: KnowledgeScope): void {
+    const delta =
+      event.key === 'ArrowRight' || event.key === 'ArrowDown'
+        ? 1
+        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+          ? -1
+          : 0;
+    if (delta === 0) return;
+    event.preventDefault();
+    const idx = SCOPE_ORDER.indexOf(scope);
+    const next = SCOPE_ORDER[(idx + delta + SCOPE_ORDER.length) % SCOPE_ORDER.length];
+    this.setScope(next);
+    this.hostEl.nativeElement
+      .querySelector<HTMLElement>(`[data-testid="note-scope-${next}"]`)
+      ?.focus();
   }
 
   private clearOutcome(): void {
