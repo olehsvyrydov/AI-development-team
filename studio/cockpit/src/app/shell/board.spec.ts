@@ -5,10 +5,12 @@ import {
   backlogTickets,
   cardGateSummary,
   commentsNewestFirst,
+  doneStage,
   isBacklog,
   nextStageInOrder,
   nextStage,
   offTrackGroups,
+  partitionBoard,
   PRE_START_STAGES,
   stageColumns,
   statusChip,
@@ -226,6 +228,120 @@ describe('terminalStage — the done terminus is the last stage', () => {
   });
 });
 
+describe('doneStage — the conventional DONE stage (by name), not blindly the last stage', () => {
+  it('targets a stage named "done" even when a later stage follows it (e.g. a Test stage after done)', () => {
+    const wf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+        { stage: 'Test', owner: '/qa', gate: null },
+      ],
+    };
+    expect(doneStage(wf)).toBe('done');
+  });
+
+  it('matches any conventional done-name, case-insensitively (complete/completed/closed/shipped/released)', () => {
+    for (const name of ['Done', 'complete', 'COMPLETED', 'Closed', 'shipped', 'Released']) {
+      const wf: WorkflowView = {
+        activeTrack: 'full',
+        stages: [
+          { stage: 'code', owner: '/be', gate: null },
+          { stage: name, owner: null, gate: null },
+          { stage: 'audit', owner: '/qa', gate: null },
+        ],
+      };
+      expect(doneStage(wf), `${name} → done folder`).toBe(name);
+    }
+  });
+
+  it('falls back to the LAST stage when no stage carries a conventional done-name', () => {
+    const wf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'review', owner: '/rev', gate: null },
+        { stage: 'ship-it', owner: null, gate: null },
+      ],
+    };
+    expect(doneStage(wf)).toBe('ship-it');
+  });
+
+  it('returns null when there is no workflow view (no done folder)', () => {
+    expect(doneStage(null)).toBeNull();
+    expect(doneStage({ activeTrack: null, stages: [] })).toBeNull();
+  });
+});
+
+describe('partitionBoard — one pass partitions every ticket into exactly one region', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'backlog', owner: '/po', gate: null },
+      { stage: 'code', owner: '/be', gate: null },
+      { stage: 'done', owner: null, gate: null },
+      { stage: 'Test', owner: '/qa', gate: null },
+    ],
+  };
+  const tickets = [
+    ticket({ id: 'b', stage: undefined, status: 'waiting' }),
+    ticket({ id: 'c1', stage: 'code', status: 'in_progress' }),
+    ticket({ id: 'd1', stage: 'done', status: 'done' }),
+    ticket({ id: 'd2', stage: 'done', status: 'done' }),
+    ticket({ id: 't1', stage: 'Test', status: 'waiting' }),
+    ticket({ id: 'o1', stage: 'gone', status: 'waiting' }),
+  ];
+
+  it('drops both the backlog stage and the done stage from the rendered columns (a Test-after-done stays a column)', () => {
+    const p = partitionBoard(wf, tickets);
+    expect(p.columns.map((c) => c.stage)).toEqual(['code', 'Test']);
+    expect(p.doneStage).toBe('done');
+  });
+
+  it('collapses the done-named stage tickets into the done bucket (real count, not the trailing stage)', () => {
+    const p = partitionBoard(wf, tickets);
+    expect(p.doneTickets.map((t) => t.id)).toEqual(['d1', 'd2']);
+    // The trailing `Test` column holds its own ticket, not the done ones.
+    expect(p.columns.find((c) => c.stage === 'Test')!.tickets.map((t) => t.id)).toEqual(['t1']);
+  });
+
+  it('routes unstaged tickets to backlog and unknown-stage tickets to off-track', () => {
+    const p = partitionBoard(wf, tickets);
+    expect(p.backlog.map((t) => t.id)).toEqual(['b']);
+    expect(p.offTrack.map((g) => g.stage)).toEqual(['gone']);
+    expect(p.offTrack[0].tickets.map((t) => t.id)).toEqual(['o1']);
+  });
+
+  it('R1 disjointness: every ticket lands in exactly one region', () => {
+    const p = partitionBoard(wf, tickets);
+    const ids = new Set<string>();
+    const add = (id: string | undefined) => {
+      expect(ids.has(id!), `duplicate ${id}`).toBe(false);
+      ids.add(id!);
+    };
+    p.backlog.forEach((t) => add(t.id));
+    p.columns.forEach((c) => c.tickets.forEach((t) => add(t.id)));
+    p.doneTickets.forEach((t) => add(t.id));
+    p.offTrack.forEach((g) => g.tickets.forEach((t) => add(t.id)));
+    expect([...ids].sort()).toEqual(['b', 'c1', 'd1', 'd2', 'o1', 't1']);
+  });
+
+  it('matches the standalone helpers (parity) so the single pass changes no behavior', () => {
+    const p = partitionBoard(wf, tickets);
+    expect(p.backlog.map((t) => t.id)).toEqual(backlogTickets(wf, tickets).map((t) => t.id));
+    expect(p.offTrack.map((g) => g.stage)).toEqual(offTrackGroups(wf, tickets).map((g) => g.stage));
+  });
+
+  it('empties to all-empty regions when there is no workflow view', () => {
+    const p = partitionBoard(null, []);
+    expect(p.columns).toEqual([]);
+    expect(p.backlog).toEqual([]);
+    expect(p.doneTickets).toEqual([]);
+    expect(p.offTrack).toEqual([]);
+    expect(p.doneStage).toBeNull();
+  });
+});
+
 describe('activeSegmentIndex — how far the rail accent reaches (furthest in-progress stage)', () => {
   it('is the index of the furthest stage holding an in-progress ticket', () => {
     const tickets = [
@@ -238,6 +354,47 @@ describe('activeSegmentIndex — how far the rail accent reaches (furthest in-pr
   });
   it('is -1 when no stage holds an in-progress ticket (no accent)', () => {
     expect(activeSegmentIndex(WF, [ticket({ id: 'c', stage: 'done', status: 'done' })])).toBe(-1);
+  });
+
+  it('indexes against the rendered rail (stages minus the dropped `backlog`), so the accent aligns with the nodes', () => {
+    // The workflow opens with a literal `backlog` stage that the rail drops, so the rendered
+    // columns are [code, review, done] — `code` is rail index 0, not 1.
+    const wfBacklogFirst: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'review', owner: '/rev', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const tickets = [ticket({ id: 'a', stage: 'code', status: 'in_progress' })];
+    const cols = stageColumns(wfBacklogFirst, tickets);
+    expect(cols.map((c) => c.stage)).toEqual(['code', 'review', 'done']);
+    // `code` is the furthest in-progress stage; in the rendered rail it sits at index 0.
+    const idx = activeSegmentIndex(wfBacklogFirst, tickets);
+    expect(idx).toBe(0);
+    expect(cols[idx].stage).toBe('code');
+  });
+
+  it('indexes against the rail with the done stage dropped too (a stage after done does not shift the accent)', () => {
+    // The rail drops the literal `backlog` stage AND the done-named stage (now the folder), so the
+    // rendered nodes are [code, Test]. A `code` in-progress ticket lights index 0.
+    const wf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+        { stage: 'Test', owner: '/qa', gate: null },
+      ],
+    };
+    const tickets = [ticket({ id: 'a', stage: 'code', status: 'in_progress' })];
+    const rail = partitionBoard(wf, tickets).columns;
+    expect(rail.map((c) => c.stage)).toEqual(['code', 'Test']);
+    const idx = activeSegmentIndex(wf, tickets);
+    expect(idx).toBe(0);
+    expect(rail[idx].stage).toBe('code');
   });
 });
 

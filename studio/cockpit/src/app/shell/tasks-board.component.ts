@@ -14,14 +14,12 @@ import { ControlPlaneService } from '../core/control-plane.service';
 import type { ProjectState, TicketView } from '../core/models';
 import {
   activeSegmentIndex,
-  backlogTickets,
   cardGateSummary,
   nextStageInOrder,
-  offTrackGroups,
-  stageColumns,
+  partitionBoard,
   statusChip,
-  terminalStage,
   ticketNeedsYou,
+  type BoardPartition,
   type CardGateSummary,
   type OffTrackGroup,
   type StageColumn,
@@ -68,7 +66,7 @@ import { TaskDetailComponent } from './task-detail.component';
       @if (isEmpty()) {
         <p class="board-empty" data-testid="board-empty">No tasks yet — the team will create them as work starts.</p>
       } @else {
-        <div class="train">
+        <div class="train" data-testid="pipeline-train">
           <section class="backlog" data-testid="backlog-bar" aria-label="Backlog">
             <header class="backlog__head">
               <span class="backlog__title"><dart-glyph name="stack" /> Backlog</span>
@@ -93,7 +91,7 @@ import { TaskDetailComponent } from './task-detail.component';
             </button>
           </section>
 
-          <div class="rail" data-testid="pipeline-rail" role="list" aria-label="Tasks by workflow stage" (keydown)="onColumnKeydown($event)">
+          <div class="rail" data-testid="pipeline-rail" data-adaptive="true" role="list" aria-label="Tasks by workflow stage" (keydown)="onColumnKeydown($event)">
             @for (col of columns(); track col.stage; let ci = $index) {
               <section
                 class="col"
@@ -174,30 +172,30 @@ import { TaskDetailComponent } from './task-detail.component';
               }
             </section>
           }
-        </div>
 
-        @if (offTrack().length) {
-          <section class="offtrack" data-testid="off-track-lane" aria-label="Off-track tasks">
-            <header class="offtrack__head">
-              <dart-glyph name="warning" />
-              <span class="offtrack__title">Off-track ({{ offTrackCount() }})</span>
-              <span class="offtrack__why">— these tasks are in a stage that's no longer in the pipeline</span>
-            </header>
-            <p class="offtrack__reassure">Nothing's lost. Open a task and advance it to put it back on the pipeline.</p>
-            <div class="offtrack__groups">
-              @for (g of offTrack(); track g.stage) {
-                <div class="offtrack__group" [attr.data-testid]="'off-track-group-' + g.stage">
-                  <p class="offtrack__stage">was in “{{ g.stage }}” — that stage is gone</p>
-                  <ul class="col__cards" role="list">
-                    @for (t of g.tickets; track t.id) {
-                      <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
-                    }
-                  </ul>
-                </div>
-              }
-            </div>
-          </section>
-        }
+          @if (offTrack().length) {
+            <section class="offtrack" data-testid="off-track-lane" aria-label="Off-track tasks">
+              <header class="offtrack__head">
+                <dart-glyph name="warning" />
+                <span class="offtrack__title">Off-track ({{ offTrackCount() }})</span>
+              </header>
+              <p class="offtrack__why">These tasks are in a stage that's no longer in the pipeline.</p>
+              <p class="offtrack__reassure">Nothing's lost. Open a task and advance it to put it back on the pipeline.</p>
+              <div class="offtrack__groups">
+                @for (g of offTrack(); track g.stage) {
+                  <div class="offtrack__group" [attr.data-testid]="'off-track-group-' + g.stage">
+                    <p class="offtrack__stage">was in “{{ g.stage }}” — that stage is gone</p>
+                    <ul class="col__cards" role="list">
+                      @for (t of g.tickets; track t.id) {
+                        <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
+                      }
+                    </ul>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+        </div>
       }
     </div>
 
@@ -285,7 +283,7 @@ import { TaskDetailComponent } from './task-detail.component';
     .rollup__total, .rollup__need { display: inline-flex; align-items: center; gap: 0.3rem; }
     .rollup__need { color: var(--kb-warning); font-weight: 600; }
     .board-empty { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
-    .train { display: flex; gap: var(--kb-space-3); align-items: stretch; overflow-x: auto; padding-bottom: var(--kb-space-2); scroll-snap-type: x proximity; }
+    .train { display: flex; gap: var(--kb-space-3); align-items: stretch; width: 100%; overflow-x: auto; padding-bottom: var(--kb-space-2); scroll-snap-type: x proximity; }
     .backlog { position: sticky; left: 0; z-index: 4; flex: 0 0 12rem; min-width: 12rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); scroll-margin: var(--kb-space-3); }
     .backlog__head { display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); }
     .backlog__title { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; font-size: var(--kb-text-sm); }
@@ -293,8 +291,11 @@ import { TaskDetailComponent } from './task-detail.component';
     .backlog__cards { max-height: 60vh; overflow-y: auto; }
     .backlog__empty { color: var(--kb-text-subtle); font-size: var(--kb-text-xs); font-style: italic; }
     .backlog__add { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.5rem; font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text-subtle); background: transparent; border: 1px dashed var(--kb-border); border-radius: var(--kb-radius-md); cursor: default; opacity: 0.7; }
-    .rail { display: flex; gap: var(--kb-space-3); align-items: start; }
-    .col { flex: 0 0 12rem; min-width: 11rem; display: flex; flex-direction: column; gap: var(--kb-space-2); scroll-snap-align: start; scroll-margin: var(--kb-space-3); border-radius: var(--kb-radius-md); }
+    /* Adaptive rail: it grows to fill the train, and its columns flex-grow to share that width
+       (min-width keeps a column legible; max-width stops a lone column from stretching absurdly).
+       Horizontal scroll appears only when the columns can no longer fit at their min-width. */
+    .rail { flex: 1 1 auto; display: flex; gap: var(--kb-space-3); align-items: start; min-width: 0; }
+    .col { flex: 1 1 12rem; min-width: 11rem; max-width: 22rem; display: flex; flex-direction: column; gap: var(--kb-space-2); scroll-snap-align: start; scroll-margin: var(--kb-space-3); border-radius: var(--kb-radius-md); }
     .rail__node { display: inline-flex; align-items: center; justify-content: center; color: var(--kb-text-muted); transition: color var(--kb-dur-base) var(--kb-ease-out); }
     .rail__node[data-active='true'] { color: var(--kb-accent); }
     .done__face .rail__node { display: none; }
@@ -339,13 +340,15 @@ import { TaskDetailComponent } from './task-detail.component';
     .menu__none { padding: 0.45rem 0.6rem; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
     .card__conflict { display: flex; align-items: center; gap: 0.35rem; margin: 0; padding: 0.3rem var(--kb-space-2) var(--kb-space-2); color: var(--kb-warning); font-size: var(--kb-text-xs); }
     .card__retry, .card__kebab + .card__conflict button { font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-accent); background: transparent; border: none; cursor: pointer; text-decoration: underline; }
-    .offtrack { margin-top: var(--kb-space-4); padding-top: var(--kb-space-3); border-top: 1px solid var(--kb-border); }
-    .offtrack__head { display: flex; align-items: center; gap: 0.4rem; color: var(--kb-warning); font-weight: 600; }
+    /* Off-track is a sticky RIGHT-side lane (mirrors the sticky left Backlog) at the end of the train,
+       absent when empty. It holds the orphans whose stage left the pipeline, still advanceable. */
+    .offtrack { position: sticky; right: 0; z-index: 4; flex: 0 0 15rem; min-width: 14rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); scroll-margin: var(--kb-space-3); }
+    .offtrack__head { display: flex; align-items: center; gap: 0.4rem; color: var(--kb-warning); font-weight: 600; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); }
     .offtrack__title { font-size: var(--kb-text-sm); }
-    .offtrack__why { color: var(--kb-text-muted); font-weight: 400; font-size: var(--kb-text-xs); }
-    .offtrack__reassure { margin: 0.2rem 0 0; color: var(--kb-text-subtle); font-size: var(--kb-text-xs); }
-    .offtrack__groups { display: flex; flex-wrap: wrap; gap: var(--kb-space-3); margin-top: var(--kb-space-2); }
-    .offtrack__group { flex: 0 1 16rem; border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); padding: var(--kb-space-2); }
+    .offtrack__why { margin: 0; color: var(--kb-text-muted); font-size: var(--kb-text-xs); }
+    .offtrack__reassure { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-xs); }
+    .offtrack__groups { display: flex; flex-direction: column; gap: var(--kb-space-2); max-height: 60vh; overflow-y: auto; }
+    .offtrack__group { border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); padding: var(--kb-space-2); }
     .offtrack__stage { margin: 0 0 var(--kb-space-2); font-size: var(--kb-text-xs); color: var(--kb-text-muted); overflow-wrap: anywhere; }
   `,
 })
@@ -392,30 +395,29 @@ export class TasksBoardComponent {
   private readonly tickets = computed<readonly TicketView[]>(() => this.state().tickets ?? []);
   readonly stageOrder = computed<readonly string[]>(() => (this.state().workflowView?.stages ?? []).map((s) => s.stage));
 
-  /** The terminal stage name (the done terminus), or null when there is no workflow view. */
-  readonly terminal = computed<string | null>(() => terminalStage(this.state().workflowView));
+  /**
+   * The single partition of the board into its four disjoint regions, recomputed once per state push
+   * (one O(stages×tickets) pass). Every region view below is a cheap projection of this — the stage
+   * filter is never run twice.
+   */
+  private readonly partition = computed<BoardPartition>(() => partitionBoard(this.state().workflowView, this.tickets()));
+
+  /** The stage name collapsed into the done folder (a done-named stage, else the last), or null. */
+  readonly terminal = computed<string | null>(() => this.partition().doneStage);
 
   /**
-   * The pipeline stage columns: every stage column EXCEPT the terminal one, which collapses into the
-   * done folder. Backlog-claimed tickets are already excluded by `stageColumns` (set-difference).
+   * The pipeline stage columns: the rendered rail — every stage column EXCEPT the literal `backlog`
+   * stage (the Backlog bar replaces it) and the done stage (the done folder replaces it).
    */
-  readonly columns = computed<readonly StageColumn[]>(() => {
-    const all = stageColumns(this.state().workflowView, this.tickets());
-    const term = this.terminal();
-    return term ? all.filter((c) => c.stage !== term) : all;
-  });
+  readonly columns = computed<readonly StageColumn[]>(() => this.partition().columns);
 
   /** The Backlog holding pen — tickets not yet routed onto the track (claimed first, disjoint). */
-  readonly backlog = computed<readonly TicketView[]>(() => backlogTickets(this.state().workflowView, this.tickets()));
+  readonly backlog = computed<readonly TicketView[]>(() => this.partition().backlog);
 
-  /** The finished tickets at the terminal stage, collapsed behind the done folder. */
-  readonly doneTickets = computed<readonly TicketView[]>(() => {
-    const all = stageColumns(this.state().workflowView, this.tickets());
-    const term = this.terminal();
-    return term ? (all.find((c) => c.stage === term)?.tickets ?? []) : [];
-  });
+  /** The finished tickets at the done stage, collapsed behind the done folder. */
+  readonly doneTickets = computed<readonly TicketView[]>(() => this.partition().doneTickets);
 
-  readonly offTrack = computed<readonly OffTrackGroup[]>(() => offTrackGroups(this.state().workflowView, this.tickets()));
+  readonly offTrack = computed<readonly OffTrackGroup[]>(() => this.partition().offTrack);
   readonly offTrackCount = computed(() => this.offTrack().reduce((n, g) => n + g.tickets.length, 0));
 
   /** The index of the furthest in-progress stage column — how far the rail's active accent reaches. */

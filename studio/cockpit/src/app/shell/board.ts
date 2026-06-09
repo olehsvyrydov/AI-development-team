@@ -116,20 +116,124 @@ export function terminalStage(workflowView: WorkflowView | null | undefined): st
 }
 
 /**
- * How far the rail's active-segment accent reaches: the index, in the track's stage order, of the
- * furthest stage that currently holds an in-progress ticket. Returns -1 when no stage holds an
- * in-progress ticket, so the accent is then absent rather than reaching nowhere. The accent only
- * reinforces the per-card status (glyph + text); it never carries status alone.
+ * Conventional names (lower-case) for the terminal "done" stage. A stage whose name matches one of
+ * these is the done folder, regardless of its position — a workflow may legitimately place a stage
+ * (e.g. an audit/test pass) AFTER done, and that trailing stage must stay a normal column rather
+ * than stealing the folder.
+ */
+const DONE_STAGE_NAMES: ReadonlySet<string> = new Set([
+  'done',
+  'complete',
+  'completed',
+  'closed',
+  'shipped',
+  'released',
+]);
+
+/**
+ * The stage whose tickets collapse into the done folder: the first stage carrying a conventional
+ * done-name (case-insensitive) — NOT blindly the last stage, so a stage added after done (e.g. a
+ * trailing `Test` pass) does not empty the folder. Falls back to the last stage when no stage
+ * carries a done-name. Returns null when there is no workflow view (no done folder).
+ */
+export function doneStage(workflowView: WorkflowView | null | undefined): string | null {
+  const stages = workflowView?.stages;
+  if (!stages || stages.length === 0) return null;
+  const named = stages.find((s) => DONE_STAGE_NAMES.has(s.stage.trim().toLowerCase()));
+  return named ? named.stage : stages[stages.length - 1].stage;
+}
+
+/** The board partitioned into its four disjoint regions in a single pass over the tickets. */
+export interface BoardPartition {
+  /** The Backlog holding pen — tickets not yet routed onto the track. */
+  readonly backlog: readonly TicketView[];
+  /** The rendered rail: stage columns EXCLUDING the dropped `backlog` stage and the done stage. */
+  readonly columns: readonly StageColumn[];
+  /** The stage collapsed into the done folder, or null when there is no workflow view. */
+  readonly doneStage: string | null;
+  /** The finished tickets at the done stage, collapsed behind the folder. */
+  readonly doneTickets: readonly TicketView[];
+  /** Tickets recorded at a stage no longer in the track, grouped by that stage. */
+  readonly offTrack: readonly OffTrackGroup[];
+}
+
+/**
+ * Partition every ticket into exactly one board region — Backlog, a rendered stage column, the done
+ * folder, or the off-track lane — in a SINGLE pass, so the O(stages×tickets) placement runs once per
+ * state push instead of once per derived view. The rendered `columns` exclude the literal `backlog`
+ * stage (the Backlog bar replaces it) and the {@link doneStage} (the done folder replaces it); a
+ * stage that merely follows done stays a normal column. Disjointness (R1) holds: Backlog claims its
+ * tickets first, the done stage claims the finished set, each remaining ticket lands in its stage
+ * column or — if its stage is not on the track — the off-track lane.
+ */
+export function partitionBoard(
+  workflowView: WorkflowView | null | undefined,
+  tickets: readonly TicketView[],
+): BoardPartition {
+  const stages = workflowView?.stages ?? [];
+  const done = doneStage(workflowView);
+  const inTrack = new Set(stages.map((s) => s.stage));
+
+  const backlog: TicketView[] = [];
+  const byStage = new Map<string, TicketView[]>();
+  const doneTickets: TicketView[] = [];
+  const offOrder: string[] = [];
+  const offByStage = new Map<string, TicketView[]>();
+
+  for (const t of tickets) {
+    if (isBacklog(t, workflowView)) {
+      backlog.push(t);
+      continue;
+    }
+    const stage = ticketStage(t);
+    if (done !== null && stage === done) {
+      doneTickets.push(t);
+      continue;
+    }
+    if (inTrack.has(stage)) {
+      let bucket = byStage.get(stage);
+      if (!bucket) byStage.set(stage, (bucket = []));
+      bucket.push(t);
+      continue;
+    }
+    let bucket = offByStage.get(stage);
+    if (!bucket) {
+      offByStage.set(stage, (bucket = []));
+      offOrder.push(stage);
+    }
+    bucket.push(t);
+  }
+
+  const columns: StageColumn[] = stages
+    .filter((s) => s.stage.trim().toLowerCase() !== BACKLOG_STAGE && s.stage !== done)
+    .map((s) => ({ stage: s.stage, owner: s.owner, gate: s.gate, tickets: byStage.get(s.stage) ?? [] }));
+
+  const offTrack: OffTrackGroup[] = offOrder.map((stage) => ({ stage, tickets: offByStage.get(stage)! }));
+
+  return { backlog, columns, doneStage: done, doneTickets, offTrack };
+}
+
+/**
+ * How far the rail's active-segment accent reaches: the index — IN THE RENDERED RAIL'S stage order —
+ * of the furthest stage that currently holds an in-progress ticket. The rendered rail drops the
+ * literal `backlog` stage (the Backlog bar replaces it) and the done stage (the done folder replaces
+ * it), so the accent aligns with the nodes the rail actually draws rather than the raw track order.
+ * Returns -1 when no rendered stage holds an in-progress ticket, so the accent is then absent rather
+ * than reaching nowhere. The accent only reinforces the per-card status (glyph + text); it never
+ * carries status alone.
  */
 export function activeSegmentIndex(
   workflowView: WorkflowView | null | undefined,
   tickets: readonly TicketView[],
 ): number {
-  const stages = workflowView?.stages ?? [];
+  const done = doneStage(workflowView);
+  const rail = (workflowView?.stages ?? [])
+    .map((s) => s.stage)
+    .filter((stage) => stage.trim().toLowerCase() !== BACKLOG_STAGE && stage !== done);
   let furthest = -1;
   for (const t of tickets) {
     if (t.status !== 'in_progress') continue;
-    const idx = stages.findIndex((s) => s.stage === ticketStage(t));
+    const idx = rail.indexOf(ticketStage(t));
     if (idx > furthest) furthest = idx;
   }
   return furthest;

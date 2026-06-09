@@ -441,6 +441,33 @@ describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / p
     expect(host.querySelector('[data-testid="rail-node-review"]')!.getAttribute('data-active')).toBe('false');
   });
 
+  it('aligns the active-segment accent with the rendered rail when the workflow opens with a `backlog` stage', () => {
+    // The rail drops the literal `backlog` stage, so `code` is the first rendered node. The active
+    // accent (furthest in-progress) must light `code`, not the node one position further along.
+    const wfBacklogFirst: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'review', owner: '/rev', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const state: ProjectState = {
+      ...MIXED_STATE,
+      workflowView: wfBacklogFirst,
+      tracks: { full: ['backlog', 'code', 'review', 'done'] },
+      tickets: [
+        { id: 'C-1', title: 'Coding', status: 'in_progress', stage: 'code', track: 'full', gates: [], comments: [] },
+      ],
+    };
+    const { host } = mount(state);
+    // `code` holds the furthest in-progress ticket → its node is the active edge.
+    expect(host.querySelector('[data-testid="rail-node-code"]')!.getAttribute('data-active')).toBe('true');
+    // `review` sits past the furthest in-progress stage → not active (no off-by-one bleed).
+    expect(host.querySelector('[data-testid="rail-node-review"]')!.getAttribute('data-active')).toBe('false');
+  });
+
   it('collapses terminal-stage tickets into a clickable done folder that expands and re-collapses', () => {
     const { fixture, host } = mount(MIXED_STATE);
     const folder = host.querySelector('[data-testid="done-folder"]')!;
@@ -555,6 +582,89 @@ describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / p
     for (const id of ids) {
       expect(allCards.filter((c) => c === id)).toHaveLength(1);
     }
+  });
+
+  it('targets the done-named stage for the folder even when a stage follows it (a Test stage after done)', () => {
+    // A workflow with a `Test` stage AFTER `done`: the folder must hold the `done` tickets (real
+    // count), and `done` must NOT also render as a regular column. `Test` stays a normal column.
+    const wfTestAfterDone: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+        { stage: 'Test', owner: '/qa', gate: null },
+      ],
+    };
+    const tickets = Array.from({ length: 8 }, (_, i) => ({
+      id: `DN-${i}`, title: `Done ${i}`, status: 'done', stage: 'done', track: 'full', gates: [], comments: [],
+    }));
+    const state: ProjectState = {
+      ...STATE,
+      workflowView: wfTestAfterDone,
+      tracks: { full: ['code', 'done', 'Test'] },
+      tickets: [
+        { id: 'C-1', title: 'Coding', status: 'in_progress', stage: 'code', track: 'full', gates: [], comments: [] },
+        ...tickets,
+        { id: 'T-1', title: 'Testing', status: 'waiting', stage: 'Test', track: 'full', gates: [], comments: [] },
+      ],
+    };
+    const { fixture, host } = mount(state);
+
+    // The done folder shows the REAL done count (8), not the trailing stage's count.
+    expect(host.querySelector('[data-testid="done-folder-count"]')!.textContent).toContain('8');
+
+    // `done` is NOT a regular stage column; `code` and `Test` are.
+    const cols = [...host.querySelectorAll('[data-testid^="column-stage-"]')].map((c) => c.getAttribute('data-testid'));
+    expect(cols).toEqual(['column-stage-code', 'column-stage-Test']);
+    expect(host.querySelector('[data-testid="column-stage-done"]')).toBeNull();
+
+    // The trailing `Test` column holds its own ticket, not the done ones.
+    expect(host.querySelector('[data-testid="column-stage-Test"]')!.textContent).toContain('T-1');
+    expect(host.querySelector('[data-testid="column-stage-Test"]')!.textContent).not.toContain('DN-0');
+
+    // Expanding the folder lists the 8 done tickets.
+    (host.querySelector('[data-testid="done-folder-toggle"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="done-folder-list"]')!.textContent).toContain('DN-0');
+  });
+
+  it('renders the off-track lane as a sticky right-side region after the done folder, within the train', () => {
+    const { host } = mount(MIXED_STATE);
+    const train = host.querySelector('[data-testid="pipeline-train"]')!;
+    expect(train).toBeTruthy();
+    const lane = host.querySelector('[data-testid="off-track-lane"]')!;
+    expect(lane).toBeTruthy();
+    // The off-track lane sits inside the same horizontal train as the rail and done folder (right side).
+    expect(train.contains(lane)).toBe(true);
+    // The done folder precedes the off-track lane in document order (off-track is the right-most region).
+    const done = host.querySelector('[data-testid="done-folder"]')!;
+    expect(done.compareDocumentPosition(lane) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the off-track lane absent when every ticket sits on a real stage (absent-not-zero, right side)', () => {
+    const onTrack = { ...MIXED_STATE, tickets: MIXED_STATE.tickets!.filter((t) => t.id !== 'O-1') };
+    const { host } = mount(onTrack);
+    expect(host.querySelector('[data-testid="off-track-lane"]')).toBeNull();
+  });
+
+  it('keeps an off-track ticket advanceable from the right-side lane (re-home onto a real stage)', async () => {
+    const { fixture, host, http } = mount(MIXED_STATE);
+    const lane = host.querySelector('[data-testid="off-track-lane"]')!;
+    (lane.querySelector('[data-testid="card-O-1"] [data-testid="card-menu"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const advance = lane.querySelector('[data-testid="card-O-1"] [data-testid="menu-advance"]') as HTMLButtonElement;
+    expect(advance).toBeTruthy();
+    advance.click();
+    const req = http.expectOne('/api/ticket/advance');
+    expect(req.request.body).toMatchObject({ id: 'O-1', toStage: 'vision' });
+    req.flush({ ok: true, state: { ...MIXED_STATE, rev: 'r2' } });
+    await settle(fixture);
+  });
+
+  it('marks the rail adaptive so stage columns flex to fill the available width', () => {
+    const { host } = mount(MIXED_STATE);
+    // The rail opts into the adaptive (flex-grow, fills the viewport) layout rather than fixed-narrow.
+    expect(host.querySelector('[data-testid="pipeline-rail"]')!.getAttribute('data-adaptive')).toBe('true');
   });
 
   it('workflow-aware Backlog: a ticket at a pre-start token the workflow DEFINES lands in that column, not Backlog', () => {
