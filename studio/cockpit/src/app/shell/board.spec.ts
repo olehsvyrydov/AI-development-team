@@ -125,6 +125,33 @@ describe('isBacklog / backlogTickets — the holding-pen predicate (unstaged or 
     expect(isBacklog(ticket({ stage: 'cancelled' }), WF)).toBe(false);
   });
 
+  it('is workflow-aware: a pre-start token the workflow DEFINES as a real stage is NOT Backlog', () => {
+    const wfWithReady: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'ready', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    // `ready` is a real workflow stage here → routes to its column, not Backlog.
+    expect(isBacklog(ticket({ stage: 'ready' }), wfWithReady)).toBe(false);
+    expect(isBacklog(ticket({ stage: 'Ready' }), wfWithReady)).toBe(false);
+    // The same token, in a workflow that does NOT define it, still falls to Backlog (pre-start).
+    expect(isBacklog(ticket({ stage: 'ready' }), WF)).toBe(true);
+  });
+
+  it('keeps the intake token `backlog` in Backlog even when the workflow names it a stage', () => {
+    const wfBacklogStage: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'backlog', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+      ],
+    };
+    expect(isBacklog(ticket({ stage: 'backlog' }), wfBacklogStage)).toBe(true);
+  });
+
   it('collects the backlog tickets, preserving first-seen order', () => {
     const tickets = [
       ticket({ id: 'a', stage: 'code' }),
@@ -159,6 +186,33 @@ describe('stageColumns — Backlog claims its set first (disjoint by set-differe
     };
     const cols = stageColumns(wfBacklogFirst, [ticket({ id: 'a', stage: 'backlog' })]);
     expect(cols.map((c) => c.stage)).toEqual(['code', 'done']);
+  });
+
+  it('workflow-aware: a pre-start token that is a REAL stage routes to its COLUMN, not Backlog', () => {
+    // The workflow legitimately names `ready` as a stage (the builder allows arbitrary stage names).
+    const wfReadyStage: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'ready', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const tickets = [
+      ticket({ id: 'r', stage: 'ready' }),
+      ticket({ id: 'c', stage: 'code' }),
+    ];
+    // The `ready` column renders AND holds its ticket (not misclassified into Backlog).
+    const cols = stageColumns(wfReadyStage, tickets);
+    expect(cols.map((c) => c.stage)).toEqual(['ready', 'code', 'done']);
+    expect(cols.find((c) => c.stage === 'ready')!.tickets.map((t) => t.id)).toEqual(['r']);
+    // And the Backlog set is empty: the `ready` ticket is NOT claimed by Backlog.
+    expect(backlogTickets(wfReadyStage, tickets).map((t) => t.id)).toEqual([]);
+    // DISJOINTNESS: each ticket lands in exactly one region (column XOR Backlog XOR off-track).
+    expect(offTrackGroups(wfReadyStage, tickets)).toEqual([]);
+
+    // Contrast: the SAME `ready` token, in a workflow that does NOT define it, falls to Backlog.
+    expect(backlogTickets(WF, [ticket({ id: 'r', stage: 'ready' })]).map((t) => t.id)).toEqual(['r']);
   });
 });
 

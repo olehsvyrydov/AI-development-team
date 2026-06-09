@@ -556,4 +556,36 @@ describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / p
       expect(allCards.filter((c) => c === id)).toHaveLength(1);
     }
   });
+
+  it('workflow-aware Backlog: a ticket at a pre-start token the workflow DEFINES lands in that column, not Backlog', () => {
+    // The workflow legitimately names `ready` as a real stage — the builder allows arbitrary names.
+    const readyStageWf: WorkflowView = {
+      activeTrack: 'full',
+      stages: [
+        { stage: 'ready', owner: '/po', gate: null },
+        { stage: 'code', owner: '/be', gate: null },
+        { stage: 'done', owner: null, gate: null },
+      ],
+    };
+    const state: ProjectState = {
+      ...MIXED_STATE,
+      workflowView: readyStageWf,
+      tracks: { full: ['ready', 'code', 'done'] },
+      tickets: [
+        { id: 'R-1', title: 'At ready', status: 'in_progress', stage: 'ready', track: 'full', gates: [], comments: [] },
+        { id: 'B-1', title: 'Unstaged idea', status: 'waiting', stage: undefined, track: 'full', gates: [], comments: [] },
+      ],
+    };
+    const { host } = mount(state);
+
+    // R-1 routes to the `ready` COLUMN (a real stage), never the Backlog bar.
+    const readyColumn = host.querySelector('[data-testid="column-stage-ready"]')!;
+    expect(readyColumn).toBeTruthy();
+    expect(readyColumn.querySelector('[data-testid="card-R-1"]')).toBeTruthy();
+    const backlogBar = host.querySelector('[data-testid="backlog-bar"]')!;
+    expect(backlogBar.querySelector('[data-testid="card-R-1"]')).toBeNull();
+
+    // The unstaged ticket still falls to Backlog (pre-start / never routed).
+    expect(backlogBar.querySelector('[data-testid="card-B-1"]')).toBeTruthy();
+  });
 });

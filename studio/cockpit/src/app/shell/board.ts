@@ -79,14 +79,25 @@ export const PRE_START_STAGES: ReadonlySet<string> = new Set([
 
 /**
  * Whether a ticket belongs in the Backlog holding pen — work that has not yet been routed onto the
- * track. True when its stage is unset/empty/`unknown` (never routed) OR (case-insensitively) one of
- * the {@link PRE_START_STAGES} pre-start lifecycle tokens. The Backlog claims these tickets FIRST;
- * the stage columns and the off-track lane exclude them by set-difference, so a ticket lands in
- * exactly one region.
+ * track. True when its stage is unset/empty/`unknown` (never routed), OR the conventional intake
+ * token `backlog` (the holding pen IS the Backlog column, so it is always claimed here — a literal
+ * `backlog` workflow stage is replaced by the Backlog bar), OR (case-insensitively) one of the
+ * other {@link PRE_START_STAGES} pre-start lifecycle tokens THAT THE WORKFLOW DOES NOT DEFINE AS A
+ * REAL STAGE.
+ *
+ * The predicate is workflow-aware for the non-`backlog` tokens: a token like `ready` or `triage`
+ * that the active track legitimately names as a stage routes to that stage's column, not Backlog
+ * (so the column renders and holds its tickets). Only un-staged tickets, the `backlog` token, or
+ * pre-start tokens with no matching workflow stage fall to Backlog. The Backlog claims its tickets
+ * FIRST; the stage columns and the off-track lane exclude them by set-difference, so a ticket lands
+ * in exactly one region.
  */
-export function isBacklog(ticket: TicketView, _workflowView?: WorkflowView | null): boolean {
+export function isBacklog(ticket: TicketView, workflowView?: WorkflowView | null): boolean {
   const stage = ticketStage(ticket).trim().toLowerCase();
-  return stage === '' || stage === 'unknown' || PRE_START_STAGES.has(stage);
+  if (stage === '' || stage === 'unknown' || stage === BACKLOG_STAGE) return true;
+  if (!PRE_START_STAGES.has(stage)) return false;
+  const definesStage = (workflowView?.stages ?? []).some((s) => s.stage.trim().toLowerCase() === stage);
+  return !definesStage;
 }
 
 /** The Backlog tickets (holding pen), in first-seen order. */

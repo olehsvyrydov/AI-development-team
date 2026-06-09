@@ -32,11 +32,12 @@ Consequences that constrain every decision below:
 **The Backlog column shows tickets that have not yet entered the track's flow**, expressed as a pure FE projection over the data the board already has. Precisely:
 
 > **`backlogTickets = tickets.filter(t => isBacklog(t, workflowView))`** where
-> **`isBacklog(t, wf)` is true iff `normStage(t.stage)` is empty/unset OR equals the conventional first-stage token `"backlog"`** — i.e. the ticket carries no stage, or it sits at a stage literally named `backlog`.
+> **`isBacklog(t, wf)` is true iff `normStage(t.stage)` is empty/unset/`"unknown"`, OR equals the conventional intake token `"backlog"`, OR is one of the other pre-start lifecycle tokens (`ready`/`todo`/`new`/`triage`/`unstarted`/`icebox`) THAT THE WORKFLOW DOES NOT DEFINE AS A REAL STAGE (`wf.stages[].stage`).** The predicate is **workflow-aware**: a pre-start token that the active track legitimately names as a stage routes to that stage's column, not Backlog.
 
 Rationale and exactness:
 - **Empty/unset stage** = a ticket that exists but has never been routed onto the track (a genuine holding-pen item). `state.js` defaults a missing stage to `t.track || 'unknown'`, so the FE predicate treats `''`, `'unknown'`, and nullish as Backlog.
-- **Stage `"backlog"`** is the conventional intake-stage token (the ledger already uses `stage: "backlog"` in practice). When a track names its first stage `backlog`, those tickets belong in the left bar by name.
+- **Stage `"backlog"`** is the conventional intake-stage token (the ledger already uses `stage: "backlog"` in practice). It is **always** Backlog — even when a track names a stage `backlog`, the Backlog bar replaces that column (so the column is not rendered twice).
+- **Other pre-start lifecycle tokens** (`ready`, `todo`, `new`, `triage`, `unstarted`, `icebox`) are treated as un-started holding-pen items **only when the workflow does not define a stage by that name**. An un-started ticket reading as "off-track" looks like an error, so these tokens fall to Backlog by default — but because the workflow builder allows **arbitrary stage names**, a track may legitimately name a real stage `ready` or `triage`. In that case the **workflow-aware caveat** applies: the token is a real stage, so its tickets route to that stage's column (which renders and holds them), not Backlog.
 - **This is the ONLY split-out from the existing columns.** A Backlog ticket that *also* matches `stages[0]` must appear **once** — in the Backlog bar, not duplicated as the first stage column. So the rule is: **Backlog claims its tickets first; `stageColumns()` for the remaining stages must exclude tickets already claimed by Backlog** (a set-difference, identical in spirit to how `offTrackGroups()` already partitions). If the track's `stages[0]` is itself the literal `backlog` stage, the Backlog bar **replaces** that first column (do not render an empty `backlog` stage column behind the bar).
 
 **How a ticket leaves Backlog:** the **same routed action as everywhere else** — `ticket/advance` to the next stage in track order (`nextStageInOrder(current, stageOrder)` already returns `stageOrder[0]` for an off-track/unstaged `current`, which is exactly "advance onto the track from the holding pen"). No new write. **No drag.** Until/unless a backlog-create endpoint exists, the `[+ idea]` affordance is an **inert "soon"** control (`aria-disabled`), per the placeholder rule — never a dead live button.
@@ -79,7 +80,7 @@ No change. Backlog (§1) and off-track (§4) are **disjoint by construction**: B
 
 | Pipeline element | Source (already on the wire) | New backend? |
 |---|---|---|
-| Left Backlog bar | `tickets[].stage` ∈ {unset, `backlog`} (§1) | **No** |
+| Left Backlog bar | `tickets[].stage` ∈ {unset, `unknown`, `backlog`, or a pre-start token not defined as a workflow stage} (§1) | **No** |
 | Stage train (columns + order) | `workflowView.stages` (ordered), `stageColumns()` | **No** |
 | Connecting rail + gate-by-shape nodes | `workflowView.stages[].gate.refusal` (hard/soft) | **No** |
 | Active-segment accent | furthest in-progress stage over `tickets[].status` | **No** |
@@ -110,7 +111,7 @@ The `/kai` proposal-text rendering Aura §7.2 item 4 flags is a **Knowledge-pane
 | # | Risk | Severity | Mitigation (binding on `/fe`) |
 |---|---|---|---|
 | R1 | **Double-placement** — a Backlog ticket also rendered as the first stage column → ticket appears twice. | Med | Backlog claims its set **first**; `stageColumns()` for the remaining stages must exclude Backlog-claimed tickets (set-difference). If `stages[0]` is the literal `backlog` stage, the bar **replaces** that column. **Parity test** required: every ticket appears in exactly one of {Backlog, stage column, done folder, off-track}. |
-| R2 | **Stage-token assumption** — hard-coding `"backlog"` / `"done"` onto tracks that don't name stages that way (Apex §2.2). | Med | Predicate is `unset OR == "backlog"` and `== last(stages)`; it **degrades to "no Backlog bar / terminal-is-last-column"** when a track names neither — never mis-sorts. Generic help says "first/last stage," the real stage name shows on the column. |
+| R2 | **Stage-token assumption** — hard-coding `"backlog"` / `"done"` onto tracks that don't name stages that way (Apex §2.2). | Med | Predicate is `unset/unknown OR == "backlog" OR a pre-start token not defined as a workflow stage`, terminal `== last(stages)`; it **degrades to "no Backlog bar / terminal-is-last-column"** when a track names neither — never mis-sorts. **Workflow-aware**: a pre-start token (`ready`/`triage`/…) that a track legitimately names as a stage routes to that stage's column, not Backlog. Generic help says "first/last stage," the real stage name shows on the column. |
 | R3 | **Roll-up N+1** if the header re-fetches per ticket. | Low | Confirmed §3: reduce over the already-loaded `tickets`; reuse `taskSummary` / `listSummary`. No per-ticket fetch. |
 | R4 | **Status carried by motion/colour alone** (advance slides, active-segment accent). | Low (a11y) | Non-negotiable: status = glyph + colour + **text** + count; motion only narrates. Reduced-motion fallbacks listed in Aura §2.4.1, §6. |
 | R5 | Sticky Backlog bar / Done folder obscuring focus on horizontal scroll. | Low (a11y) | `scroll-margin` reserved so focused columns are never hidden behind the sticky edges (Aura §6 [2.4.11]). |
