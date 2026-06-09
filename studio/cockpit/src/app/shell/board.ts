@@ -108,13 +108,6 @@ export function backlogTickets(
   return tickets.filter((t) => isBacklog(t, workflowView));
 }
 
-/** The terminal (last) stage of the active track — the "done" terminus. Null when no workflow view. */
-export function terminalStage(workflowView: WorkflowView | null | undefined): string | null {
-  const stages = workflowView?.stages;
-  if (!stages || stages.length === 0) return null;
-  return stages[stages.length - 1].stage;
-}
-
 /**
  * Conventional names (lower-case) for the terminal "done" stage. A stage whose name matches one of
  * these is the done folder, regardless of its position — a workflow may legitimately place a stage
@@ -159,8 +152,9 @@ export interface BoardPartition {
 
 /**
  * Partition every ticket into exactly one board region — Backlog, a rendered stage column, the done
- * folder, or the off-track lane — in a SINGLE pass, so the O(stages×tickets) placement runs once per
- * state push instead of once per derived view. The rendered `columns` exclude the literal `backlog`
+ * folder, or the off-track lane — in O(tickets + stages): a single pass over the tickets to place each
+ * one, then one pass over the stages to materialize the columns, so the placement runs once per state
+ * push instead of once per derived view. The rendered `columns` exclude the literal `backlog`
  * stage (the Backlog bar replaces it) and the {@link doneStage} (the done folder replaces it); a
  * stage that merely follows done stays a normal column. Disjointness (R1) holds: Backlog claims its
  * tickets first, the done stage claims the finished set, each remaining ticket lands in its stage

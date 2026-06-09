@@ -402,9 +402,10 @@ export class TasksBoardComponent {
 
   /**
    * The single partition of the board into its four disjoint regions, recomputed once per state push
-   * (one O(stages×tickets) pass). Each region view below (backlog/columns/done/off-track) is a cheap
-   * projection that reads its slice off this one partition, so the per-stage grouping is computed in a
-   * single pass rather than recomputing the per-stage filter once per region.
+   * (O(tickets + stages): one pass over tickets to place each, one pass over stages to materialize the
+   * columns). Each region view below (backlog/columns/done/off-track) is a cheap projection that reads
+   * its slice off this one partition, so the per-stage grouping is computed in a single pass rather
+   * than recomputing the per-stage filter once per region.
    */
   private readonly partition = computed<BoardPartition>(() => partitionBoard(this.state().workflowView, this.tickets()));
 

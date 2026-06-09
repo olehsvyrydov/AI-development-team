@@ -12,7 +12,7 @@
 
 | File | Δ | Role |
 |---|---|---|
-| `studio/cockpit/src/app/shell/board.ts` | +133 | Backlog predicate, set-difference partitioning, terminal/active-segment, compact gate summary |
+| `studio/cockpit/src/app/shell/board.ts` | +133 | Backlog predicate, single-pass partitioning, done-stage/active-segment, compact gate summary |
 | `studio/cockpit/src/app/shell/tasks-board.component.ts` | +344/−88 | Pipeline layout: backlog bar, rail+nodes, done folder, off-track lane, advance, a11y, motion |
 | `studio/cockpit/src/app/shell/glyph.component.ts` | +22 | New inline-SVG glyphs `stack`, `folder-stack` |
 | `studio/cockpit/src/app/shell/board.spec.ts` | +196 | Unit tests for the projection functions |
@@ -29,8 +29,8 @@ No backend files touched — consistent with the ARCH verdict (PURE FRONTEND re-
 | Backlog predicate = stage-based, pure FE (§1) | `isBacklog()` over `ticket.stage`; `backlogTickets()` filter | COMPLIANT |
 | Backlog claims its set FIRST; columns/off-track exclude by set-difference (R1) | `stageColumns` and `offTrackGroups` both guard on `!isBacklog(t)` | COMPLIANT |
 | Literal `backlog` first stage → bar REPLACES the column (no empty ghost) | `stageColumns` filters out the literal `backlog` stage | COMPLIANT |
-| Done = terminal stage, collapsed folder, pure FE (§2) | `terminalStage()` + `doneTickets` computed; folder rendered unconditionally with live count | COMPLIANT |
-| Header needs-you/activity roll-up reduces over loaded tickets, no N+1 (§3) | `needsYouCount` / `totalTasks` computed over in-memory `tickets()`; total prefers `taskSummary.total` | COMPLIANT |
+| Done = done stage, collapsed folder, pure FE (§2) | `doneStage()` (done-name-first, else last) = `partition().doneStage`; `doneTickets` computed; folder rendered unconditionally with live count | COMPLIANT |
+| Header needs-you/activity roll-up reduces over loaded tickets, no N+1 (§3) | `needsYouCount` prefers canonical `taskSummary.byStatus.needsYou`, falling back to the `ticketNeedsYou(t)` reduction over in-memory `tickets()`; `totalTasks` prefers `taskSummary.total` | COMPLIANT |
 | Off-track = existing set-difference, unchanged (§4) | `offTrackGroups()` preserved; only the `isBacklog` exclusion added | COMPLIANT |
 | Advance = existing routed `ticket/advance` + expectedRev + inline 409, no drag (§0/§5) | `advance()` posts `{id,toStage,expectedRev,by}`; conflict → inline alert + retry | COMPLIANT |
 | `[+ idea]` is an inert "soon" control, not a dead live button (§1) | `disabled` + `aria-disabled="true"` + title; no href, no handler | COMPLIANT |
@@ -44,13 +44,13 @@ No backend files touched — consistent with the ARCH verdict (PURE FRONTEND re-
 The invariant ("every ticket renders in EXACTLY ONE of {Backlog, a stage column, the done folder, off-track}") is **genuinely enforced by construction**, not merely asserted:
 
 - **Backlog** claims `isBacklog(t)` tickets first.
-- **Stage columns** (`stageColumns`) place only `!isBacklog(t) && ticketStage(t) === s.stage` → cannot overlap Backlog; distinct stage match → cannot overlap each other; terminal stage stripped out by the `columns` computed.
-- **Done folder** = the terminal stage column's tickets (same `!isBacklog` guard) → disjoint from Backlog and from the non-terminal columns.
+- **Stage columns** (the rendered `columns` from `partitionBoard`) place only `!isBacklog(t) && ticketStage(t) === s.stage` → cannot overlap Backlog; distinct stage match → cannot overlap each other; the done stage (`doneStage()`, done-name-first else last) is stripped out of `columns`.
+- **Done folder** = the done stage's tickets (same `!isBacklog` guard) → disjoint from Backlog and from the rendered stage columns.
 - **Off-track** (`offTrackGroups`) `continue`s on both `isBacklog(t)` and `inTrack.has(stage)` → disjoint from Backlog and from every real stage column/done.
 
 Because the broadened `isBacklog` is applied as the single source-of-truth guard in **all three** partition functions, widening it cannot break disjointness — a newly-claimed token is simultaneously removed from columns and off-track.
 
-**Parity test is real and mixed.** `tasks-board.component.spec.ts` → "DISJOINTNESS (R1)" mounts `MIXED_STATE` covering every region: `B-1` (unstaged), `B-2` (`backlog`-staged), `M-1` (mid-stage `vision`), `M-2` (`architecture`, rejected hard gate, routing label), `D-1` (terminal/done), `O-1` (orphan `gone-stage` → off-track). It asserts each ticket appears in exactly one region **and** that every ticket renders exactly once across the whole board (no orphan, no duplicate). The `ready→Backlog` vs `superseded→off-track` parity is additionally proven at the unit level in `board.spec.ts` ("excludes a pre-start ticket … yet keeps a genuine orphan").
+**Parity test is real and mixed.** `tasks-board.component.spec.ts` → "DISJOINTNESS (R1)" mounts `MIXED_STATE` covering every region: `B-1` (unstaged), `B-2` (`backlog`-staged), `M-1` (mid-stage `vision`), `M-2` (`architecture`, rejected hard gate, routing label), `D-1` (done stage), `O-1` (orphan `gone-stage` → off-track). It asserts each ticket appears in exactly one region **and** that every ticket renders exactly once across the whole board (no orphan, no duplicate). The `ready→Backlog` vs `superseded→off-track` parity is additionally proven at the unit level in `board.spec.ts` ("excludes a pre-start ticket … yet keeps a genuine orphan").
 
 ## 3. Card declutter (compact gate summary) — VERIFIED
 
@@ -101,7 +101,7 @@ Scanned the changed source (`board.ts`, `tasks-board.component.ts`, `glyph.compo
 - E2E/Playwright intentionally not run (a live hub holds :4477); unit + build coverage is sufficient for this gate.
 
 ## Review assumptions / limits
-- Reviewed against the binding ADR and the redesign/usability vision docs; assumed the AC themselves (Backlog as pre-start holding pen, terminal-stage done folder) are sound — they are internally consistent and match the arch model.
+- Reviewed against the binding ADR and the redesign/usability vision docs; assumed the AC themselves (Backlog as pre-start holding pen, done-stage folder) are sound — they are internally consistent and match the arch model.
 - Could not verify live SSE re-layout against a running hub from unit tests alone; the "re-lays out columns live" spec exercises the input-driven path, which is the same code path the shell drives on push.
 
 ---

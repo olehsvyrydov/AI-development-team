@@ -14,7 +14,6 @@ import {
   PRE_START_STAGES,
   stageColumns,
   statusChip,
-  terminalStage,
   ticketNeedsYou,
 } from './board';
 
@@ -215,16 +214,6 @@ describe('stageColumns — Backlog claims its set first (disjoint by set-differe
 
     // Contrast: the SAME `ready` token, in a workflow that does NOT define it, falls to Backlog.
     expect(backlogTickets(WF, [ticket({ id: 'r', stage: 'ready' })]).map((t) => t.id)).toEqual(['r']);
-  });
-});
-
-describe('terminalStage — the done terminus is the last stage', () => {
-  it('returns the last stage name', () => {
-    expect(terminalStage(WF)).toBe('done');
-  });
-  it('returns null when there is no workflow view', () => {
-    expect(terminalStage(null)).toBeNull();
-    expect(terminalStage({ activeTrack: null, stages: [] })).toBeNull();
   });
 });
 
