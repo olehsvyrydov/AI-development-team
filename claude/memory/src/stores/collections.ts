@@ -15,9 +15,20 @@ export const COLLECTIONS = [
 export type CollectionName = (typeof COLLECTIONS)[number];
 
 /**
- * Payload fields we filter on — indexed in Qdrant, real columns in sqlite-vec.
+ * Payload fields a backend may filter on. The two backends differ in what they
+ * persist as a queryable dimension, so a filter on a field is only honored where
+ * that field is actually stored:
+ *
+ *   - sqlite-vec: only `project_id`, `scope`, `chunk_type`, `session_id` are vec0
+ *     columns (see stores/sqlite-vec.ts). `stack` is NOT a vec0 column — a `stack`
+ *     filter passed to this store is IGNORED at the store level.
+ *   - Qdrant: every field below gets a keyword payload index, so it can be filtered
+ *     there.
+ *
  * `stack` is the cross-type knowledge-scope dimension: a common/global row may carry
- * a stack tag, and recall narrows it against the project's declared stack via the
- * shared scope predicate (see lib/knowledge-match.ts), with an "any" wildcard.
+ * a stack tag. It appears below because Qdrant indexes it, NOT because every store
+ * filters it. Stack narrowing in recall is done POST-FETCH in the SessionStart hook
+ * (hooks/restore-context.ts `selectGlobalRules`, via the shared scope predicate in
+ * lib/knowledge-match.ts, with an "any" wildcard) — never relied on at the store level.
  */
 export const FILTERABLE = ["project_id", "scope", "chunk_type", "session_id", "stack"] as const;

@@ -64,6 +64,41 @@ test("global rules: top candidates are stack-mismatched, matching rules sit lowe
   assert.ok(hits.every((h) => h.id.startsWith("ts-")), "no stack-mismatched rule leaks through");
 });
 
+test("global rules: only APPROVED rows are recalled; pending/rejected global rows are excluded", async () => {
+  // A candidate pool mixing each status. Only `approved-common` rows may surface;
+  // `pending` and `rejected` (and any other non-approved status) are inert and
+  // must NOT be recalled even though they carry a recallable scope/stack.
+  const approved = (id: string): ScoredPoint => ({
+    id,
+    score: 0,
+    payload: { content: `rule ${id}`, chunk_type: "decision", status: "approved-common", stack: ["any"] },
+  });
+  const withStatus = (id: string, status: string): ScoredPoint => ({
+    id,
+    score: 0,
+    payload: { content: `rule ${id}`, chunk_type: "decision", status, stack: ["any"] },
+  });
+  const ranked: ScoredPoint[] = [
+    withStatus("pending-top", "pending"),
+    approved("approved-1"),
+    withStatus("rejected-mid", "rejected"),
+    approved("approved-2"),
+  ];
+  const store = new RankedStore(ranked);
+
+  const hits = await selectGlobalRules(store, "dev-rules", [], ["typescript"]);
+
+  assert.deepEqual(
+    hits.map((h) => h.id),
+    ["approved-1", "approved-2"],
+    "only approved-common rows are recalled, in rank order",
+  );
+  assert.ok(
+    !hits.some((h) => h.id === "pending-top" || h.id === "rejected-mid"),
+    "pending/rejected global rows are excluded from recall",
+  );
+});
+
 test("global rules: untagged rules count as 'any' and are recalled; candidate fetch stays bounded", async () => {
   const ranked = [rule("any-0", ["any"]), rule("untagged", [])];
   // untagged → treated as "any" by stripping the empty stack so the default applies.

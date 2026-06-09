@@ -45,6 +45,10 @@ const GLOBAL_RULE_CANDIDATE_MULTIPLE = 6;
  * `GLOBAL_RULE_LIMIT` survivors are returned in their original rank order. A row
  * with no stack tag is treated as "any" and recalled.
  *
+ * Only APPROVED rows surface: each candidate's own status is passed to the scope
+ * predicate, so a `pending`/`rejected` (or otherwise non-approved) global row is
+ * inert and never recalled, even when its scope/stack would otherwise match.
+ *
  * @param store the vector store to query
  * @param collection the dev-rules collection name
  * @param queryVector the embedded recall query
@@ -64,10 +68,10 @@ export async function selectGlobalRules(
     GLOBAL_RULE_LIMIT * GLOBAL_RULE_CANDIDATE_MULTIPLE,
   );
   const matching = candidates.filter((h) => {
-    const tags = (h.payload && Array.isArray((h.payload as Record<string, unknown>).stack)
-      ? ((h.payload as Record<string, unknown>).stack as string[])
-      : ["any"]);
-    return scopeMatches({ scope: "common", status: "approved-common", stack: tags }, { stack: declaredStack });
+    const payload = (h.payload ?? {}) as Record<string, unknown>;
+    const tags = Array.isArray(payload.stack) ? (payload.stack as string[]) : ["any"];
+    const status = typeof payload.status === "string" ? payload.status : undefined;
+    return scopeMatches({ scope: "common", status, stack: tags }, { stack: declaredStack });
   });
   return matching.slice(0, GLOBAL_RULE_LIMIT);
 }
