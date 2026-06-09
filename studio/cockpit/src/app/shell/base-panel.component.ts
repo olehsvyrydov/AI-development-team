@@ -289,10 +289,15 @@ export class BasePanelComponent {
 
   private readonly allDocs = computed<readonly KnowledgeDoc[]>(() => this.base()?.docs ?? []);
 
-  /** The stack tags actually present across the loaded docs, for the filter options. */
+  /**
+   * The specific stack tags present across the loaded docs, for the filter options. The literal
+   * `any` token is dropped: the select's default empty option already means "all stacks", so listing
+   * `any` would render a second, redundant "all" entry. Excluding it from the OPTIONS does not hide
+   * any-tagged docs — those still appear under the default (empty) filter.
+   */
   readonly stackOptions = computed(() => {
     const set = new Set<string>();
-    for (const doc of this.allDocs()) for (const s of doc.stack ?? []) if (s) set.add(s);
+    for (const doc of this.allDocs()) for (const s of doc.stack ?? []) if (s && s !== 'any') set.add(s);
     return [...set].sort();
   });
 

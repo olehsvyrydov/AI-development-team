@@ -200,6 +200,33 @@ describe('Knowledge panel', () => {
     expect(chips).toMatch(/style/);
   });
 
+  it('excludes the literal "any" tag from the stack filter options (the default empty option already means all)', () => {
+    const fixture = mount(MERGED);
+    const host = fixture.nativeElement as HTMLElement;
+    scopeButton(host, 'all').click();
+    fixture.detectChanges();
+    const options = fixture.componentInstance.stackOptions();
+    expect(options).not.toContain('any');
+    expect(options).toContain('java');
+    // The rendered dropdown carries exactly one "any" — the default empty option, never a duplicate.
+    const stackFilter = host.querySelector('[data-testid="knowledge-filter-stack"]') as HTMLSelectElement;
+    const anyOptions = Array.from(stackFilter.options).filter((o) => o.textContent?.trim() === 'any');
+    expect(anyOptions.length).toBe(1);
+    expect(anyOptions[0].value).toBe('');
+  });
+
+  it('still shows an any-tagged doc under the default (all stacks) filter', () => {
+    const fixture = mount(MERGED);
+    const host = fixture.nativeElement as HTMLElement;
+    scopeButton(host, 'all').click();
+    fixture.detectChanges();
+    // Default stack filter is the empty option; the any-tagged common doc must remain visible.
+    const stackFilter = host.querySelector('[data-testid="knowledge-filter-stack"]') as HTMLSelectElement;
+    expect(stackFilter.value).toBe('');
+    const names = docRows(host).map((r) => r.textContent ?? '').join(' ');
+    expect(names).toMatch(/commit-trailer/);
+  });
+
   it('filters the loaded set by a stack tag client-side', () => {
     const fixture = mount(MERGED);
     const host = fixture.nativeElement as HTMLElement;
