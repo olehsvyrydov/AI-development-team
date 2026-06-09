@@ -148,6 +148,47 @@ describe('Knowledge panel', () => {
     expect(pbadge.textContent).toMatch(/Project/i);
   });
 
+  it('keeps same-named project and common docs as two distinct rows across a scope change', () => {
+    const COLLIDING: KnowledgeView = {
+      method: 'filename-only',
+      stack: ['java'],
+      counts: { project: 1, common: 1 },
+      docs: [
+        { name: 'coding-style', file: 'project/coding-style.md', scope: 'project', stack: ['java'], kind: 'style', index: 'indexed' },
+        { name: 'coding-style', file: 'common/coding-style.md', scope: 'common', stack: ['java'], kind: 'rule', index: 'indexed' },
+      ],
+    };
+    const fixture = mount(COLLIDING);
+    const host = fixture.nativeElement as HTMLElement;
+
+    scopeButton(host, 'all').click();
+    fixture.detectChanges();
+    let rows = docRows(host);
+    expect(rows.length).toBe(2);
+    const projectRow = rows.find((r) => (r.textContent ?? '').includes('Project'))!;
+    const commonRow = rows.find((r) => (r.textContent ?? '').includes('Common'))!;
+    expect(projectRow).toBeTruthy();
+    expect(commonRow).toBeTruthy();
+    expect(projectRow).not.toBe(commonRow);
+
+    // Filtering to a single scope must surface that scope's row, not the other reused under its key.
+    scopeButton(host, 'common').click();
+    fixture.detectChanges();
+    rows = docRows(host);
+    expect(rows.length).toBe(1);
+    const badge = rows[0].querySelector('[data-testid="doc-scope-badge"]')!;
+    expect(badge.textContent).toMatch(/Common/i);
+    expect(badge.textContent).not.toMatch(/Project/i);
+
+    scopeButton(host, 'project').click();
+    fixture.detectChanges();
+    rows = docRows(host);
+    expect(rows.length).toBe(1);
+    const pbadge = rows[0].querySelector('[data-testid="doc-scope-badge"]')!;
+    expect(pbadge.textContent).toMatch(/Project/i);
+    expect(pbadge.textContent).not.toMatch(/Common/i);
+  });
+
   it('renders stack and kind chips on each doc', () => {
     const fixture = mount(MERGED);
     const host = fixture.nativeElement as HTMLElement;

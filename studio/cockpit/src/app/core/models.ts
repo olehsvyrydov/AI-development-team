@@ -121,14 +121,6 @@ export interface KnowledgeView {
   readonly docs?: readonly KnowledgeDoc[];
 }
 
-/**
- * The shape carried into the Knowledge panel. The hub serialises the merged projection under
- * `state.knowledge`; older state still carries the pre-scope `base` shape (counts by index state),
- * so {@link KnowledgeView} is the panel's contract and the shell adapts whichever the state holds.
- */
-export type BaseDoc = KnowledgeDoc;
-export type BaseView = KnowledgeView;
-
 /** A gate as it appears on a ticket: its definition plus current ledger state. */
 export interface TicketGate {
   readonly name: string;
@@ -443,8 +435,6 @@ export interface ProjectState {
   readonly workflowView?: WorkflowView | null;
   /** The merged Knowledge projection (project + matching common). The panel's source of truth. */
   readonly knowledge?: KnowledgeView | null;
-  /** Pre-scope projection retained for back-compat; superseded by {@link knowledge}. */
-  readonly base?: BaseView | null;
   readonly gateDefs?: readonly GateDef[];
   /** Track name → ordered stage list. Drives "advance to next stage". */
   readonly tracks?: Readonly<Record<string, readonly string[]>>;

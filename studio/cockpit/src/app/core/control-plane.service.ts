@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PLATFORM_BRIDGE } from './platform-bridge';
-import type { BaseDoc, KnowledgeScope, ProjectState } from './models';
+import type { KnowledgeDoc, KnowledgeScope, ProjectState } from './models';
 
 /**
  * The outcome of a control-plane mutation. The hub answers every guarded mutation with one of
@@ -19,12 +19,12 @@ export type MutationResult =
 
 /**
  * The outcome of adding a knowledge-base note. On success the hub returns the fresh `state` (whose
- * base projection already carries the new doc + incremented count) AND the `doc` it actually wrote
- * — the server derives the filename from the title, so on a duplicate it reports the unique name it
- * chose (e.g. `code-rules-2`) and the UI names what was really created rather than what was asked.
+ * knowledge projection already carries the new doc + incremented count) AND the `doc` it actually
+ * wrote — the server derives the filename from the title, so on a duplicate it reports the unique
+ * name it chose (e.g. `code-rules-2`) and the UI names what was really created rather than asked.
  */
 export type KbAddResult =
-  | { readonly ok: true; readonly state: ProjectState | null; readonly doc: BaseDoc | null }
+  | { readonly ok: true; readonly state: ProjectState | null; readonly doc: KnowledgeDoc | null }
   | { readonly ok: false; readonly error: string };
 
 /**
@@ -165,7 +165,7 @@ interface MutationEnvelope {
   readonly conflict?: boolean;
   readonly error?: string;
   readonly state?: ProjectState | null;
-  readonly doc?: BaseDoc | null;
+  readonly doc?: KnowledgeDoc | null;
 }
 
 /**
@@ -249,10 +249,13 @@ export class ControlPlaneService {
   }
 
   /**
-   * Add a knowledge-base note. Sends ONLY `{ title, body }` — the server derives a contained
-   * filename. On success returns the fresh `state` to adopt (count/list refresh) plus the `doc` the
-   * server actually wrote; any failure (size/slug 400, guard 403, network) is a terse error result.
-   * This is an additive create, not a CAS mutation, so there is no `expectedRev` and no conflict.
+   * Add a knowledge-base note. Always sends `{ title, body }` and conditionally includes the
+   * classifying metadata the operator set — `scope` (which vault), `stack` tags, and `kind` — each
+   * omitted from the body when not provided. It never sends a path, filename, or extension: the
+   * server slugs the title into a contained filename and `scope` selects a server-known vault root.
+   * On success returns the fresh `state` to adopt (count/list refresh) plus the `doc` the server
+   * actually wrote; any failure (size/slug 400, guard 403, network) is a terse error result. This is
+   * an additive create, not a CAS mutation, so there is no `expectedRev` and no conflict.
    */
   async addKbNote(input: KbAddInput): Promise<KbAddResult> {
     const note: Record<string, unknown> = { title: input.title, body: input.body };

@@ -116,7 +116,7 @@ type ScopeFilter = KnowledgeScope | 'all';
 
       @if (visibleDocs().length) {
         <ul class="docs" aria-label="Knowledge documents">
-          @for (doc of visibleDocs(); track doc.name) {
+          @for (doc of visibleDocs(); track docKey(doc)) {
             <li class="doc" data-testid="knowledge-doc">
               <span class="doc__name">{{ doc.name }}</span>
               <span class="doc__chips">
@@ -315,6 +315,16 @@ export class BasePanelComponent {
       return true;
     });
   });
+
+  /**
+   * A row identity unique across scopes. A slug (`name`) can repeat between the project and common
+   * vaults, so tracking by name alone lets the renderer reuse one doc's DOM node for a same-named
+   * doc of the other scope when the scope filter changes. Keying on `scope` + the per-vault file (or
+   * name) keeps the two rows distinct.
+   */
+  docKey(doc: KnowledgeDoc): string {
+    return `${doc.scope}:${doc.file ?? doc.name}`;
+  }
 
   /** A doc's stack tags, with the noise-only `any` dropped when more specific tags exist. */
   docStack(doc: KnowledgeDoc): readonly string[] {

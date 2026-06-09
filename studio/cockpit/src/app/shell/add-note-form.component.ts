@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { ControlPlaneService } from '../core/control-plane.service';
-import type { BaseView, KnowledgeScope, ProjectState } from '../core/models';
+import type { KnowledgeScope, KnowledgeView, ProjectState } from '../core/models';
 import { GlyphComponent } from './glyph.component';
 
 /** Maximum bytes the markdown body may carry, mirroring the hub's server-side cap. */
@@ -207,7 +207,7 @@ export class AddNoteFormComponent {
   private readonly cp = inject(ControlPlaneService);
 
   /** The current Knowledge view, read to keep the indexing preview honest and stock the stack tags. */
-  readonly base = input.required<BaseView | null>();
+  readonly base = input.required<KnowledgeView | null>();
   /** Fresh project state to adopt on a successful add (carries the new doc + incremented count). */
   readonly applied = output<ProjectState>();
   /** The operator dismissed the form without adding. */
