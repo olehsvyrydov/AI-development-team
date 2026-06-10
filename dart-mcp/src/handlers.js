@@ -30,9 +30,11 @@ function str(v) {
   return t.length ? t : undefined;
 }
 
-// Each write handler forwards expectedRev verbatim so the existing CAS writer governs
-// the write: a stale revision is a conflict that changes nothing. No handler invents,
-// defaults, or drops expectedRev.
+// The mutating handlers (advance, set-gate, set-label, assign, require-gate) forward
+// expectedRev verbatim so the existing CAS writer governs the write: a stale revision
+// is a conflict that changes nothing — none invents, defaults, or alters it. The
+// append-only handlers (comment, consume-directive) take no expectedRev: they only
+// append to the log, so there is no read-modify-write window and no lost-update to guard.
 const writeHandlers = {
   // ticket/advance — owner's explicit stage move (same authority as the hub HTTP layer).
   // The engine remains the single validator for any AUTOMATION route past a safety gate;

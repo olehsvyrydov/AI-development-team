@@ -107,6 +107,77 @@ test('a directive record with no usable id is NOT surfaced as pending', () => {
   }
 });
 
+// --- routing: the digest surfaces what each permitted label ROUTES TO --------
+
+// A workflow whose routing consequence comes from BOTH contract shapes: a label
+// carrying its own `routes_to` (direct), and a label whose route is expressed by a
+// rule (`when.label` + a `route_to_stage` action). A third label has no routing.
+const ROUTING_WORKFLOW = `version: 1
+preset: small-team
+tracks:
+  full: [vision, architecture, security, implement, code_review, qa, done]
+gates:
+  CODE_REVIEWED: { owner: "/rev", refusal: hard, trigger: [track:full] }
+labels:
+  NEEDS_REVISION: { settable_by: ["/rev"], routes_to: implement }
+  SEND_TO_QA:     { settable_by: ["/rev"] }
+  NEEDS_HUMAN:    { settable_by: ["*"] }
+rules:
+  - { id: to-qa, when: { event: label.set, label: SEND_TO_QA }, do: [ { route_to_stage: qa } ] }
+presets:
+  small-team:
+    always_required: [CODE_REVIEWED]
+`;
+
+function routingFixture(ledger) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aidt-routing-'));
+  fs.mkdirSync(path.join(dir, '.aidevteam'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.aidevteam', 'workflow.yaml'), ROUTING_WORKFLOW);
+  fs.writeFileSync(path.join(dir, '.workflow-state.json'), JSON.stringify(ledger));
+  return dir;
+}
+
+test('a permitted label with a direct routes_to renders its routing consequence', () => {
+  const dir = routingFixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review', assignee: '/rev' } });
+  try {
+    const st = buildState(dir);
+    const out = renderText(st);
+    // parity, not a hardcoded string: the rendered target equals the contract's routes_to
+    assert.equal(st.labels.NEEDS_REVISION.routes_to, 'implement');
+    assert.ok(/NEEDS_REVISION → routes to implement/.test(out), 'direct routes_to surfaced');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a permitted label routed by a RULE renders the rule’s route_to_stage target', () => {
+  const dir = routingFixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review', assignee: '/rev' } });
+  try {
+    const st = buildState(dir);
+    const out = renderText(st);
+    // parity with the engine's rule contract: the rule routing SEND_TO_QA names `qa`
+    const rule = st.rules.find((r) => r.when && r.when.label === 'SEND_TO_QA');
+    const routed = rule.do.find((a) => 'route_to_stage' in a).route_to_stage;
+    assert.equal(routed, 'qa');
+    assert.ok(new RegExp(`SEND_TO_QA → routes to ${routed}`).test(out), 'rule-driven route surfaced');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a permitted label with no routing consequence renders plainly (name only)', () => {
+  const dir = routingFixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review', assignee: '/rev' } });
+  try {
+    const st = buildState(dir);
+    const out = renderText(st);
+    // NEEDS_HUMAN has neither a routes_to nor a routing rule → bare name, no arrow
+    assert.ok(/\bNEEDS_HUMAN\b/.test(out), 'plain label still listed');
+    assert.ok(!/NEEDS_HUMAN → routes to/.test(out), 'no routing consequence is fabricated');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // --- N2: permitted-label parity --------------------------------------------
 
 test('N2: per-ticket permittedLabels equals engine.labelSettableBy for the acting agent (assignee, else stage owner)', () => {
