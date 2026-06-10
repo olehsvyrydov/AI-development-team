@@ -274,6 +274,34 @@ describe('ProposeInboxComponent', () => {
     expect(host.querySelector('[data-testid="proposal-scope-p2-common"]')?.getAttribute('tabindex')).toBe('-1');
   });
 
+  it('clamps an out-of-enum suggested scope to This project (safe default) for the selection and label', () => {
+    // A corrupted/tampered on-disk record could carry a scope outside the enum.
+    const tampered = { id: 'p9', content: 'x', suggestedScope: 'everywhere' } as unknown as KnowledgeProposal;
+    const { host } = mount([tampered]);
+    // The narrowest scope is selected, tabbable, and aria-checked — the control stays usable.
+    const project = host.querySelector('[data-testid="proposal-scope-p9-project"]');
+    const common = host.querySelector('[data-testid="proposal-scope-p9-common"]');
+    expect(project?.getAttribute('aria-checked')).toBe('true');
+    expect(project?.getAttribute('tabindex')).toBe('0');
+    expect(common?.getAttribute('aria-checked')).toBe('false');
+    expect(common?.getAttribute('tabindex')).toBe('-1');
+    // The Approve label reads a real scope, never "Approve as undefined".
+    const approve = host.querySelector('[data-testid="proposal-approve-p9"]') as HTMLButtonElement;
+    const label = `${approve.getAttribute('aria-label') ?? ''} ${approve.textContent ?? ''}`;
+    expect(label).toMatch(/approve as this project/i);
+    expect(label).not.toMatch(/undefined/i);
+  });
+
+  it('approving a proposal whose suggested scope is out-of-enum posts a valid enum scope', () => {
+    const tampered = { id: 'p9', content: 'x', suggestedScope: 'everywhere' } as unknown as KnowledgeProposal;
+    const { host, http } = mount([tampered]);
+    (host.querySelector('[data-testid="proposal-approve-p9"]') as HTMLButtonElement).click();
+    const req = http.expectOne('/api/kb/approve');
+    expect(req.request.body.id).toBe('p9');
+    expect(req.request.body.scope).toBe('project');
+    req.flush({ ok: true, state: null });
+  });
+
   it('disables the card actions while a decision is in flight and surfaces a terse error on failure', async () => {
     const { fixture, host, http } = mount([TRAILER]);
     (host.querySelector('[data-testid="proposal-approve-p1"]') as HTMLButtonElement).click();

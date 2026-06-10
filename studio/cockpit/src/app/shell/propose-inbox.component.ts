@@ -12,6 +12,17 @@ const SCOPE_LABEL: Readonly<Record<KnowledgeScope, string>> = {
 /** The scope radios in segment order — the roving arrow keys walk this sequence within a card's group. */
 const SCOPE_ORDER: readonly KnowledgeScope[] = ['project', 'common'];
 
+/**
+ * Clamp any scope value to a known enum at the component boundary. A proposal's `suggestedScope`
+ * is UNTRUSTED — a corrupted/tampered on-disk record or a future server change could carry a value
+ * outside the enum. Only an exact `common` (or its `global` alias) widens reach; everything else,
+ * including `undefined`, falls back to the narrowest, safest `project`. This keeps the Approve label
+ * a real scope (never "undefined") and keeps exactly one radio selected, tabbable, and aria-checked.
+ */
+function validScope(scope: unknown): KnowledgeScope {
+  return scope === 'common' || scope === 'global' ? 'common' : 'project';
+}
+
 type Phase = 'idle' | 'busy' | 'error';
 
 /**
@@ -57,7 +68,7 @@ type Phase = 'idle' | 'busy' | 'error';
 
               <p class="card__meta">
                 /kai suggests:
-                <span class="card__chip"><dart-glyph name="scope-{{ p.suggestedScope ?? 'project' }}" [size]="12" /> {{ scopeLabel(p.suggestedScope) }}</span>
+                <span class="card__chip"><dart-glyph name="scope-{{ suggestedScope(p) }}" [size]="12" /> {{ scopeLabel(p.suggestedScope) }}</span>
                 @for (s of stackTags(p); track s) {
                   <span class="card__chip"><dart-glyph name="tag" [size]="12" /> {{ s }}</span>
                 }
@@ -191,7 +202,12 @@ export class ProposeInboxComponent {
   readonly announcement = this.announcement_.asReadonly();
 
   scopeLabel(scope: KnowledgeScope | undefined): string {
-    return SCOPE_LABEL[scope ?? 'project'];
+    return SCOPE_LABEL[validScope(scope)];
+  }
+
+  /** The `/kai`-suggested scope clamped to a valid enum, so the chip glyph is always a known one. */
+  suggestedScope(p: KnowledgeProposal): KnowledgeScope {
+    return validScope(p.suggestedScope);
   }
 
   /** Stack tags for display, dropping empty entries; the noise-only `any` is kept (it is the hint). */
@@ -199,9 +215,9 @@ export class ProposeInboxComponent {
     return (p.suggestedStack ?? []).filter((s) => !!s);
   }
 
-  /** The scope that will be sent on approve: the operator's choice, else the suggested scope, else project. */
+  /** The scope that will be sent on approve: the operator's choice, else the suggested scope clamped to a valid enum. */
   chosen(p: KnowledgeProposal): KnowledgeScope {
-    return this.choiceById()[p.id] ?? p.suggestedScope ?? 'project';
+    return this.choiceById()[p.id] ?? validScope(p.suggestedScope);
   }
 
   phaseFor(id: string): Phase {
