@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dart",
+  "displayName": "DART — AI Development Team",
+  "version": "5.0.0",
+  "description": "A team of specialist AI agents plus an enforced, proportional development workflow. Adds the agent team and workflow-engine as dart:-namespaced commands and skills, a session-context digest hook, and a write-back control-plane MCP server. Opt-in per project; the user's own commands always win.",
+  "author": {
+    "name": "AI Dev Team"
+  },
+  "license": "MIT",
+  "keywords": ["workflow", "agents", "tdd", "code-review", "architecture"],
+  "defaultEnabled": false,
+  "skills": "./claude/skills",
+  "commands": "./claude/commands",
+  "hooks": "./.claude-plugin/hooks/hooks.json",
+  "mcpServers": "./.claude-plugin/.mcp.json"
+}

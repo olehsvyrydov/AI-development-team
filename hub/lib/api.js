@@ -148,6 +148,23 @@ async function handle(route, data, project) {
       const comment = w.appendComment(project, id, { author, body, kind });
       return ok(st(), { comment });
     }
+    case 'directive/consume': {
+      // Mark a recorded directive consumed: an explicit, audited, append-only marker
+      // referencing the directive's id, written through the SAME comment writer — no
+      // new store, no ledger flag. "Pending" is derived (a directive with no matching
+      // marker), so this is idempotent: a second consume just appends another harmless
+      // marker and the directive stays non-pending. Surfacing never clears a directive.
+      const { id, directiveId, by, note } = data;
+      if (!findTicket(id)) return bad('unknown ticket');
+      if (typeof directiveId !== 'string' || !directiveId) return bad('directiveId required');
+      const comment = w.appendComment(project, id, {
+        author: by || 'hub',
+        kind: 'directive-consumed',
+        body: note || 'directive consumed',
+        ref: directiveId,
+      });
+      return ok(st(), { comment });
+    }
     case 'track/reorder': {
       const { track, stages, expectedRev } = data;
       const base = st().tracks[track];
@@ -404,4 +421,18 @@ async function applyWithRouteTrace(rule, ticket, event, wf, io) {
   return { result: routeRefused ? 'refused' : 'applied', applied };
 }
 
-module.exports = { handle, isPermutation, validateStageList, PRESETS, GATE_STATES, runEngineTick, engineIO };
+/**
+ * Mark a directive consumed through the guarded control plane. The MCP write-back
+ * server (the stdio tool surface) calls this so consumption rides the SAME
+ * append-only writer as every other typed comment — no second writer, no bypass.
+ *
+ * @param project the bound project root
+ * @param directive `{ id, directiveId, by?, note? }` — the ticket id, the directive's
+ *        JSONL id to reference, the acting agent, and an optional marker note
+ * @returns the route's `{ code, payload }` ({ ok, comment, state } on success)
+ */
+function markDirectiveConsumed(project, { id, directiveId, by, note } = {}) {
+  return handle('directive/consume', { id, directiveId, by, note }, project);
+}
+
+module.exports = { handle, markDirectiveConsumed, isPermutation, validateStageList, PRESETS, GATE_STATES, runEngineTick, engineIO };

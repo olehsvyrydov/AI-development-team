@@ -1,0 +1,21 @@
+{
+  "name": "@ai-dev-team/dart-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DART write-back MCP server — a stdio transport adapter that exposes the existing hub control plane (api.handle) as typed tools, bound to one project at spawn. No second writer, no second validator, no code execution.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "main": "src/server.js",
+  "bin": {
+    "dart-mcp": "src/server.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0"
+  }
+}
