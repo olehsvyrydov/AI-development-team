@@ -74,6 +74,23 @@ test("digest surfaces a pending directive as quoted data and drops a consumed on
   }
 });
 
+test("digest does NOT surface a directive record that has no usable id", () => {
+  const dir = tmpProject({ "T-1": { title: "A", stage: "code_review", assignee: "/rev" } });
+  try {
+    writeComments(dir, "T-1", [
+      { id: "d1", kind: "directive", body: "real one", target: ["/be"], ts: "2026-01-01T00:00:00Z" },
+      { kind: "directive", body: "id-less ghost", target: ["/be"], ts: "2026-01-01T00:01:00Z" },
+      { id: "", kind: "directive", body: "empty-id ghost", target: ["/be"], ts: "2026-01-01T00:02:00Z" },
+    ]);
+    const text = renderDigest(dir);
+    assert.match(text, /real one/, "the directive with a usable id is surfaced");
+    assert.ok(!text.includes("id-less ghost"), "an id-less directive is not surfaced (it can never be consumed)");
+    assert.ok(!text.includes("empty-id ghost"), "an empty-id directive is not surfaced");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("digest fence-escapes a directive body so it cannot break out of the quote", () => {
   const dir = tmpProject({ "T-1": { title: "A", stage: "code_review", assignee: "/rev" } });
   try {

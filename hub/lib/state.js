@@ -530,17 +530,22 @@ function pendingDirectives(comments) {
   }
   const out = [];
   for (const c of comments || []) {
-    if (!c || c.kind !== 'directive' || consumed.has(String(c.id))) continue;
+    if (!c || c.kind !== 'directive') continue;
+    // A directive needs a usable string id to be consumable; an id-less record
+    // (malformed/partial log line) can never be referenced, so it is not pending.
+    if (typeof c.id !== 'string' || c.id === '') continue;
+    if (consumed.has(c.id)) continue;
     const target = Array.isArray(c.target) ? c.target.map(String) : (c.target != null ? [String(c.target)] : []);
     out.push({ id: c.id, target, prompt: String(c.body == null ? '' : c.body), at: c.at || c.ts || null });
   }
   return out;
 }
 
-// The labels the current stage's owner agent may set, projected from the SAME
-// `labels:` contract the engine enforces at write time — `engine.labelSettableBy`
-// is the single source of truth, so the surfaced set cannot drift from what
-// `label/set` actually permits for that agent/stage.
+// The labels the agent who will ACT on the ticket may set — the assignee when one
+// is set, else the stage owner. Projected from the SAME `labels:` contract the
+// engine enforces at write time: `engine.labelSettableBy` is the single source of
+// truth, so the surfaced set cannot drift from what `label/set` actually permits
+// for that acting agent.
 function permittedLabelsFor(agent, labels) {
   if (!agent) return [];
   const wf = { labels: labels || {} };

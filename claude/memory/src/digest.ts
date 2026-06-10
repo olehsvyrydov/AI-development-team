@@ -127,9 +127,13 @@ function pendingDirectives(comments: CommentRecord[]): PendingDirective[] {
   }
   const out: PendingDirective[] = [];
   for (const c of comments) {
-    if (c.kind !== "directive" || (c.id && consumed.has(String(c.id)))) continue;
+    if (c.kind !== "directive") continue;
+    // A directive needs a usable string id to be consumable; an id-less record
+    // (malformed/partial log line) can never be referenced, so it is not pending.
+    if (typeof c.id !== "string" || c.id === "") continue;
+    if (consumed.has(c.id)) continue;
     const target = Array.isArray(c.target) ? c.target.map(String) : c.target != null ? [String(c.target)] : [];
-    out.push({ id: String(c.id ?? ""), target, prompt: String(c.body ?? "") });
+    out.push({ id: c.id, target, prompt: String(c.body ?? "") });
   }
   return out;
 }

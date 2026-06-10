@@ -85,12 +85,34 @@ test('a consumed directive is no longer pending (pending is derived)', () => {
   }
 });
 
+test('a directive record with no usable id is NOT surfaced as pending', () => {
+  const dir = fixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review' } });
+  try {
+    // a valid directive plus three id-less variants (missing / empty / non-string):
+    // only a directive with a usable id can be consumed, so the id-less ones are noise.
+    const good = appendComment(dir, 'T-1', { author: '/rev', kind: 'directive', body: 'real one', target: ['/be'] });
+    const file = path.join(dir, '.aidevteam', 'comments', 'T-1.jsonl');
+    const malformed = [
+      JSON.stringify({ kind: 'directive', body: 'no id', target: ['/be'] }),
+      JSON.stringify({ id: '', kind: 'directive', body: 'empty id', target: ['/be'] }),
+      JSON.stringify({ id: 42, kind: 'directive', body: 'numeric id', target: ['/be'] }),
+    ].join('\n') + '\n';
+    fs.appendFileSync(file, malformed);
+    const st = buildState(dir);
+    const t1 = st.tickets.find((t) => t.id === 'T-1');
+    assert.equal(t1.pendingDirectives.length, 1, 'only the directive with a usable id is pending');
+    assert.equal(t1.pendingDirectives[0].id, good.id);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // --- N2: permitted-label parity --------------------------------------------
 
-test('N2: per-ticket permittedLabels equals engine.labelSettableBy for the stage owner', () => {
-  // code_review stage → owner /rev. /rev may set NEEDS_REVISION and NEEDS_HUMAN(*),
-  // but NOT SECOPS_ONLY.
-  const dir = fixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review', assignee: '/rev' } });
+test('N2: per-ticket permittedLabels equals engine.labelSettableBy for the acting agent (assignee, else stage owner)', () => {
+  // code_review stage → owner /rev. With no assignee the acting agent is the owner
+  // /rev, who may set NEEDS_REVISION and NEEDS_HUMAN(*), but NOT SECOPS_ONLY.
+  const dir = fixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review' } });
   try {
     const st = buildState(dir);
     const t1 = st.tickets.find((t) => t.id === 'T-1');
@@ -101,6 +123,25 @@ test('N2: per-ticket permittedLabels equals engine.labelSettableBy for the stage
     assert.ok(t1.permittedLabels.includes('NEEDS_REVISION'));
     assert.ok(t1.permittedLabels.includes('NEEDS_HUMAN'));
     assert.ok(!t1.permittedLabels.includes('SECOPS_ONLY'), 'a label not settable by this agent is not surfaced');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('N2: permittedLabels follows the ASSIGNEE, not the stage owner, when they differ', () => {
+  // code_review stage → owner /rev, but the ticket is assigned to /secops. The agent
+  // who will ACT is the assignee, so the surfaced set is /secops's settable labels:
+  // SECOPS_ONLY + NEEDS_HUMAN(*), and NOT /rev's NEEDS_REVISION.
+  const dir = fixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review', assignee: '/secops' } });
+  try {
+    const st = buildState(dir);
+    const t1 = st.tickets.find((t) => t.id === 'T-1');
+    const wf = { labels: st.labels };
+    const expected = Object.keys(st.labels).filter((name) => engine.labelSettableBy(name, '/secops', wf));
+    assert.deepEqual([...t1.permittedLabels].sort(), [...expected].sort());
+    assert.ok(t1.permittedLabels.includes('SECOPS_ONLY'));
+    assert.ok(t1.permittedLabels.includes('NEEDS_HUMAN'));
+    assert.ok(!t1.permittedLabels.includes('NEEDS_REVISION'), 'the stage owner’s label is not surfaced for a different assignee');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

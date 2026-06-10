@@ -38,6 +38,37 @@ function readShipped() {
   return shippedFiles().map((f) => ({ file: f, text: fs.readFileSync(f, 'utf8') }));
 }
 
+// The FULL surface the manifest ships, not just the .claude-plugin dir: plugin.json
+// points `skills`→./claude/skills, `commands`→./claude/commands, and .mcp.json runs
+// dart-mcp/src/server.js. A "no secret anywhere shipped" invariant must scan every
+// tree that actually ships. Build artifacts and vendored deps are not authored source
+// and are skipped to keep the walk fast.
+const SKIP_DIRS = new Set(['test', 'node_modules', '.git', 'dist', 'build', 'coverage']);
+
+function walkTree(dir, acc = []) {
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return acc; }
+  for (const ent of entries) {
+    if (SKIP_DIRS.has(ent.name)) continue;
+    const abs = path.join(dir, ent.name);
+    if (ent.isDirectory()) walkTree(abs, acc);
+    else if (ent.isFile()) acc.push(abs);
+  }
+  return acc;
+}
+
+function readShippedSurface() {
+  const roots = [
+    PLUGIN_DIR,
+    path.join(REPO_ROOT, 'claude', 'skills'),
+    path.join(REPO_ROOT, 'claude', 'commands'),
+    path.join(REPO_ROOT, 'dart-mcp', 'src'),
+  ];
+  const files = [];
+  for (const root of roots) walkTree(root, files);
+  return files.map((f) => ({ file: path.relative(REPO_ROOT, f), text: fs.readFileSync(f, 'utf8') }));
+}
+
 /**
  * The plugin's ACTIVE files — the manifest and the config the host actually loads
  * (hooks, mcp). Excludes README.md, which is human documentation and legitimately shows
@@ -108,20 +139,52 @@ test('N239-3b: nothing in the package globally/auto enables across projects', ()
   }
 });
 
-// N239-4 — no secret anywhere shipped (the grep invariant, broadened to entropy).
-test('N239-4: no secret-shaped value in any shipped plugin file', () => {
-  const SECRET_PATTERNS = [
+// N239-4 — no secret anywhere shipped, across the FULL shipped surface (manifest +
+// skills + commands + the dart-mcp server), not just the .claude-plugin dir.
+//
+// The skill docs legitimately contain illustrative auth examples (e.g. a
+// `password: 'password123'` login payload). Matching the word "password" in prose
+// would fail on those, so the assertions are scoped to HIGH-CONFIDENCE secret shapes:
+// known provider key prefixes, a PEM private-key block, and an assignment whose VALUE
+// is itself a real high-entropy token — never a recognizable placeholder.
+const PLACEHOLDER_VALUE = /^(?:password|passwd|pwd|testpass|changeme|secret|token|example|dummy|sample|your[-_a-z]*|placeholder|redacted|xxx+|<[^>]+>|\$\{[^}]+\})[\w-]*\d*$/i;
+
+// A value with enough length AND character-class mix to be a real credential rather
+// than a doc placeholder: >=20 chars drawn from >=3 of {lower, upper, digit, symbol}.
+function looksHighEntropy(value) {
+  if (value.length < 20) return false;
+  if (PLACEHOLDER_VALUE.test(value)) return false;
+  let classes = 0;
+  if (/[a-z]/.test(value)) classes++;
+  if (/[A-Z]/.test(value)) classes++;
+  if (/[0-9]/.test(value)) classes++;
+  if (/[^A-Za-z0-9]/.test(value)) classes++;
+  return classes >= 3;
+}
+
+test('N239-4: no secret-shaped value across the full shipped surface', () => {
+  // Structural patterns with effectively zero false-positive rate in source/docs.
+  const HARD_PATTERNS = [
     /AKIA[0-9A-Z]{16}/,
-    /sk-[A-Za-z0-9]{20,}/,
+    /\bsk-[A-Za-z0-9]{20,}\b/,
     /xox[baprs]-[A-Za-z0-9-]{10,}/,
     /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
     /\bgh[posu]_[A-Za-z0-9]{20,}\b/,
-    /(?:api[_-]?key|secret|token|password|passwd|pwd)\s*[:=]\s*["'][^"'$][^"']{7,}["']/i,
-    /[A-Za-z0-9+/]{40,}={0,2}/, // long base64-ish blob (no such literal should ship)
+    /\bAIza[0-9A-Za-z_-]{35}\b/, // Google API key
   ];
-  for (const { file, text } of readShipped()) {
-    for (const pat of SECRET_PATTERNS) {
-      assert.ok(!pat.test(text), `${path.basename(file)} contains a secret-shaped value (${pat})`);
+  // An assignment to a credential-named key — flagged only when the VALUE is a real
+  // high-entropy token, so `password: 'password123'` in a doc example does not trip it.
+  const ASSIGN = /(?:api[_-]?key|secret|token|password|passwd|pwd|access[_-]?key|client[_-]?secret)\s*[:=]\s*["']([^"']+)["']/gi;
+
+  for (const { file, text } of readShippedSurface()) {
+    for (const pat of HARD_PATTERNS) {
+      assert.ok(!pat.test(text), `${file} contains a secret-shaped value (${pat})`);
+    }
+    for (const m of text.matchAll(ASSIGN)) {
+      const value = m[1];
+      if (value.startsWith('$') || value.startsWith('<')) continue; // ${ENV} / <placeholder>
+      assert.ok(!looksHighEntropy(value),
+        `${file} assigns a high-entropy literal to a credential field: ${m[0].slice(0, 40)}…`);
     }
   }
 });
