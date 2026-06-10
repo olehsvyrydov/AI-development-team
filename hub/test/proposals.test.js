@@ -640,6 +640,77 @@ test('a record-write failure during reject returns a failure (not ok:true) and t
   }
 });
 
+// ---- propose requires an EFFECTIVE (post-clamp) sluggable title -------------
+// The RAW title passes the length check, but clampText can strip it to empty (a
+// control-char-only title) or leave a title that slugifies to empty (no a-z0-9).
+// addKbNote later derives the filename from slugify(title); an empty slug is
+// unusable, so propose must reject such a title up front and store nothing.
+
+test('propose rejects a title that is empty or slugifies to empty after clamping, storing nothing', async () => {
+  const dir = tmpProject();
+  try {
+    await withTmpHome(async (home) => {
+      const pdir = proposalsDirOf(home);
+
+      // A control-char-only title: non-empty RAW, but clampText strips it to empty.
+      const controlOnly = await proposals.propose({ title: '\x01\x02\x07', content: 'body' });
+      assert.equal(controlOnly.ok, false, 'a control-char-only title is rejected');
+      assert.equal(controlOnly.code, 400);
+
+      // A punctuation-only title: survives clamping but slugifies to empty.
+      const noSlug = await proposals.propose({ title: '***', content: 'body' });
+      assert.equal(noSlug.ok, false, 'a title that slugifies to empty is rejected');
+      assert.equal(noSlug.code, 400);
+
+      // Nothing was written into the proposal store by either refused propose.
+      const stored = fs.existsSync(pdir) ? listFiles(pdir).filter((f) => f.endsWith('.json')) : [];
+      assert.deepEqual(stored, [], 'no proposal record written for an unsluggable title');
+      assert.deepEqual(proposals.listPending(), [], 'inbox stays empty');
+    });
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ---- approve refuses an unsluggable record WITHOUT flipping it (no content loss) --
+// A corrupted/tampered PENDING record can carry a title that slugifies to empty.
+// If approve flipped the decided-state BEFORE discovering the addKbNote slug step
+// would fail, the proposal would become decided-but-unwritten (content lost,
+// non-re-approvable). approve must validate the title is sluggable BEFORE the flip
+// and refuse cleanly, leaving the proposal pending/listable and the vault untouched.
+
+test('approve refuses a corrupted PENDING record with an unsluggable title cleanly: not flipped, not lost, no vault doc', async () => {
+  const dir = tmpProject();
+  try {
+    await withTmpHome(async (home) => {
+      const pdir = proposalsDirOf(home);
+      fs.mkdirSync(pdir, { recursive: true });
+      const commonDir = commonDirOf(home);
+      fs.mkdirSync(commonDir, { recursive: true });
+
+      // A required-field-valid record whose title slugifies to empty (punctuation only).
+      fs.writeFileSync(path.join(pdir, 'noslug.json'), JSON.stringify({
+        id: 'noslug', status: 'pending', title: '***', content: 'real body',
+      }));
+
+      // It is loadable/listable (required fields present, title is an optional field).
+      assert.ok(proposals.listPending().some((p) => p.id === 'noslug'), 'the record is pending/listable');
+
+      const commonBefore = snapshot(commonDir);
+      const r = await proposals.approve(dir, { id: 'noslug', scope: 'common', by: 'user' });
+      assert.equal(r.ok, false, 'approve of an unsluggable record is refused');
+      assert.ok(r.code === 400 || r.code === 422, 'refused with a client-error code');
+
+      // The vault is untouched: nothing written.
+      assertUnchanged(commonDir, commonBefore, 'no vault doc written for an unsluggable record');
+      assert.deepEqual(mdFiles(commonDir), [], 'no vault doc written');
+
+      // The proposal is NOT flipped-and-lost: it stays pending and re-listable.
+      const stillPending = proposals.listPending().find((p) => p.id === 'noslug');
+      assert.ok(stillPending, 'the proposal is still pending after the refused approve');
+      assert.equal(stillPending.status, 'pending', 'the decided state was NOT flipped');
+    });
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 // ---- no path leak in approve/propose errors --------------------------------
 
 test('a refused approve/propose leaks no absolute path or stack trace', async () => {

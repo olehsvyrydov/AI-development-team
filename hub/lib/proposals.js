@@ -201,6 +201,12 @@ function clampText(raw, max) {
 function propose(input = {}) {
   const { title, content, suggestedScope, suggestedStack, suggestedKind, source, why } = input;
   if (typeof title !== 'string' || title.length === 0 || title.length > MAX_TITLE_LEN) return reject(400, 'invalid title');
+  // Validate the EFFECTIVE (post-clamp) title, not the raw input: clampText strips
+  // control chars, so a control-char-only title clamps to empty. addKbNote derives
+  // the filename by slugifying the title at approve, so a title that clamps to empty
+  // OR slugifies to empty is unusable downstream — reject here and store nothing.
+  const clampedTitle = clampText(title, MAX_TITLE_LEN);
+  if (clampedTitle.length === 0 || writeModule().slugify(clampedTitle).length === 0) return reject(400, 'invalid title');
   const cErr = contentError(content);
   if (cErr) return reject(400, cErr);
 
@@ -210,7 +216,7 @@ function propose(input = {}) {
   const proposal = {
     id: crypto.randomUUID(),
     status: 'pending',
-    title: clampText(title, MAX_TITLE_LEN),
+    title: clampedTitle,
     content,
     suggestedScope: normScope(suggestedScope),
     suggestedStack: normalizeStack(suggestedStack),
@@ -254,6 +260,14 @@ async function approve(projectDir, input = {}) {
   if (!SCOPES.has(scope)) return reject(400, 'invalid scope');
   const proposal = loadPending(id);
   if (!proposal) return reject(404, 'proposal not found');
+
+  // Validate the stored title is sluggable BEFORE the decided flip. A corrupted /
+  // tampered on-disk record can carry a title that slugifies to empty; addKbNote
+  // would then fail at its slug step. Discovering that AFTER the flip would leave the
+  // proposal decided-but-unwritten (content lost, non-re-approvable). Refusing here —
+  // rather than fabricating a fallback slug for untrusted content — keeps it pending,
+  // listable, and re-actionable with the vault untouched.
+  if (writeModule().slugify(proposal.title).length === 0) return reject(422, 'proposal title has no usable characters');
 
   // Flip the proposal out of `pending` and PERSIST that flip BEFORE touching the
   // vault. Once the record is durably non-pending, loadPending refuses any retry
