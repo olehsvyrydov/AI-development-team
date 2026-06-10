@@ -108,17 +108,47 @@ export interface KnowledgeDoc {
 }
 
 /**
+ * One pending `/kai` proposal in the inbox — model-authored, UNTRUSTED knowledge awaiting an
+ * explicit human approve. It lives in a store the recall path never reads, so it is inert until
+ * approved: nothing here is recallable knowledge yet. Every field originates from the model and
+ * reaches the DOM through interpolation only (escaped), never `[innerHTML]`. `suggestedScope` is
+ * the scope `/kai` proposes; the operator stays free to approve it into either vault. The approve
+ * scope sent to the server is a fixed enum (`project` | `common`), never derived from a free path.
+ */
+export interface KnowledgeProposal {
+  readonly id: string;
+  /** Short label `/kai` gave the proposal. UNTRUSTED — escape on render. */
+  readonly title?: string;
+  /** The proposed knowledge body. UNTRUSTED model output — escape on render. */
+  readonly content: string;
+  /** The vault `/kai` suggests; a hint, not the authorization — the operator chooses on approve. */
+  readonly suggestedScope?: KnowledgeScope;
+  /** Suggested stack tags. UNTRUSTED — escape on render. */
+  readonly suggestedStack?: readonly string[];
+  /** Suggested kind classifier. UNTRUSTED — escape on render. */
+  readonly suggestedKind?: string;
+  /** Where `/kai` saw this (e.g. an agent or skill). UNTRUSTED — escape on render. */
+  readonly source?: string;
+  /** Why `/kai` proposes it — the recurrence evidence. UNTRUSTED — escape on render. */
+  readonly why?: string;
+  readonly proposedAt?: string;
+}
+
+/**
  * The merged Knowledge projection a project sees: its own project-scoped notes unioned with the
  * approved common notes whose stack matches the project's. `counts` reports how many of each scope
- * are visible (absent-not-zero is the panel's job, never the wire's). `method` stays honest —
- * `filename-only` unless a real embedder is configured, never claimed for scope/tags alone.
+ * are visible plus how many `/kai` proposals are pending (absent-not-zero is the panel's job, never
+ * the wire's). `method` stays honest — `filename-only` unless a real embedder is configured, never
+ * claimed for scope/tags alone. `proposals` is the `/kai` inbox: pending-only, inert until approved.
  */
 export interface KnowledgeView {
   readonly method: string;
   /** The project's declared stack, the allowed-set the add form offers as tags. */
   readonly stack?: readonly string[];
-  readonly counts: { readonly project: number; readonly common: number };
+  readonly counts: { readonly project: number; readonly common: number; readonly proposals?: number };
   readonly docs?: readonly KnowledgeDoc[];
+  /** The `/kai` propose inbox: pending proposals only, inert until an explicit human approve. */
+  readonly proposals?: readonly KnowledgeProposal[];
 }
 
 /** A gate as it appears on a ticket: its definition plus current ledger state. */

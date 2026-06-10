@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
-import type { KnowledgeDoc, KnowledgeScope, KnowledgeView, ProjectState } from '../core/models';
+import type { KnowledgeDoc, KnowledgeProposal, KnowledgeScope, KnowledgeView, ProjectState } from '../core/models';
 import { AddNoteFormComponent } from './add-note-form.component';
 import { GlyphComponent } from './glyph.component';
+import { ProposeInboxComponent } from './propose-inbox.component';
 
 /** Scope filter for the displayed list: a single vault, or every visible doc. */
 type ScopeFilter = KnowledgeScope | 'all';
@@ -20,17 +21,22 @@ const SCOPE_ORDER: readonly ScopeFilter[] = ['project', 'common', 'all'];
  * Each doc carries a scope badge (glyph + text, never colour alone), its stack tags, and its kind.
  * Simple client-side stack/kind filters narrow the loaded set without a refetch.
  *
- * Security: doc names, stack tags, and kinds originate from project files / front-matter and are
- * UNTRUSTED, so they reach the DOM through interpolation only (escaped) — never `[innerHTML]`. The
- * scoped add form's scope is a fixed enum, never a free path. "Manage knowledge" stays an inert
- * "coming soon" affordance (disabled, `aria-disabled`) that neither navigates nor fakes a write.
+ * When the projection carries pending `/kai` proposals, a propose-inbox sub-component renders above
+ * the list: model-authored knowledge awaiting an explicit human approve into a chosen vault. Nothing
+ * is applied automatically; the inbox is absent (not a zero state) when there is nothing pending.
+ *
+ * Security: doc names, stack tags, kinds, and all proposal content originate from project files /
+ * front-matter / the model and are UNTRUSTED, so they reach the DOM through interpolation only
+ * (escaped) — never `[innerHTML]`. Both the scoped add form's scope and the proposal approve scope
+ * are a fixed enum, never a free path. "Manage knowledge" stays an inert "coming soon" affordance
+ * (disabled, `aria-disabled`) that neither navigates nor fakes a write.
  *
  * Empty (no docs, or no facts at all): an invitation plus the Add control — never a bare "No data".
  */
 @Component({
   selector: 'dart-base-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AddNoteFormComponent, GlyphComponent],
+  imports: [AddNoteFormComponent, GlyphComponent, ProposeInboxComponent],
   template: `
     <header class="ph">
       <span class="ph__tile ph__tile--base" aria-hidden="true">
@@ -49,6 +55,10 @@ const SCOPE_ORDER: readonly ScopeFilter[] = ['project', 'common', 'all'];
     </header>
 
     <p class="local" data-testid="knowledge-local">Local-first — nothing is uploaded. Indexed on this machine.</p>
+
+    @if (proposals().length) {
+      <dart-propose-inbox [proposals]="proposals()" (applied)="onApplied($event)" />
+    }
 
     <hr class="ph__rule" aria-hidden="true" />
 
@@ -308,6 +318,9 @@ export class BasePanelComponent {
   onKindFilter(event: Event): void {
     this.kindFilter.set((event.target as HTMLSelectElement).value);
   }
+
+  /** The `/kai` pending inbox carried on the knowledge projection; empty array when none/absent. */
+  readonly proposals = computed<readonly KnowledgeProposal[]>(() => this.base()?.proposals ?? []);
 
   readonly counts = computed(() => this.base()?.counts ?? { project: 0, common: 0 });
   readonly total = computed(() => {

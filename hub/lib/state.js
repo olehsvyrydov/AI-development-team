@@ -16,6 +16,7 @@ const path = require('node:path');
 const { expectedOwner, stageGate } = require('./stage-map');
 const { readComments } = require('./comments');
 const { parseFrontMatter, scopeMatches, projectStack, commonVaultRoot, aidevteamHome } = require('./knowledge');
+const { listPending } = require('./proposals');
 
 function safeExists(p) { try { return fs.existsSync(p); } catch { return false; } }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
@@ -377,11 +378,30 @@ function buildKnowledge(project) {
   for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
 
   const configured = embedderConfigured(project);
+  // The /kai inbox: PENDING proposals only. These are inert BY LOCATION (a separate
+  // store NOT scanned above and NOT run through scopeMatches), so they never appear
+  // in `docs`/recall — only here, awaiting an explicit human approve. Untrusted
+  // model content is surfaced RAW; the front end escapes on render.
+  let proposals = [];
+  try {
+    proposals = listPending().map((p) => ({
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      suggestedScope: p.suggestedScope,
+      suggestedStack: p.suggestedStack,
+      suggestedKind: p.suggestedKind,
+      source: p.source,
+      why: p.why,
+      proposedAt: p.proposedAt,
+    }));
+  } catch { proposals = []; }
   return {
     method: configured ? 'local-embeddings' : 'filename-only',
     stack: declaredStack,
-    counts: { project: own.length, common: visibleCommon.length },
+    counts: { project: own.length, common: visibleCommon.length, proposals: proposals.length },
     docs,
+    proposals,
   };
 }
 

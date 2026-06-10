@@ -370,4 +370,37 @@ describe('Knowledge panel', () => {
     expect(host.querySelectorAll('img[onerror]').length).toBe(0);
     expect((window as unknown as Record<string, unknown>)['__xssTag']).toBeUndefined();
   });
+
+  it('shows the /kai propose inbox when the knowledge projection carries pending proposals', () => {
+    const host = mount({
+      ...MERGED,
+      counts: { project: 2, common: 1, proposals: 1 },
+      proposals: [{ id: 'p1', title: 'Always add the trailer', content: 'be consistent', suggestedScope: 'common', suggestedKind: 'rule' }],
+    }).nativeElement as HTMLElement;
+    expect(host.querySelector('[data-testid="propose-inbox"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="proposal-p1"]')?.textContent).toContain('be consistent');
+  });
+
+  it('hides the propose inbox entirely when there are no pending proposals (absent, not a zero state)', () => {
+    const host = mount(MERGED).nativeElement as HTMLElement;
+    expect(host.querySelector('[data-testid="propose-inbox"]')).toBeNull();
+  });
+
+  it('lifts a fresh state from an approve up through the panel applied output', async () => {
+    const fixture = mount({
+      ...MERGED,
+      counts: { project: 2, common: 1, proposals: 1 },
+      proposals: [{ id: 'p1', content: 'be consistent', suggestedScope: 'common' }],
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    let applied: ProjectState | null = null;
+    fixture.componentInstance.applied.subscribe((s) => (applied = s));
+    (host.querySelector('[data-testid="proposal-approve-p1"]') as HTMLButtonElement).click();
+    const http = TestBed.inject(HttpTestingController);
+    const req = http.expectOne('/api/kb/approve');
+    expect(req.request.body).toMatchObject({ id: 'p1', scope: 'common' });
+    req.flush({ ok: true, state: { rev: 'r9', knowledge: { method: 'filename-only', counts: { project: 2, common: 2, proposals: 0 }, proposals: [] } } });
+    await settle(fixture);
+    expect((applied as unknown as ProjectState).rev).toBe('r9');
+  });
 });

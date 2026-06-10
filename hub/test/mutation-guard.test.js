@@ -197,6 +197,47 @@ test('N-205 a scoped kb/add (project + common) is refused 403 without X-AIDT and
   }
 });
 
+test('N-228 propose/approve/reject are refused 403 without X-AIDT / with a non-loopback Host; no store or vault write', async () => {
+  const dir = proj();
+  const port = await freePort();
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'aidt-prophome-')));
+  const prevHome = process.env.HOME;
+  process.env.HOME = home;
+  const { stop } = await startServer(dir, port);
+  try {
+    // missing X-AIDT
+    for (const [route, body] of [
+      ['kb/propose', { title: 'P', content: 'x', suggestedScope: 'common' }],
+      ['kb/approve', { id: 'any-id', scope: 'common' }],
+      ['kb/reject', { id: 'any-id' }],
+    ]) {
+      const res = await post(port, route, body);
+      assert.equal(res.status, 403, `${route} refused without X-AIDT`);
+    }
+    // present X-AIDT but a non-loopback Host header → still 403
+    for (const [route, body] of [
+      ['kb/propose', { title: 'P', content: 'x' }],
+      ['kb/approve', { id: 'any-id', scope: 'project' }],
+      ['kb/reject', { id: 'any-id' }],
+    ]) {
+      const res = await post(port, route, body, { 'x-aidt': '1', host: 'evil.example.com' });
+      assert.equal(res.status, 403, `${route} refused with non-loopback Host`);
+    }
+    const propDir = path.join(home, '.aidevteam', 'kb-proposals');
+    const propFiles = fs.existsSync(propDir) ? fs.readdirSync(propDir).filter((f) => f.endsWith('.json')) : [];
+    assert.deepEqual(propFiles, [], 'no proposal recorded under 403');
+    const commonDir = path.join(home, '.aidevteam', 'kb-common');
+    const commonFiles = fs.existsSync(commonDir) ? fs.readdirSync(commonDir).filter((f) => f.endsWith('.md')) : [];
+    assert.deepEqual(commonFiles, [], 'no common note written under 403');
+    assert.ok(!fs.existsSync(path.join(dir, '.aidevteam', 'kb')), 'no project KB note written under 403');
+  } finally {
+    await stop();
+    if (prevHome === undefined) delete process.env.HOME; else process.env.HOME = prevHome;
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('N-16 the rule/label authoring routes are refused 403 without X-AIDT; nothing written', async () => {
   const dir = proj();
   const port = await freePort();

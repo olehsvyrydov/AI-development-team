@@ -10,6 +10,7 @@
 const w = require('./write');
 const { buildState } = require('./state');
 const engine = require('./engine');
+const proposals = require('./proposals');
 
 const PRESETS = ['solo', 'small-team', 'regulated'];
 const GATE_STATES = ['passed', 'pending', 'rejected'];
@@ -229,6 +230,31 @@ async function handle(route, data, project) {
       const r = w.addKbNote(project, { title, body, scope, stack, kind });
       if (!r.ok) return bad(r.error);
       return ok(st(), { doc: r.doc });
+    }
+    case 'kb/propose': {
+      // /kai submits a PENDING proposal. It is recorded inert in the proposal store
+      // (outside any recallable vault); the cockpit never auto-applies it.
+      const { title, content, suggestedScope, suggestedStack, suggestedKind, source, why } = data;
+      const r = proposals.propose({ title, content, suggestedScope, suggestedStack, suggestedKind, source, why });
+      if (!r.ok) return bad(r.error);
+      return ok(st(), { proposal: r.proposal });
+    }
+    case 'kb/approve': {
+      // An explicit human action: re-authorize the stored proposal by id and write it
+      // through the same guarded/contained chokepoint at the chosen server-validated
+      // scope. A foreign/forged/stale id or an out-of-enum scope writes NOTHING.
+      const { id, scope, by } = data;
+      const r = await proposals.approve(project, { id, scope, by });
+      if (!r.ok) return { code: r.code || 400, payload: { ok: false, error: r.error } };
+      return ok(st(), { scope: r.scope, doc: r.doc });
+    }
+    case 'kb/reject': {
+      // Mark the proposal rejected: retained for audit, removed from the inbox, never
+      // recalled. A foreign/forged/already-decided id is refused.
+      const { id, by, note } = data;
+      const r = await proposals.reject(project, { id, by, note });
+      if (!r.ok) return { code: r.code || 400, payload: { ok: false, error: r.error } };
+      return ok(st(), { proposal: r.proposal });
     }
     default:
       return { code: 404, payload: { ok: false, error: 'unknown route' } };
