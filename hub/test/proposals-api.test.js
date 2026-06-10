@@ -101,8 +101,16 @@ test('N-232 a conflicting project + common note BOTH surface; the project one is
       const sharedDocs = k.docs.filter((d) => d.name === 'shared-rule');
       // both surface — nothing is hidden
       assert.equal(sharedDocs.length, 2, 'both the project and common note surface');
-      assert.ok(sharedDocs.some((d) => d.scope === 'project'));
-      assert.ok(sharedDocs.some((d) => d.scope === 'common'));
+      const projectDoc = sharedDocs.find((d) => d.scope === 'project');
+      const commonDoc = sharedDocs.find((d) => d.scope === 'common');
+      assert.ok(projectDoc, 'project note surfaces');
+      assert.ok(commonDoc, 'common note surfaces');
+      // precedence is a display annotation, not suppression: the project note that
+      // shadows a same-named common note is flagged authoritative; the common note
+      // is flagged shadowed — both remain listed.
+      assert.equal(projectDoc.authoritative, true, 'the project note is flagged authoritative');
+      assert.equal(commonDoc.shadowed, true, 'the same-named common note is flagged shadowed');
+      assert.equal(commonDoc.shadowedBy, 'project', 'the common note records what shadows it');
     });
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

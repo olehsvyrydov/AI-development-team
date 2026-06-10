@@ -377,6 +377,22 @@ function buildKnowledge(project) {
   for (const d of own) docs.push({ name: d.name, file: d.file, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
   for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
 
+  // Precedence is a DISPLAY annotation, not a suppression boundary: where a project
+  // note and a common note share the same slug (case-insensitive), the project note
+  // wins ("project overrides common"). Mark the project note authoritative and the
+  // common note shadowed — both stay listed; the real scope boundary is scopeMatches.
+  const projectSlugs = new Set(own.map((d) => String(d.name).toLowerCase()));
+  for (const d of docs) {
+    if (d.scope === 'project' && projectSlugs.has(String(d.name).toLowerCase())) {
+      // only authoritative when it actually shadows a same-named common note
+      d.authoritative = visibleCommon.some((c) => String(c.name).toLowerCase() === String(d.name).toLowerCase());
+    }
+    if (d.scope === 'common' && projectSlugs.has(String(d.name).toLowerCase())) {
+      d.shadowed = true;
+      d.shadowedBy = 'project';
+    }
+  }
+
   const configured = embedderConfigured(project);
   // The /kai inbox: PENDING proposals only. These are inert BY LOCATION (a separate
   // store NOT scanned above and NOT run through scopeMatches), so they never appear
