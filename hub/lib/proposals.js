@@ -102,6 +102,15 @@ function readRecord(dir, file) {
 
 // Build a clean projection of a stored record using own-property assignment only, so
 // a `__proto__`/`constructor`/`prototype` key in the file cannot pollute the chain.
+//
+// REQUIRED fields gate validity: a record is treated as MALFORMED (-> null, skipped,
+// never surfaced in listPending and never loadable for approve) unless it carries a
+// safe `id`, a string `status`, and non-empty string `content`. A content-less record
+// is NOT coerced to an empty body and treated as valid, since approving an empty note
+// is a bad downstream flow. OPTIONAL display fields (title/why/source/suggestedStack)
+// stay tolerant: a missing/non-string value defaults to empty and does not cause a
+// skip. Returning null here (rather than throwing) keeps the never-throw posture — a
+// malformed file on disk is just ignored, not fatal.
 function sanitizeRecord(obj) {
   const out = {};
   for (const k of Object.keys(obj)) {
@@ -110,8 +119,8 @@ function sanitizeRecord(obj) {
   }
   if (!isSafeId(out.id)) return null;
   if (typeof out.status !== 'string') return null;
+  if (typeof out.content !== 'string' || out.content.length === 0) return null;
   out.title = typeof out.title === 'string' ? out.title : '';
-  out.content = typeof out.content === 'string' ? out.content : '';
   out.why = typeof out.why === 'string' ? out.why : '';
   out.suggestedStack = Array.isArray(out.suggestedStack) ? out.suggestedStack.filter((t) => typeof t === 'string') : [];
   return out;
@@ -288,7 +297,17 @@ async function reject_(projectDir, input = {}) {
   proposal.decidedBy = clampText(by || 'user', 64);
   proposal.decidedAt = new Date().toISOString();
   if (note != null) proposal.note = clampText(note, MAX_WHY_LEN);
-  persistDecision(projectDir, proposal, note ? `rejected: ${proposal.note}` : 'rejected');
+
+  // Persist the rejection FAIL-LOUD: if the decided record cannot be written (disk
+  // full, permission), report the failure instead of claiming success. On failure the
+  // on-disk record stays `pending`, so the proposal correctly remains inbox-visible
+  // and actionable — never silently lost while the UI is told it was rejected.
+  try {
+    persistRecord(proposal);
+  } catch {
+    return reject(500, 'could not record the decision');
+  }
+  auditDecision(projectDir, proposal, note ? `rejected: ${proposal.note}` : 'rejected');
   return { ok: true, proposal };
 }
 
@@ -313,17 +332,6 @@ function auditDecision(projectDir, proposal, summary) {
       state: proposal.status,
     });
   } catch { /* audit is best-effort; the decision still stands */ }
-}
-
-// Persist a decided record then audit it, best-effort on the record (used by reject,
-// which writes nothing into any recallable vault, so a failed record retention has no
-// double-write consequence). The store dir already exists.
-function persistDecision(projectDir, proposal, summary) {
-  const dir = proposalsDir(false);
-  if (dir) {
-    try { writeRecord(dir, proposal); } catch { /* leave the prior record */ }
-  }
-  auditDecision(projectDir, proposal, summary);
 }
 
 module.exports = { propose, listPending, listAll, approve, reject: reject_, proposalsDir };
