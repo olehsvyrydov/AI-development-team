@@ -16,6 +16,7 @@ const path = require('node:path');
 const { expectedOwner, stageGate } = require('./stage-map');
 const { readComments } = require('./comments');
 const { parseFrontMatter, scopeMatches, projectStack, commonVaultRoot, aidevteamHome } = require('./knowledge');
+const { listPending } = require('./proposals');
 
 function safeExists(p) { try { return fs.existsSync(p); } catch { return false; } }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
@@ -376,12 +377,47 @@ function buildKnowledge(project) {
   for (const d of own) docs.push({ name: d.name, file: d.file, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
   for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
 
+  // Precedence is a DISPLAY annotation, not a suppression boundary: where a project
+  // note and a common note share the same slug (case-insensitive), the project note
+  // wins ("project overrides common"). Mark the project note authoritative and the
+  // common note shadowed — both stay listed; the real scope boundary is scopeMatches.
+  const projectSlugs = new Set(own.map((d) => String(d.name).toLowerCase()));
+  for (const d of docs) {
+    if (d.scope === 'project' && projectSlugs.has(String(d.name).toLowerCase())) {
+      // only authoritative when it actually shadows a same-named common note
+      d.authoritative = visibleCommon.some((c) => String(c.name).toLowerCase() === String(d.name).toLowerCase());
+    }
+    if (d.scope === 'common' && projectSlugs.has(String(d.name).toLowerCase())) {
+      d.shadowed = true;
+      d.shadowedBy = 'project';
+    }
+  }
+
   const configured = embedderConfigured(project);
+  // The /kai inbox: PENDING proposals only. These are inert BY LOCATION (a separate
+  // store NOT scanned above and NOT run through scopeMatches), so they never appear
+  // in `docs`/recall — only here, awaiting an explicit human approve. Untrusted
+  // model content is surfaced RAW; the front end escapes on render.
+  let proposals = [];
+  try {
+    proposals = listPending().map((p) => ({
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      suggestedScope: p.suggestedScope,
+      suggestedStack: p.suggestedStack,
+      suggestedKind: p.suggestedKind,
+      source: p.source,
+      why: p.why,
+      proposedAt: p.proposedAt,
+    }));
+  } catch { proposals = []; }
   return {
     method: configured ? 'local-embeddings' : 'filename-only',
     stack: declaredStack,
-    counts: { project: own.length, common: visibleCommon.length },
+    counts: { project: own.length, common: visibleCommon.length, proposals: proposals.length },
     docs,
+    proposals,
   };
 }
 

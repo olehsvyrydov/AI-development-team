@@ -263,6 +263,57 @@ describe('ControlPlaneService', () => {
     expect(res.ok).toBe(false);
   });
 
+  it('approveProposal posts { id, scope } to /api/kb/approve with the X-AIDT guard, returns ok+state', async () => {
+    const promise = cp.approveProposal('p1', 'common');
+    const req = http.expectOne('/api/kb/approve');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBe('1');
+    expect(req.request.body.id).toBe('p1');
+    expect(req.request.body.scope).toBe('common');
+    req.flush({ ok: true, state: { rev: 'r2', knowledge: { method: 'filename-only', counts: { project: 1, common: 1, proposals: 0 }, proposals: [] } } });
+    const res = await promise;
+    expect(res.ok).toBe(true);
+    if (res.ok === true) expect(res.state?.rev).toBe('r2');
+  });
+
+  it('approveProposal sends the chosen scope verbatim (project vs common) — never a free path', async () => {
+    const promise = cp.approveProposal('p2', 'project');
+    const req = http.expectOne('/api/kb/approve');
+    expect(req.request.body).toMatchObject({ id: 'p2', scope: 'project' });
+    expect(Object.keys(req.request.body).sort()).toEqual(['id', 'scope']);
+    req.flush({ ok: true, state: { rev: 'r3' } });
+    await promise;
+  });
+
+  it('approveProposal maps a 400 (foreign/stale id) to a terse error result', async () => {
+    const promise = cp.approveProposal('nope', 'common');
+    const req = http.expectOne('/api/kb/approve');
+    req.flush({ ok: false, error: 'unknown proposal' }, { status: 400, statusText: 'Bad Request' });
+    const res = await promise;
+    expect(res.ok).toBe(false);
+    if (res.ok === false) expect(res.error).toBe('unknown proposal');
+  });
+
+  it('rejectProposal posts { id } to /api/kb/reject with the X-AIDT guard, returns ok+state', async () => {
+    const promise = cp.rejectProposal('p1');
+    const req = http.expectOne('/api/kb/reject');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBe('1');
+    expect(req.request.body.id).toBe('p1');
+    req.flush({ ok: true, state: { rev: 'r4', knowledge: { method: 'filename-only', counts: { project: 1, common: 0, proposals: 0 }, proposals: [] } } });
+    const res = await promise;
+    expect(res.ok).toBe(true);
+    if (res.ok === true) expect(res.state?.rev).toBe('r4');
+  });
+
+  it('rejectProposal maps a 403 write-guard refusal to an error result', async () => {
+    const promise = cp.rejectProposal('p1');
+    const req = http.expectOne('/api/kb/reject');
+    req.flush({ ok: false, error: 'write refused' }, { status: 403, statusText: 'Forbidden' });
+    const res = await promise;
+    expect(res.ok).toBe(false);
+  });
+
   describe('viewed-project scoping (the id travels on every mutation)', () => {
     const PID = 'abcdef123456';
 
@@ -279,6 +330,8 @@ describe('ControlPlaneService', () => {
         { call: cp.setPreset({ preset: 'solo', expectedRev: 'r1' }), url: '/api/preset' },
         { call: cp.setLabels({ labels: { A: { settable_by: ['*'] } }, expectedRev: 'r1' }), url: '/api/workflow/set-labels' },
         { call: cp.addKbNote({ title: 'note', body: 'x' }), url: '/api/kb/add' },
+        { call: cp.approveProposal('p1', 'common'), url: '/api/kb/approve' },
+        { call: cp.rejectProposal('p1'), url: '/api/kb/reject' },
       ];
       for (const c of checks) {
         const req = http.expectOne(c.url);

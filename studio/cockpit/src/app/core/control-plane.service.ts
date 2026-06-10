@@ -276,6 +276,27 @@ export class ControlPlaneService {
     }
   }
 
+  /**
+   * Approve a pending `/kai` proposal into the chosen vault. `scope` is a fixed enum the server
+   * re-validates and uses to pick the target vault; the client never sends a path. The server
+   * re-authorizes the stored proposal by id (a foreign/forged/stale id writes nothing), writes it
+   * through the same guarded/contained knowledge chokepoint, removes it from the pending inbox, and
+   * returns the fresh `state` to adopt — the approved item now appears in the Knowledge list at the
+   * chosen scope and the pending count decrements. This is an additive write, so no `expectedRev`.
+   */
+  approveProposal(id: string, scope: KnowledgeScope): Promise<MutationResult> {
+    return this.mutate('/api/kb/approve', { id, scope });
+  }
+
+  /**
+   * Reject a pending `/kai` proposal. The server marks it rejected (retained for audit, never
+   * recalled), removes it from the pending inbox, and returns the fresh `state` to adopt so the
+   * item leaves the inbox and the pending count decrements.
+   */
+  rejectProposal(id: string): Promise<MutationResult> {
+    return this.mutate('/api/kb/reject', { id });
+  }
+
   private async mutate(apiPath: string, body: object): Promise<MutationResult> {
     try {
       const res = await firstValueFrom(

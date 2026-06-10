@@ -324,4 +324,4 @@ function appendComment(dir, ticketId, { author, kind, body, gate, state, label, 
   return rec;
 }
 
-module.exports = { computeRev, atomicWriteJSON, readModifyWriteLedger, writeOverlay, writeOverlayCAS, addKbNote, appendComment, readComments, safeId };
+module.exports = { computeRev, atomicWriteJSON, readModifyWriteLedger, writeOverlay, writeOverlayCAS, addKbNote, appendComment, readComments, safeId, slugify };
