@@ -44,6 +44,10 @@ const MAX_WHY_LEN = 2048;
 const MAX_RECORD_BYTES = 256 * 1024;
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const CONTROL_CHARS = new RegExp('[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f]');
+// A separate GLOBAL matcher for stripping: a `g` regex carries lastIndex state
+// across `.test()` calls, so the non-global CONTROL_CHARS above is kept for the
+// membership tests and this one is used only for whole-string replacement.
+const CONTROL_CHARS_GLOBAL = new RegExp('[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f]', 'g');
 
 const reject = (code, error) => ({ ok: false, code, error });
 
@@ -161,7 +165,7 @@ function normScope(raw) {
   return SCOPES.has(raw) ? raw : 'project';
 }
 function clampText(raw, max) {
-  return String(raw == null ? '' : raw).replace(CONTROL_CHARS, '').slice(0, max);
+  return String(raw == null ? '' : raw).replace(CONTROL_CHARS_GLOBAL, '').slice(0, max);
 }
 
 /**
@@ -230,21 +234,41 @@ async function approve(projectDir, input = {}) {
   const proposal = loadPending(id);
   if (!proposal) return reject(404, 'proposal not found');
 
-  // The write rides the same guarded/contained chokepoint at the CHOSEN scope, with
-  // the proposal's normalized suggested tags. status is server-derived by scope.
-  const r = writeModule().addKbNote(projectDir, {
-    title: proposal.title,
-    body: proposal.content,
-    scope,
-    stack: proposal.suggestedStack,
-    kind: proposal.suggestedKind,
-  });
-  if (!r.ok) return reject(r.code || 400, r.error);
-
+  // Flip the proposal out of `pending` and PERSIST that flip BEFORE touching the
+  // vault. Once the record is durably non-pending, loadPending refuses any retry
+  // (the BOLA already-decided check), so the vault write below can run at most
+  // once for this id. If this record write fails the vault is still untouched, so
+  // we refuse and nothing is written. If the vault write fails AFTER this flip,
+  // the proposal is left in a decided (non-re-approvable) state — the content can
+  // be re-proposed, but a retry can never produce a second vault doc.
   proposal.status = scope === 'common' ? 'approved-common' : 'approved-project';
   proposal.decidedBy = clampText(by || 'user', 64);
   proposal.decidedAt = new Date().toISOString();
-  persistDecision(projectDir, proposal, `approved as ${scope}`);
+  try {
+    persistRecord(proposal);
+  } catch {
+    return reject(500, 'could not record the decision');
+  }
+
+  // The write rides the same guarded/contained chokepoint at the CHOSEN scope, with
+  // the proposal's normalized suggested tags. status is server-derived by scope. The
+  // proposal is already durably decided, so a failure here (returned or thrown) leaves
+  // it non-re-approvable — a retry is refused and cannot produce a second vault doc.
+  let r;
+  try {
+    r = writeModule().addKbNote(projectDir, {
+      title: proposal.title,
+      body: proposal.content,
+      scope,
+      stack: proposal.suggestedStack,
+      kind: proposal.suggestedKind,
+    });
+  } catch {
+    return reject(500, 'could not write the approved note');
+  }
+  if (!r.ok) return reject(r.code || 400, r.error);
+
+  auditDecision(projectDir, proposal, `approved as ${scope}`);
   return { ok: true, scope, doc: r.doc };
 }
 
@@ -268,14 +292,19 @@ async function reject_(projectDir, input = {}) {
   return { ok: true, proposal };
 }
 
-// Persist the decided record (retained) and append an audit entry to the project's
-// append-only comment trail. The store dir already exists (the pending record lives
-// there). A failed audit append must not undo the decision.
-function persistDecision(projectDir, proposal, summary) {
+// Persist the decided record (retained), throwing if it cannot be written. The store
+// dir already exists (the pending record lives there). approve() calls this BEFORE the
+// vault write and refuses on failure, so a partial decision can never leave a
+// re-approvable pending record behind a vault doc.
+function persistRecord(proposal) {
   const dir = proposalsDir(false);
-  if (dir) {
-    try { writeRecord(dir, proposal); } catch { /* leave the prior record */ }
-  }
+  if (!dir) throw new Error('proposal store unavailable');
+  writeRecord(dir, proposal);
+}
+
+// Append an audit entry to the project's append-only comment trail. A failed audit
+// append must not undo the decision.
+function auditDecision(projectDir, proposal, summary) {
   try {
     writeModule().appendComment(projectDir, `proposal-${proposal.id}`, {
       author: proposal.decidedBy,
@@ -284,6 +313,17 @@ function persistDecision(projectDir, proposal, summary) {
       state: proposal.status,
     });
   } catch { /* audit is best-effort; the decision still stands */ }
+}
+
+// Persist a decided record then audit it, best-effort on the record (used by reject,
+// which writes nothing into any recallable vault, so a failed record retention has no
+// double-write consequence). The store dir already exists.
+function persistDecision(projectDir, proposal, summary) {
+  const dir = proposalsDir(false);
+  if (dir) {
+    try { writeRecord(dir, proposal); } catch { /* leave the prior record */ }
+  }
+  auditDecision(projectDir, proposal, summary);
 }
 
 module.exports = { propose, listPending, listAll, approve, reject: reject_, proposalsDir };
