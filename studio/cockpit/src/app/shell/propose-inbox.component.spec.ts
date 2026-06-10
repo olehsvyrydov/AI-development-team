@@ -216,6 +216,64 @@ describe('ProposeInboxComponent', () => {
     expect(card(host, 'p2')).not.toBeNull();
   });
 
+  it('clears the card busy state on a successful approve even when the returned state does not remove the item (ok:true, state null)', async () => {
+    const { fixture, host, http } = mount([TRAILER]);
+    (host.querySelector('[data-testid="proposal-approve-p1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect((host.querySelector('[data-testid="proposal-approve-p1"]') as HTMLButtonElement).disabled).toBe(true);
+    http.expectOne('/api/kb/approve').flush({ ok: true, state: null });
+    await settle(fixture);
+    // The parent does not re-feed inputs (no fresh state), so the card must re-enable itself.
+    expect((host.querySelector('[data-testid="proposal-approve-p1"]') as HTMLButtonElement).disabled).toBe(false);
+    expect((host.querySelector('[data-testid="proposal-reject-p1"]') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('clears the card busy state on a successful reject even when the returned state does not remove the item (ok:true, state null)', async () => {
+    const { fixture, host, http } = mount([TRAILER]);
+    (host.querySelector('[data-testid="proposal-reject-p1"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect((host.querySelector('[data-testid="proposal-reject-p1"]') as HTMLButtonElement).disabled).toBe(true);
+    http.expectOne('/api/kb/reject').flush({ ok: true, state: null });
+    await settle(fixture);
+    expect((host.querySelector('[data-testid="proposal-reject-p1"]') as HTMLButtonElement).disabled).toBe(false);
+    expect((host.querySelector('[data-testid="proposal-approve-p1"]') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('moves the scope selection to the next option on ArrowRight within the focused card group', () => {
+    const { fixture, host } = mount([TRAILER, SIGNALS]);
+    // TRAILER (p1) defaults to common; ArrowLeft should move to project. Use SIGNALS (p2) which defaults to project.
+    const project = host.querySelector('[data-testid="proposal-scope-p2-project"]') as HTMLElement;
+    project.focus();
+    project.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    const common = host.querySelector('[data-testid="proposal-scope-p2-common"]') as HTMLElement;
+    expect(common.getAttribute('aria-checked')).toBe('true');
+    expect(project.getAttribute('aria-checked')).toBe('false');
+    expect(document.activeElement).toBe(common);
+    // The other card's group is untouched.
+    expect(host.querySelector('[data-testid="proposal-scope-p1-common"]')?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('moves the scope selection to the previous option on ArrowLeft within the focused card group', () => {
+    const { fixture, host } = mount([TRAILER, SIGNALS]);
+    // TRAILER (p1) defaults to common; ArrowLeft moves to project.
+    const common = host.querySelector('[data-testid="proposal-scope-p1-common"]') as HTMLElement;
+    common.focus();
+    common.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    fixture.detectChanges();
+    const project = host.querySelector('[data-testid="proposal-scope-p1-project"]') as HTMLElement;
+    expect(project.getAttribute('aria-checked')).toBe('true');
+    expect(common.getAttribute('aria-checked')).toBe('false');
+    expect(document.activeElement).toBe(project);
+  });
+
+  it('uses a roving tabindex on the scope radios (selected radio is tabbable, others are not)', () => {
+    const { host } = mount([SIGNALS]);
+    // SIGNALS defaults to project.
+    expect(host.querySelector('[data-testid="proposal-scope-p2-project"]')?.getAttribute('tabindex')).toBe('0');
+    expect(host.querySelector('[data-testid="proposal-scope-p2-common"]')?.getAttribute('tabindex')).toBe('-1');
+  });
+
   it('disables the card actions while a decision is in flight and surfaces a terse error on failure', async () => {
     const { fixture, host, http } = mount([TRAILER]);
     (host.querySelector('[data-testid="proposal-approve-p1"]') as HTMLButtonElement).click();

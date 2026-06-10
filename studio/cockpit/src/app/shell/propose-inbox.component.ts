@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, inject, input, output, signal } from '@angular/core';
 import { ControlPlaneService } from '../core/control-plane.service';
 import type { KnowledgeProposal, KnowledgeScope, ProjectState } from '../core/models';
 import { GlyphComponent } from './glyph.component';
@@ -8,6 +8,9 @@ const SCOPE_LABEL: Readonly<Record<KnowledgeScope, string>> = {
   project: 'This project',
   common: 'Common',
 };
+
+/** The scope radios in segment order — the roving arrow keys walk this sequence within a card's group. */
+const SCOPE_ORDER: readonly KnowledgeScope[] = ['project', 'common'];
 
 type Phase = 'idle' | 'busy' | 'error';
 
@@ -78,9 +81,11 @@ type Phase = 'idle' | 'busy' | 'error';
                   [attr.data-testid]="'proposal-scope-' + p.id + '-project'"
                   role="radio"
                   [attr.aria-checked]="chosen(p) === 'project'"
+                  [attr.tabindex]="chosen(p) === 'project' ? 0 : -1"
                   [class.seg__opt--on]="chosen(p) === 'project'"
                   [disabled]="phaseFor(p.id) === 'busy'"
                   (click)="choose(p.id, 'project')"
+                  (keydown)="onScopeKeydown($event, p.id, 'project')"
                 >
                   <dart-glyph name="scope-project" [size]="12" /> This project
                 </button>
@@ -90,9 +95,11 @@ type Phase = 'idle' | 'busy' | 'error';
                   [attr.data-testid]="'proposal-scope-' + p.id + '-common'"
                   role="radio"
                   [attr.aria-checked]="chosen(p) === 'common'"
+                  [attr.tabindex]="chosen(p) === 'common' ? 0 : -1"
                   [class.seg__opt--on]="chosen(p) === 'common'"
                   [disabled]="phaseFor(p.id) === 'busy'"
                   (click)="choose(p.id, 'common')"
+                  (keydown)="onScopeKeydown($event, p.id, 'common')"
                 >
                   <dart-glyph name="scope-common" [size]="12" /> Common
                 </button>
@@ -167,6 +174,7 @@ type Phase = 'idle' | 'busy' | 'error';
 })
 export class ProposeInboxComponent {
   private readonly cp = inject(ControlPlaneService);
+  private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** The `/kai` pending inbox (pending-only from the server). The section is absent when empty. */
   readonly proposals = input.required<readonly KnowledgeProposal[]>();
@@ -208,12 +216,34 @@ export class ProposeInboxComponent {
     this.choiceById.update((m) => ({ ...m, [id]: scope }));
   }
 
+  /**
+   * Roving radiogroup nav within a single proposal's scope group: Left/Up select the previous scope,
+   * Right/Down the next (wrapping), then focus the moved-to radio in that same card's group.
+   */
+  onScopeKeydown(event: KeyboardEvent, id: string, scope: KnowledgeScope): void {
+    const delta =
+      event.key === 'ArrowRight' || event.key === 'ArrowDown'
+        ? 1
+        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+          ? -1
+          : 0;
+    if (delta === 0) return;
+    event.preventDefault();
+    const idx = SCOPE_ORDER.indexOf(scope);
+    const next = SCOPE_ORDER[(idx + delta + SCOPE_ORDER.length) % SCOPE_ORDER.length];
+    this.choose(id, next);
+    this.hostEl.nativeElement
+      .querySelector<HTMLElement>(`[data-testid="proposal-scope-${id}-${next}"]`)
+      ?.focus();
+  }
+
   async approve(p: KnowledgeProposal): Promise<void> {
     if (this.phaseFor(p.id) === 'busy') return;
     const scope = this.chosen(p);
     this.setPhase(p.id, 'busy');
     const res = await this.cp.approveProposal(p.id, scope);
     if (res.ok === true) {
+      this.setPhase(p.id, 'idle');
       this.announce(`Proposal approved as ${this.scopeLabel(scope)}.`);
       if (res.state) this.applied.emit(res.state);
     } else if (res.ok === 'conflict') {
@@ -229,6 +259,7 @@ export class ProposeInboxComponent {
     this.setPhase(id, 'busy');
     const res = await this.cp.rejectProposal(id);
     if (res.ok === true) {
+      this.setPhase(id, 'idle');
       this.announce('Proposal rejected.');
       if (res.state) this.applied.emit(res.state);
     } else if (res.ok === 'conflict') {
