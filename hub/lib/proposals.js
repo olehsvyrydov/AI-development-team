@@ -107,10 +107,14 @@ function readRecord(dir, file) {
 // never surfaced in listPending and never loadable for approve) unless it carries a
 // safe `id`, a string `status`, and non-empty string `content`. A content-less record
 // is NOT coerced to an empty body and treated as valid, since approving an empty note
-// is a bad downstream flow. OPTIONAL display fields (title/why/source/suggestedStack)
-// stay tolerant: a missing/non-string value defaults to empty and does not cause a
-// skip. Returning null here (rather than throwing) keeps the never-throw posture — a
-// malformed file on disk is just ignored, not fatal.
+// is a bad downstream flow. Every OPTIONAL field is normalized so a corrupted or
+// tampered on-disk record can never carry an unsanitized value to the projection/UI:
+// `title`/`why`/`source` are clamped strings (control chars stripped, length-bounded,
+// non-string -> safe default), `suggestedScope`/`suggestedKind` are clamped to their
+// closed enums, and `suggestedStack` drops unknown tokens (defaulting to ['any']). The
+// same normalizers run at propose-time, so a loaded record matches the propose-time
+// contract. Returning null here (rather than throwing) keeps the never-throw posture —
+// a malformed file on disk is just ignored, not fatal.
 function sanitizeRecord(obj) {
   const out = {};
   for (const k of Object.keys(obj)) {
@@ -120,9 +124,12 @@ function sanitizeRecord(obj) {
   if (!isSafeId(out.id)) return null;
   if (typeof out.status !== 'string') return null;
   if (typeof out.content !== 'string' || out.content.length === 0) return null;
-  out.title = typeof out.title === 'string' ? out.title : '';
-  out.why = typeof out.why === 'string' ? out.why : '';
-  out.suggestedStack = Array.isArray(out.suggestedStack) ? out.suggestedStack.filter((t) => typeof t === 'string') : [];
+  out.title = clampText(out.title, MAX_TITLE_LEN);
+  out.why = clampText(out.why, MAX_WHY_LEN);
+  out.source = clampText(out.source, 64);
+  out.suggestedScope = normScope(out.suggestedScope);
+  out.suggestedKind = normalizeKind(out.suggestedKind);
+  out.suggestedStack = normalizeStack(Array.isArray(out.suggestedStack) ? out.suggestedStack.filter((t) => typeof t === 'string') : undefined);
   return out;
 }
 
@@ -170,7 +177,12 @@ function contentError(content) {
   return null;
 }
 
+// Clamp a suggested scope to the closed enum, mirroring the front-matter reader:
+// `global` is read-aliased to `common`; any other out-of-enum value falls through to
+// `project` (the narrowest, safest default). Used by both propose() and the on-load
+// sanitizer so propose-time and load-time agree by construction.
 function normScope(raw) {
+  if (typeof raw === 'string' && raw.toLowerCase().trim() === 'global') return 'common';
   return SCOPES.has(raw) ? raw : 'project';
 }
 function clampText(raw, max) {

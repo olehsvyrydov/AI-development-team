@@ -564,6 +564,47 @@ test('a record missing only an optional field (title) still loads', async () => 
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+// ---- a corrupted/tampered record has EVERY optional field normalized on load --
+
+test('a tampered record with a non-string source and out-of-enum scope/kind is fully normalized to safe defaults on load', async () => {
+  const dir = tmpProject();
+  try {
+    await withTmpHome(async (home) => {
+      const pdir = proposalsDirOf(home);
+      fs.mkdirSync(pdir, { recursive: true });
+
+      // Required fields present; the optional display/suggested fields are corrupt:
+      // a non-string source, an out-of-enum scope, and an out-of-enum kind.
+      fs.writeFileSync(path.join(pdir, 'tampered.json'), JSON.stringify({
+        id: 'tampered', status: 'pending', content: 'body',
+        source: { not: 'a string' },
+        suggestedScope: 'everywhere',
+        suggestedKind: 'malware',
+        suggestedStack: ['java', 'evil-token'],
+      }));
+
+      // A `global` suggestedScope is read-aliased to `common` (the front-matter rule).
+      fs.writeFileSync(path.join(pdir, 'aliased.json'), JSON.stringify({
+        id: 'aliased', status: 'pending', content: 'body', suggestedScope: 'global',
+      }));
+
+      let inbox;
+      assert.doesNotThrow(() => { inbox = proposals.listPending(); }, 'a tampered record never crashes the listing');
+
+      const tampered = inbox.find((p) => p.id === 'tampered');
+      assert.ok(tampered, 'the tampered record still loads (never-throw, defaults applied)');
+      assert.equal(typeof tampered.source, 'string', 'a non-string source is coerced to a string');
+      assert.equal(tampered.suggestedScope, 'project', 'an out-of-enum scope clamps to the narrowest default');
+      assert.equal(tampered.suggestedKind, 'context', 'an out-of-enum kind clamps to the default');
+      assert.deepEqual(tampered.suggestedStack, ['java'], 'an unknown stack token is dropped');
+
+      const aliased = inbox.find((p) => p.id === 'aliased');
+      assert.ok(aliased, 'the aliased-scope record loads');
+      assert.equal(aliased.suggestedScope, 'common', 'a `global` suggestedScope is read-aliased to common');
+    });
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 // ---- reject fails LOUD when the decision cannot be persisted -----------------
 
 test('a record-write failure during reject returns a failure (not ok:true) and the proposal stays pending', async () => {
