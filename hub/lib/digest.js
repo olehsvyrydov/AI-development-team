@@ -34,40 +34,38 @@ function renderDirectiveData(prompt) {
     .replace(/`{3,}/g, (run) => run.split('').join(ZWSP));
 }
 
-// The stage a label routes to, derived from the SAME contract the engine enforces —
-// never a hardcoded mapping. A label routes either directly (its own `routes_to`) or
-// via a rule keyed on the label (`when.label` + a `route_to_stage` action). The direct
-// form wins; a label with neither has no routing consequence (returns null).
-function labelRoutesTo(name, labels, rules) {
+// The stage a label routes to, taken ONLY from the label's own `routes_to` declaration
+// — the unambiguous, authoritative field the engine trusts (isDeclaredBackwardRoute,
+// state.js). A rule's `when.label` means "the ticket CURRENTLY HAS this label" (a
+// precondition AND-ed with the rule's other `when` predicates), so a rule keyed on a
+// label does NOT mean that setting the label routes anywhere; that inference is unsound
+// and is not made here. A label without a direct `routes_to` has no routing consequence
+// (returns null).
+function labelRoutesTo(name, labels) {
   const def = (labels && Object.prototype.hasOwnProperty.call(labels, name)) ? labels[name] : null;
   if (def && typeof def.routes_to === 'string' && def.routes_to) return def.routes_to;
-  for (const rule of rules || []) {
-    if (!rule || !rule.when || rule.when.label !== name) continue;
-    for (const action of rule.do || []) {
-      if (action && typeof action.route_to_stage === 'string' && action.route_to_stage) return action.route_to_stage;
-    }
-  }
   return null;
 }
 
-// Render one permitted label: `NAME → routes to STAGE` when the contract gives it a
-// routing consequence, else the bare NAME. Concise + factual; no fabricated effect.
-function renderPermittedLabel(name, labels, rules) {
-  const to = labelRoutesTo(name, labels, rules);
+// Render one permitted label: `NAME → routes to STAGE` only when the label UNAMBIGUOUSLY
+// declares a route (its own `routes_to`), else the bare NAME. Concise + factual; no
+// fabricated or inferred effect.
+function renderPermittedLabel(name, labels) {
+  const to = labelRoutesTo(name, labels);
   return to ? `${name} → routes to ${to}` : name;
 }
 
 // Render the per-ticket directive + permitted-label section. Pending directives are
 // surfaced as QUOTED DATA only — never as instruction lines — so the addressed agent
-// in the main tool decides whether to act; DART never executes a prompt. Each permitted
-// label also shows what it routes to (from the workflow's label/rule contract) so a
-// session sees the consequence of setting it, not just its name.
-function renderDirectiveSection(ticket, lines, labels, rules) {
+// in the main tool decides whether to act; DART never executes a prompt. A permitted
+// label that declares its own `routes_to` also shows that route, so a session sees the
+// declared consequence of setting it, not just its name.
+function renderDirectiveSection(ticket, lines, labels) {
   const directives = ticket.pendingDirectives || [];
   const permitted = ticket.permittedLabels || [];
   if (!directives.length && !permitted.length) return;
   if (permitted.length) {
-    const rendered = permitted.map((name) => renderPermittedLabel(name, labels, rules));
+    const rendered = permitted.map((name) => renderPermittedLabel(name, labels));
     lines.push(`  - labels you may set: ${rendered.join(', ')}`);
   }
   if (directives.length) {
@@ -101,7 +99,7 @@ function renderText(st) {
     if (pending.length) flags.push(`pending: ${pending.join(', ')}`);
     const tail = flags.length ? ` — ${flags.join('; ')}` : '';
     lines.push(`- **${t.id}** · ${t.stage}${who} · ${t.status} — ${t.title}${tail}`);
-    if (!done) renderDirectiveSection(t, lines, st.labels, st.rules);
+    if (!done) renderDirectiveSection(t, lines, st.labels);
   }
   return lines.join('\n');
 }

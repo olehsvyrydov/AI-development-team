@@ -109,9 +109,11 @@ test('a directive record with no usable id is NOT surfaced as pending', () => {
 
 // --- routing: the digest surfaces what each permitted label ROUTES TO --------
 
-// A workflow whose routing consequence comes from BOTH contract shapes: a label
-// carrying its own `routes_to` (direct), and a label whose route is expressed by a
-// rule (`when.label` + a `route_to_stage` action). A third label has no routing.
+// A workflow exercising the digest's routing rule: only a label's OWN `routes_to`
+// declares a route. NEEDS_REVISION declares one directly. SEND_TO_QA carries NO
+// `routes_to` but is referenced by a rule's `when.label` (which means "the ticket
+// currently HAS this label", a precondition — not "setting it routes anywhere"), so it
+// must NOT render a route. NEEDS_HUMAN has neither and also renders plainly.
 const ROUTING_WORKFLOW = `version: 1
 preset: small-team
 tracks:
@@ -150,16 +152,18 @@ test('a permitted label with a direct routes_to renders its routing consequence'
   }
 });
 
-test('a permitted label routed by a RULE renders the rule’s route_to_stage target', () => {
+test('a label referenced only by a rule’s when.label (no direct routes_to) renders as a bare name', () => {
   const dir = routingFixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review', assignee: '/rev' } });
   try {
     const st = buildState(dir);
     const out = renderText(st);
-    // parity with the engine's rule contract: the rule routing SEND_TO_QA names `qa`
+    // SEND_TO_QA has no own `routes_to`; a rule keyed on `when.label: SEND_TO_QA`
+    // (a "currently has this label" precondition) must NOT make the digest claim a route.
+    assert.equal(st.labels.SEND_TO_QA.routes_to, undefined);
     const rule = st.rules.find((r) => r.when && r.when.label === 'SEND_TO_QA');
-    const routed = rule.do.find((a) => 'route_to_stage' in a).route_to_stage;
-    assert.equal(routed, 'qa');
-    assert.ok(new RegExp(`SEND_TO_QA → routes to ${routed}`).test(out), 'rule-driven route surfaced');
+    assert.ok(rule, 'fixture has a rule keyed on the label');
+    assert.ok(/\bSEND_TO_QA\b/.test(out), 'plain label still listed');
+    assert.ok(!/SEND_TO_QA → routes to/.test(out), 'a rule keyed on a label must not, by itself, render a route');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
