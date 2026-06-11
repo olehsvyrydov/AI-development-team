@@ -155,8 +155,16 @@ async function handle(route, data, project) {
       // marker), so this is idempotent: a second consume just appends another harmless
       // marker and the directive stays non-pending. Surfacing never clears a directive.
       const { id, directiveId, by, note } = data;
-      if (!findTicket(id)) return bad('unknown ticket');
+      const ticket = findTicket(id);
+      if (!ticket) return bad('unknown ticket');
       if (typeof directiveId !== 'string' || !directiveId) return bad('directiveId required');
+      // The directiveId must name a real directive ON THIS TICKET, derived from the SAME
+      // comment log pendingDirectives reads — a kind:"directive" record carrying that id.
+      // Existence (not pending-ness) is the check: an already-consumed directive still
+      // exists, so re-consuming it is the idempotent no-op above; an id matching NO
+      // directive (e.g. a typo) is refused so no orphan marker accrues.
+      const exists = (ticket.comments || []).some((c) => c && c.kind === 'directive' && c.id === directiveId);
+      if (!exists) return { code: 404, payload: { ok: false, error: 'unknown directive' } };
       const comment = w.appendComment(project, id, {
         author: by || 'hub',
         kind: 'directive-consumed',

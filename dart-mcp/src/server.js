@@ -47,7 +47,10 @@ function toZodShape(input, z) {
 
 // Shape a hub `{ code, payload }` result into an MCP tool result. The payload is returned
 // as quoted JSON data; an error/refusal/conflict is surfaced as text, never thrown into an
-// execution path. No tool argument is echoed back.
+// execution path. The text is the hub's response payload verbatim — for routes like
+// ticket/comment that means the persisted record, which echoes caller-provided fields
+// (e.g. the comment body) so the caller can confirm what was written. This is the hub's
+// authoritative response, not a secret leak: no credentials live in these payloads.
 function toToolResult({ code, payload }) {
   const isError = !(payload && payload.ok);
   return {

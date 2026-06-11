@@ -291,6 +291,54 @@ test('N3: consuming the same directive twice is idempotent (still no pending)', 
   }
 });
 
+test('N3: consuming a directiveId that matches NO directive on the ticket is refused (404, nothing appended)', async () => {
+  const dir = fixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review' } });
+  try {
+    // a real directive exists, but the caller references a different (typo) id
+    appendComment(dir, 'T-1', { author: '/rev', kind: 'directive', body: 'do X', target: ['/be'] });
+    const file = path.join(dir, '.aidevteam', 'comments', 'T-1.jsonl');
+    const before = fs.readFileSync(file, 'utf8');
+    const res = await api.handle('directive/consume', { id: 'T-1', directiveId: 'no-such-id', by: '/be' }, dir);
+    assert.equal(res.code, 404, 'an unknown directiveId is refused');
+    const after = fs.readFileSync(file, 'utf8');
+    assert.equal(after, before, 'nothing was appended — the JSONL is byte-identical');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('N3: consuming a real directive returns 200, appends the marker, and drops it from pending', async () => {
+  const dir = fixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review' } });
+  try {
+    const d = appendComment(dir, 'T-1', { author: '/rev', kind: 'directive', body: 'do X', target: ['/be'] });
+    const res = await api.handle('directive/consume', { id: 'T-1', directiveId: d.id, by: '/be' }, dir);
+    assert.equal(res.code, 200);
+    const marker = readComments(dir, 'T-1').find((c) => c.kind === 'directive-consumed' && c.ref === d.id);
+    assert.ok(marker, 'a typed consumed marker was appended for the real directive');
+    const t1 = buildState(dir).tickets.find((t) => t.id === 'T-1');
+    assert.equal(t1.pendingDirectives.length, 0, 'the consumed directive is no longer pending');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('N3: consuming an already-consumed real directive stays 200 (idempotent, no error)', async () => {
+  const dir = fixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review' } });
+  try {
+    const d = appendComment(dir, 'T-1', { author: '/rev', kind: 'directive', body: 'do X', target: ['/be'] });
+    const first = await api.handle('directive/consume', { id: 'T-1', directiveId: d.id, by: '/be' }, dir);
+    assert.equal(first.code, 200);
+    // the directive still EXISTS on the ticket, so a repeat consume is a harmless no-op,
+    // NOT refused — existence is what's validated, not pending-ness
+    const second = await api.handle('directive/consume', { id: 'T-1', directiveId: d.id, by: '/be' }, dir);
+    assert.equal(second.code, 200, 'a repeat consume of an existing directive is idempotent, not a 404');
+    const t1 = buildState(dir).tickets.find((t) => t.id === 'T-1');
+    assert.equal(t1.pendingDirectives.length, 0);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('N3b: rendering the digest mutates nothing (no auto-clear on read)', () => {
   const dir = fixture({ 'T-1': { title: 'A', track: 'full', stage: 'code_review', assignee: '/rev' } });
   try {
