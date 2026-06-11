@@ -139,7 +139,7 @@ function pendingDirectives(comments: CommentRecord[]): PendingDirective[] {
 }
 
 const FENCE = "```";
-const ZWSP = "​";
+const ZWSP = "\u200b";
 
 /**
  * Escape an untrusted directive prompt so it cannot close the fenced data block it is

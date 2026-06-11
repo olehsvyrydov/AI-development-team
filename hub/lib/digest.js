@@ -16,7 +16,7 @@ const { buildState } = require('./state');
 const FENCE = '```';
 // A zero-width space inserted between backticks neutralizes a run of >=3 backticks
 // (it no longer parses as a fence delimiter) while keeping the text visually intact.
-const ZWSP = '​';
+const ZWSP = '\u200b';
 
 /**
  * Escape an untrusted directive prompt so it can be embedded inside a fenced data
