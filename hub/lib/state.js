@@ -14,6 +14,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { expectedOwner, stageGate } = require('./stage-map');
+const { labelSettableBy } = require('./engine');
 const { readComments } = require('./comments');
 const { parseFrontMatter, scopeMatches, projectStack, commonVaultRoot, aidevteamHome } = require('./knowledge');
 const { listPending } = require('./proposals');
@@ -515,6 +516,46 @@ function projectWorkflowView(tracks, gateDefs, stageOwners, activeTrack) {
   return { activeTrack: activeTrack || null, stages };
 }
 
+// Derive a ticket's PENDING directives from its append-only comment log: every
+// kind:"directive" record whose id has NO matching kind:"directive-consumed" marker
+// (a marker references the directive id via `ref`). "Pending" is therefore a pure
+// projection of the log — consuming is idempotent (a second marker changes nothing)
+// and durable (an un-consumed directive survives a restart because it lives in the
+// log, not session memory). The surfaced prompt is untrusted data carried verbatim;
+// the renderer quotes/escapes it (DART never interpolates it into an instruction).
+function pendingDirectives(comments) {
+  const consumed = new Set();
+  for (const c of comments || []) {
+    if (c && c.kind === 'directive-consumed' && c.ref) consumed.add(String(c.ref));
+  }
+  const out = [];
+  for (const c of comments || []) {
+    if (!c || c.kind !== 'directive') continue;
+    // A directive needs a usable string id to be consumable; an id-less record
+    // (malformed/partial log line) can never be referenced, so it is not pending.
+    if (typeof c.id !== 'string' || c.id === '') continue;
+    if (consumed.has(c.id)) continue;
+    const target = Array.isArray(c.target) ? c.target.map(String) : (c.target != null ? [String(c.target)] : []);
+    out.push({ id: c.id, target, prompt: String(c.body == null ? '' : c.body), at: c.at || c.ts || null });
+  }
+  return out;
+}
+
+// The labels the agent who will ACT on the ticket may set — the assignee when one
+// is set, else the stage owner. Projected from the SAME `labels:` contract the
+// engine enforces at write time: `engine.labelSettableBy` is the single source of
+// truth, so the surfaced set cannot drift from what `label/set` actually permits
+// for that acting agent.
+function permittedLabelsFor(agent, labels) {
+  if (!agent) return [];
+  const wf = { labels: labels || {} };
+  const out = [];
+  for (const name of Object.keys(labels || {})) {
+    if (labelSettableBy(name, agent, wf)) out.push(name);
+  }
+  return out;
+}
+
 // An embedder is "configured" only when a memory config selects one (not 'none').
 // This reads the selector field only — never an API key or any secret — from the
 // user-global config and an optional project-local override.
@@ -587,6 +628,8 @@ function buildState(project) {
         return { ...g, required: wf.alwaysRequired.includes(g.name), state: normState(e.state), by: e.by || null, at: e.at || null, note: e.note || null };
       });
       const assignee = t.assignee || null;
+      const owner = expectedOwner(t.stage, wf);
+      const comments = readComments(project, id);
       return {
         id,
         title: t.title || id,
@@ -595,29 +638,37 @@ function buildState(project) {
         assignee,
         assigned_at: t.assigned_at || null,
         active: t.active || null,
-        expectedOwner: expectedOwner(t.stage, wf),
+        expectedOwner: owner,
         status: statusOf(t.stage, gates, assignee),
         gates,
         labels: Array.isArray(t.labels) ? t.labels.filter((l) => typeof l === 'string') : [],
         fired: Array.isArray(t.fired) ? t.fired : [],
         description: resolveDescription(project, id, t),
-        comments: readComments(project, id),
+        comments,
+        pendingDirectives: pendingDirectives(comments),
+        permittedLabels: permittedLabelsFor(assignee || owner, wf.labels),
         source: 'ledger',
       };
     });
 
   // fall back to markdown tickets when the ledger has none
   if (!tickets.length) {
-    tickets = readTickets(project).map((t) => ({
-      id: t.id, title: t.title, track: null, stage: t.stage, assignee: null, assigned_at: null,
-      active: null, expectedOwner: expectedOwner(t.stage, wf), status: statusOf(t.stage, [], null),
-      gates: gateDefs.map((g) => ({ ...g, state: 'pending', by: null, at: null, note: null })),
-      labels: [],
-      fired: [],
-      description: resolveDescription(project, t.id, null),
-      comments: readComments(project, t.id),
-      file: t.file, source: 'markdown',
-    }));
+    tickets = readTickets(project).map((t) => {
+      const owner = expectedOwner(t.stage, wf);
+      const comments = readComments(project, t.id);
+      return {
+        id: t.id, title: t.title, track: null, stage: t.stage, assignee: null, assigned_at: null,
+        active: null, expectedOwner: owner, status: statusOf(t.stage, [], null),
+        gates: gateDefs.map((g) => ({ ...g, state: 'pending', by: null, at: null, note: null })),
+        labels: [],
+        fired: [],
+        description: resolveDescription(project, t.id, null),
+        comments,
+        pendingDirectives: pendingDirectives(comments),
+        permittedLabels: permittedLabelsFor(owner, wf.labels),
+        file: t.file, source: 'markdown',
+      };
+    });
   }
 
   const kb = readKb(project);
@@ -645,6 +696,7 @@ function buildState(project) {
     labels: wf.labels || {},
     rules: wf.rules || [],
     tickets,
+    directives: tickets.flatMap((t) => t.pendingDirectives.map((d) => ({ ticket: t.id, ...d }))),
     ticketCount: tickets.length,
     taskSummary,
     workflowView,
@@ -674,4 +726,4 @@ function listSummary(project) {
   } catch { return null; }
 }
 
-module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb };
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor };

@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "--no-warnings",
+              "${CLAUDE_PLUGIN_ROOT}/claude/memory/src/hooks/restore-context.ts"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "--no-warnings",
+              "${CLAUDE_PLUGIN_ROOT}/claude/memory/src/hooks/save-context.ts"
+            ],
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -60,5 +60,6 @@ design-gallery/
 *.tgz
 .claude/
 .mcp.json
+!/.claude-plugin/.mcp.json
 .cursor/
 .kiro/
