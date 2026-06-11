@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "dart": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/dart-mcp/src/server.js",
+        "${CLAUDE_PROJECT_DIR}"
+      ],
+      "env": {
+        "VOYAGE_API_KEY": "${VOYAGE_API_KEY}",
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}",
+        "QDRANT_URL": "${QDRANT_URL}",
+        "QDRANT_API_KEY": "${QDRANT_API_KEY}"
+      }
+    }
+  }
+}

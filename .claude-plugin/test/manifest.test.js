@@ -9,6 +9,7 @@
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -124,6 +125,17 @@ test('MCP env passes env-var NAMES only — no secret VALUES baked in', () => {
       `env ${key} must be a ${'${VAR}'} passthrough or a plugin-root path, not a literal value`,
     );
   }
+});
+
+test('the shipped MCP config is tracked by git so it survives a fresh checkout', () => {
+  const m = readJson('.claude-plugin/plugin.json');
+  const mcpAbs = resolvePluginPath(m.mcpServers);
+  const relFromRepo = path.relative(REPO_ROOT, mcpAbs);
+  const tracked = execFileSync('git', ['ls-files', '--error-unmatch', relFromRepo], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  }).trim();
+  assert.equal(tracked, relFromRepo, 'the manifest reference must resolve on a clean clone');
 });
 
 test('the MCP server binds to the project at spawn (bound-project arg), never a client path', () => {

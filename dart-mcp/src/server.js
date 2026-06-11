@@ -19,6 +19,16 @@
 const { TOOLS, invoke } = require('./tools');
 const { resolveBoundProject } = require('./bind-project');
 
+// Single source of truth for the advertised version: package.json. Read once at load.
+// A missing/unreadable manifest must never crash startup, so fall back to a sane constant.
+const SERVER_VERSION = (() => {
+  try {
+    return require('../package.json').version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+})();
+
 // Lift a plain field descriptor into a Zod schema using the SDK's bundled zod. Loaded
 // lazily so the tool→api.handle mapping stays testable without the live transport/zod.
 function toZodShape(input, z) {
@@ -49,7 +59,7 @@ function toToolResult({ code, payload }) {
 }
 
 function buildServer(projectDir, { McpServer, z }) {
-  const server = new McpServer({ name: 'dart', version: '0.1.0' });
+  const server = new McpServer({ name: 'dart', version: SERVER_VERSION });
   for (const tool of TOOLS) {
     server.registerTool(
       tool.name,
@@ -80,4 +90,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { buildServer, toZodShape, toToolResult };
+module.exports = { buildServer, toZodShape, toToolResult, SERVER_VERSION };
