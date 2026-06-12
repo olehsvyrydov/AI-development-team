@@ -151,6 +151,57 @@ export interface KnowledgeView {
   readonly proposals?: readonly KnowledgeProposal[];
 }
 
+/**
+ * How the Q&A grounded an interpretation-check answer — shown to the operator VERBATIM so the
+ * confidence claim can never be stronger than the evidence. `method` names the tier that answered
+ * (`overlay` external · `semantic` local index · `filename-only` keyword · `none` honest absence),
+ * `external` is true only when an external overlay produced the answer, and `residency` (overlay
+ * only) names whether the query stayed on the user's network or left it. `label` is the honest
+ * sentence the backend wrote; the UI renders it as-is and never paraphrases a stronger assurance.
+ * Every field originates from the backend (and, for an overlay, from an external service) and is
+ * UNTRUSTED — it reaches the DOM through interpolation only (escaped), never `[innerHTML]`.
+ */
+export interface KnowledgeGrounding {
+  readonly method: 'overlay' | 'semantic' | 'filename-only' | 'none' | string;
+  readonly source: string;
+  readonly external: boolean;
+  /** Residency tier of an overlay answer (e.g. `local-service` / `cloud`); absent for local tiers. */
+  readonly residency?: string;
+  /** The honest grounding sentence from the backend, rendered verbatim. UNTRUSTED — escape on render. */
+  readonly label: string;
+}
+
+/**
+ * One note the Q&A matched for the asked topic. `name`/`snippet` come from project files or, for an
+ * overlay answer, from the external service, and are UNTRUSTED — they reach the DOM through
+ * interpolation only (escaped), never `[innerHTML]`. `scope` is `overlay` for an external match.
+ */
+export interface KnowledgeMatch {
+  readonly name?: string;
+  readonly scope?: KnowledgeScope | 'overlay' | string;
+  readonly stack?: readonly string[];
+  readonly kind?: string;
+  readonly score?: number;
+  /** A short body excerpt for display. UNTRUSTED — escape on render. */
+  readonly snippet?: string;
+}
+
+/**
+ * The answer to an interpretation-check question — what the project actually holds for the topic,
+ * scoped exactly as the Knowledge panel is, with an HONEST grounding label and a TRUTHFUL egress
+ * flag. `egressDisclosed` is true IFF an external overlay was queried; it is the sole driver of the
+ * UI's "queried an external service" indicator, so the disclosure cannot drift from what happened.
+ * `answer`, `matches`, and `grounding.label` are UNTRUSTED text (the matched notes, and any overlay
+ * response) — they reach the DOM through interpolation only (escaped), never `[innerHTML]`.
+ */
+export interface KnowledgeAnswer {
+  readonly answer: string;
+  readonly matches: readonly KnowledgeMatch[];
+  readonly grounding: KnowledgeGrounding;
+  /** True only when an external overlay was queried; drives the truthful egress indicator. */
+  readonly egressDisclosed: boolean;
+}
+
 /** A gate as it appears on a ticket: its definition plus current ledger state. */
 export interface TicketGate {
   readonly name: string;

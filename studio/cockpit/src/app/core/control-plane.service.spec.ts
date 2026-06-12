@@ -358,4 +358,82 @@ describe('ControlPlaneService', () => {
       await promise;
     });
   });
+
+  describe('askKnowledge (read-only interpretation-check Q&A)', () => {
+    it('GETs /api/knowledge/ask with the question as ?q, no write-guard header (it is a read)', async () => {
+      const promise = cp.askKnowledge('how do we retry webhooks?');
+      const req = http.expectOne((r) => r.url === '/api/knowledge/ask');
+      expect(req.request.method).toBe('GET');
+      expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBeNull();
+      expect(req.request.params.get('q')).toBe('how do we retry webhooks?');
+      req.flush({ ok: true, answer: 'a', matches: [], grounding: { method: 'none', source: 'filename-only', external: false, label: 'No note found.' }, egressDisclosed: false });
+      const res = await promise;
+      expect(res.ok).toBe(true);
+      if (res.ok) expect(res.answer.grounding.method).toBe('none');
+    });
+
+    it('threads the scoped project id as ?project so the read resolves to the viewed project', async () => {
+      cp.setProject('abcdef123456');
+      const promise = cp.askKnowledge('x');
+      const req = http.expectOne((r) => r.url === '/api/knowledge/ask');
+      expect(req.request.params.get('project')).toBe('abcdef123456');
+      req.flush({ ok: true, answer: 'a', matches: [], grounding: { method: 'none', source: 'filename-only', external: false, label: 'n' }, egressDisclosed: false });
+      await promise;
+    });
+
+    it('omits ?project when no project is scoped (single-project launch back-compat)', async () => {
+      const promise = cp.askKnowledge('x');
+      const req = http.expectOne((r) => r.url === '/api/knowledge/ask');
+      expect(req.request.params.has('project')).toBe(false);
+      req.flush({ ok: true, answer: 'a', matches: [], grounding: { method: 'none', source: 'filename-only', external: false, label: 'n' }, egressDisclosed: false });
+      await promise;
+    });
+
+    it('returns the answer with its honest grounding label and matches verbatim', async () => {
+      const promise = cp.askKnowledge('retry');
+      const req = http.expectOne((r) => r.url === '/api/knowledge/ask');
+      req.flush({
+        ok: true,
+        answer: 'Filename/keyword match: webhook-retry.',
+        matches: [{ name: 'webhook-retry', scope: 'project', snippet: 'retry with backoff' }],
+        grounding: { method: 'filename-only', source: 'filename-only', external: false, label: 'Filename/keyword match only — not a semantic understanding check.' },
+        egressDisclosed: false,
+      });
+      const res = await promise;
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.answer.matches[0].name).toBe('webhook-retry');
+        expect(res.answer.grounding.label).toMatch(/not a semantic/);
+        expect(res.answer.egressDisclosed).toBe(false);
+      }
+    });
+
+    it('carries the truthful egress disclosure through when an overlay answered', async () => {
+      const promise = cp.askKnowledge('retry');
+      const req = http.expectOne((r) => r.url === '/api/knowledge/ask');
+      req.flush({
+        ok: true,
+        answer: 'The service understood this as retry-with-backoff.',
+        matches: [{ name: 'memory', scope: 'overlay', score: 0.9 }],
+        grounding: { method: 'overlay', source: 'openmemory', external: true, residency: 'local-service', label: 'Answered by your connected memory service openmemory (external).' },
+        egressDisclosed: true,
+      });
+      const res = await promise;
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.answer.egressDisclosed).toBe(true);
+        expect(res.answer.grounding.external).toBe(true);
+        expect(res.answer.grounding.residency).toBe('local-service');
+      }
+    });
+
+    it('maps a transport failure to a terse error result, never a throw', async () => {
+      const promise = cp.askKnowledge('x');
+      const req = http.expectOne((r) => r.url === '/api/knowledge/ask');
+      req.flush({ ok: false, error: 'unavailable' }, { status: 500, statusText: 'Server Error' });
+      const res = await promise;
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toBe('unavailable');
+    });
+  });
 });

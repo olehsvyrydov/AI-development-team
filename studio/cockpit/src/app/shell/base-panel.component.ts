@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input
 import type { KnowledgeDoc, KnowledgeProposal, KnowledgeScope, KnowledgeView, ProjectState } from '../core/models';
 import { AddNoteFormComponent } from './add-note-form.component';
 import { GlyphComponent } from './glyph.component';
+import { KnowledgeQaComponent } from './knowledge-qa.component';
 import { ProposeInboxComponent } from './propose-inbox.component';
 
 /** Scope filter for the displayed list: a single vault, or every visible doc. */
@@ -36,7 +37,7 @@ const SCOPE_ORDER: readonly ScopeFilter[] = ['project', 'common', 'all'];
 @Component({
   selector: 'dart-base-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AddNoteFormComponent, GlyphComponent, ProposeInboxComponent],
+  imports: [AddNoteFormComponent, GlyphComponent, KnowledgeQaComponent, ProposeInboxComponent],
   template: `
     <header class="ph">
       <span class="ph__tile ph__tile--base" aria-hidden="true">
@@ -164,6 +165,11 @@ const SCOPE_ORDER: readonly ScopeFilter[] = ['project', 'common', 'all'];
       } @else {
         <p class="docs-empty" data-testid="knowledge-scope-empty">{{ emptyScopeLine() }}</p>
       }
+    }
+
+    @if (!isEmpty()) {
+      <hr class="ph__rule" aria-hidden="true" />
+      <dart-knowledge-qa />
     }
 
     <hr class="ph__rule" aria-hidden="true" />

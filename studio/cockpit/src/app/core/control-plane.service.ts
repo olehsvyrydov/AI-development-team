@@ -1,8 +1,8 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PLATFORM_BRIDGE } from './platform-bridge';
-import type { KnowledgeDoc, KnowledgeScope, ProjectState } from './models';
+import type { KnowledgeAnswer, KnowledgeDoc, KnowledgeScope, ProjectState } from './models';
 
 /**
  * The outcome of a control-plane mutation. The hub answers every guarded mutation with one of
@@ -43,6 +43,20 @@ export interface KbAddInput {
   readonly stack?: readonly string[];
   /** Optional kind classifier. */
   readonly kind?: string;
+}
+
+/**
+ * The outcome of an interpretation-check question. The Q&A route is read-only and never throws on
+ * the backend, so a usable answer is the normal case; this result only distinguishes a transport
+ * failure (`ok: false`) from a delivered answer (`ok: true`) so the UI can show a terse retry hint.
+ */
+export type AskResult =
+  | { readonly ok: true; readonly answer: KnowledgeAnswer }
+  | { readonly ok: false; readonly error: string };
+
+interface AskEnvelope extends KnowledgeAnswer {
+  readonly ok?: boolean;
+  readonly error?: string;
 }
 
 /** Body for `ticket/advance`. `expectedRev` is the opaque token from the last received state. */
@@ -295,6 +309,41 @@ export class ControlPlaneService {
    */
   rejectProposal(id: string): Promise<MutationResult> {
     return this.mutate('/api/kb/reject', { id });
+  }
+
+  /**
+   * Ask an interpretation-check question over the project's already-visible knowledge — "does DART
+   * understand my note on X?". This is a READ (`GET /api/knowledge/ask`): it carries NO write-guard
+   * header, sends nothing but the question and the scoped project id as query params, and never
+   * mutates. The backend answers from the local scope by default; it egresses to an external overlay
+   * ONLY when the operator has configured one and it is healthy, and reports that truthfully in the
+   * answer's `egressDisclosed` flag — which the UI is the sole consumer of for its egress indicator.
+   *
+   * @param question the operator's question (untrusted text; sent verbatim as `q`)
+   * @returns `ok:true` with the answer (escaped on render), or `ok:false` with a terse error
+   */
+  async askKnowledge(question: string): Promise<AskResult> {
+    let params = new HttpParams().set('q', question);
+    if (this.projectId !== null) params = params.set('project', this.projectId);
+    try {
+      const res = await firstValueFrom(
+        this.http.get<AskEnvelope>(this.bridge.apiUrl('/api/knowledge/ask'), { params }),
+      );
+      if (res?.ok === true) {
+        return {
+          ok: true,
+          answer: {
+            answer: res.answer,
+            matches: res.matches ?? [],
+            grounding: res.grounding,
+            egressDisclosed: res.egressDisclosed === true,
+          },
+        };
+      }
+      return { ok: false, error: res?.error || 'request failed' };
+    } catch (err) {
+      return { ok: false, error: httpErrorMessage(err) };
+    }
   }
 
   private async mutate(apiPath: string, body: object): Promise<MutationResult> {
