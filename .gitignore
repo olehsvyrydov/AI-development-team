@@ -17,6 +17,13 @@ Thumbs.db
 # Node (if using for any tooling)
 node_modules/
 
+# DART MCP server: node_modules stays ignored, but the shipped self-contained
+# runtime bundle (dist/server.cjs) is a tracked artifact so a git-only install runs
+# the dart_* tools with zero setup.
+dart-mcp/node_modules/
+!dart-mcp/dist/
+!dart-mcp/dist/server.cjs
+
 # Studio Cockpit (Angular app — build artifacts only; source is tracked)
 studio/cockpit/node_modules/
 studio/cockpit/dist/

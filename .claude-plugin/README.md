@@ -16,8 +16,9 @@ merge into `~/.claude` remains a supported fallback for an un-namespaced global 
   (active tickets, gates, pending directives) and a `PreCompact` hook that saves
   session context. Both are best-effort and exit cleanly; neither can break a session.
 - **MCP server** — a stdio write-back server (`dart`) that exposes the hub control
-  plane as typed tools, bound to the launching project at spawn. It binds no port and
-  spawns no remote endpoint.
+  plane as typed tools, bound to the launching project at spawn. It ships as a
+  self-contained bundle (zero setup, no `npm ci`), binds no port, and spawns no remote
+  endpoint.
 
 ## Install & enable
 
@@ -69,20 +70,13 @@ or skill is active). `claude plugin details dart@dart` lists the agent + workflo
 the **three hooks** (`SessionStart`, `UserPromptSubmit`, `PreCompact`), and the `dart`
 MCP server declared by the plugin.
 
-### One-time MCP runtime setup (only if you use the `dart` MCP tools)
+### MCP runtime — zero setup
 
-The `dart` MCP server ships its source but **not** its `node_modules` (install runs no
-side effect outside the plugin directory). To run the MCP write-back tools, install its
-pinned runtime dependencies once inside the installed plugin's `dart-mcp/` directory:
-
-```bash
-# the installed plugin lives under the user plugin cache, keyed by version
-cd ~/.claude/plugins/cache/dart/dart/*/dart-mcp
-npm ci    # installs @modelcontextprotocol/sdk + zod from the committed lockfile
-```
-
-The `/dart:*` commands, skills, and the SessionStart/UserPromptSubmit/PreCompact hooks
-work **without** this step; it is required only for the live MCP write-back tools.
+The `dart` MCP server runs from a **committed, self-contained bundle**
+(`dart-mcp/dist/server.cjs`) with the MCP SDK and zod inlined, so the write-back tools
+work immediately after a git-only / marketplace install — **no `npm ci`, no
+`node_modules`, no build step**. The bundle keeps the hub control plane as a runtime
+relative require, so it reads the same single source of truth the rest of DART uses.
 
 ### No `npx` / `npm install` one-liner
 

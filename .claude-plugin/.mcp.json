@@ -3,7 +3,7 @@
     "dart": {
       "command": "node",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/dart-mcp/src/server.js",
+        "${CLAUDE_PLUGIN_ROOT}/dart-mcp/dist/server.cjs",
         "${CLAUDE_PROJECT_DIR}"
       ],
       "env": {
