@@ -659,3 +659,118 @@ test('N-322 the Q&A visible set equals buildKnowledge docs filtered by scopeMatc
     });
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+// ===========================================================================
+// Hub-independent CLI: `node hub/lib/knowledge-qa.js <project> <question>`
+// A thin wire-up of the same ask() — no new logic. Read-only, never-throws,
+// exit 0, no network unless an overlay is enabled+healthy.
+// ===========================================================================
+
+const { spawnSync } = require('node:child_process');
+const CLI = path.resolve(__dirname, '..', 'lib', 'knowledge-qa.js');
+
+// Run the CLI as a child process with an isolated HOME (so no real overlay
+// config or credential can leak in). Returns { status, stdout, stderr }.
+function runCli(args, { home, env } = {}) {
+  return spawnSync(process.execPath, [CLI, ...args], {
+    encoding: 'utf8',
+    env: { ...process.env, HOME: home, USERPROFILE: home, ...(env || {}) },
+  });
+}
+
+test('CLI prints the answer + the honest grounding label for a local match (filename-only)', async () => {
+  const dir = tmpProject(['node']);
+  const home = freshTmp('aidt-qa-home-');
+  try {
+    ensureHomeAidt(home);
+    w.addKbNote(dir, { title: 'Webhook Retry Policy', body: 'exponential backoff', scope: 'project' });
+    const r = runCli([dir, 'what is the webhook retry policy?'], { home });
+    assert.equal(r.status, 0, 'CLI exits 0');
+    assert.match(r.stdout, /webhook-retry-policy|Webhook Retry/i, 'the matched note is shown');
+    assert.match(r.stdout, /filename|keyword|no embedder/i, 'the honest grounding label is printed verbatim');
+    assert.match(r.stdout, /not .*semantic understanding check/i, 'never overclaims a semantic match');
+    assert.doesNotMatch(r.stdout, /external\)/i, 'no egress disclosure for a local-only answer');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(home, { recursive: true, force: true }); }
+});
+
+test('CLI states honest absence when nothing matches, and still exits 0', () => {
+  const dir = tmpProject(['node']);
+  const home = freshTmp('aidt-qa-home-');
+  try {
+    ensureHomeAidt(home);
+    w.addKbNote(dir, { title: 'Webhook Retry Policy', body: 'backoff', scope: 'project' });
+    const r = runCli([dir, 'how do I configure kafka partitioning?'], { home });
+    assert.equal(r.status, 0);
+    assert.match(r.stdout, /no note|nothing/i, 'plain absence');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(home, { recursive: true, force: true }); }
+});
+
+test('CLI never-throws and exits 0 on a missing/garbage project dir', () => {
+  const home = freshTmp('aidt-qa-home-');
+  try {
+    ensureHomeAidt(home);
+    const r = runCli(['/no/such/project/at/all', 'anything?'], { home });
+    assert.equal(r.status, 0, 'a bad project dir still exits 0');
+    assert.equal(r.stderr.trim(), '', 'no stack trace on stderr');
+    assert.match(r.stdout, /no note|nothing/i, 'degrades to honest absence');
+  } finally { fs.rmSync(home, { recursive: true, force: true }); }
+});
+
+test('CLI with no question still exits 0 (never-throws)', () => {
+  const dir = tmpProject(['node']);
+  const home = freshTmp('aidt-qa-home-');
+  try {
+    ensureHomeAidt(home);
+    const r = runCli([dir], { home });
+    assert.equal(r.status, 0);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(home, { recursive: true, force: true }); }
+});
+
+test('CLI makes NO network call when no overlay is configured (read-only, no egress)', () => {
+  const dir = tmpProject(['node']);
+  const home = freshTmp('aidt-qa-home-');
+  try {
+    ensureHomeAidt(home); // home has NO overlay config ⇒ overlay disabled
+    w.addKbNote(dir, { title: 'Local Topic', body: 'present', scope: 'project' });
+    // Trap any outbound socket: a child that egresses would print PROBE-EGRESS.
+    const trap = "const net=require('net');const o=net.Socket.prototype.connect;net.Socket.prototype.connect=function(){process.stdout.write('PROBE-EGRESS');return o.apply(this,arguments);};";
+    const r = spawnSync(process.execPath, ['-e', `${trap}require(${JSON.stringify(CLI)});`, dir, 'local topic'], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+    });
+    assert.equal(r.status, 0);
+    assert.doesNotMatch(r.stdout, /PROBE-EGRESS/, 'no overlay ⇒ the network primitive is never invoked');
+    assert.doesNotMatch(r.stdout, /external\)/i, 'no external/egress disclosure when local-only');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(home, { recursive: true, force: true }); }
+});
+
+test('renderCliText surfaces the egress disclosure iff an overlay actually answered', () => {
+  const local = qa.renderCliText({
+    answer: 'local answer',
+    grounding: { method: 'filename-only', source: 'filename-only', external: false, label: 'Filename/keyword match only — no embedder configured.' },
+    egressDisclosed: false,
+  });
+  assert.match(local, /Filename\/keyword match only/, 'verbatim honest label');
+  assert.doesNotMatch(local, /Egress:/, 'no egress line when nothing was sent');
+
+  const external = qa.renderCliText({
+    answer: 'external answer',
+    grounding: { method: 'overlay', source: 'openmemory', external: true, residency: 'EU', label: 'Answered by your connected memory service openmemory (external).' },
+    egressDisclosed: true,
+  });
+  assert.match(external, /Answered by your connected memory service openmemory \(external\)/, 'overlay label verbatim');
+  assert.match(external, /Egress:.*openmemory/i, 'egress disclosed truthfully with the source named');
+});
+
+test('CLI is read-only: the project vault is byte-identical after asking', () => {
+  const dir = tmpProject(['node']);
+  const home = freshTmp('aidt-qa-home-');
+  try {
+    ensureHomeAidt(home);
+    w.addKbNote(dir, { title: 'Topic', body: 'x', scope: 'project' });
+    const before = snapshotTree(dir);
+    runCli([dir, 'topic'], { home });
+    runCli([dir, 'nope'], { home });
+    assert.deepEqual(snapshotTree(dir), before, 'CLI wrote nothing to the project vault');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(home, { recursive: true, force: true }); }
+});
