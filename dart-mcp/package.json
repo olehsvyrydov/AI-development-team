@@ -13,10 +13,14 @@
   },
   "scripts": {
     "start": "node src/server.js",
+    "build": "esbuild src/server.js --bundle --platform=node --format=cjs --target=node22 --external:../../hub/lib/* --external:../package.json --outfile=dist/server.cjs",
     "test": "node --test test/"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
     "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
   }
 }

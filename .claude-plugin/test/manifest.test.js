@@ -126,8 +126,12 @@ test('manifest references an MCP config that declares the dart-mcp server', () =
   const dart = servers.dart;
   assert.equal(dart.command, 'node', 'spawned via node (stdio child process)');
   const argline = (dart.args || []).join(' ');
-  assert.match(argline, /dart-mcp\/src\/server\.js/, 'points at the ADT-237 stdio server');
+  // The plugin runs the committed self-contained bundle (sdk + zod inlined) so the
+  // dart_* tools work with zero setup after a git-only install — no node_modules, no npm ci.
+  assert.match(argline, /dart-mcp\/dist\/server\.cjs/, 'points at the shipped self-contained bundle');
   assert.match(argline, /\$\{CLAUDE_PLUGIN_ROOT\}/, 'server path resolved against the plugin root');
+  const bundleAbs = path.join(REPO_ROOT, 'dart-mcp', 'dist', 'server.cjs');
+  assert.ok(fs.existsSync(bundleAbs), 'the shipped bundle must exist so the install is turnkey');
 });
 
 test('MCP env passes env-var NAMES only — no secret VALUES baked in', () => {
