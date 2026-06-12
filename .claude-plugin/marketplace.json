@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "dart",
+  "description": "DART AI Development Team marketplace — ships the dart plugin (agent team, workflow-engine, session-context hooks, and the write-back control-plane MCP server).",
+  "owner": {
+    "name": "AI Dev Team"
+  },
+  "plugins": [
+    {
+      "name": "dart",
+      "source": ".",
+      "description": "A team of specialist AI agents plus an enforced, proportional development workflow, as dart:-namespaced commands, skills, a session-context digest hook, and a write-back control-plane MCP server.",
+      "version": "5.0.0"
+    }
+  ]
+}
