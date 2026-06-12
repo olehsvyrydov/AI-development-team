@@ -112,4 +112,4 @@ if (require.main === module) {
   else process.stdout.write(renderText(st) + '\n');
 }
 
-module.exports = { renderText, renderDirectiveData };
+module.exports = { renderText, renderDirectiveData, renderDirectiveSection };

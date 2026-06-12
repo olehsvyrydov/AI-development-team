@@ -79,6 +79,24 @@ test('manifest references a hooks config that declares SessionStart + PreCompact
   const hooks = JSON.parse(fs.readFileSync(hooksAbs, 'utf8')).hooks;
   assert.ok(hooks.SessionStart, 'SessionStart hook present (digest/directive surfacing)');
   assert.ok(hooks.PreCompact, 'PreCompact hook present (context save)');
+  assert.ok(hooks.UserPromptSubmit, 'UserPromptSubmit hook present (live per-turn directive delivery)');
+});
+
+test('the UserPromptSubmit hook runs the live-directives script with a sub-30s backstop timeout', () => {
+  const m = readJson('.claude-plugin/plugin.json');
+  const hooks = JSON.parse(fs.readFileSync(resolvePluginPath(m.hooks), 'utf8')).hooks;
+  const entries = hooks.UserPromptSubmit;
+  assert.ok(Array.isArray(entries) && entries.length >= 1, 'at least one UserPromptSubmit matcher');
+  const all = [];
+  for (const matcher of entries) for (const h of matcher.hooks) all.push(h);
+  const cmd = all.map((h) => [h.command, ...(h.args || [])].join(' ')).join('\n');
+  assert.match(cmd, /live-directives\.ts/, 'runs the live-directives hook');
+  assert.match(cmd, /\$\{CLAUDE_PLUGIN_ROOT\}/, 'resolved against the plugin root, never an absolute path');
+  // The per-turn hook blocks the user's prompt up to its timeout, so the backstop must be
+  // far below the ~30s model-block timeout.
+  for (const h of all) {
+    assert.ok(typeof h.timeout === 'number' && h.timeout > 0 && h.timeout < 30, `backstop timeout < 30s (got ${h.timeout})`);
+  }
 });
 
 test('hooks commands reference the bundled hook scripts via ${CLAUDE_PLUGIN_ROOT}', () => {

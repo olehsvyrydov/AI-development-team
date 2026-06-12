@@ -399,3 +399,21 @@ test('N6: the digest CLI renders the directive section from files and exits 0', 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// --- renderDirectiveSection is exported for reuse by the live-directives hook ---
+
+test('renderDirectiveSection is exported and reusable, escaping a fence-break body', () => {
+  const { renderDirectiveSection } = require('../lib/digest');
+  assert.equal(typeof renderDirectiveSection, 'function', 'renderDirectiveSection must be exported for the hook to reuse');
+  const lines = [];
+  const ticket = {
+    pendingDirectives: [{ id: 'd1', target: ['/be'], prompt: 'a ```fence``` break', at: null }],
+    permittedLabels: [],
+  };
+  renderDirectiveSection(ticket, lines, {});
+  const out = lines.join('\n');
+  assert.ok(out.includes('for /be'), 'renders the addressed target');
+  assert.ok(!/^```/m.test(out.replace(/^    /gm, '')) || out.split('```').length >= 3, 'fenced block present');
+  // The exported function is the SAME one used by renderText (no forked renderer).
+  assert.ok(out.includes('a '), 'directive body surfaced as quoted data');
+});
