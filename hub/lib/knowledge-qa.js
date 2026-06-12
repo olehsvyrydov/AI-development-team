@@ -213,4 +213,32 @@ function scopeKeyFor(project) {
   return path.basename(String(project || '')) || 'project';
 }
 
-module.exports = { ask, lexicalMatches, egressContext };
+// Render an answer for the hub-independent CLI: the answer text, then the
+// backend's grounding label verbatim (never overclaimed — a filename-only match
+// says so), and the egress disclosure ONLY when an external overlay actually
+// answered (the backend's `egressDisclosed` flag is the single source of truth,
+// so the CLI cannot open a second egress path or disclose one that did not happen).
+function renderCliText(result) {
+  const lines = [result.answer];
+  const label = result.grounding && result.grounding.label;
+  if (label && label !== result.answer) lines.push('', label);
+  if (result.egressDisclosed) {
+    const source = (result.grounding && result.grounding.source) || 'an external memory service';
+    const residency = result.grounding && result.grounding.residency;
+    lines.push('', `Egress: this question was sent to your connected memory overlay (${source}${residency ? `, ${residency}` : ''}).`);
+  }
+  return lines.join('\n');
+}
+
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  const dir = path.resolve(args.find((a) => !a.startsWith('-')) || process.cwd());
+  const question = args.filter((a) => !a.startsWith('-')).slice(1).join(' ');
+  // Never-throws + exit 0: ask() already degrades every tier locally; a true
+  // internal failure still prints an honest absence rather than a stack trace.
+  ask(dir, question)
+    .then((result) => process.stdout.write(renderCliText(result) + '\n'))
+    .catch(() => process.stdout.write("No note found on this topic in this project's scope.\n"));
+}
+
+module.exports = { ask, lexicalMatches, egressContext, renderCliText };
