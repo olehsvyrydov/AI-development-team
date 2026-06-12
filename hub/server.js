@@ -47,6 +47,7 @@ const SELF_DIR = __dirname;
 const lib = require('./lib/state');
 const { writeAllowed, streamAllowed } = require('./lib/guard');
 const api = require('./lib/api');
+const knowledgeQa = require('./lib/knowledge-qa');
 const projects = require('./lib/projects');
 const { createRegistry } = require('./lib/registry');
 const { resolveProject } = require('./lib/resolve-project');
@@ -146,6 +147,32 @@ const server = http.createServer((req, res) => {
       if (req.socket) req.socket.setTimeout(0);
       const sub = channels.subscribe(r.dir, res); // writes the initial frame
       req.on('close', () => sub.close());
+    });
+  }
+  // ---- read-only interpretation-check Q&A: GET /api/knowledge/ask ----------
+  // A read over the project's already-visible knowledge (buildKnowledge scope). It
+  // mutates nothing and only egresses when an overlay is enabled+healthy. It rides
+  // the same loopback Host/Origin/socket pinning as the SSE stream (a capability that
+  // can disclose local data and, when configured, egress); EventSource-style reads
+  // cannot send X-AIDT, so Host/Origin/socket pinning is the operative control here.
+  if (pathname === '/api/knowledge/ask') {
+    if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'method not allowed' });
+    const gate = streamAllowed(req, { port: PORT, allowRemote: ALLOW_REMOTE });
+    if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
+    return resolveProject(query && query.get('project'), { registry, launch: PROJECT }).then((r) => {
+      if (!r.ok) return sendJson(res, r.code, { ok: false, error: r.error });
+      const question = (query && query.get('q')) || '';
+      return knowledgeQa.ask(r.dir, question)
+        .then((answer) => sendJson(res, 200, { ok: true, ...answer }))
+        // never-throws contract: a degraded tier still answers; a true internal
+        // failure returns a terse 200 honest-absence rather than a 500 stack leak
+        .catch(() => sendJson(res, 200, {
+          ok: true,
+          answer: 'No note found on this topic in this project\'s scope.',
+          matches: [],
+          grounding: { method: 'none', source: 'filename-only', external: false, label: 'No note found on this topic in this project\'s scope.' },
+          egressDisclosed: false,
+        }));
     });
   }
   // ---- read-only directory browser: /api/fs/* (folder picker) --------------

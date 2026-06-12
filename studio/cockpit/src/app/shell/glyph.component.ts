@@ -43,6 +43,8 @@ export const GLYPH_NAMES = [
   'scope-project',
   'tag',
   'propose',
+  'search',
+  'cloud',
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -291,6 +293,17 @@ export type GlyphName = (typeof GLYPH_NAMES)[number];
           <path d="M4 13 h4 l1.5 2 h5 l1.5 -2 h4 V19 a1 1 0 0 1 -1 1 H5 a1 1 0 0 1 -1 -1 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
           <line x1="12" y1="4" x2="12" y2="10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
           <polyline points="9,7 12,4 15,7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('search') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <line x1="15.5" y1="15.5" x2="20" y2="20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      }
+      @case ('cloud') {
+        <svg aria-hidden="true" viewBox="0 0 24 24" [attr.width]="size()" [attr.height]="size()">
+          <path d="M7 18 a4 4 0 0 1 0 -8 a5 5 0 0 1 9.6 1.2 a3.4 3.4 0 0 1 -0.6 6.8 z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
         </svg>
       }
     }

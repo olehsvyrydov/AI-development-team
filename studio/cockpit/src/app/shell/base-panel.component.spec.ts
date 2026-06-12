@@ -343,6 +343,18 @@ describe('Knowledge panel', () => {
     expect(host.textContent).toContain('No knowledge yet — add the rules and context your team must follow.');
   });
 
+  it('embeds the interpretation-check Q&A when there is knowledge to ask about', () => {
+    const host = mount(MERGED).nativeElement as HTMLElement;
+    expect(host.querySelector('dart-knowledge-qa')).toBeTruthy();
+    expect(host.querySelector('[data-testid="qa-input"]')).toBeTruthy();
+  });
+
+  it('omits the Q&A in the bare-empty state (the invitation is to add the first note)', () => {
+    const host = mount({ method: 'filename-only', stack: ['any'], counts: { project: 0, common: 0 }, docs: [] })
+      .nativeElement as HTMLElement;
+    expect(host.querySelector('dart-knowledge-qa')).toBeNull();
+  });
+
   it('escapes a hostile document name rather than injecting markup (XSS guard)', () => {
     const fixture = mount({
       method: 'filename-only',
