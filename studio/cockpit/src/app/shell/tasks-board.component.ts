@@ -9,7 +9,6 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
 import { ControlPlaneService } from '../core/control-plane.service';
 import type { ProjectState, TicketView } from '../core/models';
 import {
@@ -34,8 +33,9 @@ import {
 import { GlyphComponent } from './glyph.component';
 import { TaskDetailComponent } from './task-detail.component';
 import { TasksWorklistComponent } from './tasks-worklist.component';
+import { TasksPipelineComponent } from './tasks-pipeline.component';
 
-/** The two Tasks view modes: the needs-you-first worklist (default) and the stage pipeline (train). */
+/** The two Tasks view modes: the needs-you-first worklist (default) and the CI-style stage pipeline. */
 export type TasksViewMode = 'worklist' | 'pipeline';
 
 const VIEW_MODE_KEY_PREFIX = 'dart.tasks.viewMode.';
@@ -58,7 +58,7 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
 @Component({
   selector: 'dart-tasks-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GlyphComponent, TaskDetailComponent, TasksWorklistComponent, NgTemplateOutlet],
+  imports: [GlyphComponent, TaskDetailComponent, TasksWorklistComponent, TasksPipelineComponent],
   template: `
     <div class="pipeline" data-testid="pipeline-root" [attr.data-motion]="motionOk() ? 'on' : 'off'">
       <p class="board-live" data-testid="board-live" aria-live="polite" role="status">{{ liveAnnounce() }}</p>
@@ -113,148 +113,18 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
         <dart-tasks-worklist [bands]="bands()" [progress]="worklistProgress()" [cardTemplate]="cardTpl" />
         }
         @case ('pipeline') {
-        <div class="train" data-testid="pipeline-train">
-          <section class="backlog" data-testid="backlog-bar" aria-label="Backlog">
-            <header class="backlog__head">
-              <span class="backlog__title"><dart-glyph name="stack" /> Backlog</span>
-              <span class="backlog__count" data-testid="backlog-count">{{ backlog().length }}</span>
-            </header>
-            <ul class="col__cards backlog__cards" role="list">
-              @for (t of backlog(); track t.id) {
-                <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
-              } @empty {
-                <li class="backlog__empty" data-testid="backlog-empty">Backlog is clear.</li>
-              }
-            </ul>
-            <button
-              type="button"
-              class="backlog__add"
-              data-testid="backlog-add"
-              disabled
-              aria-disabled="true"
-              title="Adding ideas to the Backlog is coming soon."
-            >
-              <dart-glyph name="add-stage" /> + idea · soon
-            </button>
-          </section>
-
-          <div class="rail" data-testid="pipeline-rail" data-adaptive="true" role="list" aria-label="Tasks by workflow stage" (keydown)="onColumnKeydown($event)">
-            <span class="rail__track" aria-hidden="true"></span>
-            @for (col of columns(); track col.stage; let ci = $index) {
-              <section
-                class="col"
-                [attr.data-testid]="'column-stage-' + col.stage"
-                [attr.data-state]="col.tickets.length ? 'expanded' : 'compact'"
-                role="listitem"
-                tabindex="0"
-                [attr.data-col-index]="ci"
-                [attr.aria-label]="stationLabel(col)"
-              >
-                <header class="col__head">
-                  <span
-                    class="rail__node"
-                    [attr.data-testid]="'rail-node-' + col.stage"
-                    [attr.data-node]="nodeKind(col)"
-                    [attr.data-active]="ci <= activeSegment() ? 'true' : 'false'"
-                    aria-hidden="true"
-                  >
-                    @switch (nodeKind(col)) {
-                      @case ('none') {
-                        <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" /></svg>
-                      }
-                      @case ('gate-hard') {
-                        <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M12 7 L17 12 L12 17 L7 12 Z" fill="currentColor" stroke="none" /></svg>
-                      }
-                      @case ('gate-soft') {
-                        <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M12 7 L17 12 L12 17 L7 12 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2" /></svg>
-                      }
-                    }
-                  </span>
-                  <span class="col__stage">{{ col.stage }}</span>
-                  @if (col.owner) {
-                    <span class="col__owner"><dart-glyph name="agent" /> {{ col.owner }}</span>
-                  }
-                  <span class="col__count" data-testid="column-count">{{ col.tickets.length }}</span>
-                </header>
-                @if (col.tickets.length) {
-                  <ul class="col__cards" role="list">
-                    @for (t of col.tickets; track t.id) {
-                      <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
-                    }
-                  </ul>
-                } @else {
-                  <p class="col__empty col__empty--compact" [attr.data-testid]="'column-empty-' + col.stage">Nothing in this stage.</p>
-                }
-              </section>
-            }
-            @if (middleEmpty()) {
-              <p class="rail__idle" data-testid="rail-middle-empty">
-                No tasks are mid-pipeline right now. They'll appear at a stage as the team advances them.
-                <button type="button" class="rail__escape" data-testid="pipeline-to-worklist" (click)="selectMode('worklist')">
-                  Switch to Worklist
-                </button>
-              </p>
-            }
-          </div>
-
-          @if (terminal(); as term) {
-            <section class="done" data-testid="done-folder" aria-label="Done">
-              <span
-                class="rail__node rail__node--terminal"
-                [attr.data-testid]="'rail-node-' + term"
-                data-node="terminal"
-                [attr.data-active]="doneActive() ? 'true' : 'false'"
-                aria-hidden="true"
-              >
-                <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none" /></svg>
-              </span>
-              <button
-                type="button"
-                class="done__face"
-                data-testid="done-folder-toggle"
-                [attr.aria-expanded]="doneOpen()"
-                [attr.aria-label]="'Done — ' + doneTickets().length + ' tasks, activate to view'"
-                (click)="toggleDone()"
-              >
-                <span class="done__stack" aria-hidden="true"><dart-glyph name="folder-stack" [size]="22" /></span>
-                <span class="done__count" data-testid="done-folder-count">{{ doneTickets().length }}</span>
-                <span class="done__label"><dart-glyph name="check" /> Done</span>
-              </button>
-              @if (doneOpen()) {
-                <ul class="col__cards done__list" data-testid="done-folder-list" role="list">
-                  @for (t of doneTickets(); track t.id) {
-                    <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
-                  } @empty {
-                    <li class="col__empty" data-testid="done-folder-empty">Nothing shipped yet.</li>
-                  }
-                </ul>
-              }
-            </section>
-          }
-
-          @if (offTrack().length) {
-            <section class="offtrack" data-testid="off-track-lane" aria-label="Off-track tasks">
-              <header class="offtrack__head">
-                <dart-glyph name="warning" />
-                <span class="offtrack__title">Off-track ({{ offTrackCount() }})</span>
-              </header>
-              <p class="offtrack__why">These tasks are in a stage that's no longer in the pipeline.</p>
-              <p class="offtrack__reassure">Nothing's lost. Open a task and advance it to put it back on the pipeline.</p>
-              <div class="offtrack__groups">
-                @for (g of offTrack(); track g.stage) {
-                  <div class="offtrack__group" [attr.data-testid]="'off-track-group-' + g.stage">
-                    <p class="offtrack__stage">was in “{{ g.stage }}” — that stage is gone</p>
-                    <ul class="col__cards" role="list">
-                      @for (t of g.tickets; track t.id) {
-                        <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
-                      }
-                    </ul>
-                  </div>
-                }
-              </div>
-            </section>
-          }
-        </div>
+        <dart-tasks-pipeline
+          [columns]="columns()"
+          [workflowView]="state().workflowView ?? null"
+          [activeSegment]="activeSegment()"
+          [backlogCount]="backlog().length"
+          [doneCount]="doneTickets().length"
+          [offTrackCount]="offTrackCount()"
+          [middleEmpty]="middleEmpty()"
+          [cardTemplate]="cardTpl"
+          (selectWorklist)="selectMode('worklist')"
+          (openTicket)="openDetail($event)"
+        />
         }
         }
       }
@@ -337,7 +207,7 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
   `,
   styles: `
     /* Motion tokens — one place reduced-motion zeroes them; transitions read these. */
-    :host { --kb-dur-fast: 120ms; --kb-dur-base: 160ms; --kb-dur-slow: 200ms; --kb-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --kb-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); --rail-compact-gap: 0.5rem; }
+    :host { --kb-dur-fast: 120ms; --kb-dur-base: 160ms; --kb-dur-slow: 200ms; --kb-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --kb-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); }
     @media (prefers-reduced-motion: reduce) { :host { --kb-dur-fast: 0ms; --kb-dur-base: 0ms; --kb-dur-slow: 0ms; } }
     .board-live { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
     .board-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--kb-space-2); margin-bottom: var(--kb-space-3); }
@@ -354,73 +224,9 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
     .view-switch__opt + .view-switch__opt { border-left: 1px solid var(--kb-border); }
     .view-switch__opt[data-active='true'] { color: var(--kb-text); background: var(--kb-surface-muted); font-weight: 600; }
     .view-switch__opt:focus-visible { outline: 2px solid var(--kb-focus-ring, var(--kb-accent)); outline-offset: -2px; }
-    .rail__escape { display: inline-block; margin-left: 0.4rem; padding: 0.1rem 0.4rem; pointer-events: auto; font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-accent); background: transparent; border: none; cursor: pointer; text-decoration: underline; }
     .card__reason { display: inline-flex; align-items: center; gap: 0.25rem; font-size: var(--kb-text-xs); color: var(--kb-warning); }
-    /* The board is a single non-scrolling flex row of four regions: [Backlog][rail][Done][Off-track].
-       Backlog, Done and Off-track are fixed-width columns (flex: 0 0 auto) that hold their place; only
-       the middle rail scrolls horizontally, so the side panels never float over the scrolled stages. */
-    .train { display: flex; gap: var(--kb-space-3); align-items: stretch; width: 100%; padding-bottom: var(--kb-space-2); container-type: inline-size; container-name: board; }
-    .backlog { flex: 0 0 auto; width: 13rem; min-width: 13rem; max-width: 13rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
-    .backlog__head { display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); }
-    .backlog__title { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; font-size: var(--kb-text-sm); }
-    .backlog__count { margin-left: auto; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
-    .backlog__cards { max-height: 60vh; overflow-y: auto; }
-    .backlog__empty { color: var(--kb-text-subtle); font-size: var(--kb-text-xs); font-style: italic; }
-    .backlog__add { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.5rem; font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text-subtle); background: transparent; border: 1px dashed var(--kb-border); border-radius: var(--kb-radius-md); cursor: default; opacity: 0.7; }
-    /* The middle region — the ONLY horizontally-scrolling part of the board. It grows to fill the
-       space between the fixed side panels (flex: 1 1 0) and may shrink to zero (min-width: 0) so it
-       never pushes them off-screen. Its columns flex-grow to share the width (min-width keeps a column
-       legible; max-width stops a lone column from stretching absurdly); horizontal scroll appears
-       inside this region only when the columns can no longer fit at their min-width. */
-    /* The stations sit on ONE line (flex-wrap: nowrap) so the train reads as a single metro line; the
-       continuous track runs behind that single row. Horizontal scroll (overflow-x: auto) is the
-       genuine-busy fallback only — it engages when several stages expand to real columns at once and
-       can no longer fit, never for the common mostly-empty case where compact stations stay narrow. */
-    .rail { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-wrap: nowrap; gap: var(--rail-compact-gap); align-items: start; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: var(--kb-space-2); }
-    /* The continuous train track behind the station nodes, so the compact nodes read as one line and
-       not a row of gaps. It sits below the nodes (z-index) at the node-row's vertical centre. */
-    .rail__track { position: absolute; left: 0; right: 0; top: 0.65rem; height: 1.5px; background: var(--kb-border); z-index: 0; }
-    .col { position: relative; z-index: 1; display: flex; flex-direction: column; gap: var(--kb-space-2); scroll-snap-align: start; scroll-margin: var(--kb-space-3); border-radius: var(--kb-radius-md); }
-    /* A populated stage expands to a real column that grows to share the rail's slack. */
-    .col[data-state='expanded'] { flex: 1 1 14rem; min-width: 13rem; max-width: 24rem; }
-    /* An empty stage collapses to a thin station node — it never grows, taking only its node lane,
-       so many empty stages stay tidy on the track instead of forcing horizontal scroll. */
-    .col[data-state='compact'] { flex: 0 0 auto; width: 1.9rem; min-width: 1.9rem; max-width: 1.9rem; align-items: center; }
-    .col[data-state='compact'] .col__head { flex-direction: column; align-items: center; gap: 0.25rem; padding-bottom: 0; border-bottom: none; }
-    .col[data-state='compact'] .col__owner { display: none; }
-    .col[data-state='compact'] .col__count { margin-left: 0; }
-    /* The vertical station name is capped short so the station band stays shallow — this lets the
-       bottom-anchored idle line sit in the rail's open lower area without ever overlapping a label. */
-    .col[data-state='compact'] .col__stage { writing-mode: vertical-rl; rotate: 180deg; max-height: 3.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.65rem; color: var(--kb-text-muted); }
-    /* The empty marker stays in the DOM for tests + screen readers but is represented visually by the
-       node + 0 count on a compact station. */
-    .col[data-state='compact'] .col__empty--compact { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-    /* When the whole middle is empty, the rail reserves an open lower band beneath the shallow
-       station band so the calm idle-state explainer has somewhere to sit clear of the labels. */
-    .rail:has([data-testid='rail-middle-empty']) { min-height: 7rem; }
-    /* The calm idle-state explainer when the whole middle is empty and work waits elsewhere. It is
-       lifted OUT of the flex flow (absolute) so it can never become a full-basis flex item that wraps
-       the train onto a second row — the metro line stays single. It is anchored to the BOTTOM of the
-       rail, in the open area BELOW the (capped) station label band, so it never overlaps a station
-       name at any responsive width. */
-    .rail__idle { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 0 var(--kb-space-3); color: var(--kb-text-subtle); font-size: var(--kb-text-sm); text-align: center; pointer-events: none; }
-    .rail__node { display: inline-flex; align-items: center; justify-content: center; color: var(--kb-text-muted); background: var(--kb-bg, var(--kb-surface)); transition: color var(--kb-dur-base) var(--kb-ease-out); }
-    .rail__node[data-active='true'] { color: var(--kb-accent); }
-    .done__face .rail__node { display: none; }
-    .done { flex: 0 0 auto; width: 9rem; min-width: 9rem; display: flex; flex-direction: column; gap: var(--kb-space-2); align-items: stretch; }
-    .done__face { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: var(--kb-space-3) var(--kb-space-2); font: inherit; color: var(--kb-text); background: var(--kb-surface); border: 1px solid var(--kb-border-strong, var(--kb-border)); border-radius: var(--kb-radius-md); cursor: pointer; box-shadow: 2px 2px 0 -1px var(--kb-surface-muted), 4px 4px 0 -2px var(--kb-surface-muted); transition: transform var(--kb-dur-fast) var(--kb-ease-out); }
-    .done__face:hover { transform: translateY(-1px); }
-    .done__face:focus-visible { outline: 2px solid var(--kb-focus-ring, var(--kb-accent)); outline-offset: 2px; }
-    .done__count { font-size: var(--kb-text-lg, 1.1rem); font-weight: 700; }
-    .done__label { display: inline-flex; align-items: center; gap: 0.25rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
-    .done__list { max-height: 60vh; overflow-y: auto; }
-    .col:focus-visible { outline: 2px solid var(--kb-focus-ring, var(--kb-accent)); outline-offset: 2px; }
-    .col__head { display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); font-weight: 600; }
-    .col__stage { font-size: var(--kb-text-sm); overflow-wrap: anywhere; }
-    .col__owner { display: inline-flex; align-items: center; gap: 0.2rem; font-size: var(--kb-text-xs); color: var(--kb-text-muted); font-weight: 500; }
-    .col__count { margin-left: auto; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
-    .col__cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--kb-space-2); }
-    .col__empty { color: var(--kb-text-subtle); font-size: var(--kb-text-xs); font-style: italic; padding: var(--kb-space-2); border: 1px dashed var(--kb-border); border-radius: var(--kb-radius-md); }
+    /* The shared card template (#cardTpl), reused verbatim by the Worklist bands and the Pipeline
+       stage nodes — the single card design + its guarded advance / open / conflict machinery. */
     .card { position: relative; background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); transition: border-color var(--kb-dur-fast) var(--kb-ease-out), box-shadow var(--kb-dur-base) var(--kb-ease-out); }
     .pipeline[data-motion='on'] .card { animation: card-arrive var(--kb-dur-base) var(--kb-ease-out); }
     @keyframes card-arrive { from { opacity: 0.4; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
@@ -448,34 +254,6 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
     .menu__none { padding: 0.45rem 0.6rem; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
     .card__conflict { display: flex; align-items: center; gap: 0.35rem; margin: 0; padding: 0.3rem var(--kb-space-2) var(--kb-space-2); color: var(--kb-warning); font-size: var(--kb-text-xs); }
     .card__retry, .card__kebab + .card__conflict button { font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-accent); background: transparent; border: none; cursor: pointer; text-decoration: underline; }
-    /* Off-track is a fixed RIGHT-side panel (mirrors the fixed left Backlog) at the end of the row,
-       absent when empty. It holds the orphans whose stage left the pipeline, still advanceable. */
-    .offtrack { flex: 0 0 auto; width: 15rem; min-width: 14rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); }
-    .offtrack__head { display: flex; align-items: center; gap: 0.4rem; color: var(--kb-warning); font-weight: 600; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); }
-    .offtrack__title { font-size: var(--kb-text-sm); }
-    .offtrack__why { margin: 0; color: var(--kb-text-muted); font-size: var(--kb-text-xs); }
-    .offtrack__reassure { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-xs); }
-    .offtrack__groups { display: flex; flex-direction: column; gap: var(--kb-space-2); max-height: 60vh; overflow-y: auto; }
-    .offtrack__group { border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); padding: var(--kb-space-2); }
-    .offtrack__stage { margin: 0 0 var(--kb-space-2); font-size: var(--kb-text-xs); color: var(--kb-text-muted); overflow-wrap: anywhere; }
-    /* Responsive — driven by the board's OWN width (it is narrower than the viewport behind the app
-       shell), so a container query, not a viewport media query, decides the layout.
-       Medium: the train keeps the adaptive model but Off-track drops BELOW as a full-width lane (it is
-       secondary), letting the train keep its width longer. */
-    @container board (max-width: 1099px) {
-      .train { flex-wrap: wrap; }
-      .offtrack { flex: 1 1 100%; width: auto; max-width: none; order: 99; }
-    }
-    /* Narrow: the side panels collapse before the train scrolls — Backlog and Done also drop to
-       full-width lanes below the train, so the train (the main content) keeps the most width. The
-       train stacks: populated stages flow as full-width sections, compact stations stay a slim strip. */
-    @container board (max-width: 719px) {
-      .backlog, .done { flex: 1 1 100%; width: auto; max-width: none; }
-      .backlog { order: 1; }
-      .rail { order: 2; }
-      .done { order: 3; }
-      .col[data-state='expanded'] { flex: 1 1 100%; max-width: none; }
-    }
   `,
 })
 export class TasksBoardComponent {
@@ -501,9 +279,6 @@ export class TasksBoardComponent {
   readonly liveAnnounce = signal('');
   private firstRender = true;
   private prevRev: string | undefined;
-
-  /** Whether the stacked done folder is expanded to list its finished tickets. */
-  readonly doneOpen = signal(false);
 
   /**
    * Whether tasteful motion is allowed, mirrored from `prefers-reduced-motion`. Drives the host
@@ -560,12 +335,10 @@ export class TasksBoardComponent {
    */
   private readonly partition = computed<BoardPartition>(() => partitionBoard(this.state().workflowView, this.tickets()));
 
-  /** The stage name collapsed into the done folder (a done-named stage, else the last), or null. */
-  readonly terminal = computed<string | null>(() => this.partition().doneStage);
-
   /**
-   * The pipeline stage columns: the rendered rail — every stage column EXCEPT the literal `backlog`
-   * stage (the Backlog bar replaces it) and the done stage (the done folder replaces it).
+   * The in-pipeline stage columns: every stage column EXCEPT the literal `backlog` stage (the backlog
+   * end-cap replaces it) and the done stage (the done end-cap replaces it). The pipeline chain renders
+   * only these — their tickets are the only cards drawn in Pipeline mode.
    */
   readonly columns = computed<readonly StageColumn[]>(() => this.partition().columns);
 
@@ -578,11 +351,8 @@ export class TasksBoardComponent {
   readonly offTrack = computed<readonly OffTrackGroup[]>(() => this.partition().offTrack);
   readonly offTrackCount = computed(() => this.offTrack().reduce((n, g) => n + g.tickets.length, 0));
 
-  /** The index of the furthest in-progress stage column — how far the rail's active accent reaches. */
+  /** The index of the furthest in-progress stage column — how far the chain's lit active front reaches. */
   readonly activeSegment = computed(() => activeSegmentIndex(this.state().workflowView, this.tickets()));
-
-  /** Whether the done terminus is highlighted — true once work has reached it (the done folder is non-empty). */
-  readonly doneActive = computed(() => this.doneTickets().length > 0);
 
   /** Header roll-up: the total tasks across the board (from the summary, else the ticket count). */
   readonly totalTasks = computed(() => this.state().taskSummary?.total ?? this.tickets().length);
@@ -729,27 +499,6 @@ export class TasksBoardComponent {
     return ticket.labels ?? [];
   }
 
-  /**
-   * The accessible name for a stage station, so a screen-reader user hears a thin compact station
-   * as an empty stage (stage, count, owner) rather than a mystery marker — keeping keyboard and AT
-   * parity with an expanded column.
-   */
-  stationLabel(col: StageColumn): string {
-    const owner = col.owner ? `, ${col.owner}` : '';
-    const empty = col.tickets.length === 0 ? ', empty' : '';
-    return `Stage ${col.stage}, ${col.tickets.length} tasks${owner}${empty}`;
-  }
-
-  /** The rail node shape for a stage column: a plain dot for no gate, a diamond (solid/dashed) for hard/soft. */
-  nodeKind(col: StageColumn): 'none' | 'gate-hard' | 'gate-soft' {
-    if (!col.gate) return 'none';
-    return col.gate.refusal === 'hard' ? 'gate-hard' : 'gate-soft';
-  }
-
-  toggleDone(): void {
-    this.doneOpen.update((open) => !open);
-  }
-
   /** The next workflow stage to advance to; an off-track ticket targets the first stage to re-home. */
   advanceTarget(ticket: TicketView): string | null {
     return nextStageInOrder(ticket.stage ?? '', this.stageOrder());
@@ -775,19 +524,6 @@ export class TasksBoardComponent {
 
   closeDetail(): void {
     this.openId.set(null);
-  }
-
-  /** Roving focus across the stage columns: ←/→ move between columns for keyboard navigation. */
-  onColumnKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-    const cols = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-col-index]')];
-    const active = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('[data-col-index]') : null;
-    const idx = active ? cols.indexOf(active) : -1;
-    if (idx < 0) return;
-    const next = event.key === 'ArrowRight' ? idx + 1 : idx - 1;
-    if (next < 0 || next >= cols.length) return;
-    event.preventDefault();
-    cols[next].focus();
   }
 
   async advance(ticket: TicketView, toStage: string): Promise<void> {

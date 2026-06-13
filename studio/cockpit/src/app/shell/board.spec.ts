@@ -7,6 +7,8 @@ import {
   cardVisualStatus,
   commentsNewestFirst,
   doneStage,
+  dwellSince,
+  enteredCurrentStageAt,
   isBacklog,
   needsYouReason,
   nextStageInOrder,
@@ -17,10 +19,13 @@ import {
   PRE_START_STAGES,
   RECENTLY_DONE_CAP,
   stageColumns,
+  stageGateNode,
+  stageNodeStatus,
   statusChip,
   ticketNeedsYou,
   worklistBands,
   worklistProgress,
+  type StageColumn,
 } from './board';
 
 function ticket(t: Partial<TicketView>): TicketView {
@@ -929,5 +934,180 @@ describe('worklistProgress — the segmented progress picture (reads existing co
     ];
     const p = worklistProgress(undefined, wf, tickets);
     expect(p).toMatchObject({ done: 2, inProgress: 1, backlog: 1, total: 4, percentDone: 50 });
+  });
+});
+
+function col(over: Partial<StageColumn>): StageColumn {
+  return { stage: 'code', owner: '/be', gate: null, tickets: [], ...over };
+}
+
+describe('stageNodeStatus — the per-stage colour, reduced from cardVisualStatus (worst-actionable wins)', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'architecture', owner: '/arch', gate: { name: 'ARCH_APPROVED', refusal: 'hard' } },
+      { stage: 'code', owner: '/be', gate: null },
+      { stage: 'done', owner: null, gate: null },
+    ],
+  };
+
+  it('is blocked when any ticket reduces to needs-you (rejected hard gate)', () => {
+    const c = col({
+      stage: 'code',
+      tickets: [
+        ticket({ id: 'A', status: 'in_progress', stage: 'code', gates: [] }),
+        ticket({ id: 'B', status: 'waiting', stage: 'code', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'rejected' }] }),
+      ],
+    });
+    expect(stageNodeStatus(c, 1, 0, wf)).toBe('blocked');
+  });
+
+  it('is blocked when any ticket is raw blocked (no gate)', () => {
+    const c = col({ stage: 'code', tickets: [ticket({ id: 'A', status: 'blocked', stage: 'code', gates: [] })] });
+    expect(stageNodeStatus(c, 1, 0, wf)).toBe('blocked');
+  });
+
+  it('is running when no ticket is blocked but at least one is in_progress', () => {
+    const c = col({
+      stage: 'code',
+      tickets: [
+        ticket({ id: 'A', status: 'waiting', stage: 'code', gates: [] }),
+        ticket({ id: 'B', status: 'in_progress', stage: 'code', gates: [] }),
+      ],
+    });
+    expect(stageNodeStatus(c, 1, 0, wf)).toBe('running');
+  });
+
+  it('is waiting when tickets are present but none is in progress or blocked', () => {
+    const c = col({ stage: 'code', tickets: [ticket({ id: 'A', status: 'waiting', stage: 'code', gates: [] })] });
+    expect(stageNodeStatus(c, 1, 0, wf)).toBe('waiting');
+  });
+
+  it('is passed when the stage is empty and sits behind the active front', () => {
+    const c = col({ stage: 'architecture', tickets: [] });
+    // activeIndex 1 (front is at code), this column ci 0 → behind the front.
+    expect(stageNodeStatus(c, 1, 0, wf)).toBe('passed');
+  });
+
+  it('is pending when the stage is empty and sits ahead of the active front', () => {
+    const c = col({ stage: 'code', tickets: [] });
+    // activeIndex 0 (front is at architecture), this column ci 1 → ahead of the front.
+    expect(stageNodeStatus(c, 0, 1, wf)).toBe('pending');
+  });
+
+  it('is pending when empty and there is no active front (-1)', () => {
+    const c = col({ stage: 'code', tickets: [] });
+    expect(stageNodeStatus(c, -1, 0, wf)).toBe('pending');
+  });
+});
+
+describe('stageGateNode — the rolled-up gate node on the connector entering a stage', () => {
+  it('is null when the stage carries no gate', () => {
+    expect(stageGateNode(col({ stage: 'code', gate: null, tickets: [] }))).toBeNull();
+  });
+
+  it('is rejected when ANY in-stage ticket has that gate rejected (worst-case wins)', () => {
+    const c = col({
+      stage: 'architecture',
+      gate: { name: 'ARCH_APPROVED', refusal: 'hard' },
+      tickets: [
+        ticket({ id: 'A', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' }] }),
+        ticket({ id: 'B', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'rejected' }] }),
+      ],
+    });
+    expect(stageGateNode(c)).toMatchObject({ name: 'ARCH_APPROVED', shape: 'hard', state: 'rejected', passed: 1, total: 2 });
+  });
+
+  it('is pending when any in-stage gate is non-passed but none rejected', () => {
+    const c = col({
+      stage: 'architecture',
+      gate: { name: 'ARCH_APPROVED', refusal: 'hard' },
+      tickets: [
+        ticket({ id: 'A', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' }] }),
+        ticket({ id: 'B', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'pending' }] }),
+      ],
+    });
+    expect(stageGateNode(c)).toMatchObject({ state: 'pending', passed: 1, total: 2 });
+  });
+
+  it('is passed when all in-stage gates are passed', () => {
+    const c = col({
+      stage: 'architecture',
+      gate: { name: 'ARCH_APPROVED', refusal: 'hard' },
+      tickets: [ticket({ id: 'A', gates: [{ name: 'ARCH_APPROVED', refusal: 'hard', state: 'passed' }] })],
+    });
+    expect(stageGateNode(c)).toMatchObject({ state: 'passed', passed: 1, total: 1 });
+  });
+
+  it('is passed when the stage is empty (no blocker, no work)', () => {
+    const c = col({ stage: 'architecture', gate: { name: 'ARCH_APPROVED', refusal: 'hard' }, tickets: [] });
+    expect(stageGateNode(c)).toMatchObject({ state: 'passed', passed: 0, total: 0 });
+  });
+
+  it('carries the soft shape for a soft gate', () => {
+    const c = col({ stage: 'design', gate: { name: 'DESIGN_APPROVED', refusal: 'soft' }, tickets: [] });
+    expect(stageGateNode(c)).toMatchObject({ shape: 'soft' });
+  });
+});
+
+describe('enteredCurrentStageAt — the dwell anchor from the newest advance INTO the current stage', () => {
+  it('returns the newest advance comment ts that moved the ticket TO its current stage (parsed from the body)', () => {
+    const t = ticket({
+      stage: 'code',
+      comments: [
+        { kind: 'advance', body: 'stage → vision', ts: '2026-06-01T00:00:00Z' },
+        { kind: 'advance', body: 'stage → code', ts: '2026-06-05T00:00:00Z' },
+        { kind: 'advance', body: 'stage → code', ts: '2026-06-10T00:00:00Z' },
+        { kind: 'note', body: 'stage → code', ts: '2026-06-12T00:00:00Z' },
+      ] as TicketComment[],
+    });
+    expect(enteredCurrentStageAt(t)).toBe('2026-06-10T00:00:00Z');
+  });
+
+  it('is null when no advance comment targets the current stage', () => {
+    const t = ticket({
+      stage: 'code',
+      comments: [{ kind: 'advance', body: 'stage → vision', ts: '2026-06-01T00:00:00Z' }] as TicketComment[],
+    });
+    expect(enteredCurrentStageAt(t)).toBeNull();
+  });
+
+  it('is null when the ticket has no comments', () => {
+    expect(enteredCurrentStageAt(ticket({ stage: 'code', comments: [] }))).toBeNull();
+    expect(enteredCurrentStageAt(ticket({ stage: 'code', comments: undefined }))).toBeNull();
+  });
+
+  it('ignores non-advance comments that mention the current stage', () => {
+    const t = ticket({
+      stage: 'code',
+      comments: [{ kind: 'note', body: 'stage → code', ts: '2026-06-10T00:00:00Z' }] as TicketComment[],
+    });
+    expect(enteredCurrentStageAt(t)).toBeNull();
+  });
+});
+
+describe('dwellSince — the honest "stuck N" duration label (absent when unknown or below threshold)', () => {
+  const HOUR = 3600 * 1000;
+  const DAY = 24 * HOUR;
+
+  it('is null for a null/unknown anchor (never a fabricated duration)', () => {
+    expect(dwellSince(null, Date.now())).toBeNull();
+    expect(dwellSince('not-a-date', Date.now())).toBeNull();
+  });
+
+  it('is null below the one-day stuck threshold (no fake urgency for fresh work)', () => {
+    const now = Date.parse('2026-06-13T12:00:00Z');
+    expect(dwellSince('2026-06-13T06:00:00Z', now)).toBeNull(); // 6h
+  });
+
+  it('labels whole days once past the threshold', () => {
+    const now = Date.parse('2026-06-13T12:00:00Z');
+    expect(dwellSince('2026-06-10T12:00:00Z', now)).toBe('3d');
+    expect(dwellSince('2026-06-12T11:00:00Z', now)).toBe('1d');
+  });
+
+  it('is null for a future timestamp (clock skew is not "stuck")', () => {
+    const now = Date.parse('2026-06-13T12:00:00Z');
+    expect(dwellSince('2026-06-20T12:00:00Z', now)).toBeNull();
   });
 });
