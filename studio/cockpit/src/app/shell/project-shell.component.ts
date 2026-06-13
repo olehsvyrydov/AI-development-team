@@ -193,7 +193,7 @@ function derive<T>(fn: () => T): Derived<T> {
       white-space: normal; overflow-wrap: anywhere;
     }
     .shell-desc--empty { color: var(--kb-text-subtle); font-style: italic; }
-    .shell-body { max-width: 76rem; margin: 0 auto; padding: var(--kb-space-5) var(--kb-space-4); }
+    .shell-body { max-width: 120rem; margin: 0 auto; padding: var(--kb-space-5) var(--kb-space-4); }
     .muted { color: var(--kb-text-muted); }
     .banner--error { padding: var(--kb-space-3); border-radius: var(--kb-radius-md); background: var(--kb-accent-soft); color: var(--kb-danger); border: 1px solid var(--kb-danger); }
     .panels {
