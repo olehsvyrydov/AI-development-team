@@ -31,6 +31,7 @@ import {
   type WorklistProgress,
 } from './board';
 import { GlyphComponent } from './glyph.component';
+import { StageDetailComponent } from './stage-detail.component';
 import { TaskDetailComponent } from './task-detail.component';
 import { TasksWorklistComponent } from './tasks-worklist.component';
 import { TasksPipelineComponent } from './tasks-pipeline.component';
@@ -58,7 +59,7 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
 @Component({
   selector: 'dart-tasks-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GlyphComponent, TaskDetailComponent, TasksWorklistComponent, TasksPipelineComponent],
+  imports: [GlyphComponent, StageDetailComponent, TaskDetailComponent, TasksWorklistComponent, TasksPipelineComponent],
   template: `
     <div class="pipeline" data-testid="pipeline-root" [attr.data-motion]="motionOk() ? 'on' : 'off'">
       <p class="board-live" data-testid="board-live" aria-live="polite" role="status">{{ liveAnnounce() }}</p>
@@ -123,7 +124,7 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
           [middleEmpty]="middleEmpty()"
           [cardTemplate]="cardTpl"
           (selectWorklist)="selectMode('worklist')"
-          (openTicket)="openDetail($event)"
+          (openStage)="openStage($event)"
         />
         }
         }
@@ -192,6 +193,22 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
         }
       </li>
     </ng-template>
+
+    @if (openColumn(); as col) {
+      <dart-stage-detail
+        [column]="col"
+        [stageIndex]="openStageIndex()"
+        [stageCount]="columns().length"
+        [nextStage]="openNextStage()"
+        [gateDefs]="state().gateDefs ?? []"
+        [workflowView]="state().workflowView ?? null"
+        [activeSegment]="activeSegment()"
+        [focusGate]="openStageFocusGate()"
+        [removed]="openStageRemoved()"
+        (openTicket)="openDetail($event)"
+        (close)="closeStage()"
+      />
+    }
 
     @if (selected(); as sel) {
       <dart-task-detail
@@ -396,6 +413,50 @@ export class TasksBoardComponent {
     return id ? (this.tickets().find((t) => t.id === id) ?? null) : null;
   });
 
+  /** The open stage-detail drawer's stage NAME (not a captured column), or null when closed. */
+  private readonly openStageName = signal<string | null>(null);
+  /** Whether the open drawer should focus its gate section (a gate-node click), not the close button. */
+  readonly openStageFocusGate = signal(false);
+  /** The DOM testid of the node that opened the drawer, so focus returns to it on close. */
+  private stageTrigger: string | null = null;
+
+  /**
+   * The open drawer's column, RE-DERIVED from the live partition by STAGE NAME on every state push
+   * (never a frozen snapshot) — so a gate change / a task leaving / a workflow edit refreshes the
+   * open drawer in place, exactly as {@link selected} re-derives the open ticket by id. Returns a
+   * retained-name placeholder column when the stage has been removed from the workflow while open
+   * (see {@link openStageRemoved}); null only when no drawer is open.
+   */
+  readonly openColumn = computed<StageColumn | null>(() => {
+    const name = this.openStageName();
+    if (name === null) return null;
+    const live = this.columns().find((c) => c.stage === name);
+    return live ?? { stage: name, owner: null, gate: null, tickets: [] };
+  });
+
+  /** True when the open stage no longer exists among the rendered columns (removed-while-open). */
+  readonly openStageRemoved = computed<boolean>(() => {
+    const name = this.openStageName();
+    return name !== null && !this.columns().some((c) => c.stage === name);
+  });
+
+  /** The open stage's index in the rendered rail (drives "step N of M"); -1 when removed/closed. */
+  readonly openStageIndex = computed<number>(() => {
+    const name = this.openStageName();
+    return name === null ? -1 : this.columns().findIndex((c) => c.stage === name);
+  });
+
+  /**
+   * The next stage after the open stage among the RENDERED rail stages — null at the last rendered
+   * stage (the next stage is the done folder, which the drawer reads as "last stage before Done").
+   */
+  readonly openNextStage = computed<string | null>(() => {
+    const name = this.openStageName();
+    if (name === null) return null;
+    const next = nextStageInOrder(name, this.stageOrder());
+    return next !== null && this.columns().some((c) => c.stage === next) ? next : null;
+  });
+
   constructor() {
     // Announce a board re-layout when a fresh state (new rev) arrives after the initial render — a
     // quiet polite cue, never on first paint.
@@ -524,6 +585,29 @@ export class TasksBoardComponent {
 
   closeDetail(): void {
     this.openId.set(null);
+  }
+
+  /**
+   * Open the stage-detail drawer for a stage by NAME (the drawer re-derives its column from live
+   * state, never a captured snapshot). Remembers the originating node's testid so focus returns to
+   * it on close.
+   */
+  openStage(req: { stage: string; focusGate: boolean }): void {
+    this.menuFor.set(null);
+    this.openStageFocusGate.set(req.focusGate);
+    this.openStageName.set(req.stage);
+    this.stageTrigger = req.focusGate ? `gate-node-${req.stage}` : `stage-${req.stage}`;
+  }
+
+  /** Close the drawer and return focus to the stage/gate node that opened it. */
+  closeStage(): void {
+    const trigger = this.stageTrigger;
+    this.openStageName.set(null);
+    this.openStageFocusGate.set(false);
+    this.stageTrigger = null;
+    if (trigger) {
+      queueMicrotask(() => this.host.nativeElement.querySelector<HTMLElement>(`[data-testid="${trigger}"]`)?.focus());
+    }
   }
 
   async advance(ticket: TicketView, toStage: string): Promise<void> {

@@ -568,7 +568,7 @@ export function stageGateNode(col: StageColumn): StageGateNode | null {
 }
 
 /** The stage an advance comment moved a ticket TO, parsed from its `stage → <target>` body. */
-function advanceTargetStage(comment: TicketComment): string | null {
+export function advanceTargetStage(comment: TicketComment): string | null {
   const match = /stage\s*(?:→|->)\s*(.+)\s*$/.exec(comment.body ?? '');
   return match ? match[1].trim() : null;
 }
@@ -590,6 +590,68 @@ export function enteredCurrentStageAt(ticket: TicketView): string | null {
     if (newest === null || ts.localeCompare(newest) > 0) newest = ts;
   }
   return newest;
+}
+
+/** One entry of a stage's merged process log: a comment paired with the ticket it came from. */
+export interface StageActivityEntry {
+  /** The id of the ticket this entry belongs to (drill-through target). */
+  readonly ticketId: string;
+  /** The append-only comment as recorded on the ticket. UNTRUSTED text — escape on render. */
+  readonly comment: TicketComment;
+}
+
+/** Default cap on how many of the most-recent stage-activity entries the log surfaces. */
+export const STAGE_ACTIVITY_CAP = 20;
+
+/**
+ * The stage's recent process log: every comment across the stage's in-stage tickets, merged and
+ * sorted newest-first (the established {@link commentsNewestFirst} order, comments without a
+ * timestamp sorting last), each attributed to its ticket for drill-through. Capped at the `limit`
+ * most-recent entries (default {@link STAGE_ACTIVITY_CAP}). Pure derivation over the append-only
+ * comment data already on the tickets — nothing synthesised, no fabricated timestamp or event.
+ */
+export function stageActivity(col: StageColumn, limit: number = STAGE_ACTIVITY_CAP): readonly StageActivityEntry[] {
+  const entries: StageActivityEntry[] = [];
+  for (const t of col.tickets) {
+    for (const comment of t.comments ?? []) {
+      entries.push({ ticketId: t.id ?? '', comment });
+    }
+  }
+  entries.sort((a, b) => (b.comment.ts ?? '').localeCompare(a.comment.ts ?? ''));
+  return entries.slice(0, limit);
+}
+
+/**
+ * A short, human noun phrase for a governing gate, used to derive an honest stage role line. Maps the
+ * known gate tokens to plain words; an unknown gate falls back to its own name so the line stays
+ * truthful (it names the real gate) without inventing a description.
+ */
+const GATE_ROLE_PHRASE: Readonly<Record<string, string>> = {
+  ARCH_APPROVED: 'an architecture review',
+  SECOPS_APPROVED: 'a security review',
+  DESIGN_APPROVED: 'a design review',
+  APPROVAL_GATE: 'a team approval',
+  CODE_REVIEWED: 'a code review',
+  RELIABILITY_OK: 'a reliability review',
+  VERIFIED: 'a verification',
+  PERF_OK: 'a performance review',
+};
+
+/**
+ * An honest, never-invented one-liner for what a stage does. Source precedence: (1) an explicit
+ * `meaning` carried on the workflow stage (verbatim, untrusted → escaped by the caller's
+ * interpolation); (2) else a line derived from the governing gate (a gated stage gates a decision);
+ * (3) else a neutral fallback. Returns plain text only — no fabricated SLA, no invented specifics.
+ */
+export function stageRoleLine(col: StageColumn, workflowView: WorkflowView | null | undefined): string {
+  const stageDef = (workflowView?.stages ?? []).find((s) => s.stage === col.stage);
+  const meaning = stageDef?.meaning?.trim();
+  if (meaning) return meaning;
+  if (col.gate) {
+    const phrase = GATE_ROLE_PHRASE[col.gate.name] ?? `the ${col.gate.name} gate`;
+    return `Work here passes ${phrase} — that decision gates leaving this stage.`;
+  }
+  return 'Work sits here until it advances to the next stage.';
 }
 
 /** Below this dwell, a ticket is not "stuck" — the chip stays absent (no fabricated urgency). */

@@ -137,3 +137,39 @@ The investigation's strategy + research + architecture lenses converge on one po
 - **VERIFIED** — **hard** (final completeness audit on the production build, served same-origin — in-app live proof, not just unit tests).
 
 **Implementers:** /fe owns the view (re-render of the existing `partitionBoard().columns`, reusing `--kb-*-soft` + `cardVisualStatus` + the gate glyphs). An **optional small /be** adds the dwell-time + stage-level gate-node additive projection if the spec wants it server-side — one shared `pipelineView` projection (board/pipeline/digest), parity-tested.
+
+---
+
+## ADT-246 — Stage-detail panel (click a stage → read the full process AT it)
+
+Follow-on to ADT-245. The CI-style Pipeline now drills a stage-node click into the stage's most-actionable *ticket*. The approved ask is a dedicated DigitalOcean-style **STAGE-detail** surface: clicking a pipeline STAGE node opens a dismissible panel/drawer that reads *the full current process AT that stage*.
+
+**MUST (this ticket):**
+- Clicking a pipeline STAGE node opens a dismissible stage-detail panel/drawer (ESC / backdrop / close; focus returns to the node).
+- It shows the **stage identity** (name, owning agent, position in the flow + what's next), the **gate(s)** with state (passed/pending/rejected) + who/when + note, the **tasks at the stage** (each: id, title, status, latest activity / what-it's-doing, gate state, clickable through to that ticket's existing detail), the recent **activity/history** + the **dwell** ("here N days"), and a glance at the next stage.
+- **READ-ONLY for reading; guarded for acting:** opening performs no server round-trip and opens no new write path; any approve/advance affordance reuses the EXISTING guarded CAS control-plane write (rev-checked, safety-gate refusal, 409 resync). Status stays read-only.
+- **Honest empty handling:** a 0-task stage still shows its role + gate + "no tasks here now / last passed X" — never a fake zero or a void.
+- **A11y:** focus-trapped, ESC/backdrop dismissible, correct ARIA (dialog/labelledby/describedby), reduced-motion honoured, no `[innerHTML]`.
+- The Pipeline + Worklist views are otherwise unchanged (additive only).
+
+**SHOULD (fast-follow):**
+- The **in-panel guarded approve/advance affordance** (reusing the existing decidable-gate write path, never a new one).
+- A **gate-node click opens the same panel focused on the gate** section.
+
+**COULD (later):**
+- **Cross-stage navigation within the panel** — prev/next-stage controls that move the panel along the chain without closing/reopening.
+
+**WON'T (this ticket):**
+- Any new write path / route / approvals surface, status edited directly from the panel, card-drag to advance past a gate, or a DAG/parallel rendering — all out of scope (inherit ADT-245's WON'Ts).
+
+**Implementer:** /fe (presentational over the existing `buildState` / `partitionBoard().columns`; activity/history + dwell derived from the existing comment log; if any derivation is server-side it reuses the one shared `pipelineView` projection from ADT-245, parity-tested).
+
+**Category:** Product / Scope · **Authority:** /po
+
+### Classification & gates (per /sm via workflow-engine, `preset: solo`)
+- **Change class:** standard (a feature/story — new client-side panel logic spanning files) → **standard track**.
+- **DESIGN_APPROVED** — **soft**; fed by the /aura stage-detail panel spec (produced in parallel). (Visual change / new screen surface.)
+- **ARCH_APPROVED** — **soft / triggered, NOT hard.** Presentational over existing `buildState` data — per-stage tasks/gates/assignee are already in `partitionBoard().columns`; activity/history + dwell are pure derivations from the existing comment log. No new route/persistence/schema/boundary → no hard trigger. (Reuse the ADT-245 shared `pipelineView` projection if any derivation is server-side.)
+- **SECOPS_APPROVED** — **soft, NOT hard.** No security trigger fires (presentational + client-side render of an existing read-model; the guarded CAS write is unchanged; the history/dwell derivation is read-only; the safety-gate check is untouched).
+- **CODE_REVIEWED** — **hard** (standard track).
+- **VERIFIED** — **hard** (final completeness audit on the production build, served same-origin — in-app live proof, not just unit tests).
