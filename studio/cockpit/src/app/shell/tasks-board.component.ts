@@ -92,14 +92,16 @@ import { TaskDetailComponent } from './task-detail.component';
           </section>
 
           <div class="rail" data-testid="pipeline-rail" data-adaptive="true" role="list" aria-label="Tasks by workflow stage" (keydown)="onColumnKeydown($event)">
+            <span class="rail__track" aria-hidden="true"></span>
             @for (col of columns(); track col.stage; let ci = $index) {
               <section
                 class="col"
                 [attr.data-testid]="'column-stage-' + col.stage"
+                [attr.data-state]="col.tickets.length ? 'expanded' : 'compact'"
                 role="listitem"
                 tabindex="0"
                 [attr.data-col-index]="ci"
-                [attr.aria-label]="'Stage ' + col.stage + ', ' + col.tickets.length + ' tasks'"
+                [attr.aria-label]="stationLabel(col)"
               >
                 <header class="col__head">
                   <span
@@ -127,14 +129,21 @@ import { TaskDetailComponent } from './task-detail.component';
                   }
                   <span class="col__count" data-testid="column-count">{{ col.tickets.length }}</span>
                 </header>
-                <ul class="col__cards" role="list">
-                  @for (t of col.tickets; track t.id) {
-                    <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
-                  } @empty {
-                    <li class="col__empty" [attr.data-testid]="'column-empty-' + col.stage">Nothing in this stage.</li>
-                  }
-                </ul>
+                @if (col.tickets.length) {
+                  <ul class="col__cards" role="list">
+                    @for (t of col.tickets; track t.id) {
+                      <ng-container [ngTemplateOutlet]="cardTpl" [ngTemplateOutletContext]="{ $implicit: t }" />
+                    }
+                  </ul>
+                } @else {
+                  <p class="col__empty col__empty--compact" [attr.data-testid]="'column-empty-' + col.stage">Nothing in this stage.</p>
+                }
               </section>
+            }
+            @if (middleEmpty()) {
+              <p class="rail__idle" data-testid="rail-middle-empty">
+                No tasks are mid-pipeline right now. They'll appear at a stage as the team advances them.
+              </p>
             }
           </div>
 
@@ -273,7 +282,7 @@ import { TaskDetailComponent } from './task-detail.component';
   `,
   styles: `
     /* Motion tokens — one place reduced-motion zeroes them; transitions read these. */
-    :host { --kb-dur-fast: 120ms; --kb-dur-base: 160ms; --kb-dur-slow: 200ms; --kb-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --kb-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); }
+    :host { --kb-dur-fast: 120ms; --kb-dur-base: 160ms; --kb-dur-slow: 200ms; --kb-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --kb-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); --rail-compact-gap: 0.5rem; }
     @media (prefers-reduced-motion: reduce) { :host { --kb-dur-fast: 0ms; --kb-dur-base: 0ms; --kb-dur-slow: 0ms; } }
     .board-live { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
     .board-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--kb-space-2); margin-bottom: var(--kb-space-3); }
@@ -286,8 +295,8 @@ import { TaskDetailComponent } from './task-detail.component';
     /* The board is a single non-scrolling flex row of four regions: [Backlog][rail][Done][Off-track].
        Backlog, Done and Off-track are fixed-width columns (flex: 0 0 auto) that hold their place; only
        the middle rail scrolls horizontally, so the side panels never float over the scrolled stages. */
-    .train { display: flex; gap: var(--kb-space-3); align-items: stretch; width: 100%; padding-bottom: var(--kb-space-2); }
-    .backlog { flex: 0 0 auto; width: 12rem; min-width: 12rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
+    .train { display: flex; gap: var(--kb-space-3); align-items: stretch; width: 100%; padding-bottom: var(--kb-space-2); container-type: inline-size; container-name: board; }
+    .backlog { flex: 0 0 auto; width: 13rem; min-width: 13rem; max-width: 13rem; display: flex; flex-direction: column; gap: var(--kb-space-2); padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
     .backlog__head { display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--kb-border); }
     .backlog__title { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; font-size: var(--kb-text-sm); }
     .backlog__count { margin-left: auto; font-size: var(--kb-text-sm); color: var(--kb-text-muted); }
@@ -299,9 +308,39 @@ import { TaskDetailComponent } from './task-detail.component';
        never pushes them off-screen. Its columns flex-grow to share the width (min-width keeps a column
        legible; max-width stops a lone column from stretching absurdly); horizontal scroll appears
        inside this region only when the columns can no longer fit at their min-width. */
-    .rail { flex: 1 1 0; min-width: 0; display: flex; gap: var(--kb-space-3); align-items: start; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: var(--kb-space-2); }
-    .col { flex: 1 1 12rem; min-width: 11rem; max-width: 22rem; display: flex; flex-direction: column; gap: var(--kb-space-2); scroll-snap-align: start; scroll-margin: var(--kb-space-3); border-radius: var(--kb-radius-md); }
-    .rail__node { display: inline-flex; align-items: center; justify-content: center; color: var(--kb-text-muted); transition: color var(--kb-dur-base) var(--kb-ease-out); }
+    /* The stations sit on ONE line (flex-wrap: nowrap) so the train reads as a single metro line; the
+       continuous track runs behind that single row. Horizontal scroll (overflow-x: auto) is the
+       genuine-busy fallback only — it engages when several stages expand to real columns at once and
+       can no longer fit, never for the common mostly-empty case where compact stations stay narrow. */
+    .rail { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-wrap: nowrap; gap: var(--rail-compact-gap); align-items: start; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: var(--kb-space-2); }
+    /* The continuous train track behind the station nodes, so the compact nodes read as one line and
+       not a row of gaps. It sits below the nodes (z-index) at the node-row's vertical centre. */
+    .rail__track { position: absolute; left: 0; right: 0; top: 0.65rem; height: 1.5px; background: var(--kb-border); z-index: 0; }
+    .col { position: relative; z-index: 1; display: flex; flex-direction: column; gap: var(--kb-space-2); scroll-snap-align: start; scroll-margin: var(--kb-space-3); border-radius: var(--kb-radius-md); }
+    /* A populated stage expands to a real column that grows to share the rail's slack. */
+    .col[data-state='expanded'] { flex: 1 1 14rem; min-width: 13rem; max-width: 24rem; }
+    /* An empty stage collapses to a thin station node — it never grows, taking only its node lane,
+       so many empty stages stay tidy on the track instead of forcing horizontal scroll. */
+    .col[data-state='compact'] { flex: 0 0 auto; width: 1.9rem; min-width: 1.9rem; max-width: 1.9rem; align-items: center; }
+    .col[data-state='compact'] .col__head { flex-direction: column; align-items: center; gap: 0.25rem; padding-bottom: 0; border-bottom: none; }
+    .col[data-state='compact'] .col__owner { display: none; }
+    .col[data-state='compact'] .col__count { margin-left: 0; }
+    /* The vertical station name is capped short so the station band stays shallow — this lets the
+       bottom-anchored idle line sit in the rail's open lower area without ever overlapping a label. */
+    .col[data-state='compact'] .col__stage { writing-mode: vertical-rl; rotate: 180deg; max-height: 3.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.65rem; color: var(--kb-text-muted); }
+    /* The empty marker stays in the DOM for tests + screen readers but is represented visually by the
+       node + 0 count on a compact station. */
+    .col[data-state='compact'] .col__empty--compact { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    /* When the whole middle is empty, the rail reserves an open lower band beneath the shallow
+       station band so the calm idle-state explainer has somewhere to sit clear of the labels. */
+    .rail:has([data-testid='rail-middle-empty']) { min-height: 7rem; }
+    /* The calm idle-state explainer when the whole middle is empty and work waits elsewhere. It is
+       lifted OUT of the flex flow (absolute) so it can never become a full-basis flex item that wraps
+       the train onto a second row — the metro line stays single. It is anchored to the BOTTOM of the
+       rail, in the open area BELOW the (capped) station label band, so it never overlaps a station
+       name at any responsive width. */
+    .rail__idle { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 0 var(--kb-space-3); color: var(--kb-text-subtle); font-size: var(--kb-text-sm); text-align: center; pointer-events: none; }
+    .rail__node { display: inline-flex; align-items: center; justify-content: center; color: var(--kb-text-muted); background: var(--kb-bg, var(--kb-surface)); transition: color var(--kb-dur-base) var(--kb-ease-out); }
     .rail__node[data-active='true'] { color: var(--kb-accent); }
     .done__face .rail__node { display: none; }
     .done { flex: 0 0 auto; width: 9rem; min-width: 9rem; display: flex; flex-direction: column; gap: var(--kb-space-2); align-items: stretch; }
@@ -355,6 +394,24 @@ import { TaskDetailComponent } from './task-detail.component';
     .offtrack__groups { display: flex; flex-direction: column; gap: var(--kb-space-2); max-height: 60vh; overflow-y: auto; }
     .offtrack__group { border: 1px solid var(--kb-warning); border-radius: var(--kb-radius-md); padding: var(--kb-space-2); }
     .offtrack__stage { margin: 0 0 var(--kb-space-2); font-size: var(--kb-text-xs); color: var(--kb-text-muted); overflow-wrap: anywhere; }
+    /* Responsive — driven by the board's OWN width (it is narrower than the viewport behind the app
+       shell), so a container query, not a viewport media query, decides the layout.
+       Medium: the train keeps the adaptive model but Off-track drops BELOW as a full-width lane (it is
+       secondary), letting the train keep its width longer. */
+    @container board (max-width: 1099px) {
+      .train { flex-wrap: wrap; }
+      .offtrack { flex: 1 1 100%; width: auto; max-width: none; order: 99; }
+    }
+    /* Narrow: the side panels collapse before the train scrolls — Backlog and Done also drop to
+       full-width lanes below the train, so the train (the main content) keeps the most width. The
+       train stacks: populated stages flow as full-width sections, compact stations stay a slim strip. */
+    @container board (max-width: 719px) {
+      .backlog, .done { flex: 1 1 100%; width: auto; max-width: none; }
+      .backlog { order: 1; }
+      .rail { order: 2; }
+      .done { order: 3; }
+      .col[data-state='expanded'] { flex: 1 1 100%; max-width: none; }
+    }
   `,
 })
 export class TasksBoardComponent {
@@ -447,6 +504,19 @@ export class TasksBoardComponent {
     return canonical ?? this.tickets().filter((t) => ticketNeedsYou(t)).length;
   });
 
+  /**
+   * Whether the whole middle (every rendered stage column) is empty WHILE work exists elsewhere on
+   * the board (Backlog, done, or off-track). Drives the calm idle-state explainer (absent-not-zero):
+   * shown only when the pipeline is genuinely at rest with work waiting/finished — never on a
+   * whole-board-empty state (which owns its own invitation) and never when a stage holds work.
+   */
+  readonly middleEmpty = computed(() => {
+    if (this.isEmpty()) return false;
+    const allStagesIdle = this.columns().every((c) => c.tickets.length === 0);
+    const workElsewhere = this.backlog().length > 0 || this.doneTickets().length > 0 || this.offTrack().length > 0;
+    return allStagesIdle && workElsewhere;
+  });
+
   /** Empty board: nothing in the Backlog, the columns, the done folder, or the off-track lane. */
   readonly isEmpty = computed(
     () =>
@@ -487,6 +557,17 @@ export class TasksBoardComponent {
   /** The labels this ticket carries, shown as plain label chips (a label may or may not route). */
   cardLabels(ticket: TicketView): readonly string[] {
     return ticket.labels ?? [];
+  }
+
+  /**
+   * The accessible name for a stage station, so a screen-reader user hears a thin compact station
+   * as an empty stage (stage, count, owner) rather than a mystery marker — keeping keyboard and AT
+   * parity with an expanded column.
+   */
+  stationLabel(col: StageColumn): string {
+    const owner = col.owner ? `, ${col.owner}` : '';
+    const empty = col.tickets.length === 0 ? ', empty' : '';
+    return `Stage ${col.stage}, ${col.tickets.length} tasks${owner}${empty}`;
   }
 
   /** The rail node shape for a stage column: a plain dot for no gate, a diamond (solid/dashed) for hard/soft. */
