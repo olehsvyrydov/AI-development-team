@@ -278,6 +278,23 @@ function readTickets(project) {
   return out;
 }
 
+const EXCERPT_CHARS = 160;
+
+// A short, plain-text body preview for a note row + search. The front-matter and a
+// leading title heading are stripped, markdown/HTML markup is reduced to its readable
+// text (so no tag or raw `<script>` survives), whitespace is collapsed, and the result
+// is capped server-side. Pure text — never a markup/HTML-injection vector on render.
+function excerptOf(text) {
+  let s = markdownBody(text);
+  s = s.replace(/<!--[\s\S]*?-->/g, ' ');                 // HTML comments
+  s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ');             // images
+  s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');           // links → text
+  s = s.replace(/<\/?[a-zA-Z][^>]*>/g, ' ');               // HTML tags (incl. <script>, <img …>)
+  s = s.replace(/[`*_~#>|]/g, ' ');                        // emphasis / heading / table / code markers
+  s = s.replace(/\s+/g, ' ').trim();
+  return s.slice(0, EXCERPT_CHARS);
+}
+
 // Read one vault dir into doc records carrying parsed front-matter. The holding
 // vault decides authorization scope (`enforcedScope`), so a hand-edited file whose
 // front-matter disagrees with its vault cannot widen its reach. `fileRel` is relative
@@ -287,10 +304,16 @@ function readVault(dir, relRoot, enforcedScope, ownProject) {
   try { files = fs.readdirSync(dir).filter((f) => f.endsWith('.md')); } catch { return []; }
   const out = [];
   for (const f of files) {
-    const fm = parseFrontMatter(safeRead(path.join(dir, f)));
+    const full = path.join(dir, f);
+    const raw = safeRead(full);
+    const fm = parseFrontMatter(raw);
+    let rev = null;
+    try { const st = fs.statSync(full); rev = `${st.mtimeMs}:${st.size}`; } catch { /* absent → no rev */ }
     out.push({
       name: f.replace(/\.md$/, ''),
-      file: path.relative(relRoot, path.join(dir, f)),
+      file: path.relative(relRoot, full),
+      rev, // per-note CAS rev (mtime:size) for edit/delete
+      excerpt: excerptOf(raw), // short, plain-text body preview for the row + search
       scope: enforcedScope, // the HOLDING VAULT wins (front-matter is intent only)
       stack: fm.stack,
       kind: fm.kind,
@@ -361,6 +384,16 @@ function readCommonKb() {
   return readVault(root, root, 'common', false);
 }
 
+// Map a note's recorded author to the closed provenance enum the UI badges. A note
+// authored by /kai (the propose-inbox approval path) reads 'kai'; everything else is
+// operator-authored 'you'. ('codebase' is reserved for connected-source items, which
+// are a separate facet and never appear in `docs`.) Absent → omitted by the caller.
+function provenanceOf(doc) {
+  const by = String(doc && doc.by ? doc.by : '').toLowerCase();
+  if (by === 'kai' || by === '/kai') return 'kai';
+  return 'you';
+}
+
 /**
  * Build the merged Knowledge projection a project sees: its own project-scoped notes
  * unioned with approved-common notes whose stack matches the project's declared stack.
@@ -375,8 +408,8 @@ function buildKnowledge(project) {
 
   const visibleCommon = common.filter((d) => scopeMatches(d, projectMeta));
   const docs = [];
-  for (const d of own) docs.push({ name: d.name, file: d.file, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
-  for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
+  for (const d of own) docs.push({ name: d.name, file: d.file, rev: d.rev, excerpt: d.excerpt, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed', provenance: provenanceOf(d) });
+  for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, rev: d.rev, excerpt: d.excerpt, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed', provenance: provenanceOf(d) });
 
   // Precedence is a DISPLAY annotation, not a suppression boundary: where a project
   // note and a common note share the same slug (case-insensitive), the project note
@@ -413,12 +446,25 @@ function buildKnowledge(project) {
       proposedAt: p.proposedAt,
     }));
   } catch { proposals = []; }
+  // Connected codebases are a SEPARATE facet — never merged into `docs`, never run
+  // through scopeMatches, never recalled as an authored note. Lazy-required to avoid a
+  // load-time cycle (state → sources → analyze → write → state).
+  let sources = [];
+  let sourcesRev = '0';
+  try {
+    const mod = require('./sources');
+    sources = mod.sourcesFacet(project);
+    sourcesRev = mod.sourcesRev(project);
+  } catch { sources = []; sourcesRev = '0'; }
+
   return {
     method: configured ? 'local-embeddings' : 'filename-only',
     stack: declaredStack,
     counts: { project: own.length, common: visibleCommon.length, proposals: proposals.length },
     docs,
     proposals,
+    sources,
+    sourcesRev,
   };
 }
 

@@ -397,4 +397,4 @@ function readProfile(input) {
   return { root, id, profile, state };
 }
 
-module.exports = { analyze, readProfile, CAPS, confinedPath, hasArtefacts, ARTEFACT_MARKERS };
+module.exports = { analyze, readProfile, CAPS, confinedPath, stripInlineMarkdown, hasArtefacts, ARTEFACT_MARKERS };

@@ -107,6 +107,54 @@ export interface KnowledgeDoc {
   readonly kind?: string;
   readonly status?: string;
   readonly index?: string;
+  /**
+   * The note's per-file compare-and-swap token (the holding file's `mtime:size`). It is the
+   * `expectedRev` an edit/remove forwards so a concurrent change is detected (a stale value →
+   * 409/`conflict`, never a clobber). Absent only when the file's stat could not be read.
+   */
+  readonly rev?: string;
+  /**
+   * Who authored the note, as a closed enum the row badges (glyph + text, never colour alone):
+   * `you` (operator-authored) · `kai` (approved out of the `/kai` propose-inbox) · `codebase` (a
+   * connected-codebase item). Absent → the badge is omitted (never a fabricated author).
+   */
+  readonly provenance?: 'you' | 'kai' | 'codebase';
+  /** A short, server-capped body excerpt for the 2-line row preview. UNTRUSTED — escape on render. */
+  readonly excerpt?: string;
+}
+
+/**
+ * One connected external codebase registered as a read-only, realpath-contained knowledge source.
+ * It is a SEPARATE projection facet — never an authored note, never merged into vault scope. The
+ * page reads it to render the connected-sources strip (label · path · status · honest index method ·
+ * freshness · re-index · disconnect). `external` drives the cloud-vs-folder distinction and the
+ * future egress disclosure (a codebase source is `external:false`; an overlay source would be
+ * `external:true`), keeping the disclosure data-driven so it cannot drift.
+ *
+ * Security: `label`, `path`, and `residency` originate from the filesystem / config and are
+ * UNTRUSTED — they reach the DOM through interpolation only (escaped), never `[innerHTML]`.
+ */
+export interface KbSource {
+  readonly id: string;
+  /** Folder basename for display. UNTRUSTED — escape on render. */
+  readonly label: string;
+  /** The canonical realpath of the connected folder. UNTRUSTED — escape on render. */
+  readonly path: string;
+  readonly kind: 'codebase' | 'overlay' | string;
+  /** Index lifecycle: `indexing` while a connect/reindex runs, then `indexed`, or `failed`. */
+  readonly status: 'connected' | 'indexing' | 'indexed' | 'failed' | string;
+  readonly fileCount?: number;
+  /** Honest index method (`filename` / `semantic`) — never claims semantic without a real embedder. */
+  readonly method?: string;
+  readonly lastIndexedAt?: string | null;
+  /** When the source's files changed after the last index — drives a "stale — re-index" marker. */
+  readonly stale?: boolean;
+  /** A failed index's terse reason. UNTRUSTED — escape on render. */
+  readonly reason?: string;
+  /** Residency tier of a (future) external overlay source. UNTRUSTED — escape on render. */
+  readonly residency?: string;
+  /** `false` for a local codebase source; `true` for a (future) external overlay source. */
+  readonly external?: boolean;
 }
 
 /**
@@ -151,6 +199,25 @@ export interface KnowledgeView {
   readonly docs?: readonly KnowledgeDoc[];
   /** The `/kai` propose inbox: pending proposals only, inert until an explicit human approve. */
   readonly proposals?: readonly KnowledgeProposal[];
+  /**
+   * The connected external-codebase sources (a separate read-only facet, never merged into `docs`).
+   * Absent/empty until a codebase is connected — the strip then shows one quiet invite line.
+   */
+  readonly sources?: readonly KbSource[];
+  /**
+   * The compare-and-swap token for the connected-sources facet — the rev a source mutation
+   * (connect / reindex / disconnect) forwards as `expectedRev` so a concurrent sources change is
+   * detected (a stale value → 409/`conflict`, never a clobber). It is DISTINCT from the project's
+   * workflow-state `rev`: the server CASes source mutations against this token, not the state hash.
+   * Absent until a sources facet exists.
+   */
+  readonly sourcesRev?: string;
+  /**
+   * Whether an external memory overlay is configured + enabled + healthy. The Source toggle and any
+   * overlay source row appear ONLY when true (absent otherwise — never a disabled tease). Expected
+   * `false`/absent in this slice (no overlay control ships); the field is the seam, not a feature.
+   */
+  readonly overlayPresent?: boolean;
 }
 
 /**

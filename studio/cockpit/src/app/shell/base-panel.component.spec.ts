@@ -321,14 +321,19 @@ describe('Knowledge panel', () => {
     expect((applied as unknown as ProjectState).knowledge?.counts.project).toBe(3);
   });
 
-  it('keeps a Manage knowledge affordance inert (no navigation) while that view does not exist', () => {
-    const host = mount(MERGED).nativeElement as HTMLElement;
-    const el = host.querySelector('[data-testid="base-manage"]')!;
-    expect(el.hasAttribute('routerLink')).toBe(false);
-    const disabled = el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true';
-    expect(disabled).toBe(true);
-    expect(el.getAttribute('aria-label') ?? el.textContent ?? '').toMatch(/soon|coming soon/i);
-    expect(el.textContent).toMatch(/Manage knowledge/i);
+  it('emits manage from the now-live Manage knowledge footer (it opens the dedicated page)', () => {
+    const fixture = mount(MERGED);
+    const host = fixture.nativeElement as HTMLElement;
+    let managed = false;
+    fixture.componentInstance.manage.subscribe(() => (managed = true));
+    const el = host.querySelector('[data-testid="base-manage"]') as HTMLButtonElement;
+    // The "coming soon" stub is gone: the button is enabled, carries no soon pill, and emits manage.
+    expect(el.hasAttribute('disabled')).toBe(false);
+    expect(el.getAttribute('aria-disabled')).toBeNull();
+    expect(el.getAttribute('aria-label')).toBe('Manage knowledge');
+    expect(el.textContent).not.toMatch(/soon/i);
+    el.click();
+    expect(managed).toBe(true);
   });
 
   it('shows the empty invitation plus an Add button when there is no knowledge yet', () => {

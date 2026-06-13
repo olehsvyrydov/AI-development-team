@@ -29,8 +29,8 @@ const SCOPE_ORDER: readonly ScopeFilter[] = ['project', 'common', 'all'];
  * Security: doc names, stack tags, kinds, and all proposal content originate from project files /
  * front-matter / the model and are UNTRUSTED, so they reach the DOM through interpolation only
  * (escaped) — never `[innerHTML]`. Both the scoped add form's scope and the proposal approve scope
- * are a fixed enum, never a free path. "Manage knowledge" stays an inert "coming soon" affordance
- * (disabled, `aria-disabled`) that neither navigates nor fakes a write.
+ * are a fixed enum, never a free path. The "Manage knowledge" footer emits {@link manage} to open
+ * the dedicated Knowledge page (the shell swaps it in like the tasks board).
  *
  * Empty (no docs, or no facts at all): an invitation plus the Add control — never a bare "No data".
  */
@@ -198,14 +198,12 @@ const SCOPE_ORDER: readonly ScopeFilter[] = ['project', 'common', 'all'];
         </button>
         <button
           type="button"
-          class="ph__foot"
+          class="ph__foot ph__foot--live"
           data-testid="base-manage"
-          disabled
-          aria-disabled="true"
-          aria-label="Manage knowledge (coming soon)"
+          aria-label="Manage knowledge"
+          (click)="manage.emit()"
         >
           Manage knowledge
-          <span class="ph__soon">soon</span>
           <svg class="ph__arrow" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14">
             <polyline points="9,6 15,12 9,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -260,8 +258,9 @@ const SCOPE_ORDER: readonly ScopeFilter[] = ['project', 'common', 'all'];
     .ph__add--live .ph__addglyph { opacity: 1; }
     .ph__addglyph { flex: none; opacity: 0.6; }
     .ph__foot { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0; font: inherit; color: var(--kb-text-subtle); background: transparent; border: none; text-decoration: none; font-size: var(--kb-text-sm); font-weight: 600; }
-    .ph__foot[disabled], .ph__foot[aria-disabled='true'] { cursor: default; }
-    .ph__soon { padding: 0 0.3rem; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-text-subtle); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: 999px; }
+    .ph__foot--live { color: var(--kb-accent); cursor: pointer; }
+    .ph__foot--live:hover { color: var(--kb-accent-strong, var(--kb-accent)); }
+    .ph__foot--live:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
     .ph__arrow { flex: none; opacity: 0.6; }
   `,
 })
@@ -269,6 +268,8 @@ export class BasePanelComponent {
   readonly base = input.required<KnowledgeView | null>();
   /** Fresh project state from a successful note add, lifted for the shell to adopt as truth. */
   readonly applied = output<ProjectState>();
+  /** The operator asked to open the dedicated Knowledge page (the live "Manage knowledge" footer). */
+  readonly manage = output<void>();
 
   private readonly formOpen_ = signal(false);
   readonly formOpen = this.formOpen_.asReadonly();

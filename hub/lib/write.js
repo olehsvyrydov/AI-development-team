@@ -14,7 +14,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { fileRev, containedCommonVaultDir } = require('./state');
 const { safeId, commentFile, readComments } = require('./comments');
-const { commonVaultRoot, aidevteamHome, normalizeStack, normalizeKind } = require('./knowledge');
+const { commonVaultRoot, aidevteamHome, normalizeStack, normalizeKind, parseFrontMatter } = require('./knowledge');
 
 const MAX_COMMENT_BODY = 8192;
 const MAX_KB_BODY = 64 * 1024;
@@ -186,17 +186,30 @@ function resolveCommonKbDir() {
 const SCOPE_ENUM = new Set(['project', 'common']);
 
 // Build the YAML-ish front-matter header the writer emits (and the reader parses).
-// Values are the server-validated scope/stack/kind; never client paths.
-function frontMatterHeader({ scope, stack, kind, status, by }) {
+// Values are the server-validated scope/stack/kind; never client paths. `created`
+// and `by` carry the note's PROVENANCE: an add stamps fresh values, an edit/move
+// threads the original through so a note's authorship and birth time survive a
+// later mutation (a defaulted `created` is the current time; a defaulted `by` is
+// 'user').
+function frontMatterHeader({ scope, stack, kind, status, created, by }) {
   const lines = ['---'];
   lines.push(`scope: ${scope}`);
   lines.push(`stack: [${stack.join(', ')}]`);
   lines.push(`kind: ${kind}`);
   lines.push(`status: ${status}`);
-  lines.push(`created: ${new Date().toISOString()}`);
+  lines.push(`created: ${created || new Date().toISOString()}`);
   lines.push(`by: ${by || 'user'}`);
   lines.push('---');
   return lines.join('\n') + '\n';
+}
+
+// Read the existing note's recorded provenance (`by` + `created`) so an edit/move
+// preserves it. Returns `{ by, created }` (each null when absent/unreadable).
+function existingProvenance(realTarget) {
+  try {
+    const fm = parseFrontMatter(fs.readFileSync(realTarget, 'utf8'));
+    return { by: fm.by || null, created: fm.created || null };
+  } catch { return { by: null, created: null }; }
 }
 
 // Body must be a non-empty, UTF-8-encodable text string within the size cap, with
@@ -213,6 +226,211 @@ function kbBodyError(body) {
 }
 
 const reject = (error) => ({ ok: false, code: 400, error });
+const conflict = () => ({ ok: false, conflict: true });
+
+// Resolve the realpath of the vault selected by the `scope` enum, plus the root the
+// returned file path is reported relative to. `scope` is a server-validated enum —
+// never a client path. Returns `{ vaultDir, relRoot }` or null when out-of-enum / the
+// vault is not safely writable.
+function resolveVault(projectDir, scope) {
+  if (!SCOPE_ENUM.has(scope)) return null;
+  if (scope === 'common') {
+    const vaultDir = resolveCommonKbDir();
+    if (!vaultDir) return null;
+    return { vaultDir, relRoot: vaultDir };
+  }
+  const vaultDir = resolveKbDir(projectDir);
+  if (!vaultDir) return null;
+  let relRoot;
+  try { relRoot = fs.realpathSync(projectDir); } catch { return null; }
+  return { vaultDir, relRoot };
+}
+
+// Derive the server-known note basename from a client-supplied id/file/name WITHOUT
+// trusting it as a path: take the basename, strip a trailing .md, and slugify — the
+// slug character class excludes separators / parent-refs / NUL, so the result can
+// never encode a path. Returns the `<slug>.md` filename, or null when the input
+// carries no usable slug character.
+function noteFileName(idOrFile) {
+  const base = path.basename(String(idOrFile == null ? '' : idOrFile)).replace(/\.md$/i, '');
+  const slug = slugify(base);
+  return slug ? `${slug}.md` : null;
+}
+
+// Realpath-resolve the note file inside the chosen vault and confirm strict
+// containment of BOTH the parent and the file's own realpath BEFORE any write/move,
+// so a pre-existing symlink at the note path can never be followed out of the vault.
+// Returns `{ vaultDir, relRoot, name, target, realTarget }` or a reject/null.
+function resolveNote(projectDir, scope, idOrFile) {
+  const v = resolveVault(projectDir, scope);
+  if (!v) return null;
+  const fileName = noteFileName(idOrFile);
+  if (!fileName) return null;
+  const target = path.join(v.vaultDir, fileName);
+  let realParent;
+  try { realParent = fs.realpathSync(path.dirname(target)); } catch { return null; }
+  if (!isContained(v.vaultDir, realParent)) return null;
+  let realTarget;
+  try { realTarget = fs.realpathSync(target); } catch { return null; } // absent → caller handles
+  // the resolved file itself must be contained (a symlink whose target escapes the
+  // vault realpaths outside it → refused, never followed)
+  if (!isContained(v.vaultDir, realTarget)) return null;
+  return { vaultDir: v.vaultDir, relRoot: v.relRoot, name: fileName.replace(/\.md$/, ''), target, realTarget };
+}
+
+// The per-note CAS rev: the note file's mtime+size. A concurrent edit/delete/move
+// changes it, so a stale expectedRev is refused (lost-update guard). Computed from
+// the realpath inside the vault so it cannot be spoofed by a path.
+function noteRevOf(realTarget) {
+  try {
+    const st = fs.statSync(realTarget);
+    return `${st.mtimeMs}:${st.size}`;
+  } catch { return null; }
+}
+
+// Atomically overwrite an EXISTING file in place (tmp + fsync + rename within the
+// same directory). The destination parent is realpath-contained by the caller before
+// this runs; the rename replaces the slug's content without following a symlink out
+// of the vault (the tmp file is created fresh in the contained dir, then renamed over
+// the realpath'd target). Never used to create a new slug — that path uses O_EXCL.
+function atomicOverwrite(realTarget, content) {
+  const dir = path.dirname(realTarget);
+  const tmp = path.join(dir, `.tmp.${process.pid}.${tmpSeq++}`);
+  const fd = fs.openSync(tmp, 'wx');
+  try {
+    fs.writeSync(fd, content);
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  fs.renameSync(tmp, realTarget);
+}
+
+/**
+ * Edit a knowledge-base note in place, or MOVE it across vaults when `scope` changes.
+ *
+ * The target is resolved by its server-known `id`/`file` (slug) + the `scope` enum —
+ * the client never supplies a path, directory, or filename. The title is IMMUTABLE
+ * (the slug is identity); a title change is ignored. The body is re-validated (the
+ * same caps as add) and the front-matter is re-emitted server-side from the validated
+ * scope/stack/kind. A CAS on `expectedRev` (the note's mtime+size) refuses a stale
+ * edit with no write. When `scope` differs from the note's current vault, the note is
+ * written into the destination vault (realpath-contained) and the source is
+ * soft-deleted — both sides contained.
+ *
+ * @param projectDir the server-resolved project root (never client-supplied)
+ * @param input `{ id|file, scope, body, stack?, kind?, expectedRev?, by? }`
+ * @returns `{ ok:true, doc }` on success; `{ ok:false, conflict:true }` on a stale
+ *          rev; or `{ ok:false, code:400, error }` (terse — no paths, no stack)
+ */
+function editKbNote(projectDir, { id, file, scope, body, stack, kind, expectedRev, by } = {}) {
+  return withLock(() => {
+    const idOrFile = file != null ? file : id;
+    if (idOrFile == null) return reject('note required');
+    if (!SCOPE_ENUM.has(scope)) return reject('invalid scope');
+    const bodyErr = kbBodyError(body);
+    if (bodyErr) return reject(bodyErr);
+
+    // Resolve the SOURCE note: it lives in EITHER vault — try the requested scope
+    // first, then the other (a scope change moves FROM the current vault).
+    const otherScope = scope === 'common' ? 'project' : 'common';
+    let src = resolveNote(projectDir, scope, idOrFile);
+    let srcScope = scope;
+    if (!src) { src = resolveNote(projectDir, otherScope, idOrFile); srcScope = otherScope; }
+    if (!src) return reject('note not found');
+
+    const curRev = noteRevOf(src.realTarget);
+    if (expectedRev != null && curRev != null && expectedRev !== curRev) return conflict();
+
+    const normStack = normalizeStack(stack);
+    const normKind = normalizeKind(kind);
+    // an edit/move is not a (re)authoring: keep the note's original provenance.
+    const prov = existingProvenance(src.realTarget);
+
+    if (srcScope === scope) {
+      // in-place body edit: re-emit server front-matter, atomic overwrite, contained
+      const effStatus = scope === 'common' ? 'approved-common' : 'approved-project';
+      const header = frontMatterHeader({ scope, stack: normStack, kind: normKind, status: effStatus, created: prov.created, by: prov.by });
+      try {
+        atomicOverwrite(src.realTarget, header + body);
+      } catch { return reject('could not write the note'); }
+      auditKb(projectDir, 'kb-edit', { name: src.name, scope, by });
+      return { ok: true, doc: { name: src.name, file: path.relative(src.relRoot, src.realTarget), scope, stack: normStack, kind: normKind, status: effStatus } };
+    }
+
+    // scope change ⇒ a vault MOVE: write into the destination vault (contained,
+    // O_EXCL), then soft-delete the source. Both sides realpath-contained. The
+    // note's original provenance is threaded so the move does not re-author it.
+    const written = addKbNote(projectDir, { title: src.name, body, scope, stack: normStack, kind: normKind, created: prov.created, by: prov.by });
+    if (!written.ok) return written;
+    const trashed = trashNote(src.vaultDir, src.realTarget);
+    if (!trashed.ok) return reject('could not move the note');
+    auditKb(projectDir, 'kb-move', { name: src.name, scope, by });
+    return written;
+  });
+}
+
+/**
+ * Soft-delete a knowledge-base note: an atomic RENAME into a contained, scan-excluded
+ * `<vault>/.trash/` — never a hard unlink, so a fat-finger is recoverable. The target
+ * is resolved by `id`/`file` + the `scope` enum and realpath-contained before the
+ * move; a resolution escaping the vault moves NOTHING. A CAS on `expectedRev` refuses
+ * a stale delete. Audited via the append-only comment log (slug/scope/actor — never a
+ * filesystem path).
+ *
+ * @param projectDir the server-resolved project root
+ * @param input `{ id|file, scope, expectedRev?, by? }`
+ * @returns `{ ok:true }`; `{ ok:false, conflict:true }` on a stale rev; or
+ *          `{ ok:false, code:400, error }` (terse — no paths, no stack)
+ */
+function deleteKbNote(projectDir, { id, file, scope, expectedRev, by } = {}) {
+  return withLock(() => {
+    const idOrFile = file != null ? file : id;
+    if (idOrFile == null) return reject('note required');
+    if (!SCOPE_ENUM.has(scope)) return reject('invalid scope');
+    const note = resolveNote(projectDir, scope, idOrFile);
+    if (!note) return reject('note not found');
+
+    const curRev = noteRevOf(note.realTarget);
+    if (expectedRev != null && curRev != null && expectedRev !== curRev) return conflict();
+
+    const r = trashNote(note.vaultDir, note.realTarget);
+    if (!r.ok) return reject('could not remove the note');
+    auditKb(projectDir, 'kb-delete', { name: note.name, scope, by });
+    return { ok: true };
+  });
+}
+
+// Move a contained vault file into <vault>/.trash/<slug>-<ts>.md via an atomic
+// rename. The .trash dir is created 0700 and itself realpath-contained to the vault
+// (a symlinked .trash escaping the vault is refused — nothing moves). The rename is a
+// move, never an unlink: the file's bytes survive, recoverable. `.trash` is excluded
+// from readVault structurally (non-recursive *.md scan), so a trashed note disappears
+// from the projection with no extra wiring.
+function trashNote(vaultDir, realTarget) {
+  const trashDir = path.join(vaultDir, '.trash');
+  try { fs.mkdirSync(trashDir, { recursive: true, mode: 0o700 }); } catch { return { ok: false }; }
+  let realTrash;
+  try { realTrash = fs.realpathSync(trashDir); } catch { return { ok: false }; }
+  if (!isContained(vaultDir, realTrash)) return { ok: false }; // .trash escapes the vault → refuse
+  const base = path.basename(realTarget).replace(/\.md$/i, '');
+  const stamp = `${Date.now()}-${tmpSeq++}`;
+  const dest = path.join(realTrash, `${base}-${stamp}.md`);
+  // confirm the destination parent is still the contained .trash before the move
+  let realDestParent;
+  try { realDestParent = fs.realpathSync(path.dirname(dest)); } catch { return { ok: false }; }
+  if (!isContained(vaultDir, realDestParent)) return { ok: false };
+  try { fs.renameSync(realTarget, dest); } catch { return { ok: false }; }
+  return { ok: true };
+}
+
+// Append a knowledge audit record under a fixed audit key. Records WHAT happened
+// (slug/scope/actor) — never a filesystem path.
+function auditKb(projectDir, kind, { name, scope, by }) {
+  try {
+    appendComment(projectDir, 'knowledge', { author: by || 'hub', kind, body: `${name} (${scope})` });
+  } catch { /* audit best-effort; never blocks the result */ }
+}
 
 /**
  * Write a knowledge-base note as a new markdown file inside one of two server-known
@@ -227,12 +445,14 @@ const reject = (error) => ({ ok: false, code: 400, error });
  * gets a unique numeric suffix), and the body is capped and required to be UTF-8 text.
  *
  * @param projectDir the server-resolved project root (never client-supplied)
- * @param note `{ title, body, scope?, stack?, kind? }` — title/body untrusted text;
- *        scope an enum (default `project`); stack/kind tags normalized to the closed vocab
+ * @param note `{ title, body, scope?, stack?, kind?, status?, created?, by? }` —
+ *        title/body untrusted text; scope an enum (default `project`); stack/kind tags
+ *        normalized to the closed vocab; created/by carry provenance through a move
+ *        (defaulted to now/'user' on a fresh add)
  * @returns `{ ok:true, doc:{ name, file, scope, stack, kind, status } }` on success, or
  *          `{ ok:false, code:400, error }` with a terse message (no paths, no stack traces)
  */
-function addKbNote(projectDir, { title, body, scope, stack, kind, status } = {}) {
+function addKbNote(projectDir, { title, body, scope, stack, kind, status, created, by } = {}) {
   if (typeof title !== 'string' || title.length > MAX_KB_TITLE) return reject('invalid title');
   const bodyErr = kbBodyError(body);
   if (bodyErr) return reject(bodyErr);
@@ -262,7 +482,7 @@ function addKbNote(projectDir, { title, body, scope, stack, kind, status } = {})
     relRoot = fs.realpathSync(projectDir);
   }
 
-  const header = frontMatterHeader({ scope: effScope, stack: normStack, kind: normKind, status: effStatus });
+  const header = frontMatterHeader({ scope: effScope, stack: normStack, kind: normKind, status: effStatus, created, by });
   const fileContent = header + body;
 
   for (let n = 1; n <= KB_COLLISION_LIMIT; n++) {
@@ -325,4 +545,4 @@ function appendComment(dir, ticketId, { author, kind, body, gate, state, label, 
   return rec;
 }
 
-module.exports = { computeRev, atomicWriteJSON, readModifyWriteLedger, writeOverlay, writeOverlayCAS, addKbNote, appendComment, readComments, safeId, slugify };
+module.exports = { computeRev, atomicWriteJSON, readModifyWriteLedger, writeOverlay, writeOverlayCAS, addKbNote, editKbNote, deleteKbNote, appendComment, readComments, safeId, slugify };
