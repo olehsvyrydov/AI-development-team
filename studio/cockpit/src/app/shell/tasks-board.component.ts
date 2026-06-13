@@ -15,17 +15,21 @@ import type { ProjectState, TicketView } from '../core/models';
 import {
   activeSegmentIndex,
   cardGateSummary,
+  cardVisualStatus,
   nextStageInOrder,
   partitionBoard,
   populatedStageCount,
   statusChip,
   ticketNeedsYou,
   worklistBands,
+  worklistProgress,
   type BoardPartition,
   type CardGateSummary,
+  type CardVisualStatus,
   type OffTrackGroup,
   type StageColumn,
   type WorklistBand,
+  type WorklistProgress,
 } from './board';
 import { GlyphComponent } from './glyph.component';
 import { TaskDetailComponent } from './task-detail.component';
@@ -106,7 +110,7 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
       } @else {
         @switch (effectiveMode()) {
         @case ('worklist') {
-        <dart-tasks-worklist [bands]="bands()" [cardTemplate]="cardTpl" />
+        <dart-tasks-worklist [bands]="bands()" [progress]="worklistProgress()" [cardTemplate]="cardTpl" />
         }
         @case ('pipeline') {
         <div class="train" data-testid="pipeline-train">
@@ -257,7 +261,7 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
     </div>
 
     <ng-template #cardTpl let-t let-reason="reason">
-      <li class="card" [attr.data-testid]="'card-' + t.id" role="listitem">
+      <li class="card" [attr.data-testid]="'card-' + t.id" [attr.data-status]="cardStatus(t)" role="listitem">
         <button type="button" class="card__open" data-testid="card-open" (click)="openDetail(t)">
           <span class="card__id">{{ t.id }}</span>
           <span class="card__title">{{ t.title }}</span>
@@ -529,6 +533,14 @@ export class TasksBoardComponent {
   readonly bands = computed<readonly WorklistBand[]>(() => worklistBands(this.state().workflowView, this.tickets()));
 
   /**
+   * The worklist's top progress picture (done / in-flight / backlog proportions + % done), read off
+   * the existing canonical counts (else counted from tickets). `null` on an empty board → suppressed.
+   */
+  readonly worklistProgress = computed<WorklistProgress | null>(() =>
+    worklistProgress(this.state().taskSummary ?? null, this.state().workflowView, this.tickets()),
+  );
+
+  /**
    * The data-derived default mode: Pipeline reads best only when work is genuinely mid-flow across
    * ≥2 stages at once; otherwise the needs-you-first Worklist (the dense, never-void default).
    */
@@ -697,6 +709,15 @@ export class TasksBoardComponent {
 
   status(ticket: TicketView) {
     return statusChip(ticket.status);
+  }
+
+  /**
+   * The card's colour key (`needs-you`/`blocked`/`in-flight`/`done`/`backlog`/`waiting`) that drives
+   * its accent edge, tinted fill, and filled status pill via `data-status`. Reuses the band predicates
+   * so colour cannot drift from the band; colour only reinforces the glyph + text the pill carries.
+   */
+  cardStatus(ticket: TicketView): CardVisualStatus {
+    return cardVisualStatus(ticket, this.state().workflowView);
   }
 
   needsYou(ticket: TicketView): boolean {
