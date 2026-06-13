@@ -496,6 +496,122 @@ function lastActivity(ticket: TicketView): string {
 /** The six visual states a card colour-codes to (status drives off the band the card lands in). */
 export type CardVisualStatus = 'needs-you' | 'blocked' | 'in-flight' | 'done' | 'backlog' | 'waiting';
 
+/** The five states a pipeline STAGE NODE colour-codes to, reduced from its tickets + gate. */
+export type StageNodeStatus = 'blocked' | 'running' | 'waiting' | 'passed' | 'pending';
+
+/**
+ * The stage node's single status colour — the node-level read of flow health. It REDUCES
+ * {@link cardVisualStatus} over the node's tickets in the worst-/most-actionable-wins precedence (one
+ * red ticket makes the whole stage read red, the "where's the wall" signal), so the node colour can
+ * never drift from the cards inside it. Pure and presentational — it adds no model field and no write
+ * path; the node ALSO carries a status word + count so colour is never the only signal.
+ *
+ * Precedence: blocked (any ticket needs-you or raw blocked) → running (any in_progress) → waiting
+ * (present, none in progress) → passed (empty, behind the active front `ci <= activeIndex`) →
+ * pending (empty, ahead of the front).
+ *
+ * @param col the stage column (its tickets + governing gate)
+ * @param activeIndex the rendered-rail index of the furthest in-progress stage ({@link activeSegmentIndex})
+ * @param ci this column's index in the rendered rail
+ */
+export function stageNodeStatus(
+  col: StageColumn,
+  activeIndex: number,
+  ci: number,
+  workflowView: WorkflowView | null | undefined,
+): StageNodeStatus {
+  let running = false;
+  for (const t of col.tickets) {
+    const v = cardVisualStatus(t, workflowView);
+    if (v === 'needs-you' || v === 'blocked') return 'blocked';
+    if (v === 'in-flight') running = true;
+  }
+  if (running) return 'running';
+  if (col.tickets.length >= 1) return 'waiting';
+  return ci <= activeIndex && activeIndex >= 0 ? 'passed' : 'pending';
+}
+
+/** The rolled-up gate node on the connector entering a gated stage, or null when the stage has no gate. */
+export interface StageGateNode {
+  readonly name: string;
+  readonly shape: 'hard' | 'soft';
+  readonly state: 'passed' | 'pending' | 'rejected';
+  /** How many in-stage tickets have this gate passed. */
+  readonly passed: number;
+  /** Total in-stage tickets (drives the "1 of 2 passed" label when > 1). */
+  readonly total: number;
+}
+
+/**
+ * Roll the stage's governing gate up across its tickets into one node state — the checkpoint on the
+ * line. Worst-case wins: `rejected` if ANY in-stage ticket has that gate rejected (the blocker), else
+ * `pending` if any is non-passed, else `passed` (all passed, or the stage is empty). `passed`/`total`
+ * count the in-stage tickets whose governing gate is passed / the in-stage total. Returns `null` when
+ * the stage carries no gate (a plain connector, no gate node). Pure — no write path, no model field.
+ */
+export function stageGateNode(col: StageColumn): StageGateNode | null {
+  if (!col.gate) return null;
+  const name = col.gate.name;
+  const shape: 'hard' | 'soft' = col.gate.refusal === 'soft' ? 'soft' : 'hard';
+  let passed = 0;
+  let rejected = false;
+  let anyUnmet = false;
+  for (const t of col.tickets) {
+    const gate = (t.gates ?? []).find((g) => g.name === name);
+    const state = (gate?.state ?? '').toLowerCase();
+    if (state === 'passed') passed += 1;
+    else anyUnmet = true;
+    if (state === 'rejected') rejected = true;
+  }
+  const state: StageGateNode['state'] = rejected ? 'rejected' : anyUnmet ? 'pending' : 'passed';
+  return { name, shape, state, passed, total: col.tickets.length };
+}
+
+/** The stage an advance comment moved a ticket TO, parsed from its `stage → <target>` body. */
+function advanceTargetStage(comment: TicketComment): string | null {
+  const match = /stage\s*(?:→|->)\s*(.+)\s*$/.exec(comment.body ?? '');
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * The dwell anchor for a ticket: when it ENTERED its current stage, read best-effort from the newest
+ * `kind:"advance"` comment that moved it TO that stage. An advance is recorded with a `stage → <to>`
+ * body (the engine's append-only log), so the entry moment is the newest advance whose parsed target
+ * equals the ticket's current stage. Returns that comment's `ts`, or `null` when no such comment
+ * exists (the dwell signal is then honestly omitted — never a fabricated timestamp). Pure derivation
+ * over data already persisted on the ticket; no write path.
+ */
+export function enteredCurrentStageAt(ticket: TicketView): string | null {
+  const stage = ticket.stage ?? '';
+  let newest: string | null = null;
+  for (const c of ticket.comments ?? []) {
+    if (c.kind !== 'advance' || advanceTargetStage(c) !== stage) continue;
+    const ts = c.ts ?? '';
+    if (newest === null || ts.localeCompare(newest) > 0) newest = ts;
+  }
+  return newest;
+}
+
+/** Below this dwell, a ticket is not "stuck" — the chip stays absent (no fabricated urgency). */
+const STUCK_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The honest "stuck N" duration label for a stage-entry anchor, or `null` when it should not show:
+ * the anchor is unknown/unparseable, the dwell is below the one-day {@link STUCK_THRESHOLD_MS}
+ * threshold (fresh work is not "stuck"), or the anchor is in the future (clock skew, not dwell). The
+ * label is whole days (`"3d"`) — coarse on purpose, an informational signal, never an alarm. `now` is
+ * injectable for deterministic tests; it defaults to the wall clock.
+ */
+export function dwellSince(anchor: string | null, now: number = Date.now()): string | null {
+  if (anchor === null) return null;
+  const then = Date.parse(anchor);
+  if (Number.isNaN(then)) return null;
+  const elapsed = now - then;
+  if (elapsed < STUCK_THRESHOLD_MS) return null;
+  const days = Math.floor(elapsed / (24 * 60 * 60 * 1000));
+  return `${days}d`;
+}
+
 /**
  * The colour key for a card — the single visual state that drives its accent edge, tinted fill, and
  * filled status pill. Pure and presentational: it reuses the SAME predicates the worklist bands claim
