@@ -744,3 +744,250 @@ describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / p
     expect(backlogBar.querySelector('[data-testid="card-B-1"]')).toBeTruthy();
   });
 });
+
+/**
+ * A many-stage workflow (the `full` track shape) with most stages empty — the case the adaptive
+ * train targets: empty stages collapse to thin compact stations so the rail does not scroll through
+ * empty columns, while populated stages expand to real columns.
+ */
+const WIDE_WF: WorkflowView = {
+  activeTrack: 'full',
+  stages: [
+    { stage: 'vision', owner: '/po', gate: null },
+    { stage: 'security', owner: '/secops', gate: { name: 'SECOPS_APPROVED', refusal: 'hard' } },
+    { stage: 'architecture', owner: '/arch', gate: { name: 'ARCH_APPROVED', refusal: 'hard' } },
+    { stage: 'design', owner: '/ui', gate: { name: 'DESIGN_APPROVED', refusal: 'soft' } },
+    { stage: 'tdd', owner: '/be', gate: null },
+    { stage: 'code_review', owner: '/rev', gate: { name: 'CODE_REVIEWED', refusal: 'soft' } },
+    { stage: 'qa', owner: '/qa', gate: null },
+    { stage: 'verify', owner: '/verify', gate: null },
+    { stage: 'done', owner: null, gate: null },
+  ],
+};
+
+function wideState(overrides: Partial<ProjectState> = {}): ProjectState {
+  return {
+    rev: 'r1',
+    preset: 'solo',
+    workflowView: WIDE_WF,
+    tracks: { full: ['vision', 'security', 'architecture', 'design', 'tdd', 'code_review', 'qa', 'verify', 'done'] },
+    gateDefs: [],
+    taskSummary: { total: 2, byStatus: { in_progress: 0, waiting: 1, blocked: 0, done: 1, needsYou: 0 } },
+    tickets: [
+      { id: 'BL-1', title: 'Idea', status: 'waiting', stage: undefined, track: 'full', gates: [], comments: [] },
+      { id: 'DN-1', title: 'Shipped', status: 'done', stage: 'done', track: 'full', gates: [], comments: [] },
+    ],
+    ...overrides,
+  };
+}
+
+describe('TasksBoardComponent — adaptive train (compact stations + expanded columns)', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('renders an EMPTY stage as a COMPACT station: data-state=compact, the name + 0 count, no card list', () => {
+    const { host } = mount(wideState());
+    const vision = host.querySelector('[data-testid="column-stage-vision"]')!;
+    expect(vision.getAttribute('data-state')).toBe('compact');
+    // The station still shows the stage name and a real 0 count (absent-not-zero: a real count).
+    expect(vision.textContent).toContain('vision');
+    expect(vision.querySelector('[data-testid="column-count"]')!.textContent).toContain('0');
+    // A compact station does not render its (empty) card list as a visible column body.
+    expect(vision.querySelector('.col__cards')).toBeNull();
+  });
+
+  it('keeps the stable contract on a compact station: column-stage-*, column-count, rail-node-* with data-node/data-active, column-empty-*', () => {
+    const { host } = mount(wideState());
+    const vision = host.querySelector('[data-testid="column-stage-vision"]')!;
+    // Node shape + active state still resolve on a compact station.
+    const node = vision.querySelector('[data-testid="rail-node-vision"]')!;
+    expect(node.getAttribute('data-node')).toBe('none');
+    expect(node.getAttribute('data-active')).toMatch(/^(true|false)$/);
+    const security = host.querySelector('[data-testid="column-stage-security"]')!;
+    expect(security.querySelector('[data-testid="rail-node-security"]')!.getAttribute('data-node')).toBe('gate-hard');
+    // The empty marker is present in the DOM (for tests + screen readers) even when compact.
+    expect(vision.querySelector('[data-testid="column-empty-vision"]')).toBeTruthy();
+  });
+
+  it('renders a POPULATED stage as an EXPANDED column: data-state=expanded, with its task cards', () => {
+    const populated = wideState({
+      tickets: [
+        { id: 'BL-1', title: 'Idea', status: 'waiting', stage: undefined, track: 'full', gates: [], comments: [] },
+        { id: 'A-1', title: 'Building', status: 'in_progress', stage: 'architecture', track: 'full', assignee: '/arch', gates: [], comments: [] },
+        { id: 'DN-1', title: 'Shipped', status: 'done', stage: 'done', track: 'full', gates: [], comments: [] },
+      ],
+    });
+    const { host } = mount(populated);
+    const arch = host.querySelector('[data-testid="column-stage-architecture"]')!;
+    expect(arch.getAttribute('data-state')).toBe('expanded');
+    expect(arch.querySelector('.col__cards')).toBeTruthy();
+    expect(arch.querySelector('[data-testid="card-A-1"]')).toBeTruthy();
+    expect(arch.querySelector('[data-testid="column-count"]')!.textContent).toContain('1');
+    // An adjacent empty stage stays compact alongside it.
+    expect(host.querySelector('[data-testid="column-stage-tdd"]')!.getAttribute('data-state')).toBe('compact');
+  });
+
+  it('keeps every stage rendered (compact + expanded) so the rail does not scroll through empty columns', () => {
+    const populated = wideState({
+      tickets: [
+        { id: 'A-1', title: 'Building', status: 'in_progress', stage: 'architecture', track: 'full', gates: [], comments: [] },
+        { id: 'DN-1', title: 'Shipped', status: 'done', stage: 'done', track: 'full', gates: [], comments: [] },
+      ],
+    });
+    const { host } = mount(populated);
+    const cols = [...host.querySelectorAll('[data-testid^="column-stage-"]')];
+    // All 8 non-terminal stages render (done is the folder).
+    expect(cols).toHaveLength(8);
+    // Most are compact (only architecture is populated) — the rail's natural width stays small.
+    const compact = cols.filter((c) => c.getAttribute('data-state') === 'compact');
+    const expanded = cols.filter((c) => c.getAttribute('data-state') === 'expanded');
+    expect(expanded).toHaveLength(1);
+    expect(compact).toHaveLength(7);
+  });
+
+  it('shows the calm-middle line when the whole middle is empty AND there is work elsewhere', () => {
+    // wideState has Backlog (BL-1) + Done (DN-1) populated, the entire middle empty.
+    const { host } = mount(wideState());
+    const line = host.querySelector('[data-testid="rail-middle-empty"]');
+    expect(line).toBeTruthy();
+    expect(line!.textContent).toMatch(/mid-pipeline/i);
+  });
+
+  it('omits the calm-middle line when a middle stage holds work', () => {
+    const populated = wideState({
+      tickets: [
+        { id: 'BL-1', title: 'Idea', status: 'waiting', stage: undefined, track: 'full', gates: [], comments: [] },
+        { id: 'A-1', title: 'Building', status: 'in_progress', stage: 'architecture', track: 'full', gates: [], comments: [] },
+      ],
+    });
+    const { host } = mount(populated);
+    expect(host.querySelector('[data-testid="rail-middle-empty"]')).toBeNull();
+  });
+
+  it('omits the calm-middle line on a whole-board-empty state (the board-empty invitation owns that case)', () => {
+    const { host } = mount({ ...wideState(), workflowView: { activeTrack: null, stages: [] }, tickets: [], taskSummary: { total: 0, byStatus: { in_progress: 0, waiting: 0, blocked: 0, done: 0, needsYou: 0 } } });
+    // Nothing anywhere → the board-empty invitation, never the calm-middle line.
+    expect(host.querySelector('[data-testid="board-empty"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="rail-middle-empty"]')).toBeNull();
+  });
+
+  it('omits the calm-middle line when stages exist but there is no work ANYWHERE (idle, not at-rest-with-work)', () => {
+    // Stages present, every region empty → no calm-middle line (it teaches only when work waits elsewhere).
+    const { host } = mount({ ...wideState(), tickets: [], taskSummary: { total: 0, byStatus: { in_progress: 0, waiting: 0, blocked: 0, done: 0, needsYou: 0 } } });
+    expect(host.querySelector('[data-testid="rail-middle-empty"]')).toBeNull();
+  });
+
+  it('roves focus with ArrowRight / ArrowLeft ACROSS a compact station (no stage is keyboard-unreachable)', () => {
+    const { fixture, host } = mount(wideState());
+    const cols = [...host.querySelectorAll<HTMLElement>('[data-testid^="column-stage-"]')];
+    // vision + security are both compact; arrow keys still traverse them.
+    expect(cols[0].getAttribute('data-state')).toBe('compact');
+    expect(cols[1].getAttribute('data-state')).toBe('compact');
+    cols[0].focus();
+    cols[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(cols[1]);
+    cols[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(cols[0]);
+  });
+
+  it('keeps the four-region order [backlog][rail][done][off-track] with the adaptive rail', () => {
+    const { host } = mount(wideState());
+    const train = host.querySelector('[data-testid="pipeline-train"]')!;
+    const directRegions = [...train.children]
+      .map((el) => el.getAttribute('data-testid'))
+      .filter((id): id is string => id !== null);
+    // No off-track here → backlog, rail, done in order.
+    expect(directRegions).toEqual(['backlog-bar', 'pipeline-rail', 'done-folder']);
+  });
+});
+
+/**
+ * The single-line metro contract. jsdom does not lay out flexbox, so `offsetTop` parity across
+ * nodes is unreliable; instead we assert the CSS contract that guarantees one row: the rail does
+ * not wrap, the compact stations stay narrow enough that ~11 fit a normal desktop width, the
+ * track line spans the row, and the calm idle line is lifted out of the flex flow so it can never
+ * push the stations onto a second row.
+ */
+describe('TasksBoardComponent — single-line metro rail (CSS contract)', () => {
+  // Angular emits view-scoped CSS with a `[_ngcontent-…]` attribute appended to each selector and
+  // strips quotes from attribute selectors, so a source `.col[data-state='compact'] {` is emitted as
+  // `.col[data-state=compact][_ngcontent-%COMP%] {`. Match the selector head up to that boundary.
+  function ruleBody(css: string, selectorHead: string): string {
+    const head = selectorHead.replace(/'/g, '');
+    const re = new RegExp(head.replace(/[.[\]]/g, '\\$&') + '\\[_ngcontent[^{]*\\{([^}]*)\\}');
+    const m = css.match(re);
+    expect(m, `selector not found: ${selectorHead}`).toBeTruthy();
+    return m![1];
+  }
+
+  const styles: readonly string[] = ((TasksBoardComponent as unknown as { ɵcmp: { styles?: string[] } }).ɵcmp.styles ?? []);
+  const css = styles.join('\n');
+
+  it('lays the rail out as a single non-wrapping row of stations', () => {
+    const rail = ruleBody(css, '.rail');
+    expect(rail).toContain('flex-wrap: nowrap');
+    expect(rail).not.toContain('flex-wrap: wrap');
+  });
+
+  it('runs a continuous track line across the single row of nodes', () => {
+    const track = ruleBody(css, '.rail__track');
+    expect(track).toContain('position: absolute');
+    expect(track).toContain('left: 0');
+    expect(track).toContain('right: 0');
+  });
+
+  it('keeps compact stations narrow (≤ ~2.1rem) so all 11 fit a desktop rail without horizontal scroll', () => {
+    const compact = ruleBody(css, ".col[data-state='compact']");
+    const maxW = compact.match(/max-width:\s*([\d.]+)rem/);
+    const width = compact.match(/(?:^|;|\s)width:\s*([\d.]+)rem/);
+    const bound = maxW ?? width;
+    expect(bound, 'compact station must declare a rem width/max-width').toBeTruthy();
+    // Tightened from 2.4rem: 11 × 2.1rem + 10 gaps must clear the ~33rem worst-case central rail.
+    expect(Number(bound![1])).toBeLessThanOrEqual(2.1);
+  });
+
+  it('proves 11 compact stations + inter-node gaps fit the worst-case ~33rem central rail', () => {
+    const compact = ruleBody(css, ".col[data-state='compact']");
+    const w = Number((compact.match(/(?:^|;|\s)width:\s*([\d.]+)rem/) ?? [])[1]);
+    // The compact inter-node gap is set on the rail for the compact-station case.
+    const railCompactGap = Number(
+      (css.match(/--rail-compact-gap:\s*([\d.]+)rem/) ?? [])[1],
+    );
+    expect(w, 'compact station width in rem').toBeGreaterThan(0);
+    expect(railCompactGap, 'a named compact inter-node gap in rem').toBeGreaterThan(0);
+    // 11 stations, 10 inter-node gaps. Worst case (off-track present) leaves the rail ~33rem.
+    const trainWidth = 11 * w + 10 * railCompactGap;
+    expect(trainWidth).toBeLessThanOrEqual(33);
+  });
+
+  it('places the calm idle line in the rail’s lower band, below the capped station label band (no overlap)', () => {
+    const idle = ruleBody(css, '.rail__idle');
+    // It must NOT be a full-basis flex item (flex: 1 1 100%) — that is what wrapped the row.
+    expect(idle).not.toMatch(/flex:\s*1\s+1\s+100%/);
+    // It is taken out of flow (absolute) so the station row stays single.
+    expect(idle).toContain('position: absolute');
+    // It is anchored to the BOTTOM of the rail (the open space beneath the nodes), not pinned at a
+    // small top offset that would render on top of the vertical station labels.
+    expect(idle).toMatch(/bottom:\s*0/);
+    expect(idle).not.toMatch(/top:\s*2\.6rem/);
+  });
+
+  it('caps the compact station label band short so the idle line clears it', () => {
+    // The compact label is a descendant selector; Angular appends a [_ngcontent…] hook to each
+    // compound and separates them with whitespace, so match the rule body whitespace-tolerantly.
+    const m = css.match(
+      /\.col\[data-state=compact\]\[_ngcontent[^\]]*\]\s+\.col__stage\[_ngcontent[^{]*\{([^}]*)\}/,
+    );
+    expect(m, 'compact label rule not found').toBeTruthy();
+    const cap = m![1].match(/max-height:\s*([\d.]+)rem/);
+    expect(cap, 'compact label must cap its vertical height').toBeTruthy();
+    // A short cap keeps the station band shallow so the bottom-anchored idle line never overlaps it.
+    expect(Number(cap![1])).toBeLessThanOrEqual(4);
+  });
+
+  it('keeps overflow-x auto as the genuine-busy scroll fallback', () => {
+    const rail = ruleBody(css, '.rail');
+    expect(rail).toContain('overflow-x: auto');
+  });
+});
