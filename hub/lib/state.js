@@ -647,6 +647,39 @@ function fileRev(project) {
   return rev || '0';
 }
 
+// the ledger, overlay, KB and ticket targets whose last-write time is the
+// project's state-change moment (a dir's own mtime moves when entries are
+// added/removed, so a stat of each target is enough — no directory walk)
+const STATE_CHANGE_TARGETS = [
+  '.workflow-state.json', '.aidevteam/workflow.overrides.json',
+  '.aidevteam/tickets', '.aidevteam/kb', '.aidevteam/comments',
+  'Backlog.md', 'backlog/tasks', 'kb', 'docs',
+];
+
+/**
+ * The wall-clock moment a project's workflow state last changed, in epoch
+ * milliseconds — the max mtime over the ledger/overlay/KB/ticket targets. This is
+ * the cheap freshness source (stat-only, no buildState, no directory walk).
+ * Returns null when the project root is gone or no target is readable, so a caller
+ * surfaces honest absence rather than fabricating a timestamp.
+ *
+ * @param project absolute project root
+ * @returns {number|null} max target mtime in epoch ms, or null if unreadable
+ */
+function stateChangedAt(project) {
+  try {
+    if (!fs.statSync(project).isDirectory()) return null;
+  } catch { return null; }
+  let max = null;
+  for (const rel of STATE_CHANGE_TARGETS) {
+    try {
+      const m = fs.statSync(path.join(project, rel)).mtimeMs;
+      if (max === null || m > max) max = m;
+    } catch { /* absent target contributes nothing */ }
+  }
+  return max;
+}
+
 /** Build the full, multi-ticket workflow projection for a project directory. */
 function buildState(project) {
   const wfPath = findWorkflow(project);
@@ -772,4 +805,4 @@ function listSummary(project) {
   } catch { return null; }
 }
 
-module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor };
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, stateChangedAt, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor };

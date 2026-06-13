@@ -52,6 +52,7 @@ const projects = require('./lib/projects');
 const { createRegistry } = require('./lib/registry');
 const { resolveProject } = require('./lib/resolve-project');
 const { createChannels } = require('./lib/channels');
+const { createRollup } = require('./lib/rollup');
 const { readJsonBody } = require('./lib/http-body');
 const { createStaticSpa } = require('./lib/static-spa');
 const { safeExists, safeRead } = lib;
@@ -107,6 +108,15 @@ const channels = createChannels({
   onChange: (dir) => api.runEngineTick(dir),
 });
 
+// ---- SSE: cross-project rollup ---------------------------------------------
+// One stream mirrors EVERY registered project: it subscribes in-process sinks to
+// the same per-project channels (reusing their refcount/cap/debounce/teardown),
+// recomputes only the changed project per tick, merges into a cached rollup, and
+// emits a single merged frame. The frame is a strict subset of /api/projects (no
+// path, no ticket bodies). The project set is the server-side registry — no client
+// list — so there is no id/path-injection surface and no new mutation route.
+const rollup = createRollup({ channels, registry });
+
 // ---- HTTP ------------------------------------------------------------------
 const server = http.createServer((req, res) => {
   let pathname;
@@ -122,6 +132,25 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(buildStateFor(r.dir)));
     });
+  }
+  if (pathname === '/api/events/rollup') {
+    // A cross-project mirror discloses every connected project's live activity and
+    // pins watchers, so it is a capability: ride the SAME loopback Host/Origin/socket
+    // pinning the per-project stream uses, applied BEFORE the registry is read or any
+    // channel is opened. The project set is derived server-side; no client list is
+    // accepted, so there is no id/path-injection surface here.
+    const gate = streamAllowed(req, { port: PORT, allowRemote: ALLOW_REMOTE });
+    if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    });
+    res.setTimeout(0);
+    if (req.socket) req.socket.setTimeout(0);
+    // subscribe() writes the first full snapshot and tears down on the request's
+    // 'close', matching the per-project stream's unsubscribe trigger
+    return rollup.subscribe(res, req).catch(() => { try { res.end(); } catch {} });
   }
   if (pathname === '/api/events') {
     // Opening a per-project stream discloses one project's live activity and pins a

@@ -645,6 +645,95 @@ export function displayDescription(profile: ProjectProfile | null): string {
   return profile?.description?.trim() ?? '';
 }
 
+/**
+ * One project's entry in a live cross-project rollup frame. A projection of the same summary
+ * `GET /api/projects` serves (drops `path`), plus two freshness facts: `stateChangedAt` is the
+ * max mtime of the project's state files (epoch-ms, or `null` when unreadable) and `live` is true
+ * while the project is actively watched/pinned this tick. `label` is the registry display name and
+ * is UNTRUSTED — it reaches the DOM through interpolation only (escaped), never `[innerHTML]`.
+ */
+export interface RollupProjectEntry {
+  readonly id: string;
+  /** Registry display name. UNTRUSTED — escape on render. */
+  readonly label: string;
+  readonly status: ProjectStatus | string;
+  readonly open: number;
+  readonly needsYou: number;
+  /** Epoch-ms of the project's last state mutation, or `null` when its state files were unreadable. */
+  readonly stateChangedAt: number | null;
+  /** True when the project is live-pinned/actively watched this tick; false when cold-refreshed. */
+  readonly live: boolean;
+}
+
+/**
+ * A merged cross-project rollup, pushed on the `rollup` SSE event whenever any watched project's
+ * state changes. The FIRST frame is a full snapshot; later frames are also full frames the store
+ * adopts wholesale, so no client-side reconciliation is needed. Counts are server-summed totals.
+ */
+export interface RollupFrame {
+  readonly totalOpen: number;
+  readonly totalNeedsYou: number;
+  readonly projects: readonly RollupProjectEntry[];
+}
+
+/**
+ * The per-project freshness vocabulary shown on a card footer. Each state carries shape + word +
+ * colour (never colour alone): `live` (just pushed / actively streaming), `idle` (watched, aged),
+ * `stale` (state-age past the threshold — the number on screen may lag), and `offline` (registry
+ * status is bad or the channel dropped — freshness defers to status).
+ */
+export type FreshnessState = 'live' | 'idle' | 'stale' | 'offline';
+
+/** Active window: a state change newer than this reads `live`. */
+export const FRESHNESS_ACTIVE_MS = 20_000;
+/** Stale threshold: a state change older than this reads `stale` (the data may lag reality). */
+export const FRESHNESS_STALE_MS = 600_000;
+
+/**
+ * Derive a project's freshness state from its rollup entry and the channel health, as of `now`.
+ *
+ * Status precedence: a registry status of `offline`/`error`/`needs-auth`, or a closed channel,
+ * yields `offline` regardless of timing. Otherwise, when `stateChangedAt` is absent the signal
+ * degrades to `live` (channel open AND the project is live-pinned) or `offline` — it NEVER
+ * fabricates `stale`/`idle` from a missing timestamp. With a timestamp present: younger than the
+ * active window → `live`; younger than the stale threshold → `idle`; older → `stale`.
+ *
+ * @param entry the project's rollup entry, or `null` when the project is absent from the frame
+ * @param now epoch-ms reference time (the shared ticker's tick), used for age comparison
+ * @param channelOpen whether the live rollup channel is currently connected
+ */
+export function deriveFreshness(
+  entry: Pick<RollupProjectEntry, 'status' | 'stateChangedAt' | 'live'> | null,
+  now: number,
+  channelOpen: boolean,
+): FreshnessState {
+  if (!entry) return 'offline';
+  const status = entry.status;
+  if (status === 'offline' || status === 'error' || status === 'needs-auth') return 'offline';
+  if (!channelOpen) return 'offline';
+  if (entry.stateChangedAt == null) return entry.live ? 'live' : 'offline';
+  const age = Math.max(0, now - entry.stateChangedAt);
+  if (age < FRESHNESS_ACTIVE_MS) return 'live';
+  if (age < FRESHNESS_STALE_MS) return 'idle';
+  return 'stale';
+}
+
+/**
+ * Render a coarse relative string for an epoch-ms instant as of `now` ("just now" / "4m ago").
+ * Returns an empty string for a null/NaN input so callers can omit the age — never a fabricated 0.
+ */
+export function formatRelativeMs(ms: number | null | undefined, now: number = Date.now()): string {
+  if (ms == null || Number.isNaN(ms)) return '';
+  const seconds = Math.max(0, Math.round((now - ms) / 1000));
+  if (seconds < 60) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
+
 /** One folder row from `GET /api/fs/list`. Folders only; `name` is untrusted basename text. */
 export interface FsEntry {
   readonly name: string;

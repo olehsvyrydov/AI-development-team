@@ -82,4 +82,39 @@ describe('ProjectEventsService', () => {
     expect(received).toHaveLength(1);
     sub.unsubscribe();
   });
+
+  it('opens the cross-project rollup stream against /api/events/rollup', () => {
+    const svc = TestBed.inject(ProjectEventsService);
+    const sub = svc.connectRollup().subscribe();
+    const es = FakeEventSource.instances[0];
+    expect(es.url).toContain('/api/events/rollup');
+    sub.unsubscribe();
+    expect(es.closed).toBe(true);
+  });
+
+  it('emits parsed rollup frames from the `rollup` event', () => {
+    const svc = TestBed.inject(ProjectEventsService);
+    const received: unknown[] = [];
+    const sub = svc.connectRollup().subscribe((f) => received.push(f));
+    const es = FakeEventSource.instances[0];
+    es.emit('rollup', {
+      totalOpen: 8,
+      totalNeedsYou: 3,
+      projects: [{ id: 'a', label: 'a', status: 'connected', open: 8, needsYou: 3, stateChangedAt: 1, live: true }],
+    });
+    expect(received).toHaveLength(1);
+    expect((received[0] as { totalNeedsYou: number }).totalNeedsYou).toBe(3);
+    sub.unsubscribe();
+  });
+
+  it('skips a malformed rollup frame without tearing the stream down', () => {
+    const svc = TestBed.inject(ProjectEventsService);
+    const received: unknown[] = [];
+    const sub = svc.connectRollup().subscribe((f) => received.push(f));
+    const es = FakeEventSource.instances[0];
+    es.listeners['rollup']?.({ data: '{bad' } as MessageEvent);
+    es.emit('rollup', { totalOpen: 0, totalNeedsYou: 0, projects: [] });
+    expect(received).toHaveLength(1);
+    sub.unsubscribe();
+  });
 });

@@ -2,12 +2,15 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiService, type ConnectResult } from '../core/api.service';
 import { FsService } from '../core/fs.service';
+import { ProjectEventsService } from '../core/events.service';
+import { ROLLUP_ANNOUNCE_DEBOUNCE_MS } from '../core/rollup.store';
 import { ProjectsHomeComponent } from './projects-home.component';
 import { settle } from '../testing/settle';
-import type { ProjectRecord } from '../core/models';
+import type { ProjectRecord, RollupFrame, RollupProjectEntry } from '../core/models';
 
 function record(id: string, label: string, over: Partial<ProjectRecord> = {}): ProjectRecord {
   return { id, path: `/p/${label}`, label, addedAt: 't', lastSeen: 't', status: 'connected', ...over };
@@ -20,6 +23,18 @@ describe('ProjectsHomeComponent', () => {
     getProject: ReturnType<typeof vi.fn>;
   };
   let fs: { roots: ReturnType<typeof vi.fn>; list: ReturnType<typeof vi.fn> };
+  let rollupFrames: Subject<RollupFrame>;
+
+  function entry(over: Partial<RollupProjectEntry> = {}): RollupProjectEntry {
+    return { id: 'a', label: 'a', status: 'connected', open: 0, needsYou: 0, stateChangedAt: Date.now(), live: true, ...over };
+  }
+  function frame(projects: RollupProjectEntry[]): RollupFrame {
+    return {
+      totalOpen: projects.reduce((s, p) => s + p.open, 0),
+      totalNeedsYou: projects.reduce((s, p) => s + p.needsYou, 0),
+      projects,
+    };
+  }
 
   async function mount(): Promise<ComponentFixture<ProjectsHomeComponent>> {
     TestBed.configureTestingModule({
@@ -30,6 +45,8 @@ describe('ProjectsHomeComponent', () => {
         provideRouter([]),
         { provide: ApiService, useValue: api },
         { provide: FsService, useValue: fs },
+        { provide: ProjectEventsService, useValue: { connectRollup: () => rollupFrames.asObservable() } },
+        { provide: ROLLUP_ANNOUNCE_DEBOUNCE_MS, useValue: 5 },
       ],
     });
     const fixture = TestBed.createComponent(ProjectsHomeComponent);
@@ -51,6 +68,7 @@ describe('ProjectsHomeComponent', () => {
   }
 
   beforeEach(() => {
+    rollupFrames = new Subject<RollupFrame>();
     api = {
       listProjects: vi.fn().mockResolvedValue([]),
       connectProject: vi.fn(),
@@ -218,24 +236,23 @@ describe('ProjectsHomeComponent', () => {
     expect(cockpit!.textContent).not.toContain('marketing-site');
   });
 
-  it('keeps the cockpit live region announcing only the text summary, with the link chips outside it', async () => {
+  it('routes the only announcing live region to a dedicated sr-only total announcer, never the chips', async () => {
     api.listProjects.mockResolvedValue([
       record('aaaaaaaaaaaa', 'payments-api', { taskSummary: { open: 5, needsYou: 2 } }),
       record('bbbbbbbbbbbb', 'data-pipeline', { taskSummary: { open: 3, needsYou: 1 } }),
     ]);
     const fixture = await mount();
     const host = fixture.nativeElement as HTMLElement;
-    const live = host.querySelector('[data-testid="cockpit-strip"] [aria-live="polite"]')!;
-    expect(live).toBeTruthy();
-    // The live region announces the rolled-up summary text.
-    expect(live.textContent).toContain('3');
-    expect(live.textContent).toContain('2 projects');
-    // A live region must not wrap focusable controls: no router-link chips inside it.
-    expect(live.querySelector('[data-testid="cockpit-chip"]')).toBeNull();
-    expect(live.querySelector('a')).toBeNull();
-    // The chips still render in the strip, just outside the announced region.
-    const chips = host.querySelectorAll('[data-testid="cockpit-chip"]');
-    expect(chips).toHaveLength(2);
+    // There is exactly ONE announcing live region, and it is the dedicated sr-only announcer.
+    const liveRegions = host.querySelectorAll('[aria-live]');
+    expect(liveRegions).toHaveLength(1);
+    const announcer = host.querySelector('[data-testid="rollup-announcer"]')!;
+    expect(announcer.getAttribute('aria-live')).toBe('polite');
+    expect(announcer.getAttribute('aria-atomic')).toBe('true');
+    // The announcer never wraps the focusable chips.
+    expect(announcer.querySelector('a')).toBeNull();
+    // The chips still render in the band, just outside any announced region.
+    expect(host.querySelectorAll('[data-testid="cockpit-chip"]')).toHaveLength(2);
   });
 
   it('does not render the cockpit strip at all when nothing needs you (absent-not-zero)', async () => {
@@ -268,5 +285,87 @@ describe('ProjectsHomeComponent', () => {
     // The grid exposes a single motion gate; the keyframes are zeroed in one place by the
     // reduced-motion media query, so the attribute is the only thing tests need to assert.
     expect(grid.getAttribute('data-motion')).toMatch(/^(on|off)$/);
+  });
+
+  it('labels the rollup as a NEEDS YOU band over the existing chip strip', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'payments-api', { taskSummary: { open: 5, needsYou: 2 } })]);
+    const fixture = await mount();
+    const band = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="cockpit-strip"]')!;
+    expect(band.textContent?.toUpperCase()).toContain('NEEDS YOU');
+  });
+
+  it('reflects a live rollup frame in the strip total and band lead without a reload', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'payments-api', { taskSummary: { open: 5, needsYou: 2 } })]);
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    rollupFrames.next(frame([entry({ id: 'aaaaaaaaaaaa', label: 'payments-api', open: 9, needsYou: 7 })]));
+    await settle(fixture);
+
+    expect(host.querySelector('[data-testid="global-needs-you"]')!.textContent).toContain('7');
+    expect(host.querySelector('[data-testid="cockpit-strip"]')!.textContent).toContain('7');
+  });
+
+  it('updates the matching card freshness from a live frame (live state with a ringed dot)', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'payments-api', { taskSummary: { open: 5, needsYou: 2 } })]);
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    rollupFrames.next(frame([entry({ id: 'aaaaaaaaaaaa', label: 'payments-api', open: 5, needsYou: 2, stateChangedAt: Date.now() })]));
+    await settle(fixture);
+
+    const fresh = host.querySelector('[data-testid="project-card"] [data-testid="freshness"]')!;
+    expect(fresh.getAttribute('data-state')).toBe('live');
+  });
+
+  it('shows the dedicated announcer empty on first paint (no first-paint / no-op announce)', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'payments-api', { taskSummary: { open: 5, needsYou: 2 } })]);
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    rollupFrames.next(frame([entry({ id: 'aaaaaaaaaaaa', needsYou: 5 })]));
+    await settle(fixture);
+    // The first frame is the page state the user landed on — it is NOT announced.
+    expect(host.querySelector('[data-testid="rollup-announcer"]')!.textContent?.trim()).toBe('');
+  });
+
+  it('announces a net total change once (debounced) in the dedicated polite region', async () => {
+    api.listProjects.mockResolvedValue([record('aaaaaaaaaaaa', 'payments-api', { taskSummary: { open: 5, needsYou: 2 } })]);
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    rollupFrames.next(frame([entry({ id: 'aaaaaaaaaaaa', needsYou: 2 })]));
+    await settle(fixture);
+    // A burst of pushes settles to one announcement of the final value.
+    rollupFrames.next(frame([entry({ id: 'aaaaaaaaaaaa', needsYou: 4 })]));
+    rollupFrames.next(frame([entry({ id: 'aaaaaaaaaaaa', needsYou: 6 })]));
+    await settle(fixture);
+
+    const announcer = host.querySelector('[data-testid="rollup-announcer"]')!;
+    expect(announcer.textContent).toContain('6');
+    expect(announcer.textContent).toMatch(/need you/i);
+  });
+
+  it('does NOT re-sort the card grid when a live frame arrives (spatial stability)', async () => {
+    api.listProjects.mockResolvedValue([
+      record('aaaaaaaaaaaa', 'alpha', { taskSummary: { open: 1, needsYou: 1 } }),
+      record('bbbbbbbbbbbb', 'bravo', { taskSummary: { open: 1, needsYou: 1 } }),
+    ]);
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+    const order = () =>
+      Array.from(host.querySelectorAll('[data-testid="project-card"]')).map((c) => c.getAttribute('href'));
+    const before = order();
+
+    // A frame that would re-rank by needsYou must NOT move the cards.
+    rollupFrames.next(
+      frame([
+        entry({ id: 'aaaaaaaaaaaa', label: 'alpha', needsYou: 1 }),
+        entry({ id: 'bbbbbbbbbbbb', label: 'bravo', needsYou: 9 }),
+      ]),
+    );
+    await settle(fixture);
+
+    expect(order()).toEqual(before);
   });
 });
