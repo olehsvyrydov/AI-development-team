@@ -207,31 +207,37 @@ describe('ProjectShellComponent', () => {
     expect(host.querySelector('[data-testid="panel-tasks"]')).toBeTruthy();
   });
 
-  it('opens the in-shell workflow builder from the Workflow panel and can return to the panels', async () => {
+  it('Edit workflow opens the board with the pipeline armed for editing (the one control plane), and returns to the panels', async () => {
     api.getProject.mockResolvedValue(
       view({ title: 'p', description: 'd' }, {
         ...RICH_STATE,
         rev: 'r1',
-        tracks: { full: ['vision', 'architecture', 'design'] },
+        tracks: { full: ['vision', 'architecture', 'design', 'done'] },
         gateDefs: [{ name: 'ARCH_APPROVED', refusal: 'hard', owner: '/arch', trigger: ['change-class'] }],
+        tickets: [
+          { id: 'V-1', title: 'Visioning', status: 'in_progress', stage: 'vision', track: 'full', assignee: '/po', gates: [], comments: [] },
+          { id: 'A-1', title: 'Architecting', status: 'in_progress', stage: 'architecture', track: 'full', assignee: '/arch', gates: [], comments: [] },
+        ],
       }),
     );
     const fixture = await mount();
     const host = fixture.nativeElement as HTMLElement;
 
+    // The standalone builder destination is retired — there is no separate builder view.
     expect(host.querySelector('[data-testid="workflow-builder-view"]')).toBeNull();
     host.querySelector<HTMLButtonElement>('[data-testid="workflow-full-link"]')!.click();
     fixture.detectChanges();
     await settle(fixture);
 
-    expect(host.querySelector('[data-testid="workflow-builder-view"]')).toBeTruthy();
-    // The builder shows the editable rows and the overlay banner.
-    expect(host.querySelector('[data-testid="overlay-banner"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="builder-row-architecture"]')).toBeTruthy();
+    // Editing now happens IN PLACE on the pipeline chain: the board opens armed in edit-mode.
+    expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="pipeline-chain"]')?.getAttribute('data-mode')).toBe('edit');
+    expect(host.querySelector('[data-testid="pipeline-overlay-banner"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="stage-grip-architecture"]')).toBeTruthy();
 
-    host.querySelector<HTMLButtonElement>('[data-testid="builder-back"]')!.click();
+    host.querySelector<HTMLButtonElement>('[data-testid="board-back"]')!.click();
     fixture.detectChanges();
-    expect(host.querySelector('[data-testid="workflow-builder-view"]')).toBeNull();
+    expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeNull();
     expect(host.querySelector('[data-testid="panel-workflow"]')).toBeTruthy();
   });
 
@@ -265,7 +271,7 @@ describe('ProjectShellComponent', () => {
     expect(host.querySelector('[data-testid="panel-base"]')).toBeTruthy();
   });
 
-  it('the Knowledge page is mutually exclusive with the board and builder', async () => {
+  it('the Knowledge page is mutually exclusive with the board', async () => {
     api.getProject.mockResolvedValue(
       view({ title: 'p', description: 'd' }, {
         ...RICH_STATE,

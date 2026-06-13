@@ -17,7 +17,6 @@ import { BasePanelComponent } from './base-panel.component';
 import { KnowledgePageComponent } from './knowledge-page.component';
 import { TasksBoardComponent } from './tasks-board.component';
 import { TasksPanelComponent } from './tasks-panel.component';
-import { WorkflowBuilderComponent } from './workflow-builder.component';
 import { WorkflowPanelComponent } from './workflow-panel.component';
 
 /** A guarded panel input: either the derived value, or the derivation error message. */
@@ -51,7 +50,6 @@ function derive<T>(fn: () => T): Derived<T> {
     TasksPanelComponent,
     BasePanelComponent,
     TasksBoardComponent,
-    WorkflowBuilderComponent,
     KnowledgePageComponent,
   ],
   template: `
@@ -109,20 +107,7 @@ function derive<T>(fn: () => T): Derived<T> {
             </button>
             <h2 class="board-view__title">Tasks board</h2>
           </div>
-          <dart-tasks-board [state]="liveState()" [projectName]="title()" (applied)="adoptState($event)" />
-        </section>
-      } @else if (builderOpen()) {
-        <section class="board-view" data-testid="workflow-builder-view" aria-label="Workflow builder">
-          <div class="board-view__head">
-            <button type="button" class="board-view__back" data-testid="builder-back" (click)="closeBuilder()">
-              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
-                <polyline points="14,6 8,12 14,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              Back to panels
-            </button>
-            <h2 class="board-view__title">Workflow builder</h2>
-          </div>
-          <dart-workflow-builder [state]="liveState()" (applied)="adoptState($event)" />
+          <dart-tasks-board [state]="liveState()" [projectName]="title()" [startInEdit]="boardStartInEdit()" (applied)="adoptState($event)" />
         </section>
       } @else if (knowledgeOpen()) {
         <section class="board-view" data-testid="knowledge-page-view" aria-label="Knowledge">
@@ -142,7 +127,7 @@ function derive<T>(fn: () => T): Derived<T> {
           <article class="panel" data-testid="panel-workflow">
             @if (workflow(); as w) {
               @if (w.ok) {
-                <dart-workflow-panel [workflow]="w.value" (openBuilder)="openBuilder()" />
+                <dart-workflow-panel [workflow]="w.value" (openBuilder)="openWorkflowEditor()" />
               } @else {
                 <p class="panel-error" role="alert" data-testid="panel-workflow-error">Couldn't load workflow.</p>
               }
@@ -247,43 +232,47 @@ export class ProjectShellComponent {
   private readonly loaded = signal<ProjectView | null>(null);
   private readonly failure = signal<string | null>(null);
   private readonly boardOpen_ = signal(false);
-  private readonly builderOpen_ = signal(false);
+  private readonly boardStartInEdit_ = signal(false);
   private readonly knowledgeOpen_ = signal(false);
 
   readonly view = this.loaded.asReadonly();
   readonly error = this.failure.asReadonly();
   /** Whether the in-shell tasks board is showing in place of the summary panels. */
   readonly boardOpen = this.boardOpen_.asReadonly();
-  /** Whether the in-shell workflow builder is showing in place of the summary panels. */
-  readonly builderOpen = this.builderOpen_.asReadonly();
+  /**
+   * Whether the board should open with the pipeline already armed for editing — set when the operator
+   * enters from the Workflow panel's "Edit workflow" affordance, cleared on a plain board open.
+   */
+  readonly boardStartInEdit = this.boardStartInEdit_.asReadonly();
   /** Whether the in-shell Knowledge page is showing in place of the summary panels. */
   readonly knowledgeOpen = this.knowledgeOpen_.asReadonly();
   /** The current project state — the board binds against this so SSE pushes flow through live. */
   readonly liveState = computed<ProjectState>(() => this.loaded()?.state ?? {});
 
   openBoard(): void {
-    this.builderOpen_.set(false);
     this.knowledgeOpen_.set(false);
+    this.boardStartInEdit_.set(false);
     this.boardOpen_.set(true);
   }
 
   closeBoard(): void {
     this.boardOpen_.set(false);
+    this.boardStartInEdit_.set(false);
   }
 
-  openBuilder(): void {
-    this.boardOpen_.set(false);
+  /**
+   * Open the tasks board with the pipeline armed for editing — the one control plane. The standalone
+   * workflow-builder destination is retired; editing the workflow happens IN PLACE on the chain.
+   */
+  openWorkflowEditor(): void {
     this.knowledgeOpen_.set(false);
-    this.builderOpen_.set(true);
-  }
-
-  closeBuilder(): void {
-    this.builderOpen_.set(false);
+    this.boardStartInEdit_.set(true);
+    this.boardOpen_.set(true);
   }
 
   openKnowledge(): void {
     this.boardOpen_.set(false);
-    this.builderOpen_.set(false);
+    this.boardStartInEdit_.set(false);
     this.knowledgeOpen_.set(true);
   }
 
