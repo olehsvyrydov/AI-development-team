@@ -4,6 +4,7 @@ import {
   activeSegmentIndex,
   backlogTickets,
   cardGateSummary,
+  cardVisualStatus,
   commentsNewestFirst,
   doneStage,
   isBacklog,
@@ -19,6 +20,7 @@ import {
   statusChip,
   ticketNeedsYou,
   worklistBands,
+  worklistProgress,
 } from './board';
 
 function ticket(t: Partial<TicketView>): TicketView {
@@ -803,5 +805,129 @@ describe('commentsNewestFirst', () => {
   it('treats a missing state as no comments', () => {
     const s: ProjectState = {};
     expect(commentsNewestFirst(s.tickets?.[0]?.comments)).toEqual([]);
+  });
+});
+
+describe('cardVisualStatus — the per-card colour key, reusing the band predicates (no new data)', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'vision', owner: '/po', gate: null },
+      { stage: 'code', owner: '/be', gate: null },
+      { stage: 'done', owner: null, gate: null },
+    ],
+  };
+
+  it('maps a genuinely mid-pipeline in_progress ticket to in-flight (blue)', () => {
+    expect(cardVisualStatus(ticket({ status: 'in_progress', stage: 'code' }), wf)).toBe('in-flight');
+  });
+
+  it('maps a done ticket to done (green)', () => {
+    expect(cardVisualStatus(ticket({ status: 'done', stage: 'done' }), wf)).toBe('done');
+  });
+
+  it('maps an unstaged/backlog ticket to backlog (neutral), even if its raw status is in_progress', () => {
+    expect(cardVisualStatus(ticket({ status: 'waiting', stage: 'backlog' }), wf)).toBe('backlog');
+    // A queued idea is planned, not "in flight" — backlog beats in_progress in precedence.
+    expect(cardVisualStatus(ticket({ status: 'in_progress', stage: 'backlog' }), wf)).toBe('backlog');
+    expect(cardVisualStatus(ticket({ status: 'waiting', stage: undefined }), wf)).toBe('backlog');
+  });
+
+  it('maps a blocked ticket to blocked (red)', () => {
+    expect(cardVisualStatus(ticket({ status: 'blocked', stage: 'code' }), wf)).toBe('blocked');
+  });
+
+  it('needs-you OVERRIDES the raw status (a waiting card awaiting its owner reads amber, not neutral)', () => {
+    const t = ticket({ status: 'waiting', stage: 'vision', expectedOwner: '/arch', active: false, gates: [] });
+    expect(ticketNeedsYou(t)).toBe(true);
+    expect(cardVisualStatus(t, wf)).toBe('needs-you');
+  });
+
+  it('needs-you beats in_progress (precedence): a rejected hard gate on an in_progress card reads amber', () => {
+    const t = ticket({ status: 'in_progress', stage: 'code', gates: [{ name: 'SECOPS_APPROVED', refusal: 'hard', state: 'rejected' }] });
+    expect(cardVisualStatus(t, wf)).toBe('needs-you');
+  });
+
+  it('a generic waiting card (not needs-you, not backlog) falls back to waiting (neutral)', () => {
+    // A waiting ticket at a real stage with nobody named to decide is not needs-you.
+    expect(cardVisualStatus(ticket({ status: 'waiting', stage: 'code', expectedOwner: null, active: false, gates: [] }), wf)).toBe('waiting');
+  });
+
+  it('the colour key matches the band a ticket lands in (colour cannot drift from the band)', () => {
+    const tickets: TicketView[] = [
+      ticket({ id: 'N', status: 'waiting', stage: 'vision', expectedOwner: '/po', active: false, gates: [] }),
+      ticket({ id: 'F', status: 'in_progress', stage: 'code', gates: [] }),
+      ticket({ id: 'B', status: 'waiting', stage: 'backlog', gates: [] }),
+      ticket({ id: 'D', status: 'done', stage: 'done', comments: [{ ts: '2026-06-12T00:00:00Z' }] }),
+    ];
+    const bandOf = new Map<string, string>();
+    for (const band of worklistBands(wf, tickets)) {
+      for (const t of band.tickets) bandOf.set(t.id!, band.kind);
+    }
+    const expectedColourForBand: Record<string, string> = {
+      'needs-you': 'needs-you',
+      'in-flight': 'in-flight',
+      backlog: 'backlog',
+      'recently-done': 'done',
+    };
+    for (const t of tickets) {
+      expect(cardVisualStatus(t, wf), `${t.id}`).toBe(expectedColourForBand[bandOf.get(t.id!)!]);
+    }
+  });
+});
+
+describe('worklistProgress — the segmented progress picture (reads existing counts, no new data)', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'code', owner: '/be', gate: null },
+      { stage: 'done', owner: null, gate: null },
+    ],
+  };
+
+  it('reads the canonical taskSummary.byStatus when present: done / inProgress / backlog (remainder) / total / percent', () => {
+    // backlog is the honest remainder: 49 − 30 − 11 = 8.
+    const p = worklistProgress(
+      { total: 49, byStatus: { in_progress: 11, waiting: 8, blocked: 0, done: 30, needsYou: 1 } },
+      wf,
+      [],
+    );
+    expect(p).toMatchObject({ done: 30, inProgress: 11, backlog: 8, total: 49, percentDone: 61, needsYou: 1 });
+  });
+
+  it('rounds the done percentage (done / total · 100)', () => {
+    const p = worklistProgress({ total: 3, byStatus: { in_progress: 1, waiting: 0, blocked: 0, done: 1, needsYou: 0 } }, wf, []);
+    expect(p!.percentDone).toBe(33); // round(1/3*100)
+  });
+
+  it('all-done → 100% done, full green, no remaining backlog, no amber tick', () => {
+    const p = worklistProgress({ total: 4, byStatus: { in_progress: 0, waiting: 0, blocked: 0, done: 4, needsYou: 0 } }, wf, []);
+    expect(p).toMatchObject({ done: 4, inProgress: 0, backlog: 0, total: 4, percentDone: 100, needsYou: 0 });
+  });
+
+  it('all-backlog → 0% done, full neutral track (nothing done, nothing in flight)', () => {
+    const p = worklistProgress({ total: 8, byStatus: { in_progress: 0, waiting: 8, blocked: 0, done: 0, needsYou: 0 } }, wf, []);
+    expect(p).toMatchObject({ done: 0, inProgress: 0, backlog: 8, total: 8, percentDone: 0 });
+  });
+
+  it('segments (done + inProgress + backlog) sum to total — needs-you is NOT its own segment', () => {
+    const p = worklistProgress({ total: 43, byStatus: { in_progress: 11, waiting: 0, blocked: 2, done: 30, needsYou: 5 } }, wf, []);
+    expect(p!.done + p!.inProgress + p!.backlog).toBe(p!.total);
+  });
+
+  it('is null on an empty board (total 0) so the progress block is suppressed', () => {
+    expect(worklistProgress({ total: 0, byStatus: { in_progress: 0, waiting: 0, blocked: 0, done: 0, needsYou: 0 } }, wf, [])).toBeNull();
+    expect(worklistProgress(null, wf, [])).toBeNull();
+  });
+
+  it('falls back to counting tickets when the summary is absent', () => {
+    const tickets: TicketView[] = [
+      ticket({ id: 'F', status: 'in_progress', stage: 'code', gates: [] }),
+      ticket({ id: 'B', status: 'waiting', stage: 'backlog', gates: [] }),
+      ticket({ id: 'D1', status: 'done', stage: 'done', comments: [{ ts: '2026-06-12T00:00:00Z' }] }),
+      ticket({ id: 'D2', status: 'done', stage: 'done', comments: [{ ts: '2026-06-12T00:00:00Z' }] }),
+    ];
+    const p = worklistProgress(undefined, wf, tickets);
+    expect(p).toMatchObject({ done: 2, inProgress: 1, backlog: 1, total: 4, percentDone: 50 });
   });
 });

@@ -31,6 +31,16 @@
   --kb-danger: #F87171;
   --kb-focus-ring: rgba(110, 139, 255, .55);
 
+  /* Status soft fills — the tinted card wash per status. Saturated colour stays on the accent edge
+     and the filled pill; the fill is a calm ~8–16% tint so the board reads as colour, not neon.
+     `--kb-accent-soft` (#1E2740) above is used elsewhere — the in-flight wash is a distinct
+     `--kb-accent-soft-2` to avoid collision. */
+  --kb-success-soft:  color-mix(in oklab, var(--kb-success) 12%, var(--kb-surface));
+  --kb-accent-soft-2: color-mix(in oklab, var(--kb-accent)  14%, var(--kb-surface));
+  --kb-warning-soft:  color-mix(in oklab, var(--kb-warning) 16%, var(--kb-surface));
+  --kb-danger-soft:   color-mix(in oklab, var(--kb-danger)  14%, var(--kb-surface));
+  --kb-neutral-soft:  color-mix(in oklab, var(--kb-text-muted) 8%, var(--kb-surface));
+
   /* Header gradient (Projects Home + Project Shell chrome) */
   --kb-header-from: #161B2E;
   --kb-header-to: #0E1119;
@@ -87,6 +97,13 @@
   --kb-warning: #D97706;
   --kb-danger: #DC2626;
   --kb-focus-ring: rgba(37, 99, 235, .35);
+
+  /* Status soft fills — same names, mixed against the light surface so they read as pale washes. */
+  --kb-success-soft:  color-mix(in oklab, var(--kb-success) 12%, var(--kb-surface));
+  --kb-accent-soft-2: color-mix(in oklab, var(--kb-accent)  14%, var(--kb-surface));
+  --kb-warning-soft:  color-mix(in oklab, var(--kb-warning) 16%, var(--kb-surface));
+  --kb-danger-soft:   color-mix(in oklab, var(--kb-danger)  14%, var(--kb-surface));
+  --kb-neutral-soft:  color-mix(in oklab, var(--kb-text-muted) 8%, var(--kb-surface));
 
   --kb-header-from: #1E293B;
   --kb-header-to: #0F172A;

@@ -1220,3 +1220,160 @@ describe('TasksBoardComponent — worklist default + view-mode toggle', () => {
     expect(host.querySelector('[data-testid="view-mode-switch"]')).toBeNull();
   });
 });
+
+describe('TasksBoardComponent — visual-first worklist (colour, progress, hierarchy)', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    localStorage.clear();
+  });
+
+  it('colour-codes each card via data-status keyed to its band (done/in-flight/needs-you/backlog)', () => {
+    const { fixture, host } = mount(COARSE_STATE, 'auto');
+    // Backlog is collapsed by default; expand it so W-BACK's card renders for the assertion.
+    (host.querySelector('[data-testid="backlog-expand"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const statusOf = (id: string) => host.querySelector(`[data-testid="card-${id}"]`)?.getAttribute('data-status');
+    expect(statusOf('W-NEED')).toBe('needs-you'); // waiting + expected owner, no live agent
+    expect(statusOf('W-FLOW')).toBe('in-flight'); // mid-pipeline in_progress
+    expect(statusOf('W-BACK')).toBe('backlog'); // queued idea
+    expect(statusOf('W-DONE')).toBe('done'); // shipped
+  });
+
+  it('renders the off-track card inside the red-owning off-track band (band owns the red, not the card)', () => {
+    const offState: ProjectState = {
+      ...STATE,
+      taskSummary: { total: 2, byStatus: { in_progress: 1, waiting: 0, blocked: 0, done: 0, needsYou: 0 } },
+      tickets: [
+        { id: 'FLOW', title: 'Moving', status: 'in_progress', stage: 'code', track: 'full', assignee: '/be', gates: [], comments: [] },
+        { id: 'OFF', title: 'Orphan', status: 'waiting', stage: 'gone-stage', track: 'full', gates: [], comments: [] },
+      ],
+    };
+    const { host } = mount(offState, 'worklist');
+    const band = host.querySelector('[data-testid="worklist-band-off-track"]')!;
+    expect(band.classList.contains('band--off-track')).toBe(true);
+    // The off-track card renders inside that band (the band wrapper colours it red).
+    expect(band.querySelector('[data-testid="card-OFF"]')).toBeTruthy();
+  });
+
+  it('a rejected hard gate takes needs-you precedence over the raw blocked status (amber, not red)', () => {
+    const blockedState: ProjectState = {
+      ...STATE,
+      tickets: [
+        { id: 'BLK', title: 'Stuck', status: 'blocked', stage: 'code', track: 'full', assignee: '/be',
+          gates: [{ name: 'SECOPS_APPROVED', refusal: 'hard', state: 'rejected' }], comments: [] },
+      ],
+    };
+    const { host } = mount(blockedState, 'pipeline');
+    expect(host.querySelector('[data-testid="card-BLK"]')?.getAttribute('data-status')).toBe('needs-you');
+  });
+
+  it('colours a genuinely blocked card red (data-status="blocked") via the shared card template', () => {
+    const blockedNoGate: ProjectState = {
+      ...STATE,
+      tickets: [
+        { id: 'BLK2', title: 'Stuck', status: 'blocked', stage: 'code', track: 'full', assignee: '/be', gates: [], comments: [] },
+      ],
+    };
+    const { host } = mount(blockedNoGate, 'pipeline');
+    expect(host.querySelector('[data-testid="card-BLK2"]')?.getAttribute('data-status')).toBe('blocked');
+  });
+
+  it('the status pill is never colour-only — it still carries its glyph + text label', () => {
+    const { host } = mount(COARSE_STATE, 'auto');
+    const pill = host.querySelector('[data-testid="card-W-FLOW"] [data-testid="chip-status"]')!;
+    expect(pill.textContent).toMatch(/in progress/); // the word survives even with colour stripped
+    expect(pill.querySelector('svg, [data-glyph], dart-glyph')).toBeTruthy(); // and the glyph
+  });
+
+  it('renders the progress bar with proportional segments, counts, % done, and a spoken aria-label', () => {
+    const { host } = mount(COARSE_STATE, 'auto');
+    const prog = host.querySelector('[data-testid="worklist-progress"]')!;
+    expect(prog).toBeTruthy();
+    expect(prog.getAttribute('role')).toBe('progressbar');
+    // total 4: done 1, in_progress 1, backlog remainder 2 → 25% done.
+    expect(prog.getAttribute('aria-valuenow')).toBe('25');
+    expect(prog.getAttribute('aria-valuemin')).toBe('0');
+    expect(prog.getAttribute('aria-valuemax')).toBe('100');
+    expect(prog.getAttribute('aria-label')).toMatch(/1 of 4 tasks done/i);
+    expect(prog.getAttribute('aria-label')).toMatch(/25 percent/i);
+    // The bar has three segments (done + in-progress + backlog) summing to total.
+    const segs = [...host.querySelectorAll('[data-testid="worklist-progress-bar"] [data-seg]')];
+    expect(segs.map((s) => s.getAttribute('data-seg'))).toEqual(['done', 'in-progress', 'backlog']);
+    // Counts row is real text (available without colour).
+    const counts = host.querySelector('[data-testid="worklist-progress-counts"]')!;
+    expect(counts.textContent).toMatch(/1 done/);
+    expect(counts.textContent).toMatch(/4 total/);
+    // The % is shown.
+    expect(prog.textContent).toMatch(/25%/);
+  });
+
+  it('suppresses the progress bar on an empty board', () => {
+    const { host } = mount(
+      { ...COARSE_STATE, workflowView: { activeTrack: null, stages: [] }, tickets: [],
+        taskSummary: { total: 0, byStatus: { in_progress: 0, waiting: 0, blocked: 0, done: 0, needsYou: 0 } } },
+      'auto',
+    );
+    expect(host.querySelector('[data-testid="worklist-progress"]')).toBeNull();
+  });
+
+  it('all-done → 100% done, full green (no in-progress/backlog segment)', () => {
+    const allDone: ProjectState = {
+      ...COARSE_STATE,
+      taskSummary: { total: 2, byStatus: { in_progress: 0, waiting: 0, blocked: 0, done: 2, needsYou: 0 } },
+      tickets: [
+        { id: 'D1', title: 'Shipped one', status: 'done', stage: 'done', track: 'full', assignee: '/fe', gates: [], comments: [{ ts: '2026-06-12T00:00:00Z' }] },
+        { id: 'D2', title: 'Shipped two', status: 'done', stage: 'done', track: 'full', assignee: '/fe', gates: [], comments: [{ ts: '2026-06-11T00:00:00Z' }] },
+      ],
+    };
+    const { host } = mount(allDone, 'worklist');
+    const prog = host.querySelector('[data-testid="worklist-progress"]')!;
+    expect(prog.getAttribute('aria-valuenow')).toBe('100');
+    expect(prog.textContent).toMatch(/100%/);
+    const segs = [...host.querySelectorAll('[data-testid="worklist-progress-bar"] [data-seg]')];
+    // Only the done segment carries width; in-progress + backlog are zero (absent from the bar).
+    expect(segs.map((s) => s.getAttribute('data-seg'))).toEqual(['done']);
+  });
+
+  it('all-backlog → 0% done, neutral track (honest "queued, not started", never fake-green)', () => {
+    const allBacklog: ProjectState = {
+      ...COARSE_STATE,
+      taskSummary: { total: 3, byStatus: { in_progress: 0, waiting: 3, blocked: 0, done: 0, needsYou: 0 } },
+      tickets: [
+        { id: 'Q1', title: 'Idea one', status: 'waiting', stage: 'backlog', track: 'full', gates: [], comments: [] },
+        { id: 'Q2', title: 'Idea two', status: 'waiting', stage: 'backlog', track: 'full', gates: [], comments: [] },
+        { id: 'Q3', title: 'Idea three', status: 'waiting', stage: 'backlog', track: 'full', gates: [], comments: [] },
+      ],
+    };
+    const { host } = mount(allBacklog, 'worklist');
+    const prog = host.querySelector('[data-testid="worklist-progress"]')!;
+    expect(prog.getAttribute('aria-valuenow')).toBe('0');
+    expect(prog.textContent).toMatch(/0%/);
+    const segs = [...host.querySelectorAll('[data-testid="worklist-progress-bar"] [data-seg]')];
+    expect(segs.map((s) => s.getAttribute('data-seg'))).toEqual(['backlog']);
+  });
+
+  it('collapses Backlog by default to a "planned ▸" disclosure, expanding to the card grid', () => {
+    const { fixture, host } = mount(COARSE_STATE, 'auto');
+    const band = host.querySelector('[data-testid="worklist-band-backlog"]')!;
+    expect(band).toBeTruthy();
+    // Collapsed: the disclosure button is present and the backlog cards are NOT yet in the DOM.
+    const toggle = host.querySelector('[data-testid="backlog-expand"]') as HTMLButtonElement;
+    expect(toggle).toBeTruthy();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(band.textContent).toMatch(/planned/);
+    expect(host.querySelector('[data-testid="card-W-BACK"]')).toBeNull();
+    // Expand: the cards appear.
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('[data-testid="card-W-BACK"]')).toBeTruthy();
+  });
+
+  it('marks active bands with their colour host class and keeps needs-you primary', () => {
+    const { host } = mount(COARSE_STATE, 'auto');
+    expect(host.querySelector('[data-testid="worklist-band-in-flight"]')?.classList.contains('band--in-flight')).toBe(true);
+    expect(host.querySelector('[data-testid="worklist-band-backlog"]')?.classList.contains('band--backlog')).toBe(true);
+    expect(host.querySelector('[data-testid="worklist-band-recently-done"]')?.classList.contains('band--recently-done')).toBe(true);
+    expect(host.querySelector('[data-testid="worklist-band-needs-you"]')?.classList.contains('band--needs-you')).toBe(true);
+  });
+});

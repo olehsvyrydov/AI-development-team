@@ -1,0 +1,63 @@
+/* Status → colour for task cards and worklist band headers.
+ *
+ * These rules are GLOBAL (not component-scoped) so the one card design — projected verbatim through
+ * the shared `#cardTpl` into both the Worklist bands and the Pipeline rail — colour-codes
+ * identically wherever it renders, and so the heavy per-status paint does not count against any
+ * single component's style budget. Colour is ADDITIVE: every card already carries its status as a
+ * glyph + text in the status pill; the saturated 4px edge, the soft tinted fill, and the filled pill
+ * only REINFORCE that — strip the colour and the pill still reads "done" with its check glyph.
+ *
+ * The status key is the `data-status` attribute set from `cardVisualStatus(ticket)`, keyed to the
+ * band the card lands in, so card colour and band colour cannot disagree.
+ */
+
+/* The accent EDGE + tinted FILL — the strongest single cue scanned down a column of cards.
+   The `[data-status]` attribute is repeated to raise specificity above the card component's own
+   emulated `.card` rule, so these globals win the `border-left` + `background` regardless of the
+   order Angular injects the component stylesheet. */
+.card[data-status][data-status] {
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+.card[data-status][data-status='done']      { border-left-color: var(--kb-success);    background: var(--kb-success-soft); }
+.card[data-status][data-status='in-flight'] { border-left-color: var(--kb-accent);     background: var(--kb-accent-soft-2); }
+.card[data-status][data-status='needs-you'] { border-left-color: var(--kb-warning);    background: var(--kb-warning-soft); }
+.card[data-status][data-status='blocked'],
+.card[data-status][data-status='off-track'] { border-left-color: var(--kb-danger);     background: var(--kb-danger-soft); }
+.card[data-status][data-status='backlog'],
+.card[data-status][data-status='waiting']   { border-left-color: var(--kb-text-muted); background: var(--kb-neutral-soft); }
+
+/* The filled STATUS PILL — the one loud, coloured pill per card. Keeps its glyph + label (never
+   colour-only). In-flight pill TEXT uses the lighter accent-hover so it clears 4.5:1 on its fill. */
+.card[data-status] .chip--status { border: 1px solid transparent; font-weight: 600; }
+.card[data-status='done']      .chip--status { color: var(--kb-success);       background: var(--kb-success-soft);  border-color: color-mix(in oklab, var(--kb-success) 35%, transparent); }
+.card[data-status='in-flight'] .chip--status { color: var(--kb-accent-hover);  background: var(--kb-accent-soft-2); border-color: color-mix(in oklab, var(--kb-accent)  35%, transparent); }
+.card[data-status='needs-you'] .chip--status { color: var(--kb-warning);       background: var(--kb-warning-soft);  border-color: color-mix(in oklab, var(--kb-warning) 40%, transparent); }
+.card[data-status='blocked']   .chip--status,
+.card[data-status='off-track'] .chip--status { color: var(--kb-danger);        background: var(--kb-danger-soft);   border-color: color-mix(in oklab, var(--kb-danger)  40%, transparent); }
+.card[data-status='backlog']   .chip--status,
+.card[data-status='waiting']   .chip--status { color: var(--kb-text-muted);    background: var(--kb-neutral-soft);  border-color: var(--kb-border); }
+
+/* Band headers coloured to match — the section dividers read as colour too. Needs-you keeps its
+   existing amber treatment from the worklist component; the rest are coloured here. */
+/* OFF-TRACK red is owned by the BAND, not the per-card status: an off-track ticket's raw status may
+   be anything, so the band wrapper paints its cards red (edge + fill + pill) — colour keyed to the
+   band the card renders in, exactly like the worklist's disjointness guarantee. */
+.band--off-track .card[data-status][data-status] { border-left-color: var(--kb-danger); background: var(--kb-danger-soft); }
+.band--off-track .card[data-status] .chip--status { color: var(--kb-danger); background: var(--kb-danger-soft); border-color: color-mix(in oklab, var(--kb-danger) 40%, transparent); }
+
+.band--in-flight     .band__title { color: var(--kb-accent-hover); }
+.band--in-flight     .band__head  { border-bottom-color: color-mix(in oklab, var(--kb-accent) 50%, var(--kb-border)); }
+.band--recently-done .band__title { color: var(--kb-success); }
+.band--recently-done .band__head  { border-bottom-color: color-mix(in oklab, var(--kb-success) 45%, var(--kb-border)); }
+.band--backlog       .band__title { color: var(--kb-text-muted); }
+.band--off-track     .band__title { color: var(--kb-danger); }
+.band--off-track     .band__head  { border-bottom-color: var(--kb-danger); }
+
+/* BACKLOG is the quiet shelf: when expanded it renders denser + muted, sitting back from the loud
+   active work. The neutral fill + a thinner 3px edge are already carried by data-status above. */
+.band--backlog .band__cards { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); opacity: 0.92; }
+.band--backlog .card[data-status] { border-left-width: 3px; }
+
+/* RECENTLY DONE is green but tucked — a glance reads "lots shipped" without it competing for action. */
+.band--recently-done .band__cards { opacity: 0.9; }

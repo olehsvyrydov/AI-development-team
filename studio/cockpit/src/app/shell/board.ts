@@ -1,4 +1,4 @@
-import type { TicketComment, TicketView, WorkflowGateRef, WorkflowView } from '../core/models';
+import type { TaskSummary, TicketComment, TicketView, WorkflowGateRef, WorkflowView } from '../core/models';
 import { gateStateView } from './gate-view';
 
 /**
@@ -491,6 +491,89 @@ export function worklistBands(
 /** A ticket's last-activity proxy: its newest comment timestamp, or '' when it has none (sorts last). */
 function lastActivity(ticket: TicketView): string {
   return commentsNewestFirst(ticket.comments)[0]?.ts ?? '';
+}
+
+/** The six visual states a card colour-codes to (status drives off the band the card lands in). */
+export type CardVisualStatus = 'needs-you' | 'blocked' | 'in-flight' | 'done' | 'backlog' | 'waiting';
+
+/**
+ * The colour key for a card — the single visual state that drives its accent edge, tinted fill, and
+ * filled status pill. Pure and presentational: it reuses the SAME predicates the worklist bands claim
+ * with ({@link ticketNeedsYou}, {@link isBacklog}, raw `status`) in the SAME precedence, so a card's
+ * colour cannot drift from the band it renders in — one ticket, one band, one colour. It adds no model
+ * field and no write path; colour only REINFORCES the glyph + text the pill already carries.
+ *
+ * Precedence (matching {@link worklistBands}' ordered claim): needs-you (amber) → blocked (red) →
+ * backlog (neutral — a queued idea is planned, not "in flight") → in-flight (blue) → done (green) →
+ * waiting (neutral fallback).
+ */
+export function cardVisualStatus(
+  ticket: TicketView,
+  workflowView: WorkflowView | null | undefined,
+): CardVisualStatus {
+  if (ticketNeedsYou(ticket)) return 'needs-you';
+  if (ticket.status === 'blocked') return 'blocked';
+  if (isBacklog(ticket, workflowView)) return 'backlog';
+  if (ticket.status === 'in_progress') return 'in-flight';
+  if (ticket.status === 'done') return 'done';
+  return 'waiting';
+}
+
+/**
+ * The feature-progress picture: the proportions the segmented bar paints and the counts row speaks.
+ * `done` + `inProgress` + `backlog` partition `total` so the three bar segments sum to the whole;
+ * needs-you is surfaced separately ({@link needsYou}) as a tick mark, never a segment, so the bar
+ * stays honest (it would otherwise double-count a ticket that is both in-progress and needs-you).
+ */
+export interface WorklistProgress {
+  readonly done: number;
+  readonly inProgress: number;
+  /** The remainder — everything not done and not in flight (queued / waiting / blocked). */
+  readonly backlog: number;
+  readonly total: number;
+  /** round(done / total · 100) — the *done* fraction, honestly labelled "done", never "complete". */
+  readonly percentDone: number;
+  /** How many tickets need a human — the amber tick, not a bar segment. */
+  readonly needsYou: number;
+}
+
+/**
+ * The progress picture for the worklist's top bar, read off the EXISTING canonical counts
+ * ({@link TaskSummary.byStatus}) when present, else counted from the rendered tickets — no new data
+ * and no write path. `backlog` is the honest remainder (`total − done − inProgress`) so the three
+ * segments sum to `total`. Returns `null` on an empty board (`total === 0`) so the progress block is
+ * suppressed and the empty-state invitation owns the screen.
+ *
+ * Honesty: an all-done project reads `100% done` (a true green, not a fabricated all-clear); an
+ * all-backlog project reads `0% done` (queued, not started — neutral, never a fake green or alarm red).
+ */
+export function worklistProgress(
+  summary: TaskSummary | null | undefined,
+  workflowView: WorkflowView | null | undefined,
+  tickets: readonly TicketView[],
+): WorklistProgress | null {
+  let total: number;
+  let done: number;
+  let inProgress: number;
+  let needsYou: number;
+
+  if (summary && typeof summary.total === 'number') {
+    total = summary.total;
+    done = summary.byStatus?.done ?? 0;
+    inProgress = summary.byStatus?.in_progress ?? 0;
+    needsYou = summary.byStatus?.needsYou ?? 0;
+  } else {
+    total = tickets.length;
+    done = tickets.filter((t) => t.status === 'done').length;
+    inProgress = tickets.filter((t) => t.status === 'in_progress' && !isBacklog(t, workflowView)).length;
+    needsYou = tickets.filter((t) => ticketNeedsYou(t)).length;
+  }
+
+  if (total <= 0) return null;
+
+  const backlog = Math.max(0, total - done - inProgress);
+  const percentDone = Math.round((done / total) * 100);
+  return { done, inProgress, backlog, total, percentDone, needsYou };
 }
 
 /**
