@@ -38,8 +38,13 @@ const SOURCES = componentSources(APP_ROOT);
 /** Glyphs the launcher previously rendered that tofu in common fonts. */
 const FORBIDDEN_GLYPHS = ['＋', '◧', '‹', '›', '▯'];
 
-/** Anything above Latin-1 that isn't a normal typographic character used in copy. */
-const ALLOWED_NON_ASCII = new Set(['·', '…', '–', '—', '’', '“', '”', '‘']);
+/**
+ * Anything above Latin-1 that isn't a normal typographic character used in copy. The rightwards
+ * arrow (`→`) and multiplication sign (`×`) are well-supported across the app's font stack and are
+ * carried by ratified microcopy ("see all in Done →", "looped 3× — needs you"); they are not the
+ * fragile, font-specific glyphs the tofu scan guards against.
+ */
+const ALLOWED_NON_ASCII = new Set(['·', '…', '–', '—', '’', '“', '”', '‘', '→', '×']);
 
 describe('no tofu-prone glyphs in rendered UI', () => {
   it('finds component sources to scan', () => {

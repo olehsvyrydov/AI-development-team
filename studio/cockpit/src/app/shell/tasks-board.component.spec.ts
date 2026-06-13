@@ -7,6 +7,7 @@ import { ControlPlaneService } from '../core/control-plane.service';
 import type { ProjectState, WorkflowView } from '../core/models';
 import { settle } from '../testing/settle';
 import { TasksBoardComponent } from './tasks-board.component';
+import { TasksWorklistComponent } from './tasks-worklist.component';
 
 const WORKFLOW: WorkflowView = {
   activeTrack: 'full',
@@ -39,7 +40,20 @@ const STATE: ProjectState = {
   ],
 };
 
-function mount(state: ProjectState): { fixture: ComponentFixture<TasksBoardComponent>; host: HTMLElement; http: HttpTestingController } {
+/**
+ * Mount the board. `mode` pins the view-mode the test exercises; it defaults to `'pipeline'` so the
+ * existing stage-train assertions read the train regardless of the fixture's populated-stage count
+ * (the worklist is covered by its own describe below). Pinning persists the choice up-front, which
+ * the component adopts as the operator's explicit choice.
+ */
+function mount(
+  state: ProjectState,
+  mode: 'pipeline' | 'worklist' | 'auto' = 'pipeline',
+): { fixture: ComponentFixture<TasksBoardComponent>; host: HTMLElement; http: HttpTestingController } {
+  if (mode !== 'auto') {
+    const project = state.project && state.project.trim() ? state.project : '_global';
+    localStorage.setItem(`dart.tasks.viewMode.${project}`, mode);
+  }
   TestBed.configureTestingModule({
     imports: [TasksBoardComponent],
     providers: [
@@ -55,7 +69,10 @@ function mount(state: ProjectState): { fixture: ComponentFixture<TasksBoardCompo
 }
 
 describe('TasksBoardComponent — stage-aligned', () => {
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    localStorage.clear();
+  });
 
   it('renders one stage column per non-terminal stage, in order, with stage name, owner, and count', () => {
     const { host } = mount(STATE);
@@ -395,7 +412,10 @@ const MIXED_STATE: ProjectState = {
 };
 
 describe('TasksBoardComponent — pipeline (backlog bar / rail / done folder / parity)', () => {
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    localStorage.clear();
+  });
 
   it('lists Backlog tickets (unstaged or backlog-staged) in the sticky left Backlog bar', () => {
     const { host } = mount(MIXED_STATE);
@@ -782,7 +802,10 @@ function wideState(overrides: Partial<ProjectState> = {}): ProjectState {
 }
 
 describe('TasksBoardComponent — adaptive train (compact stations + expanded columns)', () => {
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    localStorage.clear();
+  });
 
   it('renders an EMPTY stage as a COMPACT station: data-state=compact, the name + 0 count, no card list', () => {
     const { host } = mount(wideState());
@@ -989,5 +1012,211 @@ describe('TasksBoardComponent — single-line metro rail (CSS contract)', () => 
   it('keeps overflow-x auto as the genuine-busy scroll fallback', () => {
     const rail = ruleBody(css, '.rail');
     expect(rail).toContain('overflow-x: auto');
+  });
+});
+
+const COARSE_WF: WorkflowView = {
+  activeTrack: 'full',
+  stages: [
+    { stage: 'vision', owner: '/po', gate: null },
+    { stage: 'code', owner: '/be', gate: null },
+    { stage: 'security', owner: '/secops', gate: { name: 'SECOPS_APPROVED', refusal: 'hard' } },
+    { stage: 'done', owner: null, gate: null },
+  ],
+};
+
+/** Coarse-lifecycle state: work clusters at the ends (backlog/done) + a single in-flight stage. */
+const COARSE_STATE: ProjectState = {
+  rev: 'r1',
+  preset: 'solo',
+  project: 'p-coarse',
+  workflowView: COARSE_WF,
+  tracks: { full: ['vision', 'code', 'security', 'done'] },
+  gateDefs: [{ name: 'SECOPS_APPROVED', refusal: 'hard', owner: '/secops' }],
+  taskSummary: { total: 4, byStatus: { in_progress: 1, waiting: 1, blocked: 0, done: 1, needsYou: 1 } },
+  tickets: [
+    // A needs-you ticket awaiting its expected owner with no live agent (the hub case) — held in the
+    // backlog holding pen, so only ONE rail stage ('code') is populated → the worklist is the default.
+    { id: 'W-NEED', title: 'Approve security', status: 'waiting', stage: 'backlog', track: 'full',
+      expectedOwner: '/arch', active: false, gates: [], comments: [] },
+    { id: 'W-FLOW', title: 'Wire SSE channel', status: 'in_progress', stage: 'code', track: 'full', assignee: '/be', gates: [], comments: [] },
+    { id: 'W-BACK', title: 'Backlog idea', status: 'waiting', stage: 'backlog', track: 'full', gates: [], comments: [] },
+    { id: 'W-DONE', title: 'Add board', status: 'done', stage: 'done', track: 'full', assignee: '/fe', gates: [], comments: [] },
+  ],
+};
+
+describe('TasksBoardComponent — worklist default + view-mode toggle', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    localStorage.clear();
+  });
+
+  it('defaults to the WORKLIST and renders the work as cards (no empty stage scaffold) when ≤1 stage is populated', () => {
+    const { host } = mount(COARSE_STATE, 'auto');
+    expect(host.querySelector('[data-testid="worklist-root"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="pipeline-train"]')).toBeNull();
+    expect(host.querySelector('[data-testid="column-empty-vision"]')).toBeNull();
+    // The actual tickets render as cards in the worklist.
+    expect(host.querySelector('[data-testid="card-W-NEED"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="card-W-FLOW"]')).toBeTruthy();
+  });
+
+  it('auto-defaults to PIPELINE when ≥2 stages are simultaneously populated', () => {
+    // STATE has vision/code/security all populated.
+    const { host } = mount(STATE, 'auto');
+    expect(host.querySelector('[data-testid="pipeline-train"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="worklist-root"]')).toBeNull();
+  });
+
+  it('renders the bands in fixed order, needs-you first and visually primary', () => {
+    const { host } = mount(COARSE_STATE, 'auto');
+    const bands = [...host.querySelectorAll('[data-testid^="worklist-band-"]')]
+      .map((b) => b.getAttribute('data-testid'))
+      .filter((id) => id !== 'worklist-band-count');
+    expect(bands).toEqual([
+      'worklist-band-needs-you',
+      'worklist-band-in-flight',
+      'worklist-band-backlog',
+      'worklist-band-recently-done',
+    ]);
+    // Needs-you is first in DOM order.
+    expect(bands[0]).toBe('worklist-band-needs-you');
+    const needsBand = host.querySelector('[data-testid="worklist-band-needs-you"]')!;
+    expect(needsBand.classList.contains('band--needs-you')).toBe(true);
+  });
+
+  it('OMITS a zero-count band entirely (absent-not-zero, never a (0) header)', () => {
+    // No blocked/off-track tickets here → no off-track band; and a needs-you-free state hides it.
+    const { host } = mount(COARSE_STATE, 'auto');
+    expect(host.querySelector('[data-testid="worklist-band-off-track"]')).toBeNull();
+    expect(host.textContent).not.toMatch(/\(0\)/);
+    // Every rendered band header shows a real, positive count.
+    for (const c of host.querySelectorAll('[data-testid="worklist-band-count"]')) {
+      expect(Number(c.textContent)).toBeGreaterThan(0);
+    }
+  });
+
+  it('shows the plain-words needs-you reason on a needs-you card', () => {
+    const { host } = mount(COARSE_STATE, 'auto');
+    const reason = host.querySelector('[data-testid="card-W-NEED"] [data-testid="needs-you-reason"]');
+    expect(reason?.textContent).toMatch(/\/arch approval pending/);
+  });
+
+  it('lays each band out as an auto-fill grid that fills the width (the dead-void killer)', () => {
+    const wlStyles: readonly string[] = ((TasksWorklistComponent as unknown as { ɵcmp: { styles?: string[] } }).ɵcmp.styles ?? []);
+    const wlCss = wlStyles.join('\n');
+    expect(wlCss).toMatch(/grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(16rem,\s*1fr\)\)/);
+    // No horizontal scroll is introduced by the worklist root.
+    expect(wlCss).not.toMatch(/overflow-x:\s*auto/);
+  });
+
+  it('switches Worklist → Pipeline via the radiogroup toggle and back, and the centre swaps', () => {
+    const { fixture, host } = mount(COARSE_STATE, 'auto');
+    expect(host.querySelector('[data-testid="worklist-root"]')).toBeTruthy();
+    const switchEl = host.querySelector('[data-testid="view-mode-switch"]')!;
+    expect(switchEl.getAttribute('role')).toBe('radiogroup');
+    (host.querySelector('[data-testid="view-mode-pipeline"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="pipeline-train"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="worklist-root"]')).toBeNull();
+    expect(host.querySelector('[data-testid="view-mode-pipeline"]')!.getAttribute('aria-checked')).toBe('true');
+    (host.querySelector('[data-testid="view-mode-worklist"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="worklist-root"]')).toBeTruthy();
+  });
+
+  it('persists the chosen mode per project (survives a remount/reload)', () => {
+    const first = mount(COARSE_STATE, 'auto');
+    (first.host.querySelector('[data-testid="view-mode-pipeline"]') as HTMLButtonElement).click();
+    first.fixture.detectChanges();
+    expect(localStorage.getItem('dart.tasks.viewMode.p-coarse')).toBe('pipeline');
+    TestBed.resetTestingModule();
+    // Re-mount the same project WITHOUT clearing storage → the persisted choice wins over auto.
+    const second = mount(COARSE_STATE, 'auto');
+    expect(second.host.querySelector('[data-testid="pipeline-train"]')).toBeTruthy();
+  });
+
+  it('falls back to the auto-default without throwing when localStorage is unavailable', () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('localStorage blocked');
+      },
+    });
+    try {
+      // Must not throw on read; coarse state → auto worklist.
+      const { host } = mount(COARSE_STATE, 'auto');
+      expect(host.querySelector('[data-testid="worklist-root"]')).toBeTruthy();
+      // A manual switch must also not throw even though the write fails.
+      expect(() => (host.querySelector('[data-testid="view-mode-pipeline"]') as HTMLButtonElement).click()).not.toThrow();
+    } finally {
+      if (original) Object.defineProperty(window, 'localStorage', original);
+    }
+  });
+
+  it('all-clear: with zero needs-you, the Needs-you band AND the roll-up needs-you chip are both absent (no "0 need you")', () => {
+    const clear: ProjectState = {
+      ...COARSE_STATE,
+      taskSummary: { total: 2, byStatus: { in_progress: 1, waiting: 0, blocked: 0, done: 1, needsYou: 0 } },
+      tickets: [
+        { id: 'C-FLOW', title: 'Flowing', status: 'in_progress', stage: 'code', track: 'full', assignee: '/be', gates: [], comments: [] },
+        { id: 'C-DONE', title: 'Shipped', status: 'done', stage: 'done', track: 'full', assignee: '/fe', gates: [], comments: [] },
+      ],
+    };
+    const { host } = mount(clear, 'auto');
+    expect(host.querySelector('[data-testid="worklist-band-needs-you"]')).toBeNull();
+    expect(host.querySelector('[data-testid="rollup-needs-you"]')).toBeNull();
+    expect(host.textContent).not.toMatch(/0 need you/i);
+  });
+
+  it('needsYou parity in DOM: the Needs-you band size equals the canonical roll-up count', () => {
+    const { host } = mount(COARSE_STATE, 'auto');
+    const bandCards = host.querySelectorAll('[data-testid="worklist-band-needs-you"] li.card').length;
+    const rollup = host.querySelector('[data-testid="rollup-needs-you"]')!.textContent!;
+    expect(rollup).toMatch(new RegExp(`${bandCards} need you`));
+    expect(bandCards).toBe(COARSE_STATE.taskSummary!.byStatus.needsYou);
+  });
+
+  it('a worklist card action stays the guarded control-plane advance (no new write path)', async () => {
+    const { fixture, host, http } = mount(COARSE_STATE, 'auto');
+    (host.querySelector('[data-testid="card-W-FLOW"] [data-testid="card-menu"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const advance = host.querySelector('[data-testid="card-W-FLOW"] [data-testid="menu-advance"]') as HTMLButtonElement;
+    expect(advance.textContent).toMatch(/security/);
+    advance.click();
+    const req = http.expectOne('/api/ticket/advance');
+    expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBe('1');
+    expect(req.request.body).toMatchObject({ id: 'W-FLOW', toStage: 'security', expectedRev: 'r1' });
+    req.flush({ ok: true, state: { ...COARSE_STATE, rev: 'r2' } });
+    await settle(fixture);
+  });
+
+  it('entering Pipeline on an idle project keeps the calm idle line + a Switch-to-Worklist escape', () => {
+    const idle: ProjectState = {
+      ...COARSE_STATE,
+      taskSummary: { total: 2, byStatus: { in_progress: 0, waiting: 1, blocked: 0, done: 1, needsYou: 0 } },
+      tickets: [
+        { id: 'I-BACK', title: 'Queued', status: 'waiting', stage: 'backlog', track: 'full', gates: [], comments: [] },
+        { id: 'I-DONE', title: 'Shipped', status: 'done', stage: 'done', track: 'full', assignee: '/fe', gates: [], comments: [] },
+      ],
+    };
+    const { fixture, host } = mount(idle, 'pipeline');
+    expect(host.querySelector('[data-testid="rail-middle-empty"]')).toBeTruthy();
+    const escape = host.querySelector('[data-testid="pipeline-to-worklist"]') as HTMLButtonElement;
+    expect(escape).toBeTruthy();
+    escape.click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="worklist-root"]')).toBeTruthy();
+  });
+
+  it('suppresses the view-mode switch when the whole board is empty', () => {
+    const { host } = mount(
+      { ...COARSE_STATE, workflowView: { activeTrack: null, stages: [] }, tickets: [],
+        taskSummary: { total: 0, byStatus: { in_progress: 0, waiting: 0, blocked: 0, done: 0, needsYou: 0 } } },
+      'auto',
+    );
+    expect(host.querySelector('[data-testid="board-empty"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="view-mode-switch"]')).toBeNull();
   });
 });

@@ -2,15 +2,19 @@ import type { TicketComment, TicketView, WorkflowGateRef, WorkflowView } from '.
 import { gateStateView } from './gate-view';
 
 /**
- * Whether a ticket needs a human decision — surfaced as a card chip, not a column. A ticket needs
- * you when a HARD gate is currently rejected (a blocking decision the operator must resolve). Soft
- * gates warn but never block, so a rejected soft gate does not raise the chip.
+ * Whether a ticket needs a human decision — surfaced as a card chip and as the first worklist band,
+ * never a column. This MIRRORS the hub's canonical `needsHumanDecision` (the predicate that already
+ * drives `taskSummary.byStatus.needsYou` and the projects-home roll-up), so the band, the per-card
+ * chip, and the roll-up count cannot disagree. A ticket needs you when EITHER a HARD gate is
+ * currently rejected (the work is parked awaiting a blocking decision) OR it is `waiting` on a known
+ * expected owner with no live agent heartbeat (`active`). Soft gates warn but never block, so a
+ * rejected soft gate alone does not raise it.
  */
 export function ticketNeedsYou(ticket: TicketView): boolean {
   for (const gate of ticket.gates ?? []) {
     if (gate.refusal === 'hard' && (gate.state ?? '').toLowerCase() === 'rejected') return true;
   }
-  return false;
+  return ticket.status === 'waiting' && !!ticket.expectedOwner && !ticket.active;
 }
 
 /**
@@ -373,4 +377,130 @@ export function cardGateSummary(ticket: TicketView, workflowView: WorkflowView |
  */
 export function commentsNewestFirst(comments: readonly TicketComment[] | undefined): readonly TicketComment[] {
   return [...(comments ?? [])].sort((a, b) => (b.ts ?? '').localeCompare(a.ts ?? ''));
+}
+
+/** The plain-words reason a ticket needs a human, derived from the same fields the predicate reads. */
+export interface NeedsYouReason {
+  /** The glyph that leads the read: `loop` for a loop hand-back, else `need`/`warning`. */
+  readonly glyph: string;
+  /** The short, honest line shown under the title (no fabricated urgency). */
+  readonly text: string;
+}
+
+/** How many times the workflow has looped this ticket back, if its labels record a loop count. */
+function loopCount(ticket: TicketView): number | null {
+  for (const label of ticket.labels ?? []) {
+    const m = /^loop[:-](\d+)$/i.exec(label.trim());
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
+/**
+ * The reason a needs-you ticket is waiting on a person, in plain words, derived from the SAME fields
+ * the {@link ticketNeedsYou} predicate reads — never a denormalised projection field. Precedence:
+ * a loop hand-back (the `loop` glyph) reads first when the labels record one; then a rejected hard
+ * gate; then a gate awaiting its owner (`{owner} approval pending`); then the generic waiting line.
+ * Returns `null` for a ticket that does not need you, so a caller renders the line only when honest.
+ */
+export function needsYouReason(ticket: TicketView): NeedsYouReason | null {
+  if (!ticketNeedsYou(ticket)) return null;
+
+  const loops = loopCount(ticket);
+  if (loops !== null) return { glyph: 'loop', text: `looped ${loops}× — needs you` };
+
+  for (const gate of ticket.gates ?? []) {
+    if (gate.refusal === 'hard' && (gate.state ?? '').toLowerCase() === 'rejected') {
+      return { glyph: 'warning', text: 'blocked: a gate needs your decision' };
+    }
+  }
+
+  const owner = ticket.expectedOwner?.trim();
+  if (owner) return { glyph: 'need', text: `${owner} approval pending` };
+
+  return { glyph: 'need', text: 'waiting on you — an approval to give or a decision to make' };
+}
+
+/** One lifecycle band of the worklist centre: a stable kind, its tickets, and a glyph + heading. */
+export interface WorklistBand {
+  readonly kind: 'needs-you' | 'in-flight' | 'backlog' | 'recently-done' | 'off-track';
+  readonly glyph: string;
+  readonly heading: string;
+  readonly tickets: readonly TicketView[];
+}
+
+/** How many recently-done cards the band teases before the "see all in Done" expand. */
+export const RECENTLY_DONE_CAP = 6;
+
+/**
+ * The worklist centre partitioned into its lifecycle bands, in fixed reading order:
+ * Needs-you → In-flight → Backlog → Recently-done → Off-track. A single ordered claim guarantees each
+ * ticket lands in EXACTLY one band (R1 disjointness): Needs-you (the canonical {@link ticketNeedsYou}
+ * predicate) is claimed first, then In-flight, then the partition's Backlog, then Recently-done (the
+ * partition's done set), then Off-track — each step skips anything an earlier band already claimed.
+ *
+ * In-flight is GENUINELY mid-pipeline active work: `status === 'in_progress'` AND the ticket sits in a
+ * real workflow stage — i.e. NOT in the Backlog holding pen, NOT in the done folder, NOT off-track.
+ * A queued Backlog ticket whose derived status happens to be `in_progress` is therefore NOT "in
+ * flight"; it lands in Backlog. For a project whose tickets are all backlog/done, In-flight is
+ * correctly EMPTY and omitted (absent-not-zero), with no ticket double-counted across bands.
+ *
+ * Recently-done is most-recent-first by the newest comment ts as a last-activity proxy — honestly
+ * "Recently done", never a fabricated "moved 2h ago". A band whose set is empty is OMITTED from the
+ * result (absent-not-zero — no `(0)` band).
+ *
+ * This is a pure, presentational re-projection over the existing {@link partitionBoard} substrate and
+ * `status`; it adds no new write path and no backend field.
+ */
+export function worklistBands(
+  workflowView: WorkflowView | null | undefined,
+  tickets: readonly TicketView[],
+): readonly WorklistBand[] {
+  const partition = partitionBoard(workflowView, tickets);
+  const midPipeline = new Set(partition.columns.flatMap((c) => c.tickets));
+
+  const claimed = new Set<TicketView>();
+  const claim = (candidates: readonly TicketView[]): TicketView[] => {
+    const taken: TicketView[] = [];
+    for (const t of candidates) {
+      if (claimed.has(t)) continue;
+      claimed.add(t);
+      taken.push(t);
+    }
+    return taken;
+  };
+
+  const needsYou = claim(tickets.filter((t) => ticketNeedsYou(t)));
+  const inFlight = claim(tickets.filter((t) => t.status === 'in_progress' && midPipeline.has(t)));
+  const backlog = claim(partition.backlog);
+  const recentlyDone = claim(
+    [...partition.doneTickets].sort((a, b) => lastActivity(b).localeCompare(lastActivity(a))),
+  );
+  const offTrack = claim(partition.offTrack.flatMap((g) => g.tickets));
+
+  const bands: WorklistBand[] = [
+    { kind: 'needs-you', glyph: 'need', heading: 'Needs you', tickets: needsYou },
+    { kind: 'in-flight', glyph: 'progress', heading: 'In flight', tickets: inFlight },
+    { kind: 'backlog', glyph: 'stack', heading: 'Backlog', tickets: backlog },
+    { kind: 'recently-done', glyph: 'check', heading: 'Recently done', tickets: recentlyDone },
+    { kind: 'off-track', glyph: 'warning', heading: 'Off-track', tickets: offTrack },
+  ];
+  return bands.filter((b) => b.tickets.length > 0);
+}
+
+/** A ticket's last-activity proxy: its newest comment timestamp, or '' when it has none (sorts last). */
+function lastActivity(ticket: TicketView): string {
+  return commentsNewestFirst(ticket.comments)[0]?.ts ?? '';
+}
+
+/**
+ * How many workflow stages currently hold at least one ticket on the rendered rail (excluding the
+ * dropped `backlog` stage and the done folder). Drives the worklist's data-derived default mode:
+ * Pipeline reads best only when work is genuinely mid-flow across ≥2 stages at once.
+ */
+export function populatedStageCount(
+  workflowView: WorkflowView | null | undefined,
+  tickets: readonly TicketView[],
+): number {
+  return partitionBoard(workflowView, tickets).columns.filter((c) => c.tickets.length > 0).length;
 }
