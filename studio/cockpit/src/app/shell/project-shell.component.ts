@@ -97,15 +97,15 @@ function derive<T>(fn: () => T): Derived<T> {
       } @else if (!view()) {
         <p class="muted" role="status" aria-live="polite">Loading project…</p>
       } @else if (boardOpen()) {
-        <section class="board-view" data-testid="tasks-board-view" aria-label="Tasks board">
+        <section class="board-view" data-testid="tasks-board-view" [attr.aria-label]="boardTitle()">
           <div class="board-view__head">
             <button type="button" class="board-view__back" data-testid="board-back" (click)="closeBoard()">
               <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
                 <polyline points="14,6 8,12 14,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
-              Back to panels
+              {{ boardBackLabel() }}
             </button>
-            <h2 class="board-view__title">Tasks board</h2>
+            <h2 class="board-view__title" data-testid="board-view-title">{{ boardTitle() }}</h2>
           </div>
           <dart-tasks-board [state]="liveState()" [projectName]="title()" [startInEdit]="boardStartInEdit()" (applied)="adoptState($event)" />
         </section>
@@ -244,6 +244,16 @@ export class ProjectShellComponent {
    * enters from the Workflow panel's "Edit workflow" affordance, cleared on a plain board open.
    */
   readonly boardStartInEdit = this.boardStartInEdit_.asReadonly();
+  /**
+   * The board view's heading and accessible name, mode-dependent: "Edit workflow" when entered from
+   * the Workflow panel (the chain is the editor), else "Tasks board" for a plain board open.
+   */
+  readonly boardTitle = computed(() => (this.boardStartInEdit_() ? 'Edit workflow' : 'Tasks board'));
+  /**
+   * The board view's back-button label: "Done editing" frames the edit-workflow exit as finishing the
+   * task; "Back to panels" for a plain board open. The action is identical — both return to the panels.
+   */
+  readonly boardBackLabel = computed(() => (this.boardStartInEdit_() ? 'Done editing' : 'Back to panels'));
   /** Whether the in-shell Knowledge page is showing in place of the summary panels. */
   readonly knowledgeOpen = this.knowledgeOpen_.asReadonly();
   /** The current project state — the board binds against this so SSE pushes flow through live. */
