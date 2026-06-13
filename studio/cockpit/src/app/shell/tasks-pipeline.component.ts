@@ -9,7 +9,7 @@ import {
   output,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import type { TicketView, WorkflowView } from '../core/models';
+import type { WorkflowView } from '../core/models';
 import {
   dwellSince,
   enteredCurrentStageAt,
@@ -316,8 +316,12 @@ export class TasksPipelineComponent {
 
   /** Switch back to the Worklist (an end-cap / idle-escape link). No write path. */
   readonly selectWorklist = output<void>();
-  /** Open a ticket's detail (read-only drill-in). The parent owns the modal + the guarded writes. */
-  readonly openTicket = output<TicketView>();
+  /**
+   * Open the stage-detail drawer for a stage (read-only lens). A stage-node click requests the
+   * stage focused on its identity; a gate-node click requests the SAME drawer focused on the gate
+   * section. The host owns the drawer + the partition; this never opens a ticket directly.
+   */
+  readonly openStage = output<{ stage: string; focusGate: boolean }>();
 
   /** Re-export for the template (gate diamond tone/word reuse). */
   readonly gateStateView = gateStateView;
@@ -410,47 +414,27 @@ export class TasksPipelineComponent {
     return `${g.name} gate, ${this.gateStateWord(g.state)}${count}, activate to review`;
   }
 
-  /** The most-actionable ticket in a stage to drill into: first rejected-gate, else first non-passed, else first. */
-  private mostActionable(seg: StageSegment): TicketView | null {
-    const tickets = seg.col.tickets;
-    if (tickets.length === 0) return null;
-    const gateName = seg.gate?.name;
-    if (gateName) {
-      const rejected = tickets.find((t) => (t.gates ?? []).some((g) => g.name === gateName && (g.state ?? '').toLowerCase() === 'rejected'));
-      if (rejected) return rejected;
-      const unmet = tickets.find((t) => {
-        const g = (t.gates ?? []).find((x) => x.name === gateName);
-        return !g || (g.state ?? '').toLowerCase() !== 'passed';
-      });
-      if (unmet) return unmet;
-    }
-    return tickets[0];
-  }
-
   /**
-   * Drill into a stage node → the most-actionable ticket's detail (a no-op on an empty preview node).
+   * Open the stage-detail drawer for a stage node (the full process at that stage — read-only lens).
    * A click that originated inside one of the node's cards is ignored — the card owns its own
-   * open / kebab / advance interactions, so the node-level drill-in never hijacks them.
+   * open / kebab / advance interactions, so the node-level open never hijacks them.
    */
   onStageClick(event: Event, seg: StageSegment): void {
     if (event.target instanceof HTMLElement && event.target.closest('.card')) return;
-    const target = this.mostActionable(seg);
-    if (target) this.openTicket.emit(target);
+    this.openStage.emit({ stage: seg.col.stage, focusGate: false });
   }
 
-  /** Keyboard activation of a stage node (Enter/Space) drills in like a click. */
+  /** Keyboard activation of a stage node (Enter/Space) opens the drawer like a click. */
   onStageActivate(event: KeyboardEvent, seg: StageSegment): void {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     if (event.target instanceof HTMLElement && event.target.closest('.card')) return;
     event.preventDefault();
-    const target = this.mostActionable(seg);
-    if (target) this.openTicket.emit(target);
+    this.openStage.emit({ stage: seg.col.stage, focusGate: false });
   }
 
-  /** Drill into a gate node → the governing ticket's detail at its gate panel (the existing write path). */
+  /** Open the SAME stage drawer focused on the gate section (read-only — the writes live in detail). */
   onGateClick(seg: StageSegment): void {
-    const target = this.mostActionable(seg);
-    if (target) this.openTicket.emit(target);
+    this.openStage.emit({ stage: seg.col.stage, focusGate: true });
   }
 
   /** Roving focus across the WHOLE chain: ←/→ move between end-caps, gate nodes, and stage nodes. */

@@ -273,26 +273,30 @@ describe('TasksPipelineComponent — per-stage colour + the lit active front (ad
   });
 });
 
-describe('TasksPipelineComponent — drill-in opens the existing task detail (read-only nav)', () => {
+describe('TasksPipelineComponent — drill-in opens the stage-detail drawer (read-only lens)', () => {
   afterEach(() => {
     TestBed.resetTestingModule();
     localStorage.clear();
   });
 
-  it('clicking a stage node opens the most-actionable ticket detail (the rejected-gate ticket)', () => {
+  it('clicking a stage node opens the stage-detail DRAWER (not a ticket modal)', () => {
     const { fixture, host } = mount(BUSY);
     (host.querySelector('[data-testid="stage-architecture"]') as HTMLElement).click();
     fixture.detectChanges();
-    expect(host.querySelector('[role="dialog"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="detail-header"]')!.textContent).toContain('A-1');
+    const drawer = host.querySelector('[data-testid="stage-drawer"]')!;
+    expect(drawer).toBeTruthy();
+    expect(drawer.querySelector('[data-testid="stage-detail-name"]')!.textContent).toContain('architecture');
+    // It is the drawer, NOT the centred task-detail modal.
+    expect(host.querySelector('[data-testid="detail-header"]')).toBeNull();
   });
 
-  it('clicking a gate node opens the governing ticket detail', () => {
+  it('clicking a gate node opens the SAME drawer focused on the gate section', () => {
     const { fixture, host } = mount(BUSY);
     (host.querySelector('[data-testid="gate-node-architecture"]') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(host.querySelector('[role="dialog"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="detail-header"]')!.textContent).toContain('A-1');
+    expect(host.querySelector('[data-testid="stage-drawer"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="stage-gate-section"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="detail-header"]')).toBeNull();
   });
 
   it('clicking a card open button still opens its own detail (the shared #cardTpl path)', () => {

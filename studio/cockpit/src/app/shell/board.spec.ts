@@ -18,7 +18,9 @@ import {
   populatedStageCount,
   PRE_START_STAGES,
   RECENTLY_DONE_CAP,
+  stageActivity,
   stageColumns,
+  stageRoleLine,
   stageGateNode,
   stageNodeStatus,
   statusChip,
@@ -1109,5 +1111,73 @@ describe('dwellSince — the honest "stuck N" duration label (absent when unknow
   it('is null for a future timestamp (clock skew is not "stuck")', () => {
     const now = Date.parse('2026-06-13T12:00:00Z');
     expect(dwellSince('2026-06-20T12:00:00Z', now)).toBeNull();
+  });
+});
+
+describe('stageActivity — the merged, newest-first process log across a stage’s tickets', () => {
+  it('is empty for a stage with no tickets', () => {
+    expect(stageActivity(col({ stage: 'code', tickets: [] }))).toEqual([]);
+  });
+
+  it('merges every ticket’s comments newest-first, attributed to its ticket', () => {
+    const c = col({
+      stage: 'code',
+      tickets: [
+        ticket({ id: 'A', stage: 'code', comments: [
+          { id: 'a1', author: '/be', kind: 'comment', body: 'older', ts: '2026-06-10T00:00:00Z' },
+          { id: 'a2', author: '/rev', kind: 'gate', body: 'approved', ts: '2026-06-12T00:00:00Z' },
+        ] }),
+        ticket({ id: 'B', stage: 'code', comments: [
+          { id: 'b1', author: '/be', kind: 'comment', body: 'middle', ts: '2026-06-11T00:00:00Z' },
+        ] }),
+      ],
+    });
+    const log = stageActivity(c);
+    expect(log.map((e) => e.comment.id)).toEqual(['a2', 'b1', 'a1']);
+    expect(log[0].ticketId).toBe('A');
+    expect(log[1].ticketId).toBe('B');
+  });
+
+  it('caps at the 20 most-recent entries and flags truncation', () => {
+    const comments: TicketComment[] = Array.from({ length: 25 }, (_, i) => ({
+      id: `c${i}`,
+      author: '/be',
+      kind: 'comment',
+      body: `n${i}`,
+      ts: `2026-06-${String(10 + (i % 20)).padStart(2, '0')}T00:00:${String(i).padStart(2, '0')}Z`,
+    }));
+    const c = col({ stage: 'code', tickets: [ticket({ id: 'A', stage: 'code', comments })] });
+    expect(stageActivity(c).length).toBe(20);
+    expect(stageActivity(c, 5).length).toBe(5);
+  });
+
+  it('omits a comment with no timestamp from being treated as newest (sorts last)', () => {
+    const c = col({
+      stage: 'code',
+      tickets: [ticket({ id: 'A', stage: 'code', comments: [
+        { id: 'noTs', author: '/be', kind: 'comment', body: 'no ts' },
+        { id: 'has', author: '/be', kind: 'comment', body: 'has ts', ts: '2026-06-12T00:00:00Z' },
+      ] })],
+    });
+    expect(stageActivity(c).map((e) => e.comment.id)).toEqual(['has', 'noTs']);
+  });
+});
+
+describe('stageRoleLine — an honest one-liner for what happens at a stage (never invented)', () => {
+  it('uses an explicit stage meaning verbatim when present', () => {
+    const c = col({ stage: 'code' });
+    const wf: WorkflowView = { activeTrack: 'full', stages: [{ stage: 'code', owner: '/be', gate: null, meaning: 'Implemented here.' } as never] };
+    expect(stageRoleLine(c, wf)).toBe('Implemented here.');
+  });
+
+  it('derives from the governing gate when no meaning is given', () => {
+    const c = col({ stage: 'security', gate: { name: 'SECOPS_APPROVED', refusal: 'hard' } });
+    expect(stageRoleLine(c, null)).toMatch(/security/i);
+    expect(stageRoleLine(c, null)).toMatch(/gates/i);
+  });
+
+  it('falls back to a neutral, non-fabricated line for an ungated stage with no meaning', () => {
+    const c = col({ stage: 'code', gate: null });
+    expect(stageRoleLine(c, null)).toBe('Work sits here until it advances to the next stage.');
   });
 });

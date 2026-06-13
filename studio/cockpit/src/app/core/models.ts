@@ -78,6 +78,8 @@ export interface WorkflowStageView {
   readonly stage: string;
   readonly owner: string | null;
   readonly gate: WorkflowGateRef | null;
+  /** Human description of the stage's job, when the workflow carries one. UNTRUSTED — escape on render. */
+  readonly meaning?: string | null;
 }
 
 /** The active track flattened into ordered stages for the workflow panel. */
