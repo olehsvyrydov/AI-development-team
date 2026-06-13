@@ -241,6 +241,55 @@ describe('ProjectShellComponent', () => {
     expect(host.querySelector('[data-testid="panel-workflow"]')).toBeTruthy();
   });
 
+  it('frames the Open-board entry as "Tasks board" with a "Back to panels" exit', async () => {
+    api.getProject.mockResolvedValue(
+      view({ title: 'p', description: 'd' }, {
+        ...RICH_STATE,
+        rev: 'r1',
+        tracks: { full: ['vision', 'architecture', 'design', 'done'] },
+        gateDefs: [{ name: 'ARCH_APPROVED', refusal: 'hard', owner: '/arch' }],
+        tickets: [{ id: 'ADT-9', title: 'Board task', status: 'in_progress', stage: 'vision', track: 'full', assignee: '/be', gates: [], comments: [] }],
+      }),
+    );
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    host.querySelector<HTMLButtonElement>('[data-testid="tasks-open-board"]')!.click();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    const section = host.querySelector('[data-testid="tasks-board-view"]')!;
+    expect(section.querySelector('[data-testid="board-view-title"]')?.textContent).toContain('Tasks board');
+    expect(section.getAttribute('aria-label')).toBe('Tasks board');
+    expect(host.querySelector('[data-testid="board-back"]')?.textContent).toContain('Back to panels');
+  });
+
+  it('frames the Edit-workflow entry as "Edit workflow" with a "Done editing" exit and matching accessible name', async () => {
+    api.getProject.mockResolvedValue(
+      view({ title: 'p', description: 'd' }, {
+        ...RICH_STATE,
+        rev: 'r1',
+        tracks: { full: ['vision', 'architecture', 'design', 'done'] },
+        gateDefs: [{ name: 'ARCH_APPROVED', refusal: 'hard', owner: '/arch', trigger: ['change-class'] }],
+        tickets: [
+          { id: 'V-1', title: 'Visioning', status: 'in_progress', stage: 'vision', track: 'full', assignee: '/po', gates: [], comments: [] },
+          { id: 'A-1', title: 'Architecting', status: 'in_progress', stage: 'architecture', track: 'full', assignee: '/arch', gates: [], comments: [] },
+        ],
+      }),
+    );
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    host.querySelector<HTMLButtonElement>('[data-testid="workflow-full-link"]')!.click();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    const section = host.querySelector('[data-testid="tasks-board-view"]')!;
+    expect(section.querySelector('[data-testid="board-view-title"]')?.textContent).toContain('Edit workflow');
+    expect(section.getAttribute('aria-label')).toBe('Edit workflow');
+    expect(host.querySelector('[data-testid="board-back"]')?.textContent).toContain('Done editing');
+  });
+
   it('opens the dedicated Knowledge page from the panel Manage footer and can return to the panels', async () => {
     api.getProject.mockResolvedValue(
       view({ title: 'p', description: 'd' }, {

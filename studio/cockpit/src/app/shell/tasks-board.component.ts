@@ -78,6 +78,7 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
               <span class="rollup__need" data-testid="rollup-needs-you"><dart-glyph name="need" /> {{ needsYouCount() }} need you</span>
             }
           </p>
+          @if (!startInEdit()) {
           <div class="view-switch" data-testid="view-mode-switch" role="radiogroup" aria-label="View">
             <button
               type="button"
@@ -106,6 +107,7 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
               <dart-glyph name="advance" /> Pipeline
             </button>
           </div>
+          }
         }
       </header>
 

@@ -587,6 +587,45 @@ describe('TasksBoardComponent — worklist default + view-mode toggle', () => {
   });
 });
 
+describe('TasksBoardComponent — workflow-edit entry hides the task-view switch', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    localStorage.clear();
+  });
+
+  function mountInEdit(state: ProjectState): { host: HTMLElement } {
+    TestBed.configureTestingModule({
+      imports: [TasksBoardComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: PLATFORM_BRIDGE, useValue: new BrowserPlatformBridge() },
+      ],
+    });
+    const fixture = TestBed.createComponent(TasksBoardComponent);
+    fixture.componentRef.setInput('state', state);
+    fixture.componentRef.setInput('startInEdit', true);
+    fixture.detectChanges();
+    return { host: fixture.nativeElement as HTMLElement };
+  }
+
+  it('does NOT render the Worklist/Pipeline view-mode switch when entered via Edit workflow', () => {
+    const { host } = mountInEdit(STATE);
+    expect(host.querySelector('[data-testid="view-mode-switch"]')).toBeNull();
+  });
+
+  it('KEEPS the pipeline View/Edit toggle visible (and armed to edit) in workflow-edit entry', () => {
+    const { host } = mountInEdit(STATE);
+    expect(host.querySelector('[data-testid="pipeline-mode"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="pipeline-chain"]')?.getAttribute('data-mode')).toBe('edit');
+  });
+
+  it('still renders the view-mode switch on a plain (non-edit) board entry', () => {
+    const { host } = mount(STATE, 'pipeline');
+    expect(host.querySelector('[data-testid="view-mode-switch"]')).toBeTruthy();
+  });
+});
+
 describe('TasksBoardComponent — visual-first worklist (colour, progress, hierarchy)', () => {
   afterEach(() => {
     TestBed.resetTestingModule();
