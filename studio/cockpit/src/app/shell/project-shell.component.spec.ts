@@ -222,4 +222,67 @@ describe('ProjectShellComponent', () => {
     expect(host.querySelector('[data-testid="workflow-builder-view"]')).toBeNull();
     expect(host.querySelector('[data-testid="panel-workflow"]')).toBeTruthy();
   });
+
+  it('opens the dedicated Knowledge page from the panel Manage footer and can return to the panels', async () => {
+    api.getProject.mockResolvedValue(
+      view({ title: 'p', description: 'd' }, {
+        ...RICH_STATE,
+        rev: 'r1',
+        knowledge: {
+          method: 'filename-only',
+          stack: ['java'],
+          counts: { project: 1, common: 0 },
+          docs: [{ name: 'code-rules', file: 'docs/code-rules.md', rev: 'm:1', scope: 'project', stack: ['java'], kind: 'rule', index: 'indexed', provenance: 'you' }],
+        },
+      }),
+    );
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-testid="knowledge-page-view"]')).toBeNull();
+    host.querySelector<HTMLButtonElement>('[data-testid="base-manage"]')!.click();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    expect(host.querySelector('[data-testid="knowledge-page-view"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="kb-doc-list"]')?.textContent).toContain('code-rules');
+
+    host.querySelector<HTMLButtonElement>('[data-testid="knowledge-back"]')!.click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="knowledge-page-view"]')).toBeNull();
+    expect(host.querySelector('[data-testid="panel-base"]')).toBeTruthy();
+  });
+
+  it('the Knowledge page is mutually exclusive with the board and builder', async () => {
+    api.getProject.mockResolvedValue(
+      view({ title: 'p', description: 'd' }, {
+        ...RICH_STATE,
+        rev: 'r1',
+        tracks: { full: ['vision', 'architecture', 'design', 'done'] },
+        gateDefs: [{ name: 'ARCH_APPROVED', refusal: 'hard', owner: '/arch' }],
+        tickets: [{ id: 'ADT-9', title: 'Board task', status: 'in_progress', stage: 'vision', track: 'full', assignee: '/be', gates: [], comments: [] }],
+        knowledge: { method: 'filename-only', stack: ['java'], counts: { project: 1, common: 0 }, docs: [{ name: 'code-rules', scope: 'project', index: 'indexed' }] },
+      }),
+    );
+    const fixture = await mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    // Open the board, then open Knowledge: the board must close (one view at a time).
+    host.querySelector<HTMLButtonElement>('[data-testid="tasks-open-board"]')!.click();
+    fixture.detectChanges();
+    await settle(fixture);
+    expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeTruthy();
+
+    host.querySelector<HTMLButtonElement>('[data-testid="knowledge-back"]'); // not present yet
+    fixture.componentInstance.openKnowledge();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="knowledge-page-view"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeNull();
+
+    // Opening the board again closes Knowledge.
+    fixture.componentInstance.openBoard();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="knowledge-page-view"]')).toBeNull();
+    expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeTruthy();
+  });
 });

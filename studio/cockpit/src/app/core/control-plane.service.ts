@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PLATFORM_BRIDGE } from './platform-bridge';
-import type { KnowledgeAnswer, KnowledgeDoc, KnowledgeScope, ProjectState } from './models';
+import type { KbSource, KnowledgeAnswer, KnowledgeDoc, KnowledgeScope, ProjectState } from './models';
 
 /**
  * The outcome of a control-plane mutation. The hub answers every guarded mutation with one of
@@ -44,6 +44,57 @@ export interface KbAddInput {
   /** Optional kind classifier. */
   readonly kind?: string;
 }
+
+/**
+ * Body for `kb/update`. Addresses the note by its server-known `id`/`file` (slug) — NEVER a path —
+ * plus the `scope` enum that selects the holding vault. `title` is immutable on edit (the slug is
+ * identity; a rename is add+delete), so it is sent for completeness but the server ignores a change.
+ * A `scope` that differs from the note's current vault is a vault MOVE the server performs. `body`
+ * is re-validated against the same caps as add. `expectedRev` is the note's per-file CAS token
+ * ({@link KnowledgeDoc.rev}); a stale value yields a `conflict` carrying fresh state (no clobber).
+ */
+export interface KbUpdateInput {
+  readonly id?: string;
+  readonly file?: string;
+  readonly title?: string;
+  readonly body: string;
+  /** The target vault (a fixed enum the server re-validates); a change off the current vault MOVES it. */
+  readonly scope: KnowledgeScope;
+  readonly stack?: readonly string[];
+  readonly kind?: string;
+  /** The note's per-file CAS token ({@link KnowledgeDoc.rev}); a stale value → `conflict`. */
+  readonly expectedRev?: string;
+}
+
+/**
+ * Body for `kb/remove`. Addresses the note by its server-known `id`/`file` + `scope` enum — NEVER a
+ * path. The server soft-deletes it (an atomic move into a contained, scan-excluded trash; recoverable),
+ * confirm-gated server-side, audited. `expectedRev` is the note's per-file CAS token; a stale value
+ * yields a `conflict` carrying fresh state (nothing moved).
+ */
+export interface KbRemoveInput {
+  readonly id?: string;
+  readonly file?: string;
+  readonly scope: KnowledgeScope;
+  readonly expectedRev?: string;
+}
+
+/**
+ * Body for `kb/source/connect`. `path` is the absolute folder the operator chose in the reused
+ * folder-picker — the server realpath-validates it is a real directory and records its canonical
+ * realpath; a non-directory records nothing. The connector is read-only and never writes under the
+ * source root. `expectedRev` is the sources-record CAS token (absent → the server skips the check).
+ */
+export interface KbSourceConnectInput {
+  readonly path: string;
+  readonly expectedRev?: string;
+}
+
+/** The outcome of a source mutation: like {@link MutationResult} but also carrying the public source. */
+export type KbSourceResult =
+  | { readonly ok: true; readonly state: ProjectState | null; readonly source: KbSource | null }
+  | { readonly ok: 'conflict'; readonly state: ProjectState | null }
+  | { readonly ok: false; readonly error: string };
 
 /**
  * The outcome of an interpretation-check question. The Q&A route is read-only and never throws on
@@ -180,6 +231,7 @@ interface MutationEnvelope {
   readonly error?: string;
   readonly state?: ProjectState | null;
   readonly doc?: KnowledgeDoc | null;
+  readonly source?: KbSource | null;
 }
 
 /**
@@ -312,6 +364,73 @@ export class ControlPlaneService {
   }
 
   /**
+   * Edit a knowledge-base note (or MOVE it across vaults on a scope change) through the one guarded
+   * writer. Addresses the note by its server-known `id`/`file` + `scope` enum — never a path — and
+   * forwards `expectedRev` (the note's per-file CAS token) so a concurrent edit is detected: a stale
+   * rev returns a `conflict` result carrying fresh state, never an optimistic clobber. The title is
+   * immutable (a rename is add+delete). Returns the fresh `state` to adopt on success.
+   */
+  editKbNote(input: KbUpdateInput): Promise<MutationResult> {
+    const body: Record<string, unknown> = { body: input.body, scope: input.scope };
+    if (input.id !== undefined) body['id'] = input.id;
+    if (input.file !== undefined) body['file'] = input.file;
+    if (input.title !== undefined) body['title'] = input.title;
+    if (input.stack !== undefined) body['stack'] = input.stack;
+    if (input.kind !== undefined) body['kind'] = input.kind;
+    if (input.expectedRev !== undefined) body['expectedRev'] = input.expectedRev;
+    return this.mutate('/api/kb/update', body);
+  }
+
+  /**
+   * Soft-delete a knowledge-base note through the guarded writer (an atomic move into a contained,
+   * scan-excluded trash; recoverable). Addresses the note by `id`/`file` + `scope` — never a path —
+   * and forwards `expectedRev` (the note's per-file CAS token); a stale rev returns a `conflict`
+   * result carrying fresh state, so a concurrent change is never blind-deleted. Returns the fresh
+   * `state` (the row leaves the list and the count decrements from that single source of truth).
+   */
+  removeKbNote(input: KbRemoveInput): Promise<MutationResult> {
+    const body: Record<string, unknown> = { scope: input.scope };
+    if (input.id !== undefined) body['id'] = input.id;
+    if (input.file !== undefined) body['file'] = input.file;
+    if (input.expectedRev !== undefined) body['expectedRev'] = input.expectedRev;
+    return this.mutate('/api/kb/remove', body);
+  }
+
+  /**
+   * Connect an external codebase as a read-only, realpath-contained knowledge source. Sends the
+   * absolute `path` the operator chose; the server validates it is a real directory, records its
+   * canonical realpath, and runs the bounded read-only ingest. Returns the fresh `state` plus the
+   * public source record on success, or a `conflict` carrying fresh state on a stale sources rev.
+   */
+  connectKbSource(input: KbSourceConnectInput): Promise<KbSourceResult> {
+    const body: Record<string, unknown> = { path: input.path };
+    if (input.expectedRev !== undefined) body['expectedRev'] = input.expectedRev;
+    return this.mutateSource('/api/kb/source/connect', body);
+  }
+
+  /**
+   * Re-run the read-only contained ingest for a connected source. Forwards `expectedRev` (the
+   * sources-record CAS token); a stale rev returns a `conflict` carrying fresh state. Returns the
+   * fresh `state` plus the re-indexed source on success.
+   */
+  reindexKbSource(sourceId: string, expectedRev?: string): Promise<KbSourceResult> {
+    const body: Record<string, unknown> = { sourceId };
+    if (expectedRev !== undefined) body['expectedRev'] = expectedRev;
+    return this.mutateSource('/api/kb/source/reindex', body);
+  }
+
+  /**
+   * Disconnect a source: remove the registration + its derived index facet only — NEVER the user's
+   * files. Forwards `expectedRev`; a stale rev returns a `conflict` carrying fresh state. Returns
+   * the fresh `state` to adopt (the row leaves the strip from that single source of truth).
+   */
+  disconnectKbSource(sourceId: string, expectedRev?: string): Promise<MutationResult> {
+    const body: Record<string, unknown> = { sourceId };
+    if (expectedRev !== undefined) body['expectedRev'] = expectedRev;
+    return this.mutate('/api/kb/source/disconnect', body);
+  }
+
+  /**
    * Ask an interpretation-check question over the project's already-visible knowledge — "does DART
    * understand my note on X?". This is a READ (`GET /api/knowledge/ask`): it carries NO write-guard
    * header, sends nothing but the question and the scoped project id as query params, and never
@@ -342,6 +461,29 @@ export class ControlPlaneService {
       }
       return { ok: false, error: res?.error || 'request failed' };
     } catch (err) {
+      return { ok: false, error: httpErrorMessage(err) };
+    }
+  }
+
+  /**
+   * Like {@link mutate} but threads the public source record the connect/reindex routes return, so
+   * the connected-sources strip can reflect the freshly indexed source while the page also adopts
+   * the returned fresh `state`. A 409 still decodes to a first-class `conflict` carrying fresh state.
+   */
+  private async mutateSource(apiPath: string, body: object): Promise<KbSourceResult> {
+    try {
+      const res = await firstValueFrom(
+        this.http.post<MutationEnvelope>(this.bridge.apiUrl(apiPath), this.scoped(body), {
+          headers: this.bridge.writeHeaders(),
+        }),
+      );
+      if (res?.ok === true) return { ok: true, state: res.state ?? null, source: res.source ?? null };
+      return { ok: false, error: res?.error || 'request failed' };
+    } catch (err) {
+      if (err instanceof HttpErrorResponse && err.status === 409) {
+        const conflictBody = err.error as MutationEnvelope | null;
+        return { ok: 'conflict', state: conflictBody?.state ?? null };
+      }
       return { ok: false, error: httpErrorMessage(err) };
     }
   }

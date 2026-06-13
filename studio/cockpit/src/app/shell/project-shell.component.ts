@@ -14,6 +14,7 @@ import {
   type WorkflowView,
 } from '../core/models';
 import { BasePanelComponent } from './base-panel.component';
+import { KnowledgePageComponent } from './knowledge-page.component';
 import { TasksBoardComponent } from './tasks-board.component';
 import { TasksPanelComponent } from './tasks-panel.component';
 import { WorkflowBuilderComponent } from './workflow-builder.component';
@@ -51,6 +52,7 @@ function derive<T>(fn: () => T): Derived<T> {
     BasePanelComponent,
     TasksBoardComponent,
     WorkflowBuilderComponent,
+    KnowledgePageComponent,
   ],
   template: `
     <header class="shell-head">
@@ -122,6 +124,19 @@ function derive<T>(fn: () => T): Derived<T> {
           </div>
           <dart-workflow-builder [state]="liveState()" (applied)="adoptState($event)" />
         </section>
+      } @else if (knowledgeOpen()) {
+        <section class="board-view" data-testid="knowledge-page-view" aria-label="Knowledge">
+          <div class="board-view__head">
+            <button type="button" class="board-view__back" data-testid="knowledge-back" (click)="closeKnowledge()">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+                <polyline points="14,6 8,12 14,18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Back to panels
+            </button>
+            <h2 class="board-view__title">Knowledge</h2>
+          </div>
+          <dart-knowledge-page [state]="liveState()" [projectName]="title()" (applied)="adoptState($event)" />
+        </section>
       } @else {
         <section class="panels" aria-label="Project areas">
           <article class="panel" data-testid="panel-workflow">
@@ -145,7 +160,7 @@ function derive<T>(fn: () => T): Derived<T> {
           <article class="panel" data-testid="panel-base">
             @if (base(); as b) {
               @if (b.ok) {
-                <dart-base-panel [base]="b.value" (applied)="adoptState($event)" />
+                <dart-base-panel [base]="b.value" (applied)="adoptState($event)" (manage)="openKnowledge()" />
               } @else {
                 <p class="panel-error" role="alert" data-testid="panel-base-error">Couldn't load base.</p>
               }
@@ -233,6 +248,7 @@ export class ProjectShellComponent {
   private readonly failure = signal<string | null>(null);
   private readonly boardOpen_ = signal(false);
   private readonly builderOpen_ = signal(false);
+  private readonly knowledgeOpen_ = signal(false);
 
   readonly view = this.loaded.asReadonly();
   readonly error = this.failure.asReadonly();
@@ -240,11 +256,14 @@ export class ProjectShellComponent {
   readonly boardOpen = this.boardOpen_.asReadonly();
   /** Whether the in-shell workflow builder is showing in place of the summary panels. */
   readonly builderOpen = this.builderOpen_.asReadonly();
+  /** Whether the in-shell Knowledge page is showing in place of the summary panels. */
+  readonly knowledgeOpen = this.knowledgeOpen_.asReadonly();
   /** The current project state — the board binds against this so SSE pushes flow through live. */
   readonly liveState = computed<ProjectState>(() => this.loaded()?.state ?? {});
 
   openBoard(): void {
     this.builderOpen_.set(false);
+    this.knowledgeOpen_.set(false);
     this.boardOpen_.set(true);
   }
 
@@ -254,11 +273,22 @@ export class ProjectShellComponent {
 
   openBuilder(): void {
     this.boardOpen_.set(false);
+    this.knowledgeOpen_.set(false);
     this.builderOpen_.set(true);
   }
 
   closeBuilder(): void {
     this.builderOpen_.set(false);
+  }
+
+  openKnowledge(): void {
+    this.boardOpen_.set(false);
+    this.builderOpen_.set(false);
+    this.knowledgeOpen_.set(true);
+  }
+
+  closeKnowledge(): void {
+    this.knowledgeOpen_.set(false);
   }
 
   /** Adopt fresh state returned by a board/detail mutation (200 or 409 re-sync) as the new truth. */

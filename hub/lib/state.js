@@ -287,10 +287,14 @@ function readVault(dir, relRoot, enforcedScope, ownProject) {
   try { files = fs.readdirSync(dir).filter((f) => f.endsWith('.md')); } catch { return []; }
   const out = [];
   for (const f of files) {
-    const fm = parseFrontMatter(safeRead(path.join(dir, f)));
+    const full = path.join(dir, f);
+    const fm = parseFrontMatter(safeRead(full));
+    let rev = null;
+    try { const st = fs.statSync(full); rev = `${st.mtimeMs}:${st.size}`; } catch { /* absent → no rev */ }
     out.push({
       name: f.replace(/\.md$/, ''),
-      file: path.relative(relRoot, path.join(dir, f)),
+      file: path.relative(relRoot, full),
+      rev, // per-note CAS rev (mtime:size) for edit/delete
       scope: enforcedScope, // the HOLDING VAULT wins (front-matter is intent only)
       stack: fm.stack,
       kind: fm.kind,
@@ -361,6 +365,16 @@ function readCommonKb() {
   return readVault(root, root, 'common', false);
 }
 
+// Map a note's recorded author to the closed provenance enum the UI badges. A note
+// authored by /kai (the propose-inbox approval path) reads 'kai'; everything else is
+// operator-authored 'you'. ('codebase' is reserved for connected-source items, which
+// are a separate facet and never appear in `docs`.) Absent → omitted by the caller.
+function provenanceOf(doc) {
+  const by = String(doc && doc.by ? doc.by : '').toLowerCase();
+  if (by === 'kai' || by === '/kai') return 'kai';
+  return 'you';
+}
+
 /**
  * Build the merged Knowledge projection a project sees: its own project-scoped notes
  * unioned with approved-common notes whose stack matches the project's declared stack.
@@ -375,8 +389,8 @@ function buildKnowledge(project) {
 
   const visibleCommon = common.filter((d) => scopeMatches(d, projectMeta));
   const docs = [];
-  for (const d of own) docs.push({ name: d.name, file: d.file, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
-  for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed' });
+  for (const d of own) docs.push({ name: d.name, file: d.file, rev: d.rev, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed', provenance: provenanceOf(d) });
+  for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, rev: d.rev, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed', provenance: provenanceOf(d) });
 
   // Precedence is a DISPLAY annotation, not a suppression boundary: where a project
   // note and a common note share the same slug (case-insensitive), the project note
@@ -413,12 +427,19 @@ function buildKnowledge(project) {
       proposedAt: p.proposedAt,
     }));
   } catch { proposals = []; }
+  // Connected codebases are a SEPARATE facet — never merged into `docs`, never run
+  // through scopeMatches, never recalled as an authored note. Lazy-required to avoid a
+  // load-time cycle (state → sources → analyze → write → state).
+  let sources = [];
+  try { sources = require('./sources').sourcesFacet(project); } catch { sources = []; }
+
   return {
     method: configured ? 'local-embeddings' : 'filename-only',
     stack: declaredStack,
     counts: { project: own.length, common: visibleCommon.length, proposals: proposals.length },
     docs,
     proposals,
+    sources,
   };
 }
 
@@ -590,6 +611,40 @@ function buildBase(project, kb) {
   };
 }
 
+/**
+ * The per-note CAS rev (mtime:size) the knowledge edit/delete writers compare against.
+ * Resolves the note by its server-known basename + the `scope` enum inside the chosen
+ * vault, realpath-contained — never a client path. Returns the rev string, or null when
+ * the note cannot be safely resolved.
+ *
+ * @param project the project root
+ * @param ref `{ scope, file|id }` — scope an enum; file/id a slug or basename
+ * @returns the `${mtimeMs}:${size}` rev or null
+ */
+function kbNoteRev(project, { scope, file, id } = {}) {
+  const idOrFile = file != null ? file : id;
+  if (idOrFile == null || (scope !== 'project' && scope !== 'common')) return null;
+  const base = path.basename(String(idOrFile)).replace(/\.md$/i, '');
+  const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!slug) return null;
+  let vaultDir = null;
+  if (scope === 'common') {
+    vaultDir = containedCommonVaultDir();
+  } else {
+    const dir = projectKbDir(project);
+    if (dir) { try { vaultDir = fs.realpathSync(dir); } catch { vaultDir = null; } }
+  }
+  if (!vaultDir) return null;
+  const target = path.join(vaultDir, `${slug}.md`);
+  let real;
+  try { real = fs.realpathSync(target); } catch { return null; }
+  if (!isContained(vaultDir, real)) return null;
+  try {
+    const st = fs.statSync(real);
+    return `${st.mtimeMs}:${st.size}`;
+  } catch { return null; }
+}
+
 function fileRev(project) {
   let rev = '';
   for (const rel of ['.workflow-state.json', '.aidevteam/workflow.overrides.json']) {
@@ -726,4 +781,4 @@ function listSummary(project) {
   } catch { return null; }
 }
 
-module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor };
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, kbNoteRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor };

@@ -436,4 +436,75 @@ describe('ControlPlaneService', () => {
       if (!res.ok) expect(res.error).toBe('unavailable');
     });
   });
+
+  describe('knowledge CRUD + sources (guarded, CAS)', () => {
+    it('editKbNote posts file/scope/body + the per-note expectedRev with the X-AIDT guard', async () => {
+      const promise = cp.editKbNote({ file: 'docs/x.md', body: 'after', scope: 'project', stack: ['java'], kind: 'rule', expectedRev: 'm:1' });
+      const req = http.expectOne('/api/kb/update');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBe('1');
+      expect(req.request.body).toMatchObject({ file: 'docs/x.md', body: 'after', scope: 'project', expectedRev: 'm:1' });
+      req.flush({ ok: true, state: { rev: 'r2' } });
+      expect((await promise).ok).toBe(true);
+    });
+
+    it('editKbNote surfaces a 409 as a first-class conflict carrying fresh state (not a throw)', async () => {
+      const promise = cp.editKbNote({ file: 'docs/x.md', body: 'after', scope: 'project', expectedRev: 'stale' });
+      const req = http.expectOne('/api/kb/update');
+      req.flush(
+        { ok: false, conflict: true, state: { rev: 'r9', knowledge: { method: 'filename-only', counts: { project: 1, common: 0 }, docs: [] } } },
+        { status: 409, statusText: 'Conflict' },
+      );
+      const res = await promise;
+      expect(res.ok).toBe('conflict');
+      if (res.ok === 'conflict') expect(res.state?.rev).toBe('r9');
+    });
+
+    it('removeKbNote posts file/scope + expectedRev and surfaces a 409 as a conflict', async () => {
+      const okP = cp.removeKbNote({ file: 'docs/x.md', scope: 'project', expectedRev: 'm:1' });
+      const okReq = http.expectOne('/api/kb/remove');
+      expect(okReq.request.body).toMatchObject({ file: 'docs/x.md', scope: 'project', expectedRev: 'm:1' });
+      okReq.flush({ ok: true, state: { rev: 'r2' } });
+      expect((await okP).ok).toBe(true);
+
+      const conflictP = cp.removeKbNote({ file: 'docs/x.md', scope: 'project', expectedRev: 'stale' });
+      const cReq = http.expectOne('/api/kb/remove');
+      cReq.flush({ ok: false, conflict: true, state: { rev: 'r9' } }, { status: 409, statusText: 'Conflict' });
+      expect((await conflictP).ok).toBe('conflict');
+    });
+
+    it('connectKbSource posts the chosen path and returns fresh state + the public source', async () => {
+      const promise = cp.connectKbSource({ path: '/home/me/repo', expectedRev: '0' });
+      const req = http.expectOne('/api/kb/source/connect');
+      expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBe('1');
+      expect(req.request.body).toMatchObject({ path: '/home/me/repo', expectedRev: '0' });
+      req.flush({ ok: true, state: { rev: 'r2' }, source: { id: 's1', label: 'repo', path: '/home/me/repo', kind: 'codebase', status: 'indexed', external: false } });
+      const res = await promise;
+      expect(res.ok).toBe(true);
+      if (res.ok === true) expect(res.source?.id).toBe('s1');
+    });
+
+    it('connectKbSource surfaces a 409 as a first-class conflict carrying fresh state', async () => {
+      const promise = cp.connectKbSource({ path: '/home/me/repo', expectedRev: 'stale' });
+      const req = http.expectOne('/api/kb/source/connect');
+      req.flush({ ok: false, conflict: true, state: { rev: 'r9' } }, { status: 409, statusText: 'Conflict' });
+      const res = await promise;
+      expect(res.ok).toBe('conflict');
+      if (res.ok === 'conflict') expect(res.state?.rev).toBe('r9');
+    });
+
+    it('reindexKbSource / disconnectKbSource post the sourceId and handle a 409 conflict', async () => {
+      const rP = cp.reindexKbSource('s1', '0');
+      const rReq = http.expectOne('/api/kb/source/reindex');
+      expect(rReq.request.body).toMatchObject({ sourceId: 's1', expectedRev: '0' });
+      rReq.flush({ ok: true, state: { rev: 'r2' }, source: { id: 's1', label: 'repo', path: '/p', kind: 'codebase', status: 'indexed', external: false } });
+      expect((await rP).ok).toBe(true);
+
+      const dP = cp.disconnectKbSource('s1', 'stale');
+      const dReq = http.expectOne('/api/kb/source/disconnect');
+      expect(dReq.request.body).toMatchObject({ sourceId: 's1' });
+      dReq.flush({ ok: false, conflict: true, state: { rev: 'r9' } }, { status: 409, statusText: 'Conflict' });
+      expect((await dP).ok).toBe('conflict');
+    });
+  });
 });

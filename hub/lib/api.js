@@ -11,6 +11,7 @@ const w = require('./write');
 const { buildState } = require('./state');
 const engine = require('./engine');
 const proposals = require('./proposals');
+const sources = require('./sources');
 
 const PRESETS = ['solo', 'small-team', 'regulated'];
 const GATE_STATES = ['passed', 'pending', 'rejected'];
@@ -68,6 +69,22 @@ function validateStageList(stages) {
     names.push(s.name);
   }
   return { stages: names, owners };
+}
+
+// Public source shape for a route response: the status fields the FE needs, no secret.
+function sourcePublic(s) {
+  if (!s || typeof s !== 'object') return null;
+  return {
+    id: s.id,
+    label: s.label,
+    path: s.root,
+    kind: 'codebase',
+    status: s.status === 'ready' ? 'indexed' : (s.status || 'connected'),
+    fileCount: s.fileCount,
+    method: s.indexMethod || 'filename',
+    lastIndexedAt: s.lastIndexedAt || null,
+    external: false,
+  };
 }
 
 const ok = (state, extra) => ({ code: 200, payload: { ok: true, ...extra, state } });
@@ -255,6 +272,48 @@ async function handle(route, data, project) {
       const r = w.addKbNote(project, { title, body, scope, stack, kind });
       if (!r.ok) return bad(r.error);
       return ok(st(), { doc: r.doc });
+    }
+    case 'kb/update': {
+      // Edit a note's body (or MOVE it across vaults on a scope change) through the
+      // one guarded writer: re-validated, realpath-contained, CAS on the per-note rev.
+      const { id, file, title, body, scope, stack, kind, expectedRev, by } = data;
+      const r = await w.editKbNote(project, { id, file, title, body, scope, stack, kind, expectedRev, by });
+      if (r.conflict) return conflict(st());
+      if (!r.ok) return bad(r.error);
+      return ok(st(), { doc: r.doc });
+    }
+    case 'kb/remove': {
+      // Soft-delete a note to a contained, scan-excluded .trash; CAS on the per-note
+      // rev. Never a hard unlink reachable from the API.
+      const { id, file, scope, expectedRev, by } = data;
+      const r = await w.deleteKbNote(project, { id, file, scope, expectedRev, by });
+      if (r.conflict) return conflict(st());
+      if (!r.ok) return bad(r.error);
+      return ok(st());
+    }
+    case 'kb/source/connect': {
+      // Register a read-only, realpath-contained external codebase source and index
+      // it (filename/keyword only, read-only, bounded). CAS on the sources rev.
+      const { path: srcPath, globs, expectedRev, by } = data;
+      const r = await sources.connectSource(project, { path: srcPath, globs, expectedRev, by });
+      if (r.conflict) return conflict(st());
+      if (!r.ok) return bad(r.error);
+      return ok(st(), { source: sourcePublic(r.source) });
+    }
+    case 'kb/source/reindex': {
+      const { sourceId, expectedRev } = data;
+      const r = await sources.reindexSource(project, { sourceId, expectedRev });
+      if (r.conflict) return conflict(st());
+      if (!r.ok) return bad(r.error);
+      return ok(st(), { source: sourcePublic(r.source) });
+    }
+    case 'kb/source/disconnect': {
+      // Remove the registration + its index facet only — never the external tree.
+      const { sourceId, expectedRev } = data;
+      const r = await sources.disconnectSource(project, { sourceId, expectedRev });
+      if (r.conflict) return conflict(st());
+      if (!r.ok) return bad(r.error);
+      return ok(st());
     }
     case 'kb/propose': {
       // /kai submits a PENDING proposal. It is recorded inert in the proposal store
