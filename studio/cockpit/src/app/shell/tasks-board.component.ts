@@ -17,15 +17,25 @@ import {
   cardGateSummary,
   nextStageInOrder,
   partitionBoard,
+  populatedStageCount,
   statusChip,
   ticketNeedsYou,
+  worklistBands,
   type BoardPartition,
   type CardGateSummary,
   type OffTrackGroup,
   type StageColumn,
+  type WorklistBand,
 } from './board';
 import { GlyphComponent } from './glyph.component';
 import { TaskDetailComponent } from './task-detail.component';
+import { TasksWorklistComponent } from './tasks-worklist.component';
+
+/** The two Tasks view modes: the needs-you-first worklist (default) and the stage pipeline (train). */
+export type TasksViewMode = 'worklist' | 'pipeline';
+
+const VIEW_MODE_KEY_PREFIX = 'dart.tasks.viewMode.';
+const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pipeline']);
 
 /**
  * Tasks board — columns are the active track's workflow STAGES, in order, each holding the tickets
@@ -44,7 +54,7 @@ import { TaskDetailComponent } from './task-detail.component';
 @Component({
   selector: 'dart-tasks-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GlyphComponent, TaskDetailComponent, NgTemplateOutlet],
+  imports: [GlyphComponent, TaskDetailComponent, TasksWorklistComponent, NgTemplateOutlet],
   template: `
     <div class="pipeline" data-testid="pipeline-root" [attr.data-motion]="motionOk() ? 'on' : 'off'">
       <p class="board-live" data-testid="board-live" aria-live="polite" role="status">{{ liveAnnounce() }}</p>
@@ -60,12 +70,45 @@ import { TaskDetailComponent } from './task-detail.component';
               <span class="rollup__need" data-testid="rollup-needs-you"><dart-glyph name="need" /> {{ needsYouCount() }} need you</span>
             }
           </p>
+          <div class="view-switch" data-testid="view-mode-switch" role="radiogroup" aria-label="View">
+            <button
+              type="button"
+              class="view-switch__opt"
+              data-testid="view-mode-worklist"
+              role="radio"
+              [attr.aria-checked]="effectiveMode() === 'worklist'"
+              [attr.data-active]="effectiveMode() === 'worklist'"
+              [attr.tabindex]="effectiveMode() === 'worklist' ? 0 : -1"
+              (click)="selectMode('worklist')"
+              (keydown)="onSwitchKeydown($event)"
+            >
+              <dart-glyph name="stack" /> Worklist
+            </button>
+            <button
+              type="button"
+              class="view-switch__opt"
+              data-testid="view-mode-pipeline"
+              role="radio"
+              [attr.aria-checked]="effectiveMode() === 'pipeline'"
+              [attr.data-active]="effectiveMode() === 'pipeline'"
+              [attr.tabindex]="effectiveMode() === 'pipeline' ? 0 : -1"
+              (click)="selectMode('pipeline')"
+              (keydown)="onSwitchKeydown($event)"
+            >
+              <dart-glyph name="advance" /> Pipeline
+            </button>
+          </div>
         }
       </header>
 
       @if (isEmpty()) {
         <p class="board-empty" data-testid="board-empty">No tasks yet — the team will create them as work starts.</p>
       } @else {
+        @switch (effectiveMode()) {
+        @case ('worklist') {
+        <dart-tasks-worklist [bands]="bands()" [cardTemplate]="cardTpl" />
+        }
+        @case ('pipeline') {
         <div class="train" data-testid="pipeline-train">
           <section class="backlog" data-testid="backlog-bar" aria-label="Backlog">
             <header class="backlog__head">
@@ -143,6 +186,9 @@ import { TaskDetailComponent } from './task-detail.component';
             @if (middleEmpty()) {
               <p class="rail__idle" data-testid="rail-middle-empty">
                 No tasks are mid-pipeline right now. They'll appear at a stage as the team advances them.
+                <button type="button" class="rail__escape" data-testid="pipeline-to-worklist" (click)="selectMode('worklist')">
+                  Switch to Worklist
+                </button>
               </p>
             }
           </div>
@@ -205,14 +251,19 @@ import { TaskDetailComponent } from './task-detail.component';
             </section>
           }
         </div>
+        }
+        }
       }
     </div>
 
-    <ng-template #cardTpl let-t>
+    <ng-template #cardTpl let-t let-reason="reason">
       <li class="card" [attr.data-testid]="'card-' + t.id" role="listitem">
         <button type="button" class="card__open" data-testid="card-open" (click)="openDetail(t)">
           <span class="card__id">{{ t.id }}</span>
           <span class="card__title">{{ t.title }}</span>
+          @if (reason) {
+            <span class="card__reason" data-testid="needs-you-reason"><dart-glyph [name]="reason.glyph" /> {{ reason.text }}</span>
+          }
           <span class="card__owner"><dart-glyph name="agent" /> {{ t.assignee || t.expectedOwner || 'unassigned' }}</span>
           <span class="card__chips">
             <span class="chip chip--status" data-testid="chip-status"><dart-glyph [name]="status(t).glyph" /> {{ status(t).label }}</span>
@@ -292,6 +343,15 @@ import { TaskDetailComponent } from './task-detail.component';
     .rollup__total, .rollup__need { display: inline-flex; align-items: center; gap: 0.3rem; }
     .rollup__need { color: var(--kb-warning); font-weight: 600; }
     .board-empty { margin: 0; color: var(--kb-text-subtle); font-size: var(--kb-text-sm); }
+    /* The view-mode switch: a segmented radiogroup. The active option is distinguished by FILL and
+       the checked glyph state (data-active) — never hue/position alone — with a 2px focus ring. */
+    .view-switch { display: inline-flex; gap: 0; border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); overflow: hidden; }
+    .view-switch__opt { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 28px; padding: 0.2rem 0.6rem; font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text-muted); background: transparent; border: none; cursor: pointer; }
+    .view-switch__opt + .view-switch__opt { border-left: 1px solid var(--kb-border); }
+    .view-switch__opt[data-active='true'] { color: var(--kb-text); background: var(--kb-surface-muted); font-weight: 600; }
+    .view-switch__opt:focus-visible { outline: 2px solid var(--kb-focus-ring, var(--kb-accent)); outline-offset: -2px; }
+    .rail__escape { display: inline-block; margin-left: 0.4rem; padding: 0.1rem 0.4rem; pointer-events: auto; font: inherit; font-size: var(--kb-text-xs); font-weight: 600; color: var(--kb-accent); background: transparent; border: none; cursor: pointer; text-decoration: underline; }
+    .card__reason { display: inline-flex; align-items: center; gap: 0.25rem; font-size: var(--kb-text-xs); color: var(--kb-warning); }
     /* The board is a single non-scrolling flex row of four regions: [Backlog][rail][Done][Off-track].
        Backlog, Done and Off-track are fixed-width columns (flex: 0 0 auto) that hold their place; only
        the middle rail scrolls horizontally, so the side panels never float over the scrolled stages. */
@@ -458,6 +518,28 @@ export class TasksBoardComponent {
   readonly stageOrder = computed<readonly string[]>(() => (this.state().workflowView?.stages ?? []).map((s) => s.stage));
 
   /**
+   * The operator's explicit view-mode choice, when set. `null` means "no explicit choice — use the
+   * data-derived default". Seeded once from the per-project persisted choice (defensively, since
+   * `localStorage` may be absent or throw); a manual switch updates it and re-persists.
+   */
+  private readonly chosenMode = signal<TasksViewMode | null>(null);
+  private persistKeyLoaded: string | null = null;
+
+  /** The worklist's lifecycle bands (Needs-you → … → Off-track), absent-not-zero, claimed disjointly. */
+  readonly bands = computed<readonly WorklistBand[]>(() => worklistBands(this.state().workflowView, this.tickets()));
+
+  /**
+   * The data-derived default mode: Pipeline reads best only when work is genuinely mid-flow across
+   * ≥2 stages at once; otherwise the needs-you-first Worklist (the dense, never-void default).
+   */
+  private readonly autoMode = computed<TasksViewMode>(() =>
+    populatedStageCount(this.state().workflowView, this.tickets()) >= 2 ? 'pipeline' : 'worklist',
+  );
+
+  /** The mode actually rendered: the operator's explicit choice if any, else the data-derived default. */
+  readonly effectiveMode = computed<TasksViewMode>(() => this.chosenMode() ?? this.autoMode());
+
+  /**
    * The single partition of the board into its four disjoint regions, recomputed once per state push
    * (O(tickets + stages): one pass over tickets to place each, one pass over stages to materialize the
    * columns). Each region view below (backlog/columns/done/off-track) is a cheap projection that reads
@@ -544,6 +626,73 @@ export class TasksBoardComponent {
       }
       this.prevRev = rev;
     });
+
+    // Adopt the per-project persisted mode once per project, so a power user's explicit choice
+    // survives reloads. Re-reads only when the project id changes (a view switch within a session
+    // updates `chosenMode` directly, not via the store), so a live SSE push never re-collapses it.
+    effect(() => {
+      const key = this.persistKey();
+      if (key === this.persistKeyLoaded) return;
+      this.persistKeyLoaded = key;
+      this.chosenMode.set(this.readPersistedMode(key));
+    });
+  }
+
+  /** The per-project persistence key; a single global key when the project id is absent. */
+  private persistKey(): string {
+    const project = this.state().project;
+    return VIEW_MODE_KEY_PREFIX + (project && project.trim() ? project : '_global');
+  }
+
+  /**
+   * The persisted explicit mode for a key, or null when none is stored or the value is unrecognised.
+   * `localStorage` may be absent (SSR) or throw (privacy mode); any failure falls back to null so the
+   * data-derived default applies — never throws.
+   */
+  private readPersistedMode(key: string): TasksViewMode | null {
+    try {
+      if (typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(key);
+      return raw && VIEW_MODES.has(raw) ? (raw as TasksViewMode) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Persist the operator's explicit mode; a failing/absent store is swallowed (best-effort). */
+  private writePersistedMode(key: string, mode: TasksViewMode): void {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem(key, mode);
+    } catch {
+      /* localStorage unavailable — the in-memory choice still wins for this session. */
+    }
+  }
+
+  /** Switch the view mode: the operator's explicit choice wins thereafter and persists per project. */
+  selectMode(mode: TasksViewMode): void {
+    this.chosenMode.set(mode);
+    this.persistKeyLoaded = this.persistKey();
+    this.writePersistedMode(this.persistKey(), mode);
+    this.liveAnnounce.set(mode === 'pipeline' ? 'Pipeline view' : 'Worklist view');
+  }
+
+  /** Arrow/Space/Enter on the radiogroup: arrows move the selection between the two modes. */
+  onSwitchKeydown(event: KeyboardEvent): void {
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.selectMode('pipeline');
+      this.focusActiveRadio();
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.selectMode('worklist');
+      this.focusActiveRadio();
+    }
+  }
+
+  private focusActiveRadio(): void {
+    const sel = this.effectiveMode() === 'pipeline' ? 'view-mode-pipeline' : 'view-mode-worklist';
+    this.host.nativeElement.querySelector<HTMLElement>(`[data-testid="${sel}"]`)?.focus();
   }
 
   status(ticket: TicketView) {

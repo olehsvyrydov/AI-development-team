@@ -247,6 +247,8 @@ export interface TicketView {
   readonly assignee?: string | null;
   /** Role the workflow expects to act at this stage when unassigned. */
   readonly expectedOwner?: string | null;
+  /** Whether a live agent is currently acting on this ticket (heartbeat). Absent → not live. */
+  readonly active?: boolean;
   readonly gates?: readonly TicketGate[];
   readonly comments?: readonly TicketComment[];
   /** Free-form description. UNTRUSTED — escape on render. */

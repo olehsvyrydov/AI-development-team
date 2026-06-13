@@ -185,7 +185,9 @@ describe('ProjectShellComponent', () => {
     await settle(fixture);
 
     expect(host.querySelector('[data-testid="tasks-board-view"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="column-stage-vision"]')?.textContent).toContain('ADT-9');
+    // The board opens on its default worklist view (one populated stage → not the pipeline); the
+    // ticket renders as a card regardless of view mode.
+    expect(host.querySelector('[data-testid="card-ADT-9"]')?.textContent).toContain('ADT-9');
 
     host.querySelector<HTMLButtonElement>('[data-testid="board-back"]')!.click();
     fixture.detectChanges();

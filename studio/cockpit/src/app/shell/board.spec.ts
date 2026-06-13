@@ -7,14 +7,18 @@ import {
   commentsNewestFirst,
   doneStage,
   isBacklog,
+  needsYouReason,
   nextStageInOrder,
   nextStage,
   offTrackGroups,
   partitionBoard,
+  populatedStageCount,
   PRE_START_STAGES,
+  RECENTLY_DONE_CAP,
   stageColumns,
   statusChip,
   ticketNeedsYou,
+  worklistBands,
 } from './board';
 
 function ticket(t: Partial<TicketView>): TicketView {
@@ -454,8 +458,8 @@ describe('statusChip — status becomes a card chip, never a column', () => {
   });
 });
 
-describe('ticketNeedsYou — a chip, derived, not a column', () => {
-  it('is true only when a hard gate is currently rejected (the blocking-decision signal)', () => {
+describe('ticketNeedsYou — a chip/band, derived, not a column', () => {
+  it('is true when a hard gate is currently rejected (the blocking-decision signal)', () => {
     expect(
       ticketNeedsYou(ticket({ gates: [{ name: 'SECOPS_APPROVED', refusal: 'hard', state: 'rejected' }] })),
     ).toBe(true);
@@ -465,6 +469,227 @@ describe('ticketNeedsYou — a chip, derived, not a column', () => {
     expect(ticketNeedsYou(ticket({ gates: [{ name: 'DESIGN_APPROVED', refusal: 'soft', state: 'rejected' }] }))).toBe(
       false,
     );
+  });
+
+  it('is true when waiting on a known expected owner with no live agent (the hub case board.ts missed)', () => {
+    expect(
+      ticketNeedsYou(ticket({ status: 'waiting', expectedOwner: '/arch', active: false, gates: [] })),
+    ).toBe(true);
+  });
+
+  it('is false when a live agent IS active on a waiting ticket (an agent will act, not the human)', () => {
+    expect(
+      ticketNeedsYou(ticket({ status: 'waiting', expectedOwner: '/arch', active: true, gates: [] })),
+    ).toBe(false);
+  });
+
+  it('is false when waiting with no expected owner (nobody named to decide)', () => {
+    expect(ticketNeedsYou(ticket({ status: 'waiting', expectedOwner: null, active: false, gates: [] }))).toBe(false);
+  });
+
+  it('is false for an in_progress ticket and a done ticket (not awaiting a person)', () => {
+    expect(ticketNeedsYou(ticket({ status: 'in_progress', expectedOwner: '/be', active: false }))).toBe(false);
+    expect(ticketNeedsYou(ticket({ status: 'done', expectedOwner: '/qa', active: false }))).toBe(false);
+  });
+});
+
+/**
+ * The canonical hub predicate, replicated verbatim from `hub/lib/state.js` `needsHumanDecision` as
+ * the contract the FE must mirror byte-for-byte. If the FE `ticketNeedsYou` ever drifts from this,
+ * the Needs-you band, the per-card chip, and `taskSummary.byStatus.needsYou` would disagree.
+ */
+function hubNeedsHumanDecision(t: TicketView): boolean {
+  for (const g of t.gates ?? []) {
+    if (g.state === 'rejected' && g.refusal === 'hard') return true;
+  }
+  return t.status === 'waiting' && !!t.expectedOwner && !t.active;
+}
+
+describe('ticketNeedsYou parity — mirrors the canonical hub needsHumanDecision', () => {
+  const fixtures: TicketView[] = [
+    ticket({ gates: [{ name: 'SECOPS_APPROVED', refusal: 'hard', state: 'rejected' }] }),
+    ticket({ gates: [{ name: 'SECOPS_APPROVED', refusal: 'hard', state: 'passed' }] }),
+    ticket({ gates: [{ name: 'DESIGN_APPROVED', refusal: 'soft', state: 'rejected' }] }),
+    ticket({ status: 'waiting', expectedOwner: '/arch', active: false, gates: [] }),
+    ticket({ status: 'waiting', expectedOwner: '/arch', active: true, gates: [] }),
+    ticket({ status: 'waiting', expectedOwner: null, active: false, gates: [] }),
+    ticket({ status: 'in_progress', expectedOwner: '/be', active: false, gates: [] }),
+    ticket({ status: 'done', stage: 'done', expectedOwner: '/qa', active: false, gates: [] }),
+  ];
+
+  it('agrees with the hub predicate on every representative fixture', () => {
+    for (const t of fixtures) {
+      expect(ticketNeedsYou(t)).toBe(hubNeedsHumanDecision(t));
+    }
+  });
+});
+
+describe('needsYouReason — the plain-words why, derived from the same fields the predicate reads', () => {
+  it('is null for a ticket that does not need you', () => {
+    expect(needsYouReason(ticket({ status: 'in_progress', active: true }))).toBeNull();
+  });
+
+  it('reads a loop hand-back first, with the loop glyph', () => {
+    const r = needsYouReason(
+      ticket({ status: 'waiting', expectedOwner: '/po', active: false, labels: ['loop:3'], gates: [] }),
+    );
+    expect(r?.glyph).toBe('loop');
+    expect(r?.text).toMatch(/looped 3× — needs you/);
+  });
+
+  it('names a rejected hard gate as a blocking decision', () => {
+    const r = needsYouReason(ticket({ gates: [{ name: 'SECOPS_APPROVED', refusal: 'hard', state: 'rejected' }] }));
+    expect(r?.text).toMatch(/blocked: a gate needs your decision/);
+  });
+
+  it('names the expected owner whose approval is pending', () => {
+    const r = needsYouReason(ticket({ status: 'waiting', expectedOwner: '/arch', active: false, gates: [] }));
+    expect(r?.text).toBe('/arch approval pending');
+  });
+});
+
+describe('worklistBands — fixed-order lifecycle bands, absent-not-zero, disjoint (R1)', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'vision', owner: '/po', gate: null },
+      { stage: 'code', owner: '/be', gate: null },
+      { stage: 'security', owner: '/secops', gate: { name: 'SECOPS_APPROVED', refusal: 'hard' } },
+      { stage: 'done', owner: null, gate: null },
+    ],
+  };
+  const tickets: TicketView[] = [
+    ticket({ id: 'N1', status: 'blocked', stage: 'security', gates: [{ name: 'SECOPS_APPROVED', refusal: 'hard', state: 'rejected' }] }),
+    ticket({ id: 'N2', status: 'waiting', stage: 'vision', expectedOwner: '/po', active: false, gates: [] }),
+    ticket({ id: 'F1', status: 'in_progress', stage: 'code', assignee: '/be', gates: [] }),
+    ticket({ id: 'B1', status: 'waiting', stage: 'backlog', gates: [] }),
+    ticket({ id: 'D1', status: 'done', stage: 'done', comments: [{ ts: '2026-06-10T00:00:00Z' }] }),
+    ticket({ id: 'D2', status: 'done', stage: 'done', comments: [{ ts: '2026-06-12T00:00:00Z' }] }),
+    ticket({ id: 'OT', status: 'waiting', stage: 'gone-stage', gates: [] }),
+  ];
+
+  it('renders the bands in fixed reading order', () => {
+    const bands = worklistBands(wf, tickets);
+    expect(bands.map((b) => b.kind)).toEqual(['needs-you', 'in-flight', 'backlog', 'recently-done', 'off-track']);
+  });
+
+  it('claims needs-you first; each ticket lands in exactly one band (disjointness)', () => {
+    const bands = worklistBands(wf, tickets);
+    const ids = bands.flatMap((b) => b.tickets.map((t) => t.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(bands.find((b) => b.kind === 'needs-you')!.tickets.map((t) => t.id).sort()).toEqual(['N1', 'N2']);
+    // N2 is a waiting backlog ticket that needs you → it is in Needs-you, NOT Backlog.
+    expect(bands.find((b) => b.kind === 'backlog')!.tickets.map((t) => t.id)).toEqual(['B1']);
+  });
+
+  it('orders recently-done most-recent-first by newest comment ts', () => {
+    const done = worklistBands(wf, tickets).find((b) => b.kind === 'recently-done')!;
+    expect(done.tickets.map((t) => t.id)).toEqual(['D2', 'D1']);
+  });
+
+  it('omits a band whose set is empty (absent-not-zero, no (0) band)', () => {
+    const onlyDone = worklistBands(wf, [ticket({ id: 'D', status: 'done', stage: 'done' })]);
+    expect(onlyDone.map((b) => b.kind)).toEqual(['recently-done']);
+  });
+
+  it('band counts sum to the visible total', () => {
+    const bands = worklistBands(wf, tickets);
+    const sum = bands.reduce((n, b) => n + b.tickets.length, 0);
+    expect(sum).toBe(tickets.length);
+  });
+
+  it('caps the recently-done teaser threshold at a small constant', () => {
+    expect(RECENTLY_DONE_CAP).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('worklistBands — In-flight is mid-pipeline only; a queued backlog ticket is not "in flight"', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'vision', owner: '/po', gate: null },
+      { stage: 'code', owner: '/be', gate: null },
+      { stage: 'done', owner: null, gate: null },
+    ],
+  };
+
+  // A backlog-stage ticket whose derived status is in_progress, a done-stage in_progress ticket,
+  // an off-track in_progress ticket, and a genuinely mid-pipeline in_progress ticket. Only the last
+  // is "In flight"; the others belong to Backlog / Recently-done / Off-track respectively.
+  const tickets: TicketView[] = [
+    ticket({ id: 'BQ', status: 'in_progress', stage: 'backlog', gates: [] }),
+    ticket({ id: 'DQ', status: 'in_progress', stage: 'done', comments: [{ ts: '2026-06-11T00:00:00Z' }] }),
+    ticket({ id: 'OQ', status: 'in_progress', stage: 'gone-stage', gates: [] }),
+    ticket({ id: 'MP', status: 'in_progress', stage: 'code', gates: [] }),
+  ];
+
+  it('no ticket id appears in two bands and the bands are mutually exclusive', () => {
+    const bands = worklistBands(wf, tickets);
+    const ids = bands.flatMap((b) => b.tickets.map((t) => t.id));
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('Σ band counts equals the visible ticket count (no overlap, none dropped)', () => {
+    const bands = worklistBands(wf, tickets);
+    const sum = bands.reduce((n, b) => n + b.tickets.length, 0);
+    expect(sum).toBe(tickets.length);
+  });
+
+  it('a backlog-stage in_progress ticket lands in Backlog, never In-flight', () => {
+    const bands = worklistBands(wf, tickets);
+    expect(bands.find((b) => b.kind === 'backlog')!.tickets.map((t) => t.id)).toContain('BQ');
+    expect(bands.find((b) => b.kind === 'in-flight')!.tickets.map((t) => t.id)).not.toContain('BQ');
+  });
+
+  it('In-flight holds only tickets in a real workflow stage (not backlog/done/off-track)', () => {
+    const inFlight = worklistBands(wf, tickets).find((b) => b.kind === 'in-flight')!;
+    expect(inFlight.tickets.map((t) => t.id)).toEqual(['MP']);
+  });
+
+  it('routes the done- and off-track-staged in_progress tickets to their own bands', () => {
+    const bands = worklistBands(wf, tickets);
+    expect(bands.find((b) => b.kind === 'recently-done')!.tickets.map((t) => t.id)).toEqual(['DQ']);
+    expect(bands.find((b) => b.kind === 'off-track')!.tickets.map((t) => t.id)).toEqual(['OQ']);
+  });
+
+  it('for an all-backlog/done project In-flight is correctly empty (absent), tickets not duplicated', () => {
+    const project: TicketView[] = [
+      ticket({ id: 'B1', status: 'in_progress', stage: 'backlog', gates: [] }),
+      ticket({ id: 'B2', status: 'in_progress', stage: 'backlog', gates: [] }),
+      ticket({ id: 'B3', status: 'in_progress', stage: 'backlog', gates: [] }),
+      ticket({ id: 'DN', status: 'done', stage: 'done', comments: [{ ts: '2026-06-12T00:00:00Z' }] }),
+    ];
+    const bands = worklistBands(wf, project);
+    expect(bands.map((b) => b.kind)).not.toContain('in-flight');
+    expect(bands.find((b) => b.kind === 'backlog')!.tickets.map((t) => t.id)).toEqual(['B1', 'B2', 'B3']);
+    const ids = bands.flatMap((b) => b.tickets.map((t) => t.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.reduce((n) => n + 1, 0)).toBe(project.length);
+  });
+});
+
+describe('populatedStageCount — how many rail stages hold work (drives the auto-default mode)', () => {
+  const wf: WorkflowView = {
+    activeTrack: 'full',
+    stages: [
+      { stage: 'vision', owner: '/po', gate: null },
+      { stage: 'code', owner: '/be', gate: null },
+      { stage: 'done', owner: null, gate: null },
+    ],
+  };
+
+  it('counts only stages with at least one ticket (excludes backlog and done)', () => {
+    const ts = [
+      ticket({ id: 'V', status: 'in_progress', stage: 'vision' }),
+      ticket({ id: 'C', status: 'in_progress', stage: 'code' }),
+      ticket({ id: 'B', status: 'waiting', stage: 'backlog' }),
+      ticket({ id: 'D', status: 'done', stage: 'done' }),
+    ];
+    expect(populatedStageCount(wf, ts)).toBe(2);
+  });
+
+  it('is at most 1 when work clusters at one stage', () => {
+    expect(populatedStageCount(wf, [ticket({ id: 'C', status: 'in_progress', stage: 'code' })])).toBe(1);
   });
 });
 
