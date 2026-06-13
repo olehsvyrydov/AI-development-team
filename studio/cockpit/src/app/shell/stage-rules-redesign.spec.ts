@@ -5,6 +5,8 @@ import { StageRulesComponent } from './stage-rules.component';
 
 const LABELS: LabelDef[] = [
   { name: 'TO_DEV_BE', settableBy: ['/rev', '/qa'], routesTo: 'implement', owner: '/be', meaning: 'send back to backend dev' },
+  { name: 'TO_DEV_FE', settableBy: ['/rev', '/qa'], routesTo: 'implement', owner: '/fe', meaning: 'send back to frontend dev' },
+  { name: 'NEEDS_DESIGN', settableBy: ['/ui'], routesTo: null, owner: '/ui', meaning: 'needs a design pass' },
 ];
 
 const RULE: RuleView = {
@@ -137,5 +139,155 @@ describe('StageRules — allowed-labels strip links to label management', () => 
     const { host } = mount({ labels: nasty });
     expect(host.querySelector('img')).toBeNull();
     expect(host.textContent).toContain('<img src=x onerror=alert(1)>');
+  });
+
+  it('lists only the labels the stage owner may set in the allowed strip (others absent, not greyed)', () => {
+    const { host } = mount();
+    const strip = $(host, '[data-testid="allowed-labels-code_review"]');
+    expect(strip.textContent ?? '').toMatch(/TO_DEV_BE/);
+    expect(strip.textContent ?? '').toMatch(/TO_DEV_FE/);
+    expect(strip.textContent ?? '').not.toMatch(/NEEDS_DESIGN/);
+  });
+
+  it('filters the Set-label action picker to the owner settable_by (unauthorized label absent)', () => {
+    const { host, fixture } = mount();
+    $(host, '[data-testid="rule-add-code_review"]').click();
+    fixture.detectChanges();
+    $(host, '[data-testid="rule-add-action"]').click();
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="action-type-0"]', 'set_label');
+    fixture.detectChanges();
+    const values = [...($(host, '[data-testid="action-label-0"]') as HTMLSelectElement).options].map((o) => o.value);
+    expect(values).toContain('TO_DEV_BE');
+    expect(values).toContain('TO_DEV_FE');
+    expect(values).not.toContain('NEEDS_DESIGN');
+  });
+});
+
+describe('StageRules — read rendering escapes hostile rule text', () => {
+  it('renders a recorded instruct prompt as text, never as live markup', () => {
+    const hostile: RuleView = {
+      id: 'x',
+      stage: 'code_review',
+      when: [],
+      do: [{ action: 'instruct', target: ['/be'], prompt: '<img src=x onerror=alert(1)>' }],
+    };
+    const { host } = mount({ rules: [hostile] });
+    expect(host.querySelector('img[onerror]')).toBeNull();
+    expect($(host, '[data-testid="rule-card-x"]').textContent ?? '').toContain('<img src=x onerror=alert(1)>');
+  });
+});
+
+describe('StageRules — backward-route loop affordances', () => {
+  it('flags a route to an earlier stage with a loops-back badge', () => {
+    const backward: RuleView = {
+      id: 'loopy',
+      stage: 'code_review',
+      when: [],
+      do: [{ action: 'route_to_stage', stage: 'implement' }],
+    };
+    const { host } = mount({ rules: [backward] });
+    expect($(host, '[data-testid="rule-card-loopy"]').textContent ?? '').toMatch(/loops back/i);
+  });
+
+  it('shows the de-jargoned backward-loop safety note (read-only) when authoring', () => {
+    const { host, fixture } = mount();
+    $(host, '[data-testid="rule-add-code_review"]').click();
+    fixture.detectChanges();
+    const note = $(host, '[data-testid="rule-loop-note"]').textContent ?? '';
+    expect(note).toMatch(/send work backward/i);
+    expect(note).toMatch(/hands it to you/i);
+  });
+});
+
+describe('StageRules — authoring emits the merged rule list', () => {
+  it('authors a WHEN label / DO route rule and emits the full list with the new rule appended', () => {
+    const existing: RuleView = {
+      id: 'route-rejection-to-backend',
+      stage: 'code_review',
+      when: [{ type: 'label', label: 'TO_DEV_BE' }],
+      do: [{ action: 'route_to_stage', stage: 'implement' }],
+    };
+    const { host, fixture, saved } = mount({ rules: [existing] });
+    $(host, '[data-testid="rule-add-code_review"]').click();
+    fixture.detectChanges();
+    setInput(host, '[data-testid="rule-name"]', 'ping-on-comment');
+    $(host, '[data-testid="rule-add-condition"]').click();
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="condition-type-0"]', 'label');
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="condition-label-0"]', 'TO_DEV_BE');
+    $(host, '[data-testid="rule-add-action"]').click();
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="action-type-0"]', 'route_to_stage');
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="action-stage-0"]', 'implement');
+    fixture.detectChanges();
+    $(host, '[data-testid="rule-save"]').click();
+    expect(saved.length).toBe(1);
+    const list = saved[0];
+    expect(list.some((r) => r.id === 'route-rejection-to-backend')).toBe(true);
+    const added = list.find((r) => r.id === 'ping-on-comment');
+    expect(added?.stage).toBe('code_review');
+    expect(added?.when).toEqual([{ type: 'label', label: 'TO_DEV_BE' }]);
+    expect(added?.do).toEqual([{ action: 'route_to_stage', stage: 'implement' }]);
+  });
+
+  it('disables Save with a reason on a route missing its target stage (emits nothing)', () => {
+    const { host, fixture, saved } = mount();
+    $(host, '[data-testid="rule-add-code_review"]').click();
+    fixture.detectChanges();
+    setInput(host, '[data-testid="rule-name"]', 'incomplete');
+    $(host, '[data-testid="rule-add-action"]').click();
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="action-type-0"]', 'route_to_stage');
+    fixture.detectChanges();
+    expect(($(host, '[data-testid="rule-save"]') as HTMLButtonElement).disabled).toBe(true);
+    expect($(host, '[data-testid="rule-draft-error"]').textContent ?? '').toMatch(/target stage/i);
+    expect(saved.length).toBe(0);
+  });
+
+  it('disables Save with a reason when an Instruct action has an empty prompt', () => {
+    const { host, fixture } = mount();
+    $(host, '[data-testid="rule-add-code_review"]').click();
+    fixture.detectChanges();
+    setInput(host, '[data-testid="rule-name"]', 'instruct-empty');
+    $(host, '[data-testid="rule-add-action"]').click();
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="action-type-0"]', 'instruct');
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="action-target-0"]', '/be');
+    fixture.detectChanges();
+    expect(($(host, '[data-testid="rule-save"]') as HTMLButtonElement).disabled).toBe(true);
+    expect($(host, '[data-testid="rule-draft-error"]').textContent ?? '').toMatch(/prompt/i);
+  });
+
+  it('refuses (Save disabled + reason) a route past an unmet safety gate', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ imports: [StageRulesComponent] });
+    const fixture = TestBed.createComponent(StageRulesComponent);
+    const saved: (readonly RuleView[])[] = [];
+    fixture.componentRef.setInput('stage', 'implement');
+    fixture.componentRef.setInput('owner', '/be');
+    fixture.componentRef.setInput('rules', []);
+    fixture.componentRef.setInput('labels', LABELS);
+    fixture.componentRef.setInput('stageOrder', ['vision', 'implement', 'security', 'release', 'done']);
+    fixture.componentRef.setInput('safetyStages', ['security']);
+    fixture.componentRef.setInput('saving', false);
+    fixture.componentRef.instance.save.subscribe((r) => saved.push(r));
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    $(host, '[data-testid="rule-add-implement"]').click();
+    fixture.detectChanges();
+    setInput(host, '[data-testid="rule-name"]', 'bypass');
+    $(host, '[data-testid="rule-add-action"]').click();
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="action-type-0"]', 'route_to_stage');
+    fixture.detectChanges();
+    selectValue(host, '[data-testid="action-stage-0"]', 'release');
+    fixture.detectChanges();
+    expect(($(host, '[data-testid="rule-save"]') as HTMLButtonElement).disabled).toBe(true);
+    expect($(host, '[data-testid="rule-draft-error"]').textContent ?? '').toMatch(/safety gate/i);
+    expect(saved.length).toBe(0);
   });
 });

@@ -35,6 +35,8 @@ import { StageDetailComponent } from './stage-detail.component';
 import { TaskDetailComponent } from './task-detail.component';
 import { TasksWorklistComponent } from './tasks-worklist.component';
 import { TasksPipelineComponent } from './tasks-pipeline.component';
+import { WorkflowDrawerComponent } from './workflow-drawer.component';
+import { WorkflowEditController } from './workflow-edit-controller';
 
 /** The two Tasks view modes: the needs-you-first worklist (default) and the CI-style stage pipeline. */
 export type TasksViewMode = 'worklist' | 'pipeline';
@@ -59,7 +61,8 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
 @Component({
   selector: 'dart-tasks-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GlyphComponent, StageDetailComponent, TaskDetailComponent, TasksWorklistComponent, TasksPipelineComponent],
+  imports: [GlyphComponent, StageDetailComponent, TaskDetailComponent, TasksWorklistComponent, TasksPipelineComponent, WorkflowDrawerComponent],
+  providers: [WorkflowEditController],
   template: `
     <div class="pipeline" data-testid="pipeline-root" [attr.data-motion]="motionOk() ? 'on' : 'off'">
       <p class="board-live" data-testid="board-live" aria-live="polite" role="status">{{ liveAnnounce() }}</p>
@@ -117,14 +120,17 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
         <dart-tasks-pipeline
           [columns]="columns()"
           [workflowView]="state().workflowView ?? null"
+          [state]="state()"
           [activeSegment]="activeSegment()"
           [backlogCount]="backlog().length"
           [doneCount]="doneTickets().length"
           [offTrackCount]="offTrackCount()"
           [middleEmpty]="middleEmpty()"
           [cardTemplate]="cardTpl"
+          [armEdit]="startInEdit()"
           (selectWorklist)="selectMode('worklist')"
           (openStage)="openStage($event)"
+          (openDrawer)="openWorkflowDrawer($event)"
         />
         }
         }
@@ -210,6 +216,10 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
       />
     }
 
+    @if (workflowDrawerOpen()) {
+      <dart-workflow-drawer [deepLinkStage]="workflowDrawerStage()" (close)="closeWorkflowDrawer()" />
+    }
+
     @if (selected(); as sel) {
       <dart-task-detail
         [ticket]="sel"
@@ -276,6 +286,12 @@ const VIEW_MODES: ReadonlySet<string> = new Set<TasksViewMode>(['worklist', 'pip
 export class TasksBoardComponent {
   private readonly cp = inject(ControlPlaneService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  /**
+   * The shared workflow-edit controller, provided here so the pipeline's edit-mode and the workflow
+   * drawer both drive ONE CAS + conflict path. The board keeps its state current (the drawer can open
+   * from worklist mode where the pipeline child is not mounted) and re-emits its applied state.
+   */
+  private readonly editCtrl = inject(WorkflowEditController);
 
   readonly state = input.required<ProjectState>();
   /**
@@ -283,6 +299,12 @@ export class TasksBoardComponent {
    * doubt which project a write lands in (untrusted — interpolated, escaped). Absent → no cue.
    */
   readonly projectName = input<string>('');
+  /**
+   * When true, open the board in pipeline mode with edit already armed — set when the operator enters
+   * from the Workflow panel's "Edit workflow" affordance. The pipeline still resets to View on a fresh
+   * mount (this only seeds the initial arm, it is not persisted).
+   */
+  readonly startInEdit = input<boolean>(false);
   /** A successful (or conflict-resync) mutation returns fresh state for the shell to adopt. */
   readonly applied = output<ProjectState>();
 
@@ -340,8 +362,13 @@ export class TasksBoardComponent {
     populatedStageCount(this.state().workflowView, this.tickets()) >= 2 ? 'pipeline' : 'worklist',
   );
 
-  /** The mode actually rendered: the operator's explicit choice if any, else the data-derived default. */
-  readonly effectiveMode = computed<TasksViewMode>(() => this.chosenMode() ?? this.autoMode());
+  /**
+   * The mode actually rendered: forced to pipeline when entered via "Edit workflow" (the chain is the
+   * editor), else the operator's explicit choice, else the data-derived default.
+   */
+  readonly effectiveMode = computed<TasksViewMode>(() =>
+    this.startInEdit() ? 'pipeline' : (this.chosenMode() ?? this.autoMode()),
+  );
 
   /**
    * The single partition of the board into its four disjoint regions, recomputed once per state push
@@ -458,6 +485,11 @@ export class TasksBoardComponent {
   });
 
   constructor() {
+    // Keep the shared edit controller's view of state current, and route its applied truth upward so
+    // the shell adopts it — the single live-data loop for every workflow mutation on this board.
+    this.editCtrl.onApply((state) => this.applied.emit(state));
+    effect(() => this.editCtrl.setState(this.state()));
+
     // Announce a board re-layout when a fresh state (new rev) arrives after the initial render — a
     // quiet polite cue, never on first paint.
     effect(() => {
@@ -608,6 +640,25 @@ export class TasksBoardComponent {
     if (trigger) {
       queueMicrotask(() => this.host.nativeElement.querySelector<HTMLElement>(`[data-testid="${trigger}"]`)?.focus());
     }
+  }
+
+  /** Whether the workflow-settings drawer (Preset / Labels / Rules) is open. */
+  readonly workflowDrawerOpen = signal(false);
+  /** The stage the drawer's Rules tab is deep-linked to (from a stage's `rules N` pill), or null. */
+  readonly workflowDrawerStage = signal<string | null>(null);
+
+  /**
+   * Open the workflow-settings drawer. A stage name deep-links it to that stage's rules (the on-chain
+   * `rules N` pill); `null` opens it at the top (the edit-mode "Workflow settings" affordance).
+   */
+  openWorkflowDrawer(stage: string | null): void {
+    this.workflowDrawerStage.set(stage);
+    this.workflowDrawerOpen.set(true);
+  }
+
+  closeWorkflowDrawer(): void {
+    this.workflowDrawerOpen.set(false);
+    this.workflowDrawerStage.set(null);
   }
 
   async advance(ticket: TicketView, toStage: string): Promise<void> {
