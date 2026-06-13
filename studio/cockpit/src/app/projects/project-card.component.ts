@@ -1,9 +1,26 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { displayDescription, displayTitle, governanceSignal, type ProjectView } from '../core/models';
+import {
+  displayDescription,
+  displayTitle,
+  governanceSignal,
+  type FreshnessState,
+  type ProjectView,
+} from '../core/models';
 import { GlyphComponent } from '../shell/glyph.component';
 import { prefersMotion } from '../shell/motion';
 import { SECURITY_REVIEWED_TOOLTIP } from './copy';
+
+/**
+ * The per-card freshness signal the home derives from a live rollup entry: which state to show and
+ * the coarse relative age string for the `idle`/`stale` words. Absent (`null`) → the card degrades
+ * to the registry last-seen footer, never a fabricated freshness.
+ */
+export interface FreshnessFooter {
+  readonly state: FreshnessState;
+  /** Coarse relative age ("4m ago") shown for idle/stale; empty for live/offline. */
+  readonly ageLabel: string;
+}
 
 /**
  * One project tile in the launcher grid: a header row carrying the glyph tile and an optional
@@ -105,7 +122,28 @@ import { SECURITY_REVIEWED_TOOLTIP } from './copy';
           <span class="status__dot" [class]="'status__dot--' + view().record.status" aria-hidden="true"></span>
           <span>{{ statusLabel() }}</span>
         </span>
-        @if (lastSeen()) {
+        @if (freshness(); as f) {
+          <span
+            class="fresh"
+            data-testid="freshness"
+            [attr.data-state]="f.state"
+          >
+            <span aria-hidden="true">·</span>
+            <span class="fresh__dot" aria-hidden="true">
+              @switch (f.state) {
+                @case ('stale') { <dart-glyph name="pending" [size]="11" /> }
+                @case ('offline') { <dart-glyph name="blocked" [size]="11" /> }
+                @case ('live') {
+                  @for (key of pulseKeys(); track key) {
+                    <span class="fresh__solid" data-ring="true" [attr.data-pulse]="key"></span>
+                  }
+                }
+                @default { <span class="fresh__solid"></span> }
+              }
+            </span>
+            <span class="fresh__word">{{ freshnessWord() }}</span>
+          </span>
+        } @else if (lastSeen()) {
           <span class="card__seen">· updated {{ lastSeen() }}</span>
         }
       </footer>
@@ -241,12 +279,77 @@ import { SECURITY_REVIEWED_TOOLTIP } from './copy';
     .status__dot--analyzing { background: var(--kb-warning); }
     .status__dot--error { background: var(--kb-danger); }
     .status__dot--offline, .status__dot--needs-auth { background: var(--kb-text-subtle); }
+    /* Freshness: the calmest signal — shape + word + colour, never colour alone. The live dot reuses
+       the shell's dot+ring precedent and pulses ONCE per push (a remounted node per push), then rests. */
+    .fresh { display: inline-flex; align-items: center; gap: 0.3rem; }
+    .fresh__dot { display: inline-flex; align-items: center; line-height: 0; }
+    .fresh__solid { width: 0.55rem; height: 0.55rem; border-radius: 999px; background: var(--kb-text-muted); }
+    .fresh[data-state='live'] { color: var(--kb-success); }
+    .fresh[data-state='live'] .fresh__solid {
+      background: var(--kb-success);
+      box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--kb-success) 22%, transparent);
+    }
+    .fresh[data-state='idle'] { color: var(--kb-text-muted); }
+    .fresh[data-state='stale'] { color: var(--kb-warning); }
+    .fresh[data-state='offline'] { color: var(--kb-text-subtle); }
+    /* One ring-expand per push: each push remounts the ring node (keyed by data-pulse), so the
+       keyframe runs from scratch on the fresh element — a steady live dot never loops, and no
+       layout shifts because the node occupies the same slot. Reduced-motion zeroes it below. */
+    .card[data-motion='on'] .fresh[data-state='live'] .fresh__solid[data-ring='true'] {
+      animation: fresh-pulse var(--kb-dur-base) var(--kb-ease-out);
+    }
+    @keyframes fresh-pulse {
+      from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--kb-success) 40%, transparent); }
+      to { box-shadow: 0 0 0 0.35rem color-mix(in srgb, var(--kb-success) 0%, transparent); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card[data-motion='on'] .fresh[data-state='live'] .fresh__solid[data-ring='true'] { animation: none; }
+    }
   `,
 })
 export class ProjectCardComponent {
   readonly view = input.required<ProjectView>();
 
+  /**
+   * The live freshness signal for this card, or `null` to fall back to the registry last-seen
+   * footer. Per the live-announce policy this is VISIBLE-ONLY — it is never wrapped in a live
+   * region (the global needs-you total is the sole announcer).
+   */
+  readonly freshness = input<FreshnessFooter | null>(null);
+
+  /**
+   * A monotonic key (the project's last state-change instant) that changes on each live push. The
+   * live-dot ring is rendered through this key, so a changed key remounts the dot node and the
+   * ring-pulse keyframe replays from scratch — a SINGLE pulse per push, then rest, never a
+   * continuous heartbeat. The remount keeps the same layout slot (no shift) and is fully zeroed
+   * under reduced motion. A `null` key still shows the ringed live dot, pulsing once on entry.
+   */
+  readonly pulseKey = input<number | null>(null);
+
+  /**
+   * The single-element render key for the live ring, derived from `pulseKey`. A `@for` keyed on
+   * this value remounts the ring node whenever the key changes, which is what makes the CSS
+   * keyframe re-run per push; a stable key keeps the same node so a steady live dot never replays.
+   */
+  protected readonly pulseKeys = computed<readonly number[]>(() => [this.pulseKey() ?? 0]);
+
   protected readonly securityTooltip = SECURITY_REVIEWED_TOOLTIP;
+
+  /** The visible freshness word per state: `live` / `updated {age}` / `stale · {age}` / `offline`. */
+  readonly freshnessWord = computed(() => {
+    const f = this.freshness();
+    if (!f) return '';
+    switch (f.state) {
+      case 'live':
+        return 'live';
+      case 'idle':
+        return f.ageLabel ? `updated ${f.ageLabel}` : 'updated';
+      case 'stale':
+        return f.ageLabel ? `stale · ${f.ageLabel}` : 'stale';
+      case 'offline':
+        return 'offline';
+    }
+  });
 
   /** Whether the hover lift + hydrate crossfade are allowed; zeroed under reduced motion. */
   protected readonly motionOk = signal(prefersMotion());

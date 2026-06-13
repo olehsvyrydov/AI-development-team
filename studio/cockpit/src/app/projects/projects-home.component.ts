@@ -1,13 +1,17 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../core/api.service';
 import { ProjectsStore } from '../core/projects.store';
-import type { ProjectView } from '../core/models';
+import { RollupStore, type WaitingRollup } from '../core/rollup.store';
+import { deriveFreshness, formatRelativeMs, type ProjectView } from '../core/models';
 import { GlyphComponent } from '../shell/glyph.component';
 import { prefersMotion } from '../shell/motion';
-import { ProjectCardComponent } from './project-card.component';
+import { ProjectCardComponent, type FreshnessFooter } from './project-card.component';
 import { ConnectPanelComponent } from './connect-panel.component';
 import { ANCHOR_LINE, CTA_HELPER, HOME_SUBHEAD, HOME_TITLE, HOW_STEPS, TRUST_CHIPS, WHAT_IT_IS } from './copy';
+
+/** How often the shared freshness ticker re-derives relative ages without a push (one timer). */
+const FRESHNESS_TICK_MS = 30_000;
 
 const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
 
@@ -116,27 +120,37 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
             <h1 class="page__title">{{ homeTitle }}</h1>
             <p class="head__sub" data-testid="home-subhead">{{ homeSubhead }}</p>
           </div>
-          <div class="signals" data-testid="needs-you-strip" aria-live="polite">
-            @if (store.projectCount() > 0) {
-              <span class="signals__count">{{ store.projectCount() }} {{ projectNoun() }}</span>
+          <div class="signals" data-testid="needs-you-strip">
+            @if (displayCount() > 0) {
+              <span class="signals__count">{{ displayCount() }} {{ projectNoun() }}</span>
             }
-            @if (store.totalNeedsYou() > 0) {
+            @if (displayNeedsYou() > 0) {
               <span class="signals__need" data-testid="global-needs-you">
                 <dart-glyph name="need" [size]="13" />
-                {{ store.totalNeedsYou() }} need you
+                {{ displayNeedsYou() }} need you
               </span>
             }
           </div>
         </header>
 
-        @if (store.totalNeedsYou() > 0) {
-          <aside class="cockpit" data-testid="cockpit-strip">
-            <span class="cockpit__lead" role="status" aria-live="polite">
+        <p class="sr-rollup" data-testid="rollup-announcer" aria-live="polite" aria-atomic="true">{{ rollup.announcement() }}</p>
+
+        @if (displayNeedsYou() > 0) {
+          <aside class="cockpit" data-testid="cockpit-strip" aria-labelledby="needs-you-eyebrow">
+            <span class="cockpit__eyebrow" id="needs-you-eyebrow">NEEDS YOU</span>
+            <span class="cockpit__lead">
               <dart-glyph name="need" [size]="15" />
-              <span>{{ store.totalNeedsYou() }} {{ taskNoun() }} across {{ waitingNoun() }} waiting on you</span>
+              <span>{{ displayNeedsYou() }} {{ taskNoun() }} across {{ waitingNoun() }} waiting on you</span>
+              <span class="cockpit__health" [attr.data-open]="rollup.channelOpen()">
+                @if (rollup.channelOpen()) {
+                  · live
+                } @else {
+                  · reconnecting…
+                }
+              </span>
             </span>
             <span class="cockpit__chips">
-              @for (w of store.waiting(); track w.id) {
+              @for (w of displayWaiting(); track w.id) {
                 <a
                   class="cockpit__chip"
                   data-testid="cockpit-chip"
@@ -150,7 +164,11 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
 
         <section class="grid" data-testid="home-grid" [attr.data-motion]="motionOk() ? 'on' : 'off'" aria-label="Connected projects">
           @for (view of hydrated(); track view.record.id) {
-            <dart-project-card [view]="view" />
+            <dart-project-card
+              [view]="view"
+              [freshness]="freshnessFor(view.record.id)"
+              [pulseKey]="pulseKeyFor(view.record.id)"
+            />
           }
           <dart-connect-panel
             [status]="store.connectStatus()"
@@ -202,7 +220,28 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
       border-left: 3px solid var(--kb-warning);
       border-radius: var(--kb-radius-md);
     }
+    /* Visually-hidden, dedicated, and the ONLY announcing live region: the debounced needs-you
+       total. Per-card freshness and chip changes are visible-only and never announce. */
+    .sr-rollup {
+      position: absolute;
+      width: 1px; height: 1px;
+      margin: -1px; padding: 0; border: 0;
+      overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    /* The NEEDS YOU eyebrow makes the band read as THE triage surface, not an incidental banner. */
+    .cockpit__eyebrow {
+      flex-basis: 100%;
+      font-size: var(--kb-text-xs);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--kb-warning);
+    }
     .cockpit__lead { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; color: var(--kb-warning); font-size: var(--kb-text-sm); }
+    /* Channel health at the band level only (never per chip): honest "reconnecting…" when the
+       stream drops so the developer knows the count may be frozen. */
+    .cockpit__health { margin-left: auto; font-weight: 500; color: var(--kb-text-muted); }
+    .cockpit__health[data-open='false'] { color: var(--kb-text-subtle); font-style: italic; }
     .cockpit__chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--kb-space-2); }
     .cockpit__chip {
       display: inline-flex;
@@ -306,8 +345,9 @@ const DOCS_URL = 'https://github.com/svyrydov/ai-dev-team#readme';
     .docs__arrow { flex: none; }
   `,
 })
-export class ProjectsHomeComponent implements OnInit {
+export class ProjectsHomeComponent implements OnInit, OnDestroy {
   protected readonly store = inject(ProjectsStore);
+  protected readonly rollup = inject(RollupStore);
   private readonly api = inject(ApiService);
 
   protected readonly anchor = ANCHOR_LINE;
@@ -322,16 +362,38 @@ export class ProjectsHomeComponent implements OnInit {
   /** Whether the grid stagger-enter is allowed; zeroed under reduced motion. */
   protected readonly motionOk = signal(prefersMotion());
 
+  /** The shared freshness ticker: one timer ages every card's relative time without a push. */
+  private readonly now = signal(Date.now());
+  private ticker: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Cross-project "need you" total: the live rollup once a frame has arrived, otherwise the
+   * first-paint list sum so the strip is correct before the stream's first snapshot.
+   */
+  protected readonly displayNeedsYou = computed(() =>
+    this.rollup.hasFrame() ? this.rollup.totalNeedsYou() : this.store.totalNeedsYou(),
+  );
+
+  /** Connected-project count: live rollup once a frame exists, else the first-paint list length. */
+  protected readonly displayCount = computed(() =>
+    this.rollup.hasFrame() ? this.rollup.projects().length : this.store.projectCount(),
+  );
+
+  /** Band click-targets ordered by descending need: live rollup once a frame exists, else the list. */
+  protected readonly displayWaiting = computed<readonly WaitingRollup[]>(() =>
+    this.rollup.hasFrame() ? this.rollup.waiting() : this.store.waiting(),
+  );
+
   protected projectNoun(): string {
-    return this.store.projectCount() === 1 ? 'project' : 'projects';
+    return this.displayCount() === 1 ? 'project' : 'projects';
   }
 
   protected taskNoun(): string {
-    return this.store.totalNeedsYou() === 1 ? 'task' : 'tasks';
+    return this.displayNeedsYou() === 1 ? 'task' : 'tasks';
   }
 
   protected waitingNoun(): string {
-    const n = this.store.waiting().length;
+    const n = this.displayWaiting().length;
     return n === 1 ? '1 project' : `${n} projects`;
   }
 
@@ -343,9 +405,33 @@ export class ProjectsHomeComponent implements OnInit {
     return this.store.projects().map((view) => byId.get(view.record.id) ?? view);
   });
 
+  /**
+   * The freshness footer for a card, derived from its live rollup entry as of the shared ticker.
+   * Returns `null` when no live entry exists (the card then degrades to its registry last-seen).
+   */
+  protected freshnessFor(id: string): FreshnessFooter | null {
+    const entry = this.rollup.byId().get(id);
+    if (!entry) return null;
+    const now = this.now();
+    const state = deriveFreshness(entry, now, this.rollup.channelOpen());
+    return { state, ageLabel: formatRelativeMs(entry.stateChangedAt, now) };
+  }
+
+  /** The per-card single-pulse key (the entry's last state-change instant), or null when absent. */
+  protected pulseKeyFor(id: string): number | null {
+    return this.rollup.byId().get(id)?.stateChangedAt ?? null;
+  }
+
   async ngOnInit(): Promise<void> {
+    this.rollup.start();
+    this.ticker = setInterval(() => this.now.set(Date.now()), FRESHNESS_TICK_MS);
     await this.store.load();
     void this.hydrateProfiles();
+  }
+
+  ngOnDestroy(): void {
+    if (this.ticker !== null) clearInterval(this.ticker);
+    this.rollup.stop();
   }
 
   async onConnect(path: string): Promise<void> {

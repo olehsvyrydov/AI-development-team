@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
@@ -179,5 +181,117 @@ describe('ProjectCardComponent', () => {
     const fixture = await mount({ ...view(), profile: null, state: null });
     const body = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="card-body"]')!;
     expect(body.getAttribute('data-hydrated')).toBe('false');
+  });
+});
+
+describe('ProjectCardComponent freshness', () => {
+  async function mountWithFreshness(state: 'live' | 'idle' | 'stale' | 'offline', ageLabel: string) {
+    TestBed.configureTestingModule({ imports: [ProjectCardComponent], providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(ProjectCardComponent);
+    fixture.componentRef.setInput('view', view());
+    fixture.componentRef.setInput('freshness', { state, ageLabel });
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('renders the live state with a word and a ringed dot (shape + word, never colour alone)', async () => {
+    const host = (await mountWithFreshness('live', '')).nativeElement as HTMLElement;
+    const fresh = host.querySelector('[data-testid="freshness"]')!;
+    expect(fresh.textContent).toContain('live');
+    expect(fresh.getAttribute('data-state')).toBe('live');
+  });
+
+  it('renders the idle state with an aged relative word', async () => {
+    const host = (await mountWithFreshness('idle', '4m ago')).nativeElement as HTMLElement;
+    const fresh = host.querySelector('[data-testid="freshness"]')!;
+    expect(fresh.getAttribute('data-state')).toBe('idle');
+    expect(fresh.textContent).toContain('updated 4m ago');
+  });
+
+  it('renders the stale state with the warning word and a dashed-dot glyph', async () => {
+    const host = (await mountWithFreshness('stale', '14m ago')).nativeElement as HTMLElement;
+    const fresh = host.querySelector('[data-testid="freshness"]')!;
+    expect(fresh.getAttribute('data-state')).toBe('stale');
+    expect(fresh.textContent).toContain('stale');
+    expect(fresh.textContent).toContain('14m ago');
+    expect(fresh.querySelector('svg')).toBeTruthy();
+  });
+
+  it('renders the offline state with the offline word and a slashed-dot glyph', async () => {
+    const host = (await mountWithFreshness('offline', '')).nativeElement as HTMLElement;
+    const fresh = host.querySelector('[data-testid="freshness"]')!;
+    expect(fresh.getAttribute('data-state')).toBe('offline');
+    expect(fresh.textContent).toContain('offline');
+    expect(fresh.querySelector('svg')).toBeTruthy();
+  });
+
+  it('falls back to the registry last-seen footer when no freshness input is supplied (degradation)', async () => {
+    TestBed.configureTestingModule({ imports: [ProjectCardComponent], providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(ProjectCardComponent);
+    fixture.componentRef.setInput('view', view());
+    fixture.detectChanges();
+    const foot = (fixture.nativeElement as HTMLElement).querySelector('.card__foot')!;
+    expect(foot.textContent).toContain('updated');
+    expect(foot.querySelector('[data-testid="freshness"]')).toBeNull();
+  });
+
+  it('does not wrap per-card freshness in a live region (freshness is visible-only, not announced)', async () => {
+    const host = (await mountWithFreshness('stale', '14m ago')).nativeElement as HTMLElement;
+    const fresh = host.querySelector('[data-testid="freshness"]')!;
+    expect(fresh.getAttribute('aria-live')).toBeNull();
+    expect(fresh.closest('[aria-live]')).toBeNull();
+  });
+});
+
+describe('ProjectCardComponent live ring-pulse (one pulse per push)', () => {
+  async function mountLive(pulseKey: number | null) {
+    TestBed.configureTestingModule({ imports: [ProjectCardComponent], providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(ProjectCardComponent);
+    fixture.componentRef.setInput('view', view());
+    fixture.componentRef.setInput('freshness', { state: 'live', ageLabel: '' });
+    fixture.componentRef.setInput('pulseKey', pulseKey);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  const ring = (fixture: ComponentFixture<ProjectCardComponent>) =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(".fresh__solid[data-ring='true']");
+
+  it('renders the ringed live dot keyed to the current push', async () => {
+    const fixture = await mountLive(1000);
+    const dot = ring(fixture);
+    expect(dot).toBeTruthy();
+    expect(dot!.getAttribute('data-pulse')).toBe('1000');
+  });
+
+  it('remounts the ring on each push so the keyframe replays (a new node per pulseKey)', async () => {
+    const fixture = await mountLive(1000);
+    const first = ring(fixture);
+    expect(first).toBeTruthy();
+
+    fixture.componentRef.setInput('pulseKey', 2000);
+    fixture.detectChanges();
+    const second = ring(fixture);
+
+    expect(second).toBeTruthy();
+    expect(second!.getAttribute('data-pulse')).toBe('2000');
+    expect(second).not.toBe(first);
+  });
+
+  it('keeps the same ring node when the push key is unchanged (no spurious replay)', async () => {
+    const fixture = await mountLive(1000);
+    const first = ring(fixture);
+
+    fixture.detectChanges();
+    const second = ring(fixture);
+
+    expect(second).toBe(first);
+  });
+
+  it('zeroes the ring-pulse under prefers-reduced-motion at the live-dot specificity', () => {
+    const src = readFileSync(join(__dirname, 'project-card.component.ts'), 'utf8');
+    const reduced = src.slice(src.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(reduced).toContain(".fresh[data-state='live']");
+    expect(reduced).toMatch(/animation:\s*none/);
   });
 });

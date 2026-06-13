@@ -1,7 +1,7 @@
 import { InjectionToken, Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { PLATFORM_BRIDGE } from './platform-bridge';
-import type { ProjectState } from './models';
+import type { ProjectState, RollupFrame } from './models';
 
 /** Minimal slice of the DOM EventSource the service depends on, so a host/test can substitute it. */
 export interface EventSourceLike {
@@ -50,6 +50,31 @@ export class ProjectEventsService {
         subscriber.next(parsed);
       };
       source.addEventListener('update', onUpdate);
+      return () => source.close();
+    });
+  }
+
+  /**
+   * A cold stream of cross-project rollup frames from the hub's single server-side fan-out channel
+   * (`/api/events/rollup`). The hub multiplexes every watched project's channel internally and
+   * emits ONE merged frame on the `rollup` event whenever any project's state changes — so the
+   * home opens this one channel rather than N per-project subscriptions. The first frame is a full
+   * snapshot; each later frame is also a full frame. Opening happens on subscribe, closing on
+   * unsubscribe. A frame that fails to parse is skipped — one bad frame never tears the stream down.
+   */
+  connectRollup(): Observable<RollupFrame> {
+    return new Observable<RollupFrame>((subscriber) => {
+      const source = this.open(this.bridge.apiUrl('/api/events/rollup'));
+      const onRollup = (ev: MessageEvent) => {
+        let parsed: RollupFrame;
+        try {
+          parsed = JSON.parse(ev.data) as RollupFrame;
+        } catch {
+          return;
+        }
+        subscriber.next(parsed);
+      };
+      source.addEventListener('rollup', onRollup);
       return () => source.close();
     });
   }

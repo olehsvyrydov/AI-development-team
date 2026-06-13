@@ -44,8 +44,8 @@ The channel cap is ~16 active projects. A rollup over **>16 registered projects 
 
 ```jsonc
 {
-  "rev": "<monotone server rev for this frame>",
-  "totals": { "open": <int>, "needsYou": <int> },
+  "totalOpen": <int>,
+  "totalNeedsYou": <int>,
   "projects": [
     {
       "id": "<12-hex>",
@@ -53,8 +53,8 @@ The channel cap is ~16 active projects. A rollup over **>16 registered projects 
       "status": "<registry status>",
       "open": <int>,
       "needsYou": <int>,
-      "freshness": <epoch-ms>,   // see below
-      "live": <bool>             // true = live-pinned channel; false = cold-refreshed (over cap)
+      "stateChangedAt": <epoch-ms|null>,  // last state change; null when unreadable (see below)
+      "live": <bool>                      // true = live-pinned channel; false = cold-refreshed (over cap)
     }
   ]
 }

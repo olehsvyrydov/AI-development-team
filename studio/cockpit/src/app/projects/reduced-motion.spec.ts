@@ -63,6 +63,11 @@ describe('reduced-motion disables motion at matching specificity', () => {
     expect(block).toMatch(/animation:\s*none/);
   });
 
+  it('project-card: the live-dot ring-pulse is disabled at its own data-pulse scope under reduced motion', () => {
+    const block = winningScopedBlock(source('project-card.component.ts'), ".fresh[data-state='live']");
+    expect(block).toMatch(/animation:\s*none/);
+  });
+
   it('connect-panel: the reduced-motion override targets the data-motion=on connect scope', () => {
     const block = winningScopedBlock(source('connect-panel.component.ts'), ".connect[data-motion='on']");
     expect(block).toMatch(/animation:\s*none/);

@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { buildState, summarizeTasks } = require('../lib/state');
+const { buildState, summarizeTasks, stateChangedAt } = require('../lib/state');
 
 const WORKFLOW = `version: 1
 preset: small-team
@@ -284,4 +284,23 @@ test('overlay (.aidevteam/workflow.overrides.json) merges over the base workflow
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('stateChangedAt is the max watched-file mtime in ms and tracks a fresh ledger write', () => {
+  const dir = fixture({ 'T-1': { title: 'A', track: 'standard', stage: 'implement', gates: {} } });
+  try {
+    const first = stateChangedAt(dir);
+    assert.equal(typeof first, 'number', 'a readable project yields a numeric epoch-ms');
+    const future = Date.now() + 5000;
+    fs.utimesSync(path.join(dir, '.workflow-state.json'), future / 1000, future / 1000);
+    const after = stateChangedAt(dir);
+    assert.ok(after >= first, 'a fresher ledger write moves the freshness forward');
+    assert.ok(Math.abs(after - future) < 50, 'freshness reflects the ledger mtime');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('stateChangedAt is null for a missing project (honest absence, never fabricated)', () => {
+  assert.equal(stateChangedAt(path.join(os.tmpdir(), 'aidt-no-such-' + Date.now())), null);
 });
