@@ -118,6 +118,18 @@ describe('ProjectShellComponent', () => {
     expect(host.querySelector('[data-testid="panel-base"]')?.textContent).toContain('Indexed via: local embeddings (semantic)');
   });
 
+  it('does not hard-cap the work surface at 76rem so wide monitors fill the available width', async () => {
+    const fixture = await mount();
+    const body = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.shell-body')!;
+    const maxWidth = getComputedStyle(body).maxWidth;
+    // The old fixed ~1216px box (76rem) is gone: either unconstrained, or a generous cap well above it.
+    if (maxWidth && maxWidth !== 'none') {
+      const value = parseFloat(maxWidth);
+      const remThreshold = /rem\s*$/.test(maxWidth) ? 76 : 76 * 16;
+      expect(Number.isNaN(value) ? Infinity : value).toBeGreaterThan(remThreshold);
+    }
+  });
+
   it('renders the live connection dot in the header', async () => {
     const fixture = await mount();
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="shell-conn"]')).toBeTruthy();
