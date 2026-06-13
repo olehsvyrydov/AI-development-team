@@ -17,7 +17,10 @@
  *     confinedPath discipline rooted at the EXTERNAL root); a symlink escaping `root`
  *     is SKIPPED, not followed (the exfiltration guard); `..`/absolute cannot escape.
  *   - bounded by the analyze.js CAPS (per-file/total bytes, max files, depth, time);
- *     binary/non-UTF-8 files skipped; .git, node_modules, and dotfiles excluded.
+ *     a directory's entries are capped BEFORE sorting so a million-entry dir cannot
+ *     blow memory; only files with a KNOWN text extension whose bytes are valid UTF-8
+ *     are indexed — binary, non-UTF-8, and extensionless files are skipped; .git,
+ *     node_modules, and dotfiles excluded.
  *   - honest index method: 'filename' (filename + lexical keyword match) — no embedder,
  *     no network, no exec. Zero outbound I/O on every path.
  *   - CAS on a sources.json rev refuses a stale write.
@@ -41,6 +44,18 @@ const TEXT_EXTENSIONS = new Set([
 
 const conflict = () => ({ ok: false, conflict: true });
 const reject = (error) => ({ ok: false, code: 400, error });
+
+// True only when `child`'s realpath is `root`'s realpath itself or lies strictly
+// beneath it. The trailing-separator compare rejects the sibling-prefix trap
+// (/p/.aidevteam vs /p/.aidevteam-evil). Realpath throws are swallowed → false, so a
+// containment check never crashes the caller (it refuses instead).
+function isContained(root, child) {
+  try {
+    const r = fs.realpathSync(root);
+    const c = fs.realpathSync(child);
+    return c === r || c.startsWith(r + path.sep);
+  } catch { return false; }
+}
 
 // The .aidevteam dir, realpath-contained to the project root (a symlinked .aidevteam
 // escaping the project is refused, never followed). Returns the contained realpath or
@@ -93,16 +108,39 @@ function extractTerms(relFile, text) {
   return [...terms].slice(0, MAX_TERMS_PER_FILE);
 }
 
-// Looks-like-text: a printable ext AND no NUL/binary control bytes in the read slice.
+// Looks-like-valid-UTF-8-text: the file must carry a KNOWN text extension (an
+// extensionless file is skipped, never guessed), carry no NUL/binary control byte in
+// the read slice, AND survive a UTF-8 round-trip (a known-extension file holding
+// non-UTF-8 bytes would be lossily mangled by toString('utf8'), so it is rejected
+// rather than indexed). Mirrors the kbBodyError text discipline.
 function looksText(rel, buf) {
   const ext = path.extname(rel).toLowerCase();
-  if (ext && !TEXT_EXTENSIONS.has(ext)) return false;
+  if (!ext || !TEXT_EXTENSIONS.has(ext)) return false;
   for (let i = 0; i < buf.length; i++) {
     const b = buf[i];
     if (b === 0) return false;
     if (b < 9 || (b > 13 && b < 32)) return false;
   }
+  // A read capped mid-file can split a multi-byte codepoint at the tail; trim an
+  // incomplete trailing UTF-8 sequence before validating so a legitimately large file
+  // is not falsely rejected. What remains must round-trip losslessly through UTF-8.
+  const validated = trimIncompleteTrailingUtf8(buf);
+  const text = validated.toString('utf8');
+  if (Buffer.from(text, 'utf8').length !== validated.length) return false; // non-UTF-8 → lossy
   return true;
+}
+
+// Drop up to 3 trailing bytes that form an incomplete final UTF-8 multi-byte sequence
+// (a continuation byte 0x80–0xBF not yet closed by its lead byte's expected length).
+function trimIncompleteTrailingUtf8(buf) {
+  let end = buf.length;
+  let trailing = 0;
+  while (end > 0 && (buf[end - 1] & 0xc0) === 0x80 && trailing < 3) { end--; trailing++; }
+  if (end === 0) return buf;
+  const lead = buf[end - 1];
+  const need = lead >= 0xf0 ? 4 : lead >= 0xe0 ? 3 : lead >= 0xc0 ? 2 : 1;
+  if (need > 1 && trailing + 1 < need) return buf.subarray(0, end - 1);
+  return buf;
 }
 
 /**
@@ -122,6 +160,10 @@ function ingest(root, caps) {
     if (depth > C.maxDepth) return;
     let ents = [];
     try { ents = fs.readdirSync(dirReal, { withFileTypes: true }); } catch { return; }
+    // Cap entries-per-directory BEFORE the in-memory sort: a hostile directory with
+    // millions of entries must not blow memory/CPU sorting them regardless of the
+    // file cap. A sane multiple of maxFiles leaves headroom for excluded dirs/dotfiles.
+    if (ents.length > C.maxFiles * 4) { ents = ents.slice(0, C.maxFiles * 4); truncated = true; }
     ents.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     for (const ent of ents) {
       if (files.length >= C.maxFiles || budget.files >= CAPS.maxFiles * 4 ||
@@ -180,9 +222,7 @@ function writeIndexFacet(project, source, ingestResult) {
   const dir = indexDir(project);
   if (!dir) return false;
   const target = path.join(dir, `${source.id}.json`);
-  let realParent;
-  try { realParent = fs.realpathSync(path.dirname(target)); } catch { return false; }
-  if (!realParent.startsWith(fs.realpathSync(path.join(project, '.aidevteam')))) return false;
+  if (!isContained(path.join(project, '.aidevteam'), path.dirname(target))) return false;
   atomicWriteJSON(target, { sourceId: source.id, root: source.root, method: 'filename', files: ingestResult.files });
   return true;
 }
@@ -195,16 +235,14 @@ function removeIndexFacet(project, sourceId) {
   try {
     let real;
     try { real = fs.realpathSync(target); } catch { return; }
-    if (real.startsWith(fs.realpathSync(dir) + path.sep)) fs.rmSync(real, { force: true });
+    if (isContained(dir, real) && real !== fs.realpathSync(dir)) fs.rmSync(real, { force: true });
   } catch { /* best effort */ }
 }
 
 function persistSources(project, list) {
   const p = sourcesPath(project);
   if (!p) return false;
-  let realParent;
-  try { realParent = fs.realpathSync(path.dirname(p)); } catch { return false; }
-  if (!realParent.startsWith(fs.realpathSync(project) + path.sep)) return false; // escapes project
+  if (!isContained(project, path.dirname(p))) return false; // escapes project
   atomicWriteJSON(p, { sources: list });
   return true;
 }

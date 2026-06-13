@@ -14,7 +14,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { fileRev, containedCommonVaultDir } = require('./state');
 const { safeId, commentFile, readComments } = require('./comments');
-const { commonVaultRoot, aidevteamHome, normalizeStack, normalizeKind } = require('./knowledge');
+const { commonVaultRoot, aidevteamHome, normalizeStack, normalizeKind, parseFrontMatter } = require('./knowledge');
 
 const MAX_COMMENT_BODY = 8192;
 const MAX_KB_BODY = 64 * 1024;
@@ -186,17 +186,30 @@ function resolveCommonKbDir() {
 const SCOPE_ENUM = new Set(['project', 'common']);
 
 // Build the YAML-ish front-matter header the writer emits (and the reader parses).
-// Values are the server-validated scope/stack/kind; never client paths.
-function frontMatterHeader({ scope, stack, kind, status, by }) {
+// Values are the server-validated scope/stack/kind; never client paths. `created`
+// and `by` carry the note's PROVENANCE: an add stamps fresh values, an edit/move
+// threads the original through so a note's authorship and birth time survive a
+// later mutation (a defaulted `created` is the current time; a defaulted `by` is
+// 'user').
+function frontMatterHeader({ scope, stack, kind, status, created, by }) {
   const lines = ['---'];
   lines.push(`scope: ${scope}`);
   lines.push(`stack: [${stack.join(', ')}]`);
   lines.push(`kind: ${kind}`);
   lines.push(`status: ${status}`);
-  lines.push(`created: ${new Date().toISOString()}`);
+  lines.push(`created: ${created || new Date().toISOString()}`);
   lines.push(`by: ${by || 'user'}`);
   lines.push('---');
   return lines.join('\n') + '\n';
+}
+
+// Read the existing note's recorded provenance (`by` + `created`) so an edit/move
+// preserves it. Returns `{ by, created }` (each null when absent/unreadable).
+function existingProvenance(realTarget) {
+  try {
+    const fm = parseFrontMatter(fs.readFileSync(realTarget, 'utf8'));
+    return { by: fm.by || null, created: fm.created || null };
+  } catch { return { by: null, created: null }; }
 }
 
 // Body must be a non-empty, UTF-8-encodable text string within the size cap, with
@@ -331,11 +344,13 @@ function editKbNote(projectDir, { id, file, scope, body, stack, kind, expectedRe
 
     const normStack = normalizeStack(stack);
     const normKind = normalizeKind(kind);
+    // an edit/move is not a (re)authoring: keep the note's original provenance.
+    const prov = existingProvenance(src.realTarget);
 
     if (srcScope === scope) {
       // in-place body edit: re-emit server front-matter, atomic overwrite, contained
       const effStatus = scope === 'common' ? 'approved-common' : 'approved-project';
-      const header = frontMatterHeader({ scope, stack: normStack, kind: normKind, status: effStatus, by });
+      const header = frontMatterHeader({ scope, stack: normStack, kind: normKind, status: effStatus, created: prov.created, by: prov.by });
       try {
         atomicOverwrite(src.realTarget, header + body);
       } catch { return reject('could not write the note'); }
@@ -344,8 +359,9 @@ function editKbNote(projectDir, { id, file, scope, body, stack, kind, expectedRe
     }
 
     // scope change ⇒ a vault MOVE: write into the destination vault (contained,
-    // O_EXCL), then soft-delete the source. Both sides realpath-contained.
-    const written = addKbNote(projectDir, { title: src.name, body, scope, stack: normStack, kind: normKind });
+    // O_EXCL), then soft-delete the source. Both sides realpath-contained. The
+    // note's original provenance is threaded so the move does not re-author it.
+    const written = addKbNote(projectDir, { title: src.name, body, scope, stack: normStack, kind: normKind, created: prov.created, by: prov.by });
     if (!written.ok) return written;
     const trashed = trashNote(src.vaultDir, src.realTarget);
     if (!trashed.ok) return reject('could not move the note');
@@ -429,12 +445,14 @@ function auditKb(projectDir, kind, { name, scope, by }) {
  * gets a unique numeric suffix), and the body is capped and required to be UTF-8 text.
  *
  * @param projectDir the server-resolved project root (never client-supplied)
- * @param note `{ title, body, scope?, stack?, kind? }` — title/body untrusted text;
- *        scope an enum (default `project`); stack/kind tags normalized to the closed vocab
+ * @param note `{ title, body, scope?, stack?, kind?, status?, created?, by? }` —
+ *        title/body untrusted text; scope an enum (default `project`); stack/kind tags
+ *        normalized to the closed vocab; created/by carry provenance through a move
+ *        (defaulted to now/'user' on a fresh add)
  * @returns `{ ok:true, doc:{ name, file, scope, stack, kind, status } }` on success, or
  *          `{ ok:false, code:400, error }` with a terse message (no paths, no stack traces)
  */
-function addKbNote(projectDir, { title, body, scope, stack, kind, status } = {}) {
+function addKbNote(projectDir, { title, body, scope, stack, kind, status, created, by } = {}) {
   if (typeof title !== 'string' || title.length > MAX_KB_TITLE) return reject('invalid title');
   const bodyErr = kbBodyError(body);
   if (bodyErr) return reject(bodyErr);
@@ -464,7 +482,7 @@ function addKbNote(projectDir, { title, body, scope, stack, kind, status } = {})
     relRoot = fs.realpathSync(projectDir);
   }
 
-  const header = frontMatterHeader({ scope: effScope, stack: normStack, kind: normKind, status: effStatus });
+  const header = frontMatterHeader({ scope: effScope, stack: normStack, kind: normKind, status: effStatus, created, by });
   const fileContent = header + body;
 
   for (let n = 1; n <= KB_COLLISION_LIMIT; n++) {

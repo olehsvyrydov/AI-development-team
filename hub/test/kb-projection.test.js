@@ -59,6 +59,23 @@ test('readKb surfaces parsed front-matter facts per doc', () => {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+// ---- each doc carries a server-capped, plain-text excerpt ------------------
+
+test('a doc carries a plain-text excerpt: front-matter stripped, capped, no raw HTML', () => {
+  const dir = tmpProject(['java']);
+  try {
+    const body = '# Heading\n\n<script>alert(1)</script> ' + 'lorem ipsum dolor sit amet '.repeat(40);
+    w.addKbNote(dir, { title: 'Excerpt Doc', body, scope: 'project', stack: ['java'] });
+    const doc = buildState(dir).knowledge.docs.find((d) => d.name === 'excerpt-doc');
+    assert.ok(doc, 'doc present');
+    assert.equal(typeof doc.excerpt, 'string', 'excerpt emitted');
+    assert.ok(doc.excerpt.length > 0 && doc.excerpt.length <= 160, `excerpt capped (got ${doc.excerpt.length})`);
+    assert.ok(!doc.excerpt.includes('---'), 'no front-matter delimiter');
+    assert.ok(!doc.excerpt.includes('scope:'), 'no front-matter field');
+    assert.ok(!/<script|<\/script|<img|onerror/i.test(doc.excerpt), 'no raw HTML/script in the excerpt');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 // ---- N-210 cross-project isolation ----------------------------------------
 
 test('N-210 project A never sees project B project-scoped notes', async () => {

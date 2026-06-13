@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { ControlPlaneService } from '../core/control-plane.service';
 import type { KbSource, ProjectState } from '../core/models';
 import { FolderPickerComponent } from '../projects/folder-picker.component';
@@ -38,6 +48,12 @@ type RowPhase = 'idle' | 'busy' | 'error';
           </button>
         }
       </header>
+
+      @if (connectError(); as err) {
+        <p class="strip__err" role="alert" data-testid="kb-source-connect-error">
+          <dart-glyph name="warning" [size]="12" /> {{ err }}
+        </p>
+      }
 
       @if (sources().length) {
         <ul class="rows" aria-label="Connected codebases">
@@ -106,12 +122,23 @@ type RowPhase = 'idle' | 'busy' | 'error';
 
       @if (confirmDisconnect(); as target) {
         <div class="backdrop" (click)="cancelDisconnect()">
-          <div class="confirm" role="alertdialog" aria-modal="true" aria-label="Disconnect codebase" (click)="$event.stopPropagation()">
-            <p class="confirm__body">
+          <div
+            #confirmDialog
+            class="confirm"
+            data-testid="kb-source-disconnect-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Disconnect codebase"
+            aria-describedby="kb-disconnect-body"
+            tabindex="-1"
+            (click)="$event.stopPropagation()"
+            (keydown)="onConfirmKeydown($event)"
+          >
+            <p class="confirm__body" id="kb-disconnect-body">
               Disconnect {{ target.label }}? Its files stop being searchable here. The folder itself is untouched.
             </p>
             <div class="confirm__foot">
-              <button type="button" class="btn" data-testid="kb-source-disconnect-cancel" (click)="cancelDisconnect()">Cancel</button>
+              <button #confirmCancelBtn type="button" class="btn" data-testid="kb-source-disconnect-cancel" (click)="cancelDisconnect()">Cancel</button>
               <button type="button" class="btn btn--danger" data-testid="kb-source-disconnect-ok" (click)="doDisconnect(target)">Disconnect</button>
             </div>
           </div>
@@ -125,6 +152,7 @@ type RowPhase = 'idle' | 'busy' | 'error';
     .strip { display: flex; flex-direction: column; gap: var(--kb-space-2); }
     .strip__head { display: flex; align-items: center; gap: var(--kb-space-2); }
     .strip__title { margin: 0; margin-right: auto; font-size: var(--kb-text-md, 0.95rem); font-weight: 600; }
+    .strip__err { display: flex; align-items: center; gap: 0.3rem; margin: 0; font-size: var(--kb-text-xs); color: var(--kb-danger); overflow-wrap: anywhere; }
     .rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--kb-space-2); }
     .row { display: flex; flex-direction: column; gap: 0.3rem; padding: var(--kb-space-2); background: var(--kb-surface-muted); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
     @media (prefers-reduced-motion: no-preference) { .row { animation: row-arrive var(--kb-dur-base, 0.18s) var(--kb-ease-out, ease-out); } }
@@ -157,6 +185,7 @@ type RowPhase = 'idle' | 'busy' | 'error';
     .btn[disabled] { opacity: 0.55; cursor: default; }
     .backdrop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: var(--kb-space-4); background: rgba(0, 0, 0, 0.55); z-index: 70; }
     .confirm { display: flex; flex-direction: column; gap: var(--kb-space-3); width: min(26rem, 100%); padding: var(--kb-space-4); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-lg); box-shadow: var(--kb-shadow-md); }
+    .confirm:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
     .confirm__body { margin: 0; font-size: var(--kb-text-sm); color: var(--kb-text); overflow-wrap: anywhere; }
     .confirm__foot { display: flex; justify-content: flex-end; gap: var(--kb-space-2); }
   `,
@@ -166,10 +195,18 @@ export class KbSourcesComponent {
 
   /** The connected sources from the projection; empty → the quiet invite line. */
   readonly sources = input<readonly KbSource[]>([]);
-  /** The live project `rev`; threaded as a best-effort hint (the server CASes on the sources rev). */
-  readonly stateRev = input<string | undefined>(undefined);
+  /**
+   * The connected-sources CAS token, forwarded as `expectedRev` on every source mutation so the
+   * server detects a concurrent sources change. This is the projection's `sourcesRev`, NOT the
+   * workflow-state `rev` — the server CASes source mutations against this distinct token.
+   */
+  readonly sourcesRev = input<string | undefined>(undefined);
   /** Fresh project state to adopt after connect/reindex/disconnect (or a 409 reconcile). */
   readonly applied = output<ProjectState>();
+
+  private readonly confirmRef = viewChild<ElementRef<HTMLElement>>('confirmDialog');
+  private readonly confirmCancelBtn = viewChild<ElementRef<HTMLButtonElement>>('confirmCancelBtn');
+  private disconnectTrigger: HTMLElement | null = null;
 
   private readonly pickerOpen_ = signal(false);
   readonly pickerOpen = this.pickerOpen_.asReadonly();
@@ -178,8 +215,21 @@ export class KbSourcesComponent {
   private readonly confirmDisconnect_ = signal<KbSource | null>(null);
   readonly confirmDisconnect = this.confirmDisconnect_.asReadonly();
 
+  /** A terse, escaped reason when a connect fails (`ok:false`) — surfaced inline, never swallowed. */
+  private readonly connectError_ = signal('');
+  readonly connectError = this.connectError_.asReadonly();
+
   private readonly phaseById = signal<Readonly<Record<string, RowPhase>>>({});
   private readonly errorById = signal<Readonly<Record<string, string>>>({});
+
+  constructor() {
+    // While the confirm is open, place INITIAL FOCUS ON CANCEL — the destructive default is never
+    // auto-focused, so an accidental Enter cancels rather than disconnects.
+    effect(() => {
+      if (!this.confirmDisconnect_()) return;
+      queueMicrotask(() => this.confirmCancelBtn()?.nativeElement.focus());
+    });
+  }
 
   rowPhase(id: string): RowPhase {
     return this.phaseById()[id] ?? 'idle';
@@ -240,19 +290,20 @@ export class KbSourcesComponent {
 
   async onChosen(path: string): Promise<void> {
     this.pickerOpen_.set(false);
-    const res = await this.cp.connectKbSource({ path, expectedRev: this.stateRev() });
+    this.connectError_.set('');
+    const res = await this.cp.connectKbSource({ path, expectedRev: this.sourcesRev() });
     if (res.ok === true || res.ok === 'conflict') {
       if (res.state) this.applied.emit(res.state);
+    } else {
+      this.connectError_.set(friendlyConnectError(res.error));
     }
-    // A connect failure surfaces no row to attach to; the projection is unchanged (the strip is
-    // honest by absence). A future inline banner can attach here if product wants the reason shown.
   }
 
   async reindex(s: KbSource): Promise<void> {
     if (this.rowPhase(s.id) === 'busy') return;
     this.setPhase(s.id, 'busy');
     this.setError(s.id, '');
-    const res = await this.cp.reindexKbSource(s.id, this.stateRev());
+    const res = await this.cp.reindexKbSource(s.id, this.sourcesRev());
     if (res.ok === true || res.ok === 'conflict') {
       this.setPhase(s.id, 'idle');
       if (res.state) this.applied.emit(res.state);
@@ -263,17 +314,57 @@ export class KbSourcesComponent {
   }
 
   askDisconnect(s: KbSource): void {
+    this.disconnectTrigger = this.activeElement();
     this.menuFor_.set(null);
     this.confirmDisconnect_.set(s);
   }
   cancelDisconnect(): void {
     this.confirmDisconnect_.set(null);
+    this.restoreTriggerFocus();
   }
 
   async doDisconnect(s: KbSource): Promise<void> {
     this.confirmDisconnect_.set(null);
-    const res = await this.cp.disconnectKbSource(s.id, this.stateRev());
+    this.restoreTriggerFocus();
+    const res = await this.cp.disconnectKbSource(s.id, this.sourcesRev());
     if ((res.ok === true || res.ok === 'conflict') && res.state) this.applied.emit(res.state);
+  }
+
+  onConfirmKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelDisconnect();
+    } else if (event.key === 'Tab') {
+      this.trapFocus(event);
+    }
+  }
+
+  private trapFocus(event: KeyboardEvent): void {
+    const root = this.confirmRef()?.nativeElement;
+    if (!root) return;
+    const focusables = root.querySelectorAll<HTMLElement>('button:not([disabled])');
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = root.ownerDocument.activeElement as HTMLElement | null;
+    if (event.shiftKey && (active === first || active === root)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private activeElement(): HTMLElement | null {
+    const doc = this.confirmRef()?.nativeElement.ownerDocument ?? globalThis.document;
+    return (doc?.activeElement as HTMLElement | null) ?? null;
+  }
+
+  private restoreTriggerFocus(): void {
+    const trigger = this.disconnectTrigger;
+    this.disconnectTrigger = null;
+    if (trigger?.isConnected) queueMicrotask(() => trigger.focus());
   }
 
   private setPhase(id: string, phase: RowPhase): void {
@@ -282,4 +373,20 @@ export class KbSourcesComponent {
   private setError(id: string, error: string): void {
     this.errorById.update((m) => ({ ...m, [id]: error }));
   }
+}
+
+/**
+ * Map a terse hub reason for a failed connect into an honest, actionable line. The reason is
+ * UNTRUSTED config/filesystem text and reaches the DOM through interpolation only (escaped); no
+ * path is echoed, so a chosen folder is never leaked back into the banner.
+ */
+function friendlyConnectError(reason: string): string {
+  const lower = reason.toLowerCase();
+  if (lower.includes('not a folder') || lower.includes('not a directory') || lower.includes('enotdir')) {
+    return 'Couldn’t connect — that isn’t a folder.';
+  }
+  if (lower.includes('contain') || lower.includes('refus') || lower.includes('forbidden') || lower.includes('guard')) {
+    return 'Couldn’t connect — the folder was refused by the local guard.';
+  }
+  return `Couldn’t connect this codebase. ${reason}`;
 }

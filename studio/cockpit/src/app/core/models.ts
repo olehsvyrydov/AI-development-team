@@ -205,6 +205,14 @@ export interface KnowledgeView {
    */
   readonly sources?: readonly KbSource[];
   /**
+   * The compare-and-swap token for the connected-sources facet — the rev a source mutation
+   * (connect / reindex / disconnect) forwards as `expectedRev` so a concurrent sources change is
+   * detected (a stale value → 409/`conflict`, never a clobber). It is DISTINCT from the project's
+   * workflow-state `rev`: the server CASes source mutations against this token, not the state hash.
+   * Absent until a sources facet exists.
+   */
+  readonly sourcesRev?: string;
+  /**
    * Whether an external memory overlay is configured + enabled + healthy. The Source toggle and any
    * overlay source row appear ONLY when true (absent otherwise — never a disabled tease). Expected
    * `false`/absent in this slice (no overlay control ships); the field is the seam, not a feature.

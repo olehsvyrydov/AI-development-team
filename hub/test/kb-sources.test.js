@@ -17,6 +17,7 @@ const os = require('node:os');
 const path = require('node:path');
 const sources = require('../lib/sources');
 const { buildKnowledge } = require('../lib/state');
+const { handle } = require('../lib/api');
 
 function freshTmp(prefix) { return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix))); }
 function tmpProject() {
@@ -78,6 +79,42 @@ test('connectSource records a realpath-pinned read-only source and indexes filen
   } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(ext, { recursive: true, force: true }); }
 });
 
+// ---- the projection emits the CAS token the source routes check -------------
+
+test('buildKnowledge exposes a top-level sourcesRev matching the source-write CAS token', async () => {
+  const dir = tmpProject();
+  const ext = tmpCodebase();
+  try {
+    assert.equal(buildKnowledge(dir).sourcesRev, sources.sourcesRev(dir), 'token before any source');
+    await sources.connectSource(dir, { path: ext, expectedRev: '0' });
+    assert.equal(buildKnowledge(dir).sourcesRev, sources.sourcesRev(dir), 'token tracks sources.json after connect');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(ext, { recursive: true, force: true }); }
+});
+
+// The real client path: the cockpit reads knowledge.sourcesRev from the projection
+// and threads THAT back as expectedRev on connect/reindex/disconnect. Drive the full
+// loop through the route handler so a token-name mismatch (the prior 409-on-every-
+// mutation bug) is caught — never calling connectSource with a hand-fed '0'.
+test('connect→reindex→disconnect succeed when the client threads knowledge.sourcesRev', async () => {
+  const dir = tmpProject();
+  const ext = tmpCodebase();
+  try {
+    let rev = buildKnowledge(dir).sourcesRev;
+    const c = await handle('kb/source/connect', { path: ext, expectedRev: rev }, dir);
+    assert.equal(c.code, 200, 'connect with the projection token succeeds');
+    const sourceId = c.payload.source.id;
+
+    rev = c.payload.state.knowledge.sourcesRev;
+    const r = await handle('kb/source/reindex', { sourceId, expectedRev: rev }, dir);
+    assert.equal(r.code, 200, 'reindex with the refreshed projection token succeeds');
+
+    rev = r.payload.state.knowledge.sourcesRev;
+    const d = await handle('kb/source/disconnect', { sourceId, expectedRev: rev }, dir);
+    assert.equal(d.code, 200, 'disconnect with the refreshed projection token succeeds');
+    assert.equal(d.payload.state.knowledge.sources.length, 0, 'source removed');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(ext, { recursive: true, force: true }); }
+});
+
 // ---- N-19 ingest is read-only — external tree byte-identical -----------------
 
 test('N-19 connect + reindex leave the external tree byte-identical', async () => {
@@ -117,7 +154,7 @@ test('N-20 a symlink inside the connected root pointing outside it is never read
     const idx = JSON.parse(fs.readFileSync(path.join(dir, '.aidevteam', 'source-index', `${r.source.id}.json`), 'utf8'));
     const blob = JSON.stringify(idx);
     assert.ok(!blob.includes('PRIVATE-KEY'), 'secret bytes never enter the index');
-    assert.ok(!blob.includes('leak.ts') || true, 'escaping symlink skipped');
+    assert.ok(!blob.includes('leak.ts'), 'escaping symlink excluded from the index');
     // and the secret file itself untouched
     assert.equal(fs.readFileSync(secret, 'utf8'), 'PRIVATE-KEY-DO-NOT-EXFIL');
   } finally {
@@ -156,6 +193,36 @@ test('N-22 a tree exceeding the max-files cap stops at the cap and still returns
     assert.equal(r.ok, true);
     assert.ok(r.source.fileCount <= 10, 'stopped at the max-files cap');
     assert.equal(r.source.status, 'ready');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(ext, { recursive: true, force: true }); }
+});
+
+// ---- a hostile directory is capped BEFORE the in-memory sort -----------------
+
+test('a directory with far more entries than the cap is sliced before sorting', async () => {
+  const dir = tmpProject();
+  const ext = freshTmp('aidt-flood-');
+  try {
+    for (let i = 0; i < 200; i++) fs.writeFileSync(path.join(ext, `e${String(i).padStart(4, '0')}.md`), `x${i}`);
+    const r = sources.ingest(ext, { maxFiles: 5 });
+    assert.ok(r.fileCount <= 5, 'stops at the file cap');
+    assert.equal(r.truncated, true, 'flagged truncated');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(ext, { recursive: true, force: true }); }
+});
+
+// ---- non-UTF-8 and extensionless files are skipped (lossy-decode guard) -------
+
+test('a non-UTF-8 .txt and an extensionless file are skipped, not lossily decoded', async () => {
+  const dir = tmpProject();
+  const ext = freshTmp('aidt-enc-');
+  try {
+    fs.writeFileSync(path.join(ext, 'good.md'), '# clean utf8 prose');
+    fs.writeFileSync(path.join(ext, 'latin1.txt'), Buffer.from([0x68, 0x69, 0xe9, 0x21])); // "hi\xe9!" — invalid UTF-8
+    fs.writeFileSync(path.join(ext, 'README'), 'extensionless body'); // no known text extension
+    const r = sources.ingest(ext);
+    const names = r.files.map((f) => f.file);
+    assert.ok(names.includes('good.md'), 'valid utf8 included');
+    assert.ok(!names.includes('latin1.txt'), 'non-UTF-8 known-extension file skipped');
+    assert.ok(!names.includes('README'), 'extensionless file skipped');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(ext, { recursive: true, force: true }); }
 });
 

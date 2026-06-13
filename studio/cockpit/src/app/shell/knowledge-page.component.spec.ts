@@ -1,11 +1,15 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BrowserPlatformBridge, PLATFORM_BRIDGE } from '../core/platform-bridge';
 import type { KnowledgeView, ProjectState } from '../core/models';
 import { settle } from '../testing/settle';
+import { KbSourcesComponent } from './kb-sources.component';
 import { KnowledgePageComponent } from './knowledge-page.component';
+
+const by = By.directive;
 
 const DOCS = [
   { name: 'code-rules', file: 'docs/code-rules.md', rev: 'm:1', scope: 'project' as const, stack: ['java'], kind: 'rule', index: 'indexed', provenance: 'you' as const, excerpt: 'Use constructor injection; never field @Autowired.' },
@@ -138,6 +142,45 @@ describe('KnowledgePageComponent', () => {
       expect([...host.querySelectorAll('img')].filter((el) => el.hasAttribute('onerror'))).toEqual([]);
       expect((window as unknown as Record<string, unknown>)['__xssKb']).toBeUndefined();
       expect(host.textContent).toContain('<img');
+    });
+  });
+
+  describe('source CAS token', () => {
+    it('threads the knowledge view sourcesRev into the sources strip (not the workflow rev)', () => {
+      const { fixture } = mount(state(knowledge({ sourcesRev: 'sr-7' }), 'r1'));
+      const strip = fixture.debugElement.query(by(KbSourcesComponent)).componentInstance as KbSourcesComponent;
+      expect(strip.sourcesRev()).toBe('sr-7');
+    });
+  });
+
+  describe('remove conflict re-fill', () => {
+    it('after a 409 reconcile, a second Remove carries the FRESH note rev (conflict-then-retry succeeds)', async () => {
+      const stale = { ...DOCS[0], rev: 'm:1' };
+      const { fixture, host, http } = mount(state(knowledge({ docs: [stale], counts: { project: 1, common: 0 } })));
+      // Open the remove confirm for the stale note.
+      fixture.componentInstance.openRemove(stale);
+      fixture.detectChanges();
+      await settle(fixture);
+
+      // First attempt sends the stale rev and gets a 409 carrying fresh state (same note, new rev).
+      (host.querySelector('[data-testid="note-remove-confirm-ok"]') as HTMLButtonElement).click();
+      const fresh = state(knowledge({ docs: [{ ...stale, rev: 'm:9' }], counts: { project: 1, common: 0 } }), 'r2');
+      http
+        .expectOne('/api/kb/remove')
+        .flush({ ok: false, conflict: true, state: fresh }, { status: 409, statusText: 'Conflict' });
+      await settle(fixture);
+
+      // The page must re-resolve removingNote from the applied fresh state for the next attempt.
+      fixture.componentRef.setInput('state', fresh);
+      fixture.detectChanges();
+      await settle(fixture);
+
+      // Second attempt now carries the FRESH rev — the retry can succeed without reopening.
+      (host.querySelector('[data-testid="note-remove-confirm-ok"]') as HTMLButtonElement).click();
+      const retry = http.expectOne('/api/kb/remove');
+      expect(retry.request.body).toMatchObject({ expectedRev: 'm:9' });
+      retry.flush({ ok: true, state: state(knowledge({ docs: [], counts: { project: 0, common: 0 } }), 'r3') });
+      await settle(fixture);
     });
   });
 

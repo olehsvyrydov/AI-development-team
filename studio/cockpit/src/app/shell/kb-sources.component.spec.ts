@@ -40,7 +40,7 @@ function mount(sources: readonly KbSource[] = []): {
   });
   const fixture = TestBed.createComponent(KbSourcesComponent);
   fixture.componentRef.setInput('sources', sources);
-  fixture.componentRef.setInput('stateRev', 'r1');
+  fixture.componentRef.setInput('sourcesRev', 'sr1');
   fixture.detectChanges();
   return { fixture, host: fixture.nativeElement as HTMLElement, http: TestBed.inject(HttpTestingController) };
 }
@@ -63,9 +63,36 @@ describe('KbSourcesComponent', () => {
     const req = http.expectOne('/api/kb/source/connect');
     expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBe('1');
     expect(req.request.body).toMatchObject({ path: '/home/me/git/payments-api' });
+    expect(req.request.body).toMatchObject({ expectedRev: 'sr1' });
     req.flush({ ok: true, state: { rev: 'r2' }, source: { ...INDEXED } });
     await settle(fixture);
     expect((lifted as unknown as ProjectState)?.rev).toBe('r2');
+  });
+
+  it('connect threads the sources CAS token (sourcesRev), not the workflow-state rev', async () => {
+    const { fixture, http } = mount([]);
+    fixture.componentInstance.onChosen('/home/me/git/payments-api');
+    const req = http.expectOne('/api/kb/source/connect');
+    expect(req.request.body).toMatchObject({ expectedRev: 'sr1' });
+    req.flush({ ok: true, state: { rev: 'r2' }, source: { ...INDEXED } });
+    await settle(fixture);
+  });
+
+  it('surfaces a terse inline reason when a connect fails (ok:false), never silently drops', async () => {
+    const { fixture, host, http } = mount([]);
+    fixture.componentInstance.onChosen('/home/me/not-a-folder');
+    http.expectOne('/api/kb/source/connect').flush({ ok: false, error: 'not a folder' }, { status: 400, statusText: 'Bad Request' });
+    await settle(fixture);
+    const banner = host.querySelector('[data-testid="kb-source-connect-error"]');
+    expect(banner?.textContent).toMatch(/isn’t a folder/i);
+  });
+
+  it('connect failure with an unmapped reason echoes the terse server reason inline', async () => {
+    const { fixture, host, http } = mount([]);
+    fixture.componentInstance.onChosen('/home/me/x');
+    http.expectOne('/api/kb/source/connect').flush({ ok: false, error: 'index quota reached' }, { status: 400, statusText: 'Bad Request' });
+    await settle(fixture);
+    expect(host.querySelector('[data-testid="kb-source-connect-error"]')?.textContent).toMatch(/index quota reached/i);
   });
 
   describe('a connected source row', () => {
@@ -86,7 +113,7 @@ describe('KbSourcesComponent', () => {
       const { fixture, host, http } = mount([INDEXED]);
       (host.querySelector('[data-testid="kb-source-reindex"]') as HTMLButtonElement).click();
       const req = http.expectOne('/api/kb/source/reindex');
-      expect(req.request.body).toMatchObject({ sourceId: 's1' });
+      expect(req.request.body).toMatchObject({ sourceId: 's1', expectedRev: 'sr1' });
       req.flush({ ok: true, state: { rev: 'r2' }, source: { ...INDEXED } });
       await settle(fixture);
     });
@@ -105,9 +132,40 @@ describe('KbSourcesComponent', () => {
       expect(host.querySelector('[data-testid="kb-source-disconnect-ok"]')?.textContent).toMatch(/Disconnect/i);
       (host.querySelector('[data-testid="kb-source-disconnect-ok"]') as HTMLButtonElement).click();
       const req = http.expectOne('/api/kb/source/disconnect');
-      expect(req.request.body).toMatchObject({ sourceId: 's1' });
+      expect(req.request.body).toMatchObject({ sourceId: 's1', expectedRev: 'sr1' });
       req.flush({ ok: true, state: { rev: 'r2' } });
       await settle(fixture);
+    });
+
+    it('disconnect confirm: Escape cancels, traps focus, and starts focus on Cancel', async () => {
+      const { fixture, host } = mount([INDEXED]);
+      (host.querySelector('[data-testid="kb-source-menu"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      (host.querySelector('[data-testid="kb-source-disconnect"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      await settle(fixture);
+      expect(document.activeElement).toBe(host.querySelector('[data-testid="kb-source-disconnect-cancel"]'));
+      host
+        .querySelector('[data-testid="kb-source-disconnect-dialog"]')!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+      expect(host.querySelector('[data-testid="kb-source-disconnect-dialog"]')).toBeNull();
+    });
+
+    it('a stale sourcesRev on disconnect is a first-class conflict: lifts fresh state, no error', async () => {
+      const { fixture, host, http } = mount([INDEXED]);
+      let lifted: ProjectState | null = null;
+      fixture.componentInstance.applied.subscribe((s) => (lifted = s));
+      (host.querySelector('[data-testid="kb-source-menu"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      (host.querySelector('[data-testid="kb-source-disconnect"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      (host.querySelector('[data-testid="kb-source-disconnect-ok"]') as HTMLButtonElement).click();
+      http
+        .expectOne('/api/kb/source/disconnect')
+        .flush({ ok: false, conflict: true, state: { rev: 'r9' } }, { status: 409, statusText: 'Conflict' });
+      await settle(fixture);
+      expect((lifted as unknown as ProjectState)?.rev).toBe('r9');
     });
 
     it('re-index 409 is a first-class conflict: lifts fresh state, no error', async () => {

@@ -278,6 +278,23 @@ function readTickets(project) {
   return out;
 }
 
+const EXCERPT_CHARS = 160;
+
+// A short, plain-text body preview for a note row + search. The front-matter and a
+// leading title heading are stripped, markdown/HTML markup is reduced to its readable
+// text (so no tag or raw `<script>` survives), whitespace is collapsed, and the result
+// is capped server-side. Pure text — never a markup/HTML-injection vector on render.
+function excerptOf(text) {
+  let s = markdownBody(text);
+  s = s.replace(/<!--[\s\S]*?-->/g, ' ');                 // HTML comments
+  s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ');             // images
+  s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');           // links → text
+  s = s.replace(/<\/?[a-zA-Z][^>]*>/g, ' ');               // HTML tags (incl. <script>, <img …>)
+  s = s.replace(/[`*_~#>|]/g, ' ');                        // emphasis / heading / table / code markers
+  s = s.replace(/\s+/g, ' ').trim();
+  return s.slice(0, EXCERPT_CHARS);
+}
+
 // Read one vault dir into doc records carrying parsed front-matter. The holding
 // vault decides authorization scope (`enforcedScope`), so a hand-edited file whose
 // front-matter disagrees with its vault cannot widen its reach. `fileRel` is relative
@@ -288,13 +305,15 @@ function readVault(dir, relRoot, enforcedScope, ownProject) {
   const out = [];
   for (const f of files) {
     const full = path.join(dir, f);
-    const fm = parseFrontMatter(safeRead(full));
+    const raw = safeRead(full);
+    const fm = parseFrontMatter(raw);
     let rev = null;
     try { const st = fs.statSync(full); rev = `${st.mtimeMs}:${st.size}`; } catch { /* absent → no rev */ }
     out.push({
       name: f.replace(/\.md$/, ''),
       file: path.relative(relRoot, full),
       rev, // per-note CAS rev (mtime:size) for edit/delete
+      excerpt: excerptOf(raw), // short, plain-text body preview for the row + search
       scope: enforcedScope, // the HOLDING VAULT wins (front-matter is intent only)
       stack: fm.stack,
       kind: fm.kind,
@@ -389,8 +408,8 @@ function buildKnowledge(project) {
 
   const visibleCommon = common.filter((d) => scopeMatches(d, projectMeta));
   const docs = [];
-  for (const d of own) docs.push({ name: d.name, file: d.file, rev: d.rev, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed', provenance: provenanceOf(d) });
-  for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, rev: d.rev, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed', provenance: provenanceOf(d) });
+  for (const d of own) docs.push({ name: d.name, file: d.file, rev: d.rev, excerpt: d.excerpt, scope: 'project', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed', provenance: provenanceOf(d) });
+  for (const d of visibleCommon) docs.push({ name: d.name, file: d.file, rev: d.rev, excerpt: d.excerpt, scope: 'common', stack: d.stack, kind: d.kind, status: d.status, index: 'indexed', provenance: provenanceOf(d) });
 
   // Precedence is a DISPLAY annotation, not a suppression boundary: where a project
   // note and a common note share the same slug (case-insensitive), the project note
@@ -431,7 +450,12 @@ function buildKnowledge(project) {
   // through scopeMatches, never recalled as an authored note. Lazy-required to avoid a
   // load-time cycle (state → sources → analyze → write → state).
   let sources = [];
-  try { sources = require('./sources').sourcesFacet(project); } catch { sources = []; }
+  let sourcesRev = '0';
+  try {
+    const mod = require('./sources');
+    sources = mod.sourcesFacet(project);
+    sourcesRev = mod.sourcesRev(project);
+  } catch { sources = []; sourcesRev = '0'; }
 
   return {
     method: configured ? 'local-embeddings' : 'filename-only',
@@ -440,6 +464,7 @@ function buildKnowledge(project) {
     docs,
     proposals,
     sources,
+    sourcesRev,
   };
 }
 
@@ -611,40 +636,6 @@ function buildBase(project, kb) {
   };
 }
 
-/**
- * The per-note CAS rev (mtime:size) the knowledge edit/delete writers compare against.
- * Resolves the note by its server-known basename + the `scope` enum inside the chosen
- * vault, realpath-contained — never a client path. Returns the rev string, or null when
- * the note cannot be safely resolved.
- *
- * @param project the project root
- * @param ref `{ scope, file|id }` — scope an enum; file/id a slug or basename
- * @returns the `${mtimeMs}:${size}` rev or null
- */
-function kbNoteRev(project, { scope, file, id } = {}) {
-  const idOrFile = file != null ? file : id;
-  if (idOrFile == null || (scope !== 'project' && scope !== 'common')) return null;
-  const base = path.basename(String(idOrFile)).replace(/\.md$/i, '');
-  const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  if (!slug) return null;
-  let vaultDir = null;
-  if (scope === 'common') {
-    vaultDir = containedCommonVaultDir();
-  } else {
-    const dir = projectKbDir(project);
-    if (dir) { try { vaultDir = fs.realpathSync(dir); } catch { vaultDir = null; } }
-  }
-  if (!vaultDir) return null;
-  const target = path.join(vaultDir, `${slug}.md`);
-  let real;
-  try { real = fs.realpathSync(target); } catch { return null; }
-  if (!isContained(vaultDir, real)) return null;
-  try {
-    const st = fs.statSync(real);
-    return `${st.mtimeMs}:${st.size}`;
-  } catch { return null; }
-}
-
 function fileRev(project) {
   let rev = '';
   for (const rel of ['.workflow-state.json', '.aidevteam/workflow.overrides.json']) {
@@ -781,4 +772,4 @@ function listSummary(project) {
   } catch { return null; }
 }
 
-module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, kbNoteRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor };
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor };

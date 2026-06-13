@@ -64,9 +64,19 @@ async function withTmpHome(fn) {
 }
 
 const w = require('../lib/write');
-const { kbNoteRev } = require('../lib/state');
+const { buildKnowledge } = require('../lib/state');
 
 function kbDir(dir) { return path.join(dir, '.aidevteam', 'kb'); }
+
+// The per-note CAS rev the real route uses: read `rev` straight off the projection
+// the client sees (buildKnowledge().docs), resolving by the server-derived slug +
+// scope. Returns null when the note is absent from the projection (e.g. an escaping
+// symlink that never surfaces as a doc).
+function noteRev(dir, { scope, file }) {
+  const slug = path.basename(String(file)).replace(/\.md$/i, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const doc = buildKnowledge(dir).docs.find((d) => d.scope === scope && d.name === slug);
+  return doc ? doc.rev : null;
+}
 
 // ---- happy: edit body in place keeps the same slug -------------------------
 
@@ -75,7 +85,7 @@ test('editKbNote rewrites the body in place under the same slug', async () => {
   try {
     const a = await w.addKbNote(dir, { title: 'Code Rules', body: 'old body', scope: 'project', stack: ['java'], kind: 'rule' });
     assert.equal(a.ok, true);
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     const e = await w.editKbNote(dir, { file: a.doc.file, scope: 'project', body: 'new body', stack: ['python'], kind: 'pattern', expectedRev: rev });
     assert.equal(e.ok, true);
     assert.equal(e.doc.name, 'code-rules', 'same slug');
@@ -98,7 +108,7 @@ test('N-1 a crafted file/id resolving outside the vault edits nothing', async ()
     const secret = path.join(outside, 'secret.md');
     fs.writeFileSync(secret, 'SECRET');
     const a = await w.addKbNote(dir, { title: 'Real', body: 'x', scope: 'project' });
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     for (const bad of ['../../../' + path.relative('/', secret), '/etc/passwd', '../../secret', path.join('..', '..', 'secret.md')]) {
       const before = fs.readFileSync(secret);
       const r = await w.editKbNote(dir, { file: bad, scope: 'project', body: 'PWNED', expectedRev: rev });
@@ -122,7 +132,7 @@ test('N-2 edit with oversize / binary / empty body → 400, note byte-unchanged'
     const a = await w.addKbNote(dir, { title: 'Keep', body: 'original', scope: 'project' });
     const file = path.join(dir, a.doc.file);
     const before = fs.readFileSync(file);
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     for (const body of ['a'.repeat(65 * 1024), 'has\0nul', '']) {
       const r = await w.editKbNote(dir, { file: a.doc.file, scope: 'project', body, expectedRev: rev });
       assert.equal(r.ok, false);
@@ -138,7 +148,7 @@ test('N-3 edit cannot relocate/rename via a path-shaped file field', async () =>
   const dir = tmpProject();
   try {
     const a = await w.addKbNote(dir, { title: 'Stable', body: 'x', scope: 'project' });
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     const r = await w.editKbNote(dir, { file: 'sub/../stable.md.sh', scope: 'project', body: 'y', expectedRev: rev });
     // resolution is basename+slug → either edits stable.md, or refuses; never creates .sh / nested
     const files = listFiles(kbDir(dir)).filter((f) => f.endsWith('.md'));
@@ -154,7 +164,7 @@ test('N-4 changing the title does not rename the slug (title immutable)', async 
   const dir = tmpProject();
   try {
     const a = await w.addKbNote(dir, { title: 'Original Name', body: 'x', scope: 'project' });
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     const r = await w.editKbNote(dir, { file: a.doc.file, scope: 'project', title: 'A Totally New Name', body: 'y', expectedRev: rev });
     assert.equal(r.ok, true);
     assert.equal(r.doc.name, 'original-name', 'slug unchanged despite title change');
@@ -177,7 +187,7 @@ test('N-6 editing a note whose on-disk path is a symlink out of the vault is ref
     try { fs.symlinkSync(external, path.join(kb, 'linky.md')); } catch { linked = false; }
     if (!linked) { console.log('N-6 skipped: no symlink support'); return; }
     const before = fs.readFileSync(external);
-    const r = await w.editKbNote(dir, { file: 'linky.md', scope: 'project', body: 'OVERWRITE', expectedRev: kbNoteRev(dir, { scope: 'project', file: '.aidevteam/kb/linky.md' }) });
+    const r = await w.editKbNote(dir, { file: 'linky.md', scope: 'project', body: 'OVERWRITE', expectedRev: noteRev(dir, { scope: 'project', file: '.aidevteam/kb/linky.md' }) });
     assert.ok(fs.readFileSync(external).equals(before), 'external target not written through the symlink');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -206,7 +216,7 @@ test('N-8 deleteKbNote moves the file into <vault>/.trash, not unlink (recoverab
   const dir = tmpProject();
   try {
     const a = await w.addKbNote(dir, { title: 'To Remove', body: 'keepme', scope: 'project' });
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     const r = await w.deleteKbNote(dir, { file: a.doc.file, scope: 'project', expectedRev: rev });
     assert.equal(r.ok, true);
     assert.ok(!fs.existsSync(path.join(dir, a.doc.file)), 'original gone from the vault');
@@ -225,7 +235,7 @@ test('N-9 a trashed note is no longer surfaced by buildKnowledge', async () => {
     const { buildKnowledge } = require('../lib/state');
     const a = await w.addKbNote(dir, { title: 'Vanish', body: 'x', scope: 'project' });
     assert.ok(buildKnowledge(dir).docs.some((d) => d.name === 'vanish'));
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     await w.deleteKbNote(dir, { file: a.doc.file, scope: 'project', expectedRev: rev });
     assert.ok(!buildKnowledge(dir).docs.some((d) => d.name === 'vanish'), 'gone from the projection');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
@@ -274,7 +284,7 @@ test('N-12 a symlinked .trash escaping the vault is refused; nothing lands outsi
     try { fs.symlinkSync(outside, path.join(kb, '.trash')); } catch { linked = false; }
     if (!linked) { console.log('N-12 skipped: no symlink support'); return; }
     const a = await w.addKbNote(dir, { title: 'Guard', body: 'x', scope: 'project' });
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     const before = snapshot(outside);
     const r = await w.deleteKbNote(dir, { file: a.doc.file, scope: 'project', expectedRev: rev });
     assert.equal(r.ok, false, 'refused');
@@ -308,7 +318,7 @@ test('N-14 a confirmed delete appends a kb-delete audit record with no filesyste
   try {
     const { readComments } = require('../lib/write');
     const a = await w.addKbNote(dir, { title: 'Audited', body: 'x', scope: 'project' });
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     await w.deleteKbNote(dir, { file: a.doc.file, scope: 'project', expectedRev: rev, by: 'tester' });
     const comments = readComments(dir, 'knowledge');
     const del = comments.find((c) => c.kind === 'kb-delete');
@@ -327,7 +337,7 @@ test('N-16 a scope change project→common moves the file + soft-deletes the sou
   try {
     await withTmpHome(async (home) => {
       const a = await w.addKbNote(dir, { title: 'Promote Me', body: 'shared rule', scope: 'project', stack: ['java'] });
-      const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+      const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
       const r = await w.editKbNote(dir, { file: a.doc.file, scope: 'common', body: 'shared rule', stack: ['java'], expectedRev: rev });
       assert.equal(r.ok, true);
       assert.equal(r.doc.scope, 'common');
@@ -349,7 +359,7 @@ test('N-16b common→project move lands in the project vault, source soft-delete
     await withTmpHome(async (home) => {
       const a = await w.addKbNote(dir, { title: 'Demote Me', body: 'x', scope: 'common', stack: ['any'] });
       const commonDir = path.join(home, '.aidevteam', 'kb-common');
-      const rev = kbNoteRev(dir, { scope: 'common', file: path.basename(a.doc.file) });
+      const rev = noteRev(dir, { scope: 'common', file: path.basename(a.doc.file) });
       const r = await w.editKbNote(dir, { file: a.doc.file, scope: 'project', body: 'x', expectedRev: rev });
       assert.equal(r.ok, true);
       assert.equal(r.doc.scope, 'project');
@@ -370,7 +380,7 @@ test('N-17 a path-shaped / out-of-enum scope on edit is refused; nothing moved',
       const a = await w.addKbNote(dir, { title: 'Enum', body: 'x', scope: 'project' });
       const file = path.join(dir, a.doc.file);
       const before = fs.readFileSync(file);
-      const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+      const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
       for (const bad of ['../x', '/abs', 'common/../..', 'bogus']) {
         const r = await w.editKbNote(dir, { file: a.doc.file, scope: bad, body: 'y', expectedRev: rev });
         assert.equal(r.ok, false, `scope=${bad} refused`);
@@ -402,13 +412,71 @@ test('N-18 a stale expectedRev on a scope-changing edit → conflict; file stays
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+// ---- provenance + created survive an in-place edit AND a scope move ---------
+
+function frontMatterOf(text) {
+  const out = {};
+  const fm = String(text).match(/^---\n([\s\S]*?)\n---/);
+  if (!fm) return out;
+  for (const line of fm[1].split('\n')) {
+    const m = line.match(/^([a-z]+):\s*(.*)$/i);
+    if (m) out[m[1]] = m[2].trim();
+  }
+  return out;
+}
+
+test('an edit preserves the original by + created (a /kai note keeps its provenance)', async () => {
+  const dir = tmpProject();
+  try {
+    const a = await w.addKbNote(dir, { title: 'Authored By Kai', body: 'v1', scope: 'project', stack: ['java'] });
+    // stamp the on-disk note as /kai-authored with a known original created
+    const file = path.join(dir, a.doc.file);
+    const original = fs.readFileSync(file, 'utf8');
+    const originalCreated = '2020-01-02T03:04:05.000Z';
+    fs.writeFileSync(file, original
+      .replace(/^by: .*$/m, 'by: kai')
+      .replace(/^created: .*$/m, `created: ${originalCreated}`));
+
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
+    const e = await w.editKbNote(dir, { file: a.doc.file, scope: 'project', body: 'v2', expectedRev: rev });
+    assert.equal(e.ok, true);
+    const fm = frontMatterOf(fs.readFileSync(path.join(dir, e.doc.file), 'utf8'));
+    assert.equal(fm.by, 'kai', 'by preserved across an in-place edit');
+    assert.equal(fm.created, originalCreated, 'created preserved across an in-place edit');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a scope move preserves the original by + created', async () => {
+  const dir = tmpProject();
+  try {
+    await withTmpHome(async (home) => {
+      const a = await w.addKbNote(dir, { title: 'Promote Provenance', body: 'shared', scope: 'project', stack: ['java'] });
+      const file = path.join(dir, a.doc.file);
+      const original = fs.readFileSync(file, 'utf8');
+      const originalCreated = '2019-06-07T08:09:10.000Z';
+      fs.writeFileSync(file, original
+        .replace(/^by: .*$/m, 'by: kai')
+        .replace(/^created: .*$/m, `created: ${originalCreated}`));
+
+      const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
+      const r = await w.editKbNote(dir, { file: a.doc.file, scope: 'common', body: 'shared', stack: ['java'], expectedRev: rev });
+      assert.equal(r.ok, true);
+      const commonDir = path.join(home, '.aidevteam', 'kb-common');
+      const moved = listFiles(commonDir).filter((f) => f.endsWith('.md'))[0];
+      const fm = frontMatterOf(fs.readFileSync(moved, 'utf8'));
+      assert.equal(fm.by, 'kai', 'by preserved across a scope move');
+      assert.equal(fm.created, originalCreated, 'created preserved across a scope move');
+    });
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 // ---- N-31 / N-33 inert + proto-safe (edit re-emits server front-matter) ----
 
 test('N-31 an edited body with a script/onerror payload is stored verbatim (inert)', async () => {
   const dir = tmpProject();
   try {
     const a = await w.addKbNote(dir, { title: 'Inert', body: 'clean', scope: 'project' });
-    const rev = kbNoteRev(dir, { scope: 'project', file: a.doc.file });
+    const rev = noteRev(dir, { scope: 'project', file: a.doc.file });
     const payload = '<script>alert(1)</script>\n<img src=x onerror=alert(2)>';
     const r = await w.editKbNote(dir, { file: a.doc.file, scope: 'project', body: payload, expectedRev: rev });
     assert.equal(r.ok, true);

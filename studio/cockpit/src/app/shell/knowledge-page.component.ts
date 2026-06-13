@@ -75,7 +75,7 @@ function derive<T>(fn: () => T): Derived<T> {
       <section class="region">
         @if (sources(); as s) {
           @if (s.ok) {
-            <dart-kb-sources [sources]="s.value" [stateRev]="rev()" (applied)="applied.emit($event)" />
+            <dart-kb-sources [sources]="s.value" [sourcesRev]="sourcesRev()" (applied)="applied.emit($event)" />
           } @else {
             <p class="region-error" role="alert" data-testid="kb-sources-error">Couldn't load connected codebases.</p>
           }
@@ -162,8 +162,11 @@ export class KnowledgePageComponent {
   private readonly removingNote_ = signal<KnowledgeDoc | null>(null);
   readonly removingNote = this.removingNote_.asReadonly();
 
-  /** The opaque project rev, threaded to source mutations as a best-effort CAS hint. */
-  readonly rev = computed(() => this.state()?.rev);
+  /**
+   * The connected-sources CAS token threaded to the sources strip. It is the knowledge projection's
+   * `sourcesRev` — the token the server CASes source mutations against — NOT the workflow-state `rev`.
+   */
+  readonly sourcesRev = computed(() => this.state()?.knowledge?.sourcesRev);
 
   /** The raw knowledge view for the editor's honesty preview + stack tags (null when absent). */
   readonly knowledgeView = computed<KnowledgeView | null>(() => this.state()?.knowledge ?? null);
@@ -220,6 +223,24 @@ export class KnowledgePageComponent {
   }
 
   onRemoveApplied(state: ProjectState): void {
+    // On a 409 reconcile the confirm HOLDS open; re-resolve the still-targeted note from the applied
+    // fresh state so a second attempt carries the FRESH `rev` (otherwise the retry re-sends the stale
+    // rev and 409s again, with no path to success short of reopening).
+    const current = this.removingNote_();
+    if (current) {
+      const fresh = findFreshNote(state, current);
+      if (fresh) this.removingNote_.set(fresh);
+    }
     this.applied.emit(state);
   }
+}
+
+/** Re-resolve a still-targeted note in fresh state by `file`, then by scope+name (never a path). */
+function findFreshNote(state: ProjectState, target: KnowledgeDoc): KnowledgeDoc | null {
+  const docs = state.knowledge?.docs ?? [];
+  if (target.file) {
+    const byFile = docs.find((d) => d.file === target.file);
+    if (byFile) return byFile;
+  }
+  return docs.find((d) => d.scope === target.scope && d.name === target.name) ?? null;
 }
