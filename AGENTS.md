@@ -4,7 +4,9 @@ This file mirrors CLAUDE.md and provides context to AI coding assistants (Claude
 
 ## Project Purpose
 
-This is a **reusable AI Development Team framework** - a collection of specialized Claude Code skills that simulate a complete software development team. Each skill file represents a team member with deep domain expertise.
+This is a **reusable AI agent-team framework** — ~29 specialist agent skills (a 15-agent core team + optional specialists, including the `workflow-engine`), a proportional dev `workflow.yaml`, document templates, and the `install.sh` installer. Each skill file represents a team member with deep domain expertise. The skills are installed globally and used by every project. It is vendor-neutral and OSS-first, working in Claude Code / Cursor / Kiro / VS Code.
+
+Its two sibling products — **Praxis** (an open agent-memory runtime) and **Canon** (a governed knowledge backend) — live in their own separate repositories and consume this shared agent layer. See `ARCHIVE.md` for the dashboard product that was previously carried here and set aside.
 
 ## Repository Structure
 
@@ -13,6 +15,7 @@ ai-dev-team/
 ├── README.md              # Installation & usage guide
 ├── install.sh             # One-command installer
 ├── CLAUDE.md / AGENTS.md   # agent/assistant instructions (this file = AGENTS.md, mirrors CLAUDE.md)
+├── ARCHIVE.md             # What was set aside (DART dashboard) and where to find it
 │
 ├── claude/                # Deployable content (copy to ~/.claude)
 │   ├── CLAUDE.md          # Global instructions for Claude Code
@@ -21,22 +24,20 @@ ai-dev-team/
 │   ├── skills/            # 29 agent skills: 15-agent core team + specialists (tech stacks as references)
 │   │   ├── management/    # Product Owner, Scrum Master, Business Analyst
 │   │   ├── architecture/  # Solution Architect, GraphQL
-│   │   ├── development/   # Backend (Java/Kotlin/Python), Frontend (React/Angular/Vue/Flutter)
-│   │   ├── quality/       # Reviewers and Testers
-│   │   ├── operations/    # DevOps, SecOps, MLOps
-│   │   ├── design/        # UI Designer
+│   │   ├── development/   # Backend (Java/Kotlin/Python), Frontend (React/Angular/Vue/Flutter), Native mobile
+│   │   ├── quality/       # Reviewers, Testers, Verify auditor
+│   │   ├── operations/    # DevOps, SecOps, MLOps, SRE
+│   │   ├── design/        # UI Designer, UX Research
 │   │   ├── compliance/    # Accountant, Legal (generic + regional)
 │   │   ├── marketing/     # Marketing Strategist
-│   │   └── specialized/   # Technical Writer
+│   │   ├── specialized/   # Technical Writer, Kai (self-improving meta-agent)
+│   │   └── workflow-engine/ # Workflow contract + gate-check + ledger
 │   │
-│   ├── commands/          # 47 slash commands (/max, /jorge, /finn, /memory, etc.)
+│   ├── commands/          # 48 slash commands (/max, /jorge, /finn, /memory, etc.)
 │   │
-│   ├── templates/         # Document templates (ADR, Sprint, User Story, etc.)
+│   ├── templates/         # 6 document templates (ADR, Sprint, User Story, etc.)
 │   │
-│   └── rag/               # RAG Knowledge Base (Phase 3)
-│       ├── mcp-server/    # Custom MCP server (voyage-code-3 + Qdrant)
-│       ├── ingestion/     # SKILL.md chunking & embedding pipeline
-│       └── management/    # Stats, backup, prune, reindex scripts
+│   └── workflow/          # workflow.yaml + schema + optional MCP adapters
 │
 └── docs/                  # Extended documentation
     ├── TEAM_WORKFLOW.md
@@ -103,8 +104,7 @@ Gates fire **proportionally** (by change-class / trigger / preset) via the `work
 - **Release Date**: 2026-06-06
 - **Editors**: Claude Code, Cursor, Kiro, VS Code (universal `install.sh`)
 - **Skills**: 29 (15-agent core team + optional specialists; tech stacks as references)
-- **Commands**: 47 slash commands
+- **Commands**: 48 slash commands
 - **Templates**: 6 document templates
 - **Backends**: pluggable adapters — file-based by default; Jira/Confluence/OpenMemory/Penpot/etc. optional
-- **Hub**: zero-dependency workflow dashboard (`node hub/server.js`)
-- **RAG**: AI Team Memory (Qdrant + voyage-code-3, optional)
+- **Sibling products**: Praxis (agent-memory runtime) and Canon (governed knowledge backend) live in separate repos and consume these shared skills

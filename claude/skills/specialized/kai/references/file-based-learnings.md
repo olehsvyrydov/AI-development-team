@@ -1,6 +1,6 @@
-# File-based learnings — the default `/retro → /kai` loop (no RAG)
+# File-based learnings — the `/retro → /kai` loop
 
-Kai's job is to turn accumulated learnings into permanent `SKILL.md` improvements. By default this runs **entirely file-based** — no Qdrant, no embeddings, no paid accounts. The RAG `learnings`/`agent-knowledge` collections are an **optional overlay** (higher-fidelity clustering via embeddings); when they're absent, Kai reads the file store below.
+Kai's job is to turn accumulated learnings into permanent `SKILL.md` improvements. This runs **entirely file-based** — no external services, no embeddings, no paid accounts. An optional agent-memory MCP overlay (e.g. Praxis) can add higher-fidelity clustering via embeddings; when it is absent, Kai reads the file store below, which is always the source of truth.
 
 ## The store
 
@@ -28,7 +28,7 @@ status: open            # open | promoted | rejected
 3. **Threshold** — a cluster becomes a candidate when **≥ 3** learnings share a target+theme (tune via `min_frequency`). Smaller clusters wait for more evidence (or a human can force-promote a high-value singleton).
 4. **Validate** against the `/sm` quality rules — universal, reusable, **not already covered** in the target `SKILL.md`, actionable, and aimed at a SAFE section (`## Anti-Patterns`, `## Checklist`, `## Best Practices` / references) — never `Trigger`/`Context`/`Gate Check`/`Workflow`.
 5. **Propose** — emit a proposal (target file, section, exact insertion text, and the source learning ids for traceability). Show it for review.
-6. **Apply (after explicit approval)** — append to the target `SKILL.md`, set each source learning's `status: promoted`, and (if the RAG overlay is on) re-ingest. Every change is a plain git diff.
+6. **Apply (after explicit approval)** — append to the target `SKILL.md` and set each source learning's `status: promoted`. Every change is a plain git diff.
 
 Kai **never auto-applies**. Capture (`/retro`) and propose (`/kai`) are separate; a human approves before any `SKILL.md` changes.
 
@@ -44,6 +44,6 @@ Kai **never auto-applies**. Capture (`/retro`) and propose (`/kai`) are separate
 
 (`gotcha` = "don't do this"; `pattern` = "do this". A learning is one or the other, so each routes to exactly one section.)
 
-## Overlay: RAG (optional)
+## Optional agent-memory overlay
 
-When the `ai-team-memory` MCP + Qdrant are configured, Kai can additionally cluster by embedding similarity (cosine ≥ 0.7) across the `learnings`/`agent-knowledge` collections for fuzzier matches, and re-ingest updated skills. The file store remains the source of truth; the overlay only improves recall. CLI: `claude/rag/kai/cli.py`.
+When an agent-memory MCP overlay (e.g. Praxis) is configured, Kai can additionally cluster by embedding similarity for fuzzier matches across stored learnings. The file store remains the source of truth; the overlay only improves recall.

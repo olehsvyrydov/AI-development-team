@@ -2,14 +2,21 @@
 
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-ready-6E56CF) ![Cursor](https://img.shields.io/badge/Cursor-ready-111111) ![Kiro](https://img.shields.io/badge/Kiro-ready-9B59B6) ![VS Code](https://img.shields.io/badge/VS%20Code-ready-007ACC) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Stars](https://img.shields.io/github/stars/olehsvyrydov/AI-development-team?style=social)
 
-> **An AI dev team in your editor.** ~29 specialist agents (a 15-agent core team + optional specialists) and an **enforced, proportional workflow** with approval gates — *process, not prompts*. Open-source, no lock-in; works in **Claude Code, Cursor, Kiro & VS Code**, free by default.
+> **A reusable AI agent-team framework for your editor.** ~29 specialist agent skills (a 15-agent core team + optional specialists) plus a `workflow-engine` and an **enforced, proportional workflow** with approval gates — *process, not prompts*. Open-source, no lock-in; works in **Claude Code, Cursor, Kiro & VS Code**, free by default.
 
 ```
 /po → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe | /be → /rev → /qa + /e2e → /verify
 ```
 
-- **Process, not prompts.** A versioned `workflow.yaml` + a `workflow-engine` skill that **refuses** to skip a required gate — right-sized to the change (`solo` → `small-team` → `regulated` presets).
-- **Roles, not micro-agents.** Each agent is a lean `SKILL.md` persona that loads deep `references/` on demand; tech stacks (React/Angular/Vue, Java/Kotlin/Python/PHP, …) are references the role *self-routes* to — not separate agents.
+The framework is a portable agent layer you install once and use across every project. It ships four things:
+
+- **Agent skills** (`claude/skills/`) — lean `SKILL.md` personas that load deep `references/` on demand; tech stacks (React/Angular/Vue, Java/Kotlin/Python/PHP, …) are references the role *self-routes* to, not separate agents.
+- **The `workflow-engine`** — a skill that classifies each change and **refuses** to skip a required gate.
+- **`workflow.yaml`** — a versioned workflow definition, right-sized to the change via `solo` → `small-team` → `regulated` presets.
+- **The installer** (`install.sh`) — wires the skills, commands, and templates into whichever editor(s) you use.
+
+- **Process, not prompts.** Gates are enforced by the engine, not left to a model's memory — and right-sized so a typo isn't treated like a feature.
+- **Roles, not micro-agents.** Each agent is a role persona; technology stacks are references the role loads on demand.
 - **OSS-first, no lock-in.** Zero paid accounts by default: file-based tickets + a markdown knowledge base. Jira/Confluence, MCP memory, and design tools are optional overlays.
 
 ### vs. a single "do everything" agent
@@ -21,17 +28,16 @@
 | Expertise | one generalist | **role specialists** + on-demand stack references |
 | Lock-in | often tool-specific | **vendor-neutral**, 4 editors, free defaults |
 
-### See it live
+---
 
-A zero-dependency dashboard for the workflow — a live **gate board**, tickets, and knowledge base over SSE:
+## Relationship to Praxis & Canon
 
-![AI Dev Team Hub — live gate board](docs/hub-demo.png)
+The agent skills in this repo are the **shared agent layer** — installed globally and used by every project, including its two sibling products, which live in their own separate repositories:
 
-Try it yourself with the bundled demo (no setup, no `npm install`):
+- **Praxis** — an open agent-memory runtime.
+- **Canon** — a governed knowledge backend.
 
-```bash
-node hub/server.js examples/demo   # → http://localhost:4477
-```
+This framework stays focused on the durable, reusable layer: the agent skills, the workflow engine, the workflow definition, the templates, and the installer. Product-specific surfaces (dashboards, knowledge backends, memory runtimes) live in Praxis and Canon, not here. The earlier dashboard product that this repo once carried has been set aside — see [`ARCHIVE.md`](ARCHIVE.md).
 
 ---
 
@@ -110,7 +116,7 @@ config for each — no lock-in:
 ./install.sh --uninstall                      # remove what it installed
 ```
 
-Optional advanced Claude backends (RAG memory, Atlassian, hooks): `scripts/setup-claude-backends.sh`.
+Optional advanced Claude backends (Atlassian, memory MCP, hooks): `scripts/setup-claude-backends.sh`.
 
 ### 2. Verify
 
@@ -120,22 +126,6 @@ Optional advanced Claude backends (RAG memory, Atlassian, hooks): `scripts/setup
 /po             # Start with Product Owner
 /arch           # Get architecture review
 ```
-
-### 3. Optional: Enable RAG Knowledge Base
-
-The installer will offer to set up the semantic knowledge base (requires Docker + Python 3.11+). You can also do it manually later — see [RAG Setup](#rag-knowledge-base-ai-team-memory).
-
-### 4. Optional: launch the local Hub
-
-A **zero-dependency** dashboard for the workflow — live gate board, tickets, and knowledge base, straight from the file-based defaults (no `npm install`, no Jira):
-
-```bash
-node hub/server.js examples/demo     # see it instantly with the bundled demo
-node hub/server.js /path/to/project  # …or your own project — then open http://localhost:4477
-# in a dev container / VM / for LAN access, add: --host 0.0.0.0
-```
-
-The [bundled demo](examples/demo/) shows three tickets and a live gate board (including a **rejected** code review the gate caught). See [`hub/README.md`](hub/README.md). It's **read-only** and live-updates over SSE as your `.workflow-state.json` / tickets change. Binds to `127.0.0.1` by default.
 
 ---
 
@@ -152,28 +142,32 @@ The [bundled demo](examples/demo/) shows three tickets and a live gate board (in
 │   ├── development/
 │   │   ├── backend/             # Java/Spring, Kotlin, PHP/Laravel, Python/FastAPI
 │   │   ├── frontend/            # React/Next.js, Angular, Vue, Flutter
-│   │   └── desktop/             # JavaFX
+│   │   └── mobile/              # Native iOS/Android
 │   ├── quality/
 │   │   ├── review/              # Full-stack, Backend, Frontend, PHP reviewers
-│   │   └── testing/             # QA, E2E (Playwright/Detox), BDD/Cucumber, unit testers
-│   ├── operations/              # DevOps, SecOps, MLOps, Terraform, HMRC API
-│   ├── design/                  # UI/UX Designer, JavaFX Designer
+│   │   ├── testing/             # QA, E2E (Playwright/Detox), BDD/Cucumber, unit testers
+│   │   └── verify/              # Completion auditor (gate)
+│   ├── operations/              # DevOps, SecOps, MLOps, SRE, Terraform
+│   ├── design/                  # UI/UX Designer, UX Research, JavaFX Designer
 │   ├── compliance/              # Accountant, Legal (generic + UK regional variants)
 │   ├── marketing/               # Product Marketing Strategist
-│   └── specialized/             # Technical Writer, Kai (self-improving meta-agent)
+│   ├── specialized/             # Technical Writer, Kai (self-improving meta-agent)
+│   └── workflow-engine/         # Workflow contract + gate-check + ledger
 │
-├── commands/                    # 47 slash commands
-│   ├── [14 role-based]          # /po, /sm, /ba, /arch, /fe, /be, /rev, /qa, /e2e ...
-│   ├── [13 persona aliases]     # /max, /luda, /jorge, /finn, /james, /adam ...
-│   └── [10 utility]             # /agents, /bug, /issue, /memory, /all, /kai ...
+├── commands/                    # 48 slash commands
+│   ├── [role-based]             # /po, /sm, /ba, /arch, /fe, /be, /rev, /qa, /e2e ...
+│   ├── [persona aliases]        # /max, /luda, /jorge, /finn, /james, /adam ...
+│   └── [utility]                # /agents, /bug, /issue, /memory, /all, /kai ...
 │
-└── templates/                   # 6 document templates
-    ├── adr-template.md          # Architecture Decision Records
-    ├── user-story-template.md   # User stories with Given/When/Then AC
-    ├── sprint-template.md       # Sprint planning & tracking
-    ├── code-review-template.md  # Structured code review reports
-    ├── investigation-report-template.md
-    └── retrospective-template.md
+├── templates/                   # 6 document templates
+│   ├── adr-template.md          # Architecture Decision Records
+│   ├── user-story-template.md   # User stories with Given/When/Then AC
+│   ├── sprint-template.md       # Sprint planning & tracking
+│   ├── code-review-template.md  # Structured code review reports
+│   ├── investigation-report-template.md
+│   └── retrospective-template.md
+│
+└── workflow/                    # workflow.yaml + schema + optional MCP adapters
 ```
 
 ---
@@ -243,8 +237,8 @@ Every feature follows this pipeline:
 
 ```
 1. /po + /ba    → Define vision, write user stories with behavioral AC
-2. /arch        → Architecture review and ADR (MANDATORY for all features)
-3. /secops      → Security review (MANDATORY for all features)
+2. /arch        → Architecture review and ADR (when triggered)
+3. /secops      → Security review (safety override — never skipped for size)
 4. [/fin]       → Finance review (if payments, billing, tax)
 5. [/legal]     → Legal review (if GDPR, privacy, contracts)
 6. [/ui]        → UI design (if frontend feature)
@@ -296,105 +290,18 @@ claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com
 
 ---
 
-## AI Platform Features
-
-Beyond agent skills, the framework includes an intelligent knowledge platform with three systems:
-
-### RAG Knowledge Base (AI Team Memory)
-
-Semantic search across agent expertise, architecture decisions, sprint learnings, and code patterns — powered by [Qdrant](https://qdrant.tech) + [Voyage AI](https://voyageai.com).
-
-```bash
-# In Claude Code:
-/memory What does Jorge know about CQRS?
-/memory Search for React testing patterns
-```
-
-**4 MCP tools provided:**
-- `memory_search` — semantic search across any collection
-- `memory_store` — persist new learnings at runtime
-- `memory_agent_expertise` — ask "What does [agent] know about X?"
-- `memory_stats` — collection health and counts
-
-**5 Qdrant collections:**
-
-| Collection | Contents | Use Case |
-|------------|----------|----------|
-| `agent-knowledge` | SKILL.md sections indexed by agent | "What does Finn know about React Server Components?" |
-| `decisions` | Architecture Decision Records | "Have we decided on an auth strategy?" |
-| `learnings` | Sprint retrospective insights | "What did we learn about Playwright selectors?" |
-| `code-patterns` | Reusable code templates | "Show me a Spring Boot pagination pattern" |
-| `session-context` | Conversation snapshots | Automatic session continuity across compactions |
-
-**Setup:**
-
-```bash
-# 1. Start Qdrant
-cd claude/rag && docker compose up -d
-
-# 2. Install Python dependencies
-cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -e .
-
-# 3. Initialize collections
-cd .. && mcp-server/.venv/bin/python3 -m management.stats
-
-# 4. Ingest skills into Qdrant
-VOYAGE_API_KEY=<key> mcp-server/.venv/bin/python3 -m ingestion.ingest ~/.claude/skills/
-
-# 5. Register MCP server with Claude Code
-claude mcp add --scope user ai-team-memory \
-  -e VOYAGE_API_KEY=<your-key> \
-  -- /path/to/claude/rag/mcp-server/.venv/bin/python3 -m memory_mcp
-```
-
-**Architecture:**
-
-```
-Claude Code ──(stdio)──> MCP Server ──> Qdrant (Docker, port 6333)
-                              │
-                         Voyage AI (voyage-code-3, 1024-dim embeddings)
-```
-
-See: [RAG Setup Guide](docs/rag-setup/setup-guide.md) | [Knowledge Management](docs/knowledge-management-guide.md)
-
-### Context Persistence
-
-Automatic session continuity — decisions, file changes, and error resolutions survive context compaction and are restored in future sessions.
-
-**How it works:**
-
-| Hook | Trigger | Action |
-|------|---------|--------|
-| `save_context.py` | PreCompact | Parse transcript → extract decisions, file changes, tasks, discussions, errors → embed → store in Qdrant |
-| `restore_context.py` | SessionStart (compact/resume) | Query Qdrant for relevant session context → inject into system prompt |
-
-**Distillation pipeline** (`distill_context.py`): Promotes raw session context into permanent `learnings` and `agent-knowledge` collections — turning temporary conversation artifacts into long-lived institutional knowledge.
-
-See: [Context Persistence Guide](docs/context-persistence-guide.md)
+## Optional Add-Ons
 
 ### Multi-LLM Consultation (`/all`)
 
-Query GPT-5-2, Gemini 3.1 Pro, Grok 4, and more from within Claude Code. Get consensus, divergent views, and synthesized recommendations.
+Query multiple frontier models from within Claude Code and get consensus, divergent views, and synthesized recommendations.
 
 ```bash
 /all Should we use event sourcing for our payment system?
 /all Review this architecture for scalability issues
 ```
 
-**9 models available** (3 defaults, 6 alternatives):
-
-| Model | Context | Strengths |
-|-------|---------|-----------|
-| GPT-5-2 | 400K | Deepest reasoning, security analysis |
-| Gemini 3.1 Pro | 1M | Large context, performance |
-| Grok 4 | 256K | Parallel reasoning, unique perspectives |
-| DeepSeek Chat | 163K | 90% quality at 1/50 cost |
-| Llama 4 Scout | 10M | Open-source, largest context window |
-| + 4 more | | Fast/Pro variants |
-
 Routes through [OpenRouter](https://openrouter.ai) (single API key for all models) with direct OpenAI fallback.
-
-**Setup:**
 
 ```bash
 cd multi-llm/mcp
@@ -409,7 +316,7 @@ See: [Multi-LLM Guide](docs/multi-llm-guide.md)
 
 ### Self-Improving Meta-Agent (`/kai`)
 
-Kai detects recurring patterns in accumulated learnings and proposes permanent SKILL.md updates — with human approval before any changes are applied.
+Kai detects recurring patterns in accumulated learnings and proposes permanent SKILL.md updates — with human approval before any changes are applied. It runs **entirely file-based** by default (no external services): `/retro` writes learnings to `.aidevteam/learnings/`, and Kai clusters them into proposals.
 
 ```bash
 /kai analyze                    # Scan learnings for patterns
@@ -420,85 +327,7 @@ Kai detects recurring patterns in accumulated learnings and proposes permanent S
 /kai status                     # Summary of all proposals
 ```
 
-**Pipeline:** `learnings` → pattern detection → proposal generation → quality validation → human approval → SKILL.md update → re-ingest to Qdrant.
-
-See: [Kai Guide](docs/kai-guide.md)
-
----
-
-## Migration Between Laptops
-
-Two scripts to move the entire framework (repo + skills + Qdrant data + MCP config) between machines:
-
-```bash
-# On source laptop — creates a single archive
-./migrate-pack.sh
-# → ai-dev-team-migration-20260319-143022.tar.gz
-
-# Copy archive to new laptop, then:
-./migrate-unpack.sh ai-dev-team-migration-20260319-143022.tar.gz
-# Installs to current directory by default
-
-# Or specify a target:
-./migrate-unpack.sh archive.tar.gz --repo-dir ~/projects/ai-dev-team
-```
-
-**What `migrate-pack.sh` archives:**
-- The ai-dev-team repository (excluding venvs, caches)
-- `~/.claude/` config (skills, commands, templates, CLAUDE.md, settings)
-- Project memory files
-- Qdrant Docker volume data (if Qdrant is running)
-
-**What `migrate-unpack.sh` does:**
-1. Pre-flight check (Docker, Python 3.11+, Claude Code CLI)
-2. Restore repo to target directory
-3. **Merge** skills/commands into `~/.claude/` (keeps your extra agents, updates shared ones)
-4. Start Qdrant and restore data
-5. Create Python venvs and install dependencies
-6. Prompt for API keys and register MCP servers
-
-Your existing agents on the new laptop are preserved — the unpack script uses `rsync` merge (adds and updates, never deletes).
-
----
-
-## Repository Structure
-
-```
-ai-dev-team/
-├── README.md                     # This file
-├── CLAUDE.md                     # Repo-level instructions for Claude Code
-├── install.sh                    # Interactive installer
-├── migrate-pack.sh               # Pack for migration
-├── migrate-unpack.sh             # Unpack on new laptop
-│
-├── claude/                       # Deployable content (installs to ~/.claude/)
-│   ├── CLAUDE.md                 # Global instructions (TDD, approval gates)
-│   ├── TEAM_WORKFLOW.md          # Complete team workflow spec
-│   ├── skills/                   # 29 SKILL.md files (15-agent core + specialists; stacks as references)
-│   ├── commands/                 # 37 slash command definitions
-│   ├── templates/                # 6 document templates
-│   │
-│   └── rag/                      # RAG Knowledge Base system
-│       ├── docker-compose.yml    # Qdrant v1.13.2
-│       ├── mcp-server/           # Custom MCP server (FastMCP, 4 tools)
-│       ├── ingestion/            # SKILL.md → Qdrant pipeline
-│       ├── context-cache/        # Session persistence (PreCompact/SessionStart hooks)
-│       ├── kai/                  # Self-improving meta-agent
-│       └── management/           # Admin: stats, backup, prune, reindex
-│
-├── multi-llm/                    # Multi-LLM consultation system
-│   └── mcp/                      # MCP server (FastMCP, 3 tools, 9 models)
-│
-└── docs/                         # Extended documentation
-    ├── TEAM_WORKFLOW.md
-    ├── multi-llm-guide.md
-    ├── kai-guide.md
-    ├── context-persistence-guide.md
-    ├── knowledge-management-guide.md
-    ├── skill-extension-guide.md
-    ├── agent-communication.md
-    └── rag-setup/                # Setup, management, embedding providers
-```
+**Pipeline:** `learnings` → pattern detection → proposal generation → quality validation → human approval → SKILL.md update.
 
 ---
 
@@ -553,9 +382,7 @@ Edit the relevant `SKILL.md` and add a new subsection under `## Expertise`. Skil
 | Component | Required | Version |
 |-----------|----------|---------|
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Yes | Latest |
-| Python | For RAG/Multi-LLM only | 3.11+ |
-| Docker | For RAG only | Latest |
-| [Voyage AI API key](https://dash.voyageai.com/) | For RAG only | Free tier works |
+| Python | For Multi-LLM only | 3.11+ |
 | [OpenRouter API key](https://openrouter.ai/) | For Multi-LLM only | Pay-per-use |
 
 The core framework (15-agent core team + optional specialists) works with just Claude Code — no additional dependencies.
@@ -567,36 +394,11 @@ The core framework (15-agent core team + optional specialists) works with just C
 | Guide | Description |
 |-------|-------------|
 | [Team Workflow](docs/TEAM_WORKFLOW.md) | Complete phase-by-phase development process |
-| [RAG Setup](docs/rag-setup/setup-guide.md) | Install Qdrant, MCP server, ingest skills |
-| [Knowledge Management](docs/knowledge-management-guide.md) | Collections, data lifecycle, search patterns |
-| [Context Persistence](docs/context-persistence-guide.md) | Session hooks, distillation pipeline |
+| [Context Persistence](docs/context-persistence-guide.md) | Session continuity notes |
 | [Multi-LLM Guide](docs/multi-llm-guide.md) | `/all` command, model registry, API setup |
-| [Kai Guide](docs/kai-guide.md) | Self-improving meta-agent, proposals workflow |
 | [Skill Extension](docs/skill-extension-guide.md) | Adding new technologies and agents |
 | [Agent Communication](docs/agent-communication.md) | Handoff specs, artifact flow between agents |
-| [RAG Management](docs/rag-setup/management.md) | Backup, prune, reindex, troubleshooting |
-| [Embedding Providers](docs/rag-setup/embedding-providers.md) | Voyage AI vs Gemini comparison |
-
----
-
-## Testing
-
-The RAG platform includes 203+ tests:
-
-```bash
-# Activate the RAG venv
-cd claude/rag/mcp-server && source .venv/bin/activate
-
-# Run all test suites
-pytest                              # 20 MCP server tests
-pytest ../ingestion/tests/          # 20 ingestion pipeline tests
-pytest ../context-cache/tests/      # 75 context persistence tests
-pytest ../kai/tests/                # 88 Kai meta-agent tests
-
-# Multi-LLM tests (separate venv)
-cd ../../../multi-llm/mcp
-source .venv/bin/activate && pytest
-```
+| [Archive](ARCHIVE.md) | What was set aside (the DART dashboard product) and where to find it |
 
 ---
 
@@ -606,10 +408,10 @@ See [`CHANGELOG.md`](CHANGELOG.md) for full details.
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 5.0.0 | 2026-06-06 | **OSS-first release** — proportional workflow engine, 48→29 roster, universal multi-editor installer, pluggable adapters, local Hub |
-| 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, context persistence, RAG knowledge base, migration scripts |
+| 5.0.0 | 2026-06-06 | **OSS-first release** — proportional workflow engine, 48→29 roster, universal multi-editor installer, pluggable adapters |
+| 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, migration scripts |
 | 4.0.0 | 2025-01-02 | Restructured for easy `~/.claude` deployment, installer |
-| 3.1.0 | 2024-12-27 | Approval gates, Aura design verification |
+| 3.1.0 | 2024-12-27 | Approval gates, design verification |
 | 3.0.0 | 2024-12-26 | TDD workflow, unified QA agents |
 | 2.0.0 | 2024-12-25 | Performance testing modules |
 | 1.0.0 | 2024-12-23 | Initial release with 15 agents |
@@ -622,8 +424,7 @@ See [`CHANGELOG.md`](CHANGELOG.md) for full details.
 2. Create a feature branch
 3. Install in dev mode: `./install.sh --link`
 4. Make changes to skills in `claude/skills/`
-5. Run tests if modifying RAG/Multi-LLM code
-6. Submit a pull request
+5. Submit a pull request
 
 See [Skill Extension Guide](docs/skill-extension-guide.md) for detailed contribution guidelines.
 
