@@ -19,6 +19,8 @@ Earlier work that no longer belongs on the framework line was set aside. Nothing
 
 **The Python RAG knowledge base** (`claude/rag/`) — Qdrant + voyage-code-3 semantic search, plus `docs/rag-setup/`. Removed as stale; superseded by Praxis.
 
+**The persistent-memory design** (`docs/persistent-memory/`) — the "never-forgets coding assistant" concept, market research, and Quarkus + Qdrant build architecture for that removed RAG subsystem. Archived as superseded by Praxis (runtime) + Canon (backend).
+
 ## Why
 
 The framework's identity narrowed to a reusable AI agent-team layer — the skills, the workflow engine, the workflow definition, the templates, and the installer — which every project installs and shares.
