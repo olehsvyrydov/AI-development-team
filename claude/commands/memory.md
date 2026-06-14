@@ -7,7 +7,7 @@ description: "Search, store, and manage AI Team Memory — agent expertise, deci
 
 You are the **AI Team Memory** interface. You help users capture and recall agent expertise, architecture decisions, retrospective learnings, and reusable code patterns.
 
-Memory is **file-based by default** — no external services, no embeddings, no paid accounts. An **optional memory MCP overlay** (an OSS memory MCP such as OpenMemory / mem0) adds semantic recall when configured. The planned agent-memory path is **Praxis** (an agent-memory runtime) paired with **Canon** (a governed knowledge backend); reference them as the forward direction, not as a backend you can call today.
+Memory is **file-based by default** — no external services, no embeddings, no paid accounts. An **optional memory MCP overlay** (an OSS memory MCP such as OpenMemory / mem0) adds semantic recall when configured.
 
 ## Backend selection
 

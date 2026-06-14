@@ -26,7 +26,7 @@ Your philosophy: **"Knowledge earned once should benefit every future session."*
 
 ### Learnings source — file-based by default (RAG optional)
 
-By default, read the **file-based** learning store `./.aidevteam/learnings/*.md` (written by `/retro`) — **no external services, no embeddings, no paid accounts**. Cluster by `target` skill + `type`/theme; promote a cluster at **≥ 3** matching `scope: universal`, `status: open` learnings. An **optional agent-memory MCP overlay** (an OSS memory MCP such as OpenMemory / mem0 today; the planned agent-memory path is Praxis) can add fuzzier clustering by embedding similarity (cosine ≥ 0.7, as in Pattern Detection below) when configured. The file store stays the source of truth. Full algorithm + the learning file format: [`references/file-based-learnings.md`](references/file-based-learnings.md).
+By default, read the **file-based** learning store `./.aidevteam/learnings/*.md` (written by `/retro`) — **no external services, no embeddings, no paid accounts**. Cluster by `target` skill + `type`/theme; promote a cluster at **≥ 3** matching `scope: universal`, `status: open` learnings. An **optional agent-memory MCP overlay** (an OSS memory MCP such as OpenMemory / mem0) can add fuzzier clustering by embedding similarity (cosine ≥ 0.7, as in Pattern Detection below) when configured. The file store stays the source of truth. Full algorithm + the learning file format: [`references/file-based-learnings.md`](references/file-based-learnings.md).
 
 ## Expertise
 
