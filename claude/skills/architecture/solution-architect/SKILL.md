@@ -178,6 +178,34 @@ Treat **timing, metrics, cost accounting, logging, tracing, and audit** as cross
 
 **The inverse is equally a guardrail: AOP is for genuine cross-cutting concerns ONLY — never specify domain or business logic inside an aspect.** Especially the logic that is the *meaningful difference* between code paths (e.g. an experiment's independent variable, a branch-specific business rule) belongs in explicit, visible code — not buried in a pointcut where it is invisible at the call site. If a proposed aspect would change *what* the system decides rather than *how* it is observed, it is misplaced domain logic; pull it back into the explicit path.
 
+### Designing for Adoption & In-Loop Payback
+
+A system is only as valuable as its actual use. A technically-correct design that taxes its primary user and returns nothing *in their working loop* gets worked around — correctness does not create adoption. When the consumer is an agent or a developer, treat the adoption loop as a first-class architectural concern: (1) **payback in-loop** — the system must make the user's next action faster or less error-prone, automatically, or using it stays harder than not using it; (2) **recording is a side-effect, not a task** — derive state from the artifacts the user already produces (commits, the plan, tool calls), never require a separate bookkeeping step; (3) **one source of truth** — read the user's native state rather than standing up a competing list they must double-maintain. The anti-pattern to name in any review: *visibility-for-the-overseer that taxes the doer* — a dashboard or ledger that records value for a third party while giving the producer no return. If the design's only beneficiary is an observer, expect abandonment and re-architect for the producer's payback first.
+
+### Validity of a Measured Claim (benchmarks & uplift numbers)
+
+When a system's value rests on a measured number ("X% better", "senior-approved", "N× uplift"), the measurement is itself an architecture artifact and must be designed with equal rigor. **Pre-register and freeze the protocol before collecting data**; log deviations rather than silently editing. Use **blinding + randomized order**, an **inter-rater agreement gate** (e.g. Cohen's κ) before trusting human grades, and **neutral-control cases** where the system should show *no* effect — if it "helps" there, the measurement is leaking. Guard the four traps that most often manufacture a false number:
+- **Strawman baseline** — the comparison arm must be the strongest realistic alternative, not a weak one.
+- **Path / injection fidelity** — measure the *real production path* a live user gets, not a hand-curated ideal.
+- **Grader identity** — never let an automated judge masquerade as the human whose approval the claim sells; an automated judge is at most a labelled secondary proxy.
+- **Benchmark mismatch** — a low score on a benchmark built for a *different* task is not a verdict; confirm the benchmark measures the job you are hiring the system to do.
+
+And **report where the load actually sits**: if a result depends on one component, report that component's standalone contribution separately rather than laundering it into a single headline. A number you cannot reconstruct from its provenance (arm, model, seed, fixture, confusion matrix) is not evidence.
+
+### Promotion, Atomicity & Authority (write paths into a shared store)
+
+For any path that promotes data into a shared, access-controlled, or queryable store (approval→publish, ingest, cache-fill, replication):
+- **One gate, no forked predicate.** Enforce visibility/scope through the *single* gate all reads already use; never add a second read-side predicate or a parallel write path — that is where cross-scope leaks are born. Verify the gate is the *real* one (the field the reads actually filter on), not an assumed one.
+- **Gate on current state at the decision point.** Re-evaluate against the store *as it stands at promotion*, not a snapshot taken earlier — the world can change between propose and commit. Refuse on a terminal verdict; record (do not necessarily refuse on) advisory flags.
+- **Make the visible side-effect atomic with the record.** When a non-transactional external write (vector upsert, search index, message) makes data visible, bind it to the transactional record so the end state is `{published ∧ committed} XOR {neither}` — arm a transaction-synchronization compensator that removes the external artifact on rollback, paired with content-hash idempotency for retry-safety. Order matters: make-visible-then-commit-with-compensation, never commit-then-maybe-publish.
+- **Substitute a stronger authority, don't skip it.** If the natural permission check would wrongly block a legitimate actor, authorize on a *stronger, already-verified* decision via an **internal-only entry point** (not exposed as a general API), with a test proving it is unreachable except through the intended flow — never a blanket bypass. All promotion inputs come from the resolved record, never from request input.
+- **Be honest about who carries safety.** If an automatic gate cannot semantically catch bad input (verify this against the code, not the spec), state plainly that human approval + structural controls are load-bearing and the automatic gate is an efficiency aid — and measure its real contribution. Never present a non-load-bearing gate as the guarantee.
+
+### Verify the Premise; Right-Size the Process
+
+- **Verify the mechanism against the code before building on it.** A design, review, or prompt frequently asserts a mechanism the source does not actually implement (an authority not enforced where claimed, a check that catches less than its name implies, a role that does not imply the permission assumed). Confirm a decision's load-bearing premise in the real code before committing to it; when a premise is later falsified, **re-open the gate** — an approval resting on a wrong mechanism is void.
+- **Right-size process to the change *and* the context.** The same change class warrants different ceremony in different settings: greenfield or solo work should shed heavy gating that mature, security-critical, multi-tenant systems genuinely need. Decide the process weight deliberately. And because a fresh session inherits the *global* process default and has no memory of a local decision to deviate, **write the operating contract down in the project** so the intended (lighter or heavier) process is the explicit, discoverable default rather than re-litigated or silently re-inflated every session.
+
 ### Architecture Tradeoff Analysis Method (ATAM)
 
 ATAM is a structured approach to evaluate architectures against quality attributes. Developed by SEI at Carnegie Mellon University.
