@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# AI Dev Team — Claude Code advanced backend setup (venvs, RAG, Atlassian, hooks)
+# AI Dev Team — Claude Code advanced backend setup (venvs, Multi-LLM, Atlassian)
 # ==============================
-# Optional setup beyond the core install: Python venvs, the RAG memory MCP,
-# Multi-LLM MCP, the Atlassian MCP, and Claude Code hooks. Run after ./install.sh.
+# Optional setup beyond the core install: Python venvs, the Multi-LLM MCP,
+# and the Atlassian MCP. Run after ./install.sh.
 #
 # Usage:
 #   scripts/setup-claude-backends.sh            # interactive
@@ -49,8 +49,8 @@ show_help() {
     echo ""
     echo "If no option is provided, interactive mode is used."
     echo ""
-    echo "After installation, optional RAG + Multi-LLM setup is offered"
-    echo "(requires Docker, Python 3.11+, and API keys)."
+    echo "After installation, optional Multi-LLM setup is offered"
+    echo "(requires Python 3.11+ and an API key)."
 }
 
 # Check prerequisites
@@ -248,7 +248,7 @@ interactive_install() {
 setup_venvs() {
     if ! command -v python3 &>/dev/null; then
         echo -e "${YELLOW}Python 3 not found. Skipping venv setup.${NC}"
-        echo "Install Python 3.11+ and re-run to enable RAG and Multi-LLM features."
+        echo "Install Python 3.11+ and re-run to enable Multi-LLM features."
         return 1
     fi
 
@@ -259,17 +259,7 @@ setup_venvs() {
         return 1
     fi
 
-    local RAG_MCP_DIR="$SCRIPT_DIR/claude/rag/mcp-server"
     local MLM_DIR="$SCRIPT_DIR/multi-llm/mcp"
-
-    if [ -d "$RAG_MCP_DIR" ]; then
-        echo "  Creating RAG MCP venv..."
-        cd "$RAG_MCP_DIR"
-        python3 -m venv .venv
-        .venv/bin/pip install -q --upgrade pip
-        .venv/bin/pip install -q -e . || return 1
-        echo -e "${GREEN}  RAG MCP venv ready: $RAG_MCP_DIR/.venv${NC}"
-    fi
 
     if [ -d "$MLM_DIR" ]; then
         echo "  Creating Multi-LLM MCP venv..."
@@ -282,98 +272,6 @@ setup_venvs() {
 
     cd "$SCRIPT_DIR"
     return 0
-}
-
-# RAG Knowledge Base setup (Qdrant + API key + MCP registration)
-setup_rag() {
-    local RAG_DIR="$SCRIPT_DIR/claude/rag"
-    local RAG_PYTHON="$RAG_DIR/mcp-server/.venv/bin/python3"
-
-    if [ ! -f "$RAG_PYTHON" ]; then
-        echo -e "${YELLOW}RAG venv not found, skipping...${NC}"
-        return
-    fi
-
-    echo ""
-    echo -e "${BLUE}=== RAG Knowledge Base ===${NC}"
-    echo ""
-    echo "Start Qdrant, register MCP server, and ingest skills."
-    echo "Requirements: Docker, Voyage AI API key (free tier)"
-    echo ""
-
-    # Check Docker
-    if ! command -v docker &>/dev/null; then
-        echo -e "${YELLOW}Docker not found. Skipping Qdrant setup.${NC}"
-        echo "Install Docker and re-run, or set up manually: see claude/rag/README.md"
-        return
-    fi
-
-    read -p "Set up RAG Knowledge Base? [y/N] " rag_choice
-    if [ "$rag_choice" != "y" ] && [ "$rag_choice" != "Y" ]; then
-        echo "Skipping RAG setup."
-        echo "To set up later: see claude/rag/README.md"
-        return
-    fi
-
-    # Start Qdrant
-    echo -e "${YELLOW}Starting Qdrant...${NC}"
-    cd "$RAG_DIR"
-    docker compose up -d
-
-    # Wait for Qdrant (the health check needs curl)
-    if ! command -v curl > /dev/null 2>&1; then
-        echo -e "${YELLOW}curl not found — skipping the Qdrant health check; allow a few seconds for it to start.${NC}"
-    else
-        echo "Waiting for Qdrant..."
-        for i in $(seq 1 30); do
-            if curl -s http://localhost:6333/healthz > /dev/null 2>&1; then
-                echo -e "${GREEN}Qdrant is running.${NC}"
-                break
-            fi
-            if [ "$i" -eq 30 ]; then
-                echo -e "${YELLOW}Qdrant didn't start in 30s. Check: docker compose logs${NC}"
-            fi
-            sleep 1
-        done
-    fi
-
-    # Initialize collections
-    echo -e "${YELLOW}Initializing Qdrant collections...${NC}"
-    "$RAG_PYTHON" -m management.stats 2>/dev/null || true
-
-    # Prompt for Voyage AI key
-    echo ""
-    read -rsp "  Enter VOYAGE_API_KEY (or press Enter to skip): " VOYAGE_KEY; echo
-
-    if [ -n "$VOYAGE_KEY" ]; then
-        # Register MCP server (cd HOME to avoid project-scoped registration)
-        if command -v claude &>/dev/null; then
-            cd "$HOME"
-            claude mcp remove ai-team-memory 2>/dev/null || true
-            claude mcp add --scope user --transport stdio ai-team-memory \
-                -e "VOYAGE_API_KEY=$VOYAGE_KEY" \
-                -- "$RAG_PYTHON" -m memory_mcp
-            echo -e "${GREEN}ai-team-memory MCP registered.${NC}"
-        fi
-
-        # Ingest skills
-        echo -e "${YELLOW}Ingesting skills into Qdrant...${NC}"
-        cd "$RAG_DIR"
-        VOYAGE_API_KEY="$VOYAGE_KEY" "$RAG_PYTHON" -m ingestion.ingest "$TARGET_DIR/skills/" 2>/dev/null || \
-            echo -e "${YELLOW}Ingestion skipped (run manually if needed).${NC}"
-    else
-        echo ""
-        echo "  Register MCP server later with:"
-        echo "    claude mcp add --scope user ai-team-memory \\"
-        echo "      -e VOYAGE_API_KEY=your-key \\"
-        echo "      -- $RAG_PYTHON -m memory_mcp"
-        echo ""
-        echo "  Ingest skills later with:"
-        echo "    cd $RAG_DIR"
-        echo "    VOYAGE_API_KEY=your-key $RAG_PYTHON -m ingestion.ingest ~/.claude/skills/"
-    fi
-
-    cd "$SCRIPT_DIR"
 }
 
 # Multi-LLM Consultation setup (API key + MCP registration)
@@ -450,69 +348,6 @@ setup_atlassian() {
     fi
 }
 
-# Context persistence hooks setup
-setup_hooks() {
-    local RAG_PYTHON="$SCRIPT_DIR/claude/rag/mcp-server/.venv/bin/python3"
-    local CONTEXT_DIR="$SCRIPT_DIR/claude/rag/context-cache"
-
-    # Only offer if RAG venv exists and context-cache scripts exist
-    if [ ! -f "$RAG_PYTHON" ] || [ ! -f "$CONTEXT_DIR/save_context.py" ]; then
-        return
-    fi
-
-    echo ""
-    echo -e "${BLUE}=== Context Persistence Hooks (Optional) ===${NC}"
-    echo ""
-    echo "Automatically save session context before compaction and restore"
-    echo "it in future sessions. Requires RAG setup (Qdrant + venv)."
-    echo ""
-
-    read -p "Enable context persistence hooks? [y/N] " hook_choice
-    if [ "$hook_choice" != "y" ] && [ "$hook_choice" != "Y" ]; then
-        echo "Skipping. See docs/context-persistence-guide.md to enable later."
-        return
-    fi
-
-    # We need to know the project dir to write settings.local.json
-    # For now, write a helper message since project path varies
-    echo ""
-    echo -e "${GREEN}To enable hooks for a project, add this to the project's settings.local.json:${NC}"
-    echo ""
-    echo "  File: ~/.claude/projects/<escaped-project-path>/settings.local.json"
-    echo ""
-    cat <<HOOKEOF
-  {
-    "hooks": {
-      "PreCompact": [
-        {
-          "matcher": "",
-          "hooks": [
-            {
-              "type": "command",
-              "command": "$RAG_PYTHON $CONTEXT_DIR/save_context.py",
-              "timeout": 60
-            }
-          ]
-        }
-      ],
-      "SessionStart": [
-        {
-          "matcher": "compact|resume",
-          "hooks": [
-            {
-              "type": "command",
-              "command": "$RAG_PYTHON $CONTEXT_DIR/restore_context.py",
-              "timeout": 30
-            }
-          ]
-        }
-      ]
-    }
-  }
-HOOKEOF
-    echo ""
-}
-
 # Main
 check_prerequisites
 
@@ -558,19 +393,17 @@ echo ""
 setup_venvs || true   # tolerate a skip (e.g. Python missing) without aborting the script
 echo ""
 
-# Offer optional platform setup (API keys, Qdrant, MCP registration)
+# Offer optional platform setup (API keys, MCP registration)
 echo -e "${BLUE}=== Optional: API Keys & MCP Registration ===${NC}"
 echo ""
-echo "Register MCP servers for RAG memory, Multi-LLM, and Atlassian."
+echo "Register MCP servers for Multi-LLM and Atlassian."
 echo "Requires API keys. You can skip and set up later."
 echo ""
 
 read -p "Configure now? [y/N] " optional_choice
 if [ "$optional_choice" = "y" ] || [ "$optional_choice" = "Y" ]; then
-    setup_rag
     setup_multi_llm
     setup_atlassian
-    setup_hooks
 fi
 
 echo ""
@@ -582,7 +415,6 @@ echo "Next steps:"
 echo "  1. Restart Claude Code to load new skills"
 echo "  2. Try: /agents to see all available agents"
 echo "  3. Try: /po, /arch, /fe, /be for specific agents"
-echo "  4. Try: /memory for semantic knowledge search (requires RAG)"
-echo "  5. Try: /all for multi-LLM consultation (requires Multi-LLM)"
+echo "  4. Try: /all for multi-LLM consultation (requires Multi-LLM)"
 echo ""
 echo "Documentation: https://github.com/olehsvyrydov/AI-development-team"
