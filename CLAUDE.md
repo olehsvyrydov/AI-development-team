@@ -100,8 +100,8 @@ Gates fire **proportionally** (by change-class / trigger / preset) via the `work
 
 ## Version
 
-- **Version**: 5.0.0 (see `CHANGELOG.md`)
-- **Release Date**: 2026-06-06
+- **Version**: 5.1.0 (see `CHANGELOG.md`)
+- **Release Date**: 2026-06-14
 - **Editors**: Claude Code, Cursor, Kiro, VS Code (universal `install.sh`)
 - **Skills**: 29 (15-agent core team + optional specialists; tech stacks as references)
 - **Commands**: 50 slash commands
