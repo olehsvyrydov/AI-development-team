@@ -437,6 +437,74 @@ describe('ControlPlaneService', () => {
     });
   });
 
+  describe('searchKb (read-only full-text knowledge search)', () => {
+    it('GETs /api/kb/search with q + scope, no write-guard header (it is a read)', async () => {
+      const promise = cp.searchKb({ query: 'backoff', scope: 'project' });
+      const req = http.expectOne((r) => r.url === '/api/kb/search');
+      expect(req.request.method).toBe('GET');
+      expect(req.request.headers.get(WRITE_GUARD_HEADER)).toBeNull();
+      expect(req.request.params.get('q')).toBe('backoff');
+      expect(req.request.params.get('scope')).toBe('project');
+      req.flush({ ok: true, method: 'full-text', query: 'backoff', scope: 'project', results: [{ file: 'docs/webhook-retry.md', name: 'webhook-retry', scope: 'project', score: 3, excerpt: 'retry with backoff' }] });
+      const res = await promise;
+      expect(res).not.toBeNull();
+      expect(res?.method).toBe('full-text');
+      expect(res?.results[0].name).toBe('webhook-retry');
+      expect(res?.results[0].score).toBe(3);
+    });
+
+    it('threads the scoped project id as ?project so the read resolves to the viewed project', async () => {
+      cp.setProject('abcdef123456');
+      const promise = cp.searchKb({ query: 'x', scope: 'all' });
+      const req = http.expectOne((r) => r.url === '/api/kb/search');
+      expect(req.request.params.get('project')).toBe('abcdef123456');
+      expect(req.request.params.get('scope')).toBe('all');
+      req.flush({ ok: true, method: 'filename-only', query: 'x', scope: 'all', results: [] });
+      await promise;
+    });
+
+    it('lets an explicit project argument override the scoped id', async () => {
+      cp.setProject('scoped');
+      const promise = cp.searchKb({ project: 'explicit', query: 'x', scope: 'common' });
+      const req = http.expectOne((r) => r.url === '/api/kb/search');
+      expect(req.request.params.get('project')).toBe('explicit');
+      req.flush({ ok: true, method: 'filename-only', query: 'x', scope: 'common', results: [] });
+      await promise;
+    });
+
+    it('omits ?project when none is scoped or supplied (single-project launch back-compat)', async () => {
+      const promise = cp.searchKb({ query: 'x', scope: 'project' });
+      const req = http.expectOne((r) => r.url === '/api/kb/search');
+      expect(req.request.params.has('project')).toBe(false);
+      req.flush({ ok: true, method: 'filename-only', query: 'x', scope: 'project', results: [] });
+      await promise;
+    });
+
+    it('returns the server method (filename-only) verbatim — never strengthened to full-text', async () => {
+      const promise = cp.searchKb({ query: 'x', scope: 'project' });
+      const req = http.expectOne((r) => r.url === '/api/kb/search');
+      req.flush({ ok: true, method: 'filename-only', query: 'x', scope: 'project', results: [{ name: 'a', scope: 'project' }] });
+      const res = await promise;
+      expect(res?.method).toBe('filename-only');
+    });
+
+    it('decodes a transport failure to null so the caller can fall back to client-side filtering', async () => {
+      const promise = cp.searchKb({ query: 'x', scope: 'project' });
+      const req = http.expectOne((r) => r.url === '/api/kb/search');
+      req.flush({ ok: false, error: 'unavailable' }, { status: 500, statusText: 'Server Error' });
+      const res = await promise;
+      expect(res).toBeNull();
+    });
+
+    it('decodes an ok:false envelope to null (graceful unavailable, never a throw)', async () => {
+      const promise = cp.searchKb({ query: 'x', scope: 'project' });
+      const req = http.expectOne((r) => r.url === '/api/kb/search');
+      req.flush({ ok: false });
+      const res = await promise;
+      expect(res).toBeNull();
+    });
+  });
+
   describe('knowledge CRUD + sources (guarded, CAS)', () => {
     it('editKbNote posts file/scope/body + the per-note expectedRev with the X-AIDT guard', async () => {
       const promise = cp.editKbNote({ file: 'docs/x.md', body: 'after', scope: 'project', stack: ['java'], kind: 'rule', expectedRev: 'm:1' });

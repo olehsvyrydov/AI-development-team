@@ -48,6 +48,7 @@ const lib = require('./lib/state');
 const { writeAllowed, streamAllowed } = require('./lib/guard');
 const api = require('./lib/api');
 const knowledgeQa = require('./lib/knowledge-qa');
+const kbQuery = require('./lib/kb-query');
 const projects = require('./lib/projects');
 const { createRegistry } = require('./lib/registry');
 const { resolveProject } = require('./lib/resolve-project');
@@ -202,6 +203,31 @@ const server = http.createServer((req, res) => {
           grounding: { method: 'none', source: 'filename-only', external: false, label: 'No note found on this topic in this project\'s scope.' },
           egressDisclosed: false,
         }));
+    });
+  }
+  // ---- read-only knowledge search: GET /api/kb/search ----------------------
+  // A scope-safe, additive, ranked search over the project's already-visible knowledge
+  // (buildKnowledge scope). It mutates nothing and does zero outbound I/O: the optional
+  // full-text index is local-only and the file scan is the existence/visibility authority,
+  // so a result can never be a note outside the project's scope nor one the scan did not
+  // surface. It rides the same loopback Host/Origin/socket pinning as the SSE/ask reads (a
+  // capability that can disclose local data); a read cannot send X-AIDT, so Host/Origin/
+  // socket pinning is the operative control. The `method` label is honest: 'full-text' only
+  // when the index genuinely served the query, else 'filename-only'.
+  if (pathname === '/api/kb/search') {
+    if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'method not allowed' });
+    const gate = streamAllowed(req, { port: PORT, allowRemote: ALLOW_REMOTE });
+    if (!gate.ok) return sendJson(res, gate.code, { ok: false, error: gate.reason });
+    return resolveProject(query && query.get('project'), { registry, launch: PROJECT }).then((r) => {
+      if (!r.ok) return sendJson(res, r.code, { ok: false, error: r.error });
+      const q = (query && query.get('q')) || '';
+      const scope = (query && query.get('scope')) || 'all';
+      // never-throws contract: kbQuery.search degrades every path locally; a true internal
+      // failure returns an empty filename-only result rather than a 500 stack leak.
+      let out;
+      try { out = kbQuery.search(r.dir, { query: q, scope }); }
+      catch { out = { ok: true, method: 'filename-only', query: q, scope, results: [] }; }
+      return sendJson(res, 200, out);
     });
   }
   // ---- read-only directory browser: /api/fs/* (folder picker) --------------

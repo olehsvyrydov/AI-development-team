@@ -1,6 +1,10 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
-import type { KnowledgeDoc, KnowledgeScope } from '../core/models';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, inject, input, output, signal } from '@angular/core';
+import { ControlPlaneService } from '../core/control-plane.service';
+import type { KnowledgeDoc, KnowledgeScope, KnowledgeSearchResult } from '../core/models';
 import { GlyphComponent } from './glyph.component';
+
+/** How long the search input settles before a query reaches the server (and the live announce). */
+const SEARCH_DEBOUNCE_MS = 200;
 
 /** Scope filter for the displayed list: a single vault, or every visible doc. */
 type ScopeFilter = KnowledgeScope | 'all';
@@ -21,9 +25,15 @@ const PROVENANCE: Readonly<Record<string, { readonly glyph: string; readonly tex
  * chips, and the honest index/grounding label — BEFORE the title, then a 2-line escaped excerpt.
  * Each row carries inline ✎ edit and 🗑 remove buttons (the whole row is not a link — a note is text).
  *
- * Search + scope/stack/kind filtering are client-side over the already-loaded merged view (no
- * round-trip); the result count is announced via `aria-live`. Distinct empty states: a genuine
- * whole-empty invites add; a filtered-empty offers Clear filters; a scope-empty reuses honest copy.
+ * Search runs server-side over note BODIES (full-text) so a term found only in a note's body is
+ * found: a typed query is debounced, then read through the knowledge search route for the current
+ * scope, and the ranked results render through the same rows. If the search is unavailable the page
+ * degrades honestly to the client-side title+excerpt filter over the loaded view — never a blank
+ * list, never an error. The method line reflects the ACTUAL search path (full-text vs filename/
+ * excerpt), never claiming full-text on a filename-only answer. The settled result count is
+ * announced once via a polite, debounced `aria-live` region (not per keystroke). Scope/stack/kind
+ * filtering stays client-side. Distinct empty states: a genuine whole-empty invites add; a
+ * filtered-empty offers Clear filters; a scope-empty reuses honest copy.
  *
  * Security: note names, excerpts, tags, and kinds are UNTRUSTED and reach the DOM through
  * interpolation only (escaped), never `[innerHTML]`. The provenance value is a closed enum looked up
@@ -36,7 +46,8 @@ const PROVENANCE: Readonly<Record<string, { readonly glyph: string; readonly tex
   template: `
     <div class="toolbar">
       <div class="toolbar__row">
-        <h3 class="toolbar__title">Notes <span class="toolbar__count" aria-live="polite">({{ countLabel() }})</span></h3>
+        <h3 class="toolbar__title">Notes <span class="toolbar__count">({{ countLabel() }})</span></h3>
+        <span class="visually-hidden" data-testid="kb-search-status" role="status" aria-live="polite">{{ searchStatus() }}</span>
         <label class="search">
           <dart-glyph name="search" [size]="14" />
           <input
@@ -163,6 +174,7 @@ const PROVENANCE: Readonly<Record<string, { readonly glyph: string; readonly tex
     .filters__sel { font: inherit; font-size: var(--kb-text-xs); color: var(--kb-text); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-sm, 0.3rem); padding: 0.15rem 0.3rem; }
     .filters__sel:focus-visible { outline: 2px solid var(--kb-focus-ring); outline-offset: 2px; }
     .method { margin: 0; font-size: var(--kb-text-xs); color: var(--kb-text-muted); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
     .docs { list-style: none; margin: var(--kb-space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--kb-space-2); }
     .doc { display: flex; flex-direction: column; gap: 0.25rem; padding: var(--kb-space-2); background: var(--kb-surface); border: 1px solid var(--kb-border); border-radius: var(--kb-radius-md); }
     .doc__lead { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
@@ -191,6 +203,11 @@ const PROVENANCE: Readonly<Record<string, { readonly glyph: string; readonly tex
 })
 export class KbDocListComponent {
   private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly cp = inject(ControlPlaneService);
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.clearDebounce());
+  }
 
   /** The merged docs (project ∪ matching common) from the projection. */
   readonly docs = input<readonly KnowledgeDoc[]>([]);
@@ -210,6 +227,23 @@ export class KbDocListComponent {
   readonly stackFilter = signal('');
   readonly kindFilter = signal('');
   readonly search = signal('');
+
+  /**
+   * The settled outcome of the latest server search, or `null` when no query is active OR the search
+   * was unavailable. A non-null value carries the ranked results + the honest method the server took;
+   * `null` with an active query means fall back to the client-side title/excerpt filter.
+   */
+  private readonly searchOutcome = signal<{
+    readonly query: string;
+    readonly method: string;
+    readonly results: readonly KnowledgeSearchResult[];
+  } | null>(null);
+
+  /** The settled, debounced result-count sentence for the polite live region (empty until settled). */
+  private readonly searchStatus_ = signal('');
+  readonly searchStatus = this.searchStatus_.asReadonly();
+
+  private debounceHandle: ReturnType<typeof setTimeout> | null = null;
 
   readonly total = computed(() => this.counts().project + this.counts().common);
   readonly empty = computed(() => this.total() <= 0);
@@ -238,18 +272,35 @@ export class KbDocListComponent {
     return [...set].sort();
   });
 
+  /**
+   * The rows to render. With an active query the server full-text results win when they settled
+   * (already scope-safe + ranked, narrowed further by any stack/kind filter); if the search was
+   * unavailable it falls back to the client-side title+excerpt filter over the loaded view. With no
+   * query it is the scope/stack/kind-filtered loaded view.
+   */
   readonly visibleDocs = computed<readonly KnowledgeDoc[]>(() => {
-    const scope = this.scopeFilter();
     const stack = this.stackFilter();
     const kind = this.kindFilter();
-    const q = this.search().trim().toLowerCase();
+    const narrow = (docs: readonly KnowledgeDoc[]): readonly KnowledgeDoc[] =>
+      docs.filter((doc) => {
+        if (stack && !(doc.stack ?? []).includes(stack)) return false;
+        if (kind && doc.kind !== kind) return false;
+        return true;
+      });
+
+    const q = this.search().trim();
+    const outcome = this.searchOutcome();
+    if (q && outcome) return narrow(outcome.results);
+
+    const scope = this.scopeFilter();
+    const ql = q.toLowerCase();
     return this.allDocs().filter((doc) => {
       if (scope !== 'all' && doc.scope !== scope) return false;
       if (stack && !(doc.stack ?? []).includes(stack)) return false;
       if (kind && doc.kind !== kind) return false;
-      if (q) {
+      if (ql) {
         const hay = `${doc.name} ${doc.excerpt ?? ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
+        if (!hay.includes(ql)) return false;
       }
       return true;
     });
@@ -261,11 +312,22 @@ export class KbDocListComponent {
     return `${n} in this scope`;
   });
 
-  readonly methodLine = computed(() =>
-    this.method() === 'local-embeddings'
+  /**
+   * The honest index/search line. While a query is active it reflects the ACTUAL search path the
+   * server took — full-text over note bodies, or a filename/excerpt scan — never claiming full-text
+   * on a filename-only answer; with no query it states how the knowledge is indexed.
+   */
+  readonly methodLine = computed(() => {
+    const outcome = this.searchOutcome();
+    if (this.search().trim() && outcome) {
+      return outcome.method === 'full-text'
+        ? 'Searched note bodies (full-text)'
+        : 'Searched filenames and excerpts only';
+    }
+    return this.method() === 'local-embeddings'
       ? 'Indexed via: local embeddings (semantic)'
-      : 'Indexed via: filename index only — connect an embedder for semantic recall',
-  );
+      : 'Indexed via: filename index only — connect an embedder for semantic recall';
+  });
 
   readonly emptyScopeLine = computed(() => {
     if (this.filtering()) return 'No notes match these filters.';
@@ -291,6 +353,7 @@ export class KbDocListComponent {
 
   onSearch(event: Event): void {
     this.search.set((event.target as HTMLInputElement).value);
+    this.scheduleSearch();
   }
   onStackFilter(event: Event): void {
     this.stackFilter.set((event.target as HTMLSelectElement).value);
@@ -299,13 +362,60 @@ export class KbDocListComponent {
     this.kindFilter.set((event.target as HTMLSelectElement).value);
   }
   clearFilters(): void {
+    this.clearDebounce();
     this.search.set('');
     this.stackFilter.set('');
     this.kindFilter.set('');
+    this.searchOutcome.set(null);
+    this.searchStatus_.set('');
   }
 
   setScope(scope: ScopeFilter): void {
     this.scopeFilter.set(scope);
+    if (this.search().trim()) this.scheduleSearch();
+  }
+
+  /**
+   * Debounce a server search for the current query + scope. A blank query needs no round-trip: it
+   * clears any prior outcome so the normal scope list shows again, and the announce resets quietly.
+   */
+  private scheduleSearch(): void {
+    this.clearDebounce();
+    const query = this.search().trim();
+    if (!query) {
+      this.searchOutcome.set(null);
+      this.searchStatus_.set('');
+      return;
+    }
+    const scope = this.scopeFilter();
+    this.debounceHandle = setTimeout(() => {
+      this.debounceHandle = null;
+      void this.runSearch(query, scope);
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  /**
+   * Read the full-text search for one settled query + scope, then adopt the ranked results (or fall
+   * back to the client filter on an unavailable read) and announce the settled count exactly once.
+   * A stale resolution (the operator typed on / changed scope) is dropped so only the latest wins.
+   */
+  private async runSearch(query: string, scope: ScopeFilter): Promise<void> {
+    const outcome = await this.cp.searchKb({ query, scope });
+    if (this.search().trim() !== query || this.scopeFilter() !== scope) return;
+    if (outcome) {
+      this.searchOutcome.set({ query, method: outcome.method, results: outcome.results });
+    } else {
+      this.searchOutcome.set(null);
+    }
+    const n = this.visibleDocs().length;
+    this.searchStatus_.set(`${n} ${n === 1 ? 'result' : 'results'} for “${query}”`);
+  }
+
+  private clearDebounce(): void {
+    if (this.debounceHandle !== null) {
+      clearTimeout(this.debounceHandle);
+      this.debounceHandle = null;
+    }
   }
 
   onScopeKeydown(event: KeyboardEvent, scope: ScopeFilter): void {

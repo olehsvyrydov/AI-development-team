@@ -428,6 +428,27 @@ function buildKnowledge(project) {
   }
 
   const configured = embedderConfigured(project);
+  // Method label, derived from what ACTUALLY serves search this build (provenance-first):
+  // embeddings > full-text > filename-only. The full-text tier is gated on a LIVE probe of
+  // the optional index (not mere package presence) and is backed by a genuine consumable
+  // full-text query path (the read-only kb/search route ranks over note bodies through the
+  // SAME index this probe confirms). It only ever REORDERS docs[] — the file scan above
+  // stays the authority on which notes exist and are visible (additive ranking, so a stale
+  // index can hide but never reveal). Absent/broken index → today's filename-only behaviour.
+  let method = configured ? 'local-embeddings' : 'filename-only';
+  if (!configured) {
+    try {
+      const { ftsSearch, rankDocs } = require('./kb-search');
+      const fts = ftsSearch(project, { query: '', projectId: '', projectStack: declaredStack, scope: 'all', probe: true });
+      if (fts && fts.available === true) {
+        method = 'full-text';
+        const ranked = rankDocs(docs, Array.isArray(fts.hits) ? fts.hits : []);
+        docs.length = 0;
+        for (const d of ranked) docs.push(d);
+      }
+    } catch { /* index absent/broken → keep filename-only, docs unchanged */ }
+  }
+
   // The /kai inbox: PENDING proposals only. These are inert BY LOCATION (a separate
   // store NOT scanned above and NOT run through scopeMatches), so they never appear
   // in `docs`/recall — only here, awaiting an explicit human approve. Untrusted
@@ -458,7 +479,7 @@ function buildKnowledge(project) {
   } catch { sources = []; sourcesRev = '0'; }
 
   return {
-    method: configured ? 'local-embeddings' : 'filename-only',
+    method,
     stack: declaredStack,
     counts: { project: own.length, common: visibleCommon.length, proposals: proposals.length },
     docs,
@@ -805,4 +826,4 @@ function listSummary(project) {
   } catch { return null; }
 }
 
-module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, stateChangedAt, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor };
+module.exports = { buildState, listSummary, summarizeTasks, parseWorkflow, parseRules, parseLabels, findWorkflow, normState, wfLabel, section, safeExists, safeRead, fileRev, stateChangedAt, FORBIDDEN_KEYS, buildKnowledge, readKb, containedCommonVaultDir, readCommonKb, pendingDirectives, permittedLabelsFor, markdownBody };

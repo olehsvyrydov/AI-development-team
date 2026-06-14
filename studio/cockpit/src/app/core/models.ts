@@ -256,6 +256,34 @@ export interface KnowledgeMatch {
 }
 
 /**
+ * One ranked hit from the full-text Knowledge search. It carries every field a {@link KnowledgeDoc}
+ * does — so a result renders through the exact same provenance-first row — plus a relevance `score`
+ * the server ranked it by. `name`, `excerpt`, `stack`, and `kind` originate from project files and
+ * are UNTRUSTED: they reach the DOM through interpolation only (escaped), never `[innerHTML]`.
+ */
+export interface KnowledgeSearchResult extends KnowledgeDoc {
+  /** Relevance score the server ranked this hit by (higher = more relevant); absent on a tie/fallback. */
+  readonly score?: number;
+}
+
+/**
+ * The decoded outcome of a full-text Knowledge search (`GET /api/kb/search`). `method` is the HONEST
+ * search path the server actually took — `full-text` only when it queried note BODIES via the index,
+ * `filename-only` when it degraded to a filename/excerpt scan; the UI must reflect this verbatim and
+ * never claim full-text on a `filename-only` response. `results` are already scope-safe + ranked.
+ */
+export interface KnowledgeSearchOutcome {
+  /** The actual search path taken: `full-text` (note bodies) or `filename-only` (filename/excerpt scan). */
+  readonly method: 'full-text' | 'filename-only' | string;
+  /** The query the server ran, echoed back. UNTRUSTED — escape on render. */
+  readonly query: string;
+  /** The scope the search was constrained to. */
+  readonly scope: KnowledgeScope | 'all' | string;
+  /** The scope-safe, relevance-ranked hits. */
+  readonly results: readonly KnowledgeSearchResult[];
+}
+
+/**
  * The answer to an interpretation-check question — what the project actually holds for the topic,
  * scoped exactly as the Knowledge panel is, with an HONEST grounding label and a TRUTHFUL egress
  * flag. `egressDisclosed` is true IFF an external overlay was queried; it is the sole driver of the

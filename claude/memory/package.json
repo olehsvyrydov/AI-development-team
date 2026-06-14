@@ -9,8 +9,9 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/",
-    "digest": "node src/digest.ts"
+    "test": "node --test",
+    "digest": "node src/digest.ts",
+    "kb-index": "node src/kb-index.ts"
   },
   "optionalDependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

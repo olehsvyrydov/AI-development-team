@@ -2,7 +2,15 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PLATFORM_BRIDGE } from './platform-bridge';
-import type { KbSource, KnowledgeAnswer, KnowledgeDoc, KnowledgeScope, ProjectState } from './models';
+import type {
+  KbSource,
+  KnowledgeAnswer,
+  KnowledgeDoc,
+  KnowledgeScope,
+  KnowledgeSearchOutcome,
+  KnowledgeSearchResult,
+  ProjectState,
+} from './models';
 
 /**
  * The outcome of a control-plane mutation. The hub answers every guarded mutation with one of
@@ -108,6 +116,30 @@ export type AskResult =
 interface AskEnvelope extends KnowledgeAnswer {
   readonly ok?: boolean;
   readonly error?: string;
+}
+
+/**
+ * Query for `searchKb`. `query` is the operator's raw search text (sent verbatim as `q`); `scope`
+ * constrains the search to one vault or every visible doc. `project` is optional: when omitted the
+ * service threads the scoped project id (the viewed project), matching the read-resolution every
+ * other knowledge read uses; when supplied it overrides that for this one call.
+ */
+export interface KbSearchInput {
+  /** Optional registry id / project resolver; overrides the scoped project id for this call only. */
+  readonly project?: string;
+  /** The operator's raw search text. UNTRUSTED — sent verbatim as `q`, never interpolated into a path. */
+  readonly query: string;
+  /** Which vault(s) to search: a single scope, or every visible doc. */
+  readonly scope: KnowledgeScope | 'all';
+}
+
+interface SearchEnvelope {
+  readonly ok?: boolean;
+  readonly error?: string;
+  readonly method?: string;
+  readonly query?: string;
+  readonly scope?: string;
+  readonly results?: readonly KnowledgeSearchResult[];
 }
 
 /** Body for `ticket/advance`. `expectedRev` is the opaque token from the last received state. */
@@ -462,6 +494,42 @@ export class ControlPlaneService {
       return { ok: false, error: res?.error || 'request failed' };
     } catch (err) {
       return { ok: false, error: httpErrorMessage(err) };
+    }
+  }
+
+  /**
+   * Search the project's knowledge over note BODIES via the full-text index — "find the note that
+   * mentions X", even when X appears only in a note's body. This is a READ (`GET /api/kb/search`):
+   * it carries NO write-guard header, sends only `q`, `scope`, and the scoped project id as query
+   * params, and never mutates. The route is loopback-only and read-only.
+   *
+   * Honesty contract: the resolved `method` is whatever path the server actually took — `full-text`
+   * only when it queried note bodies, `filename-only` when it degraded to a filename/excerpt scan —
+   * and the caller must reflect that verbatim, never claiming full-text on a `filename-only` answer.
+   *
+   * Any failure — transport error, or an `ok:false` envelope — decodes to `null` (never a throw), so
+   * the caller can fall back to its existing client-side title/excerpt filter rather than blank out.
+   *
+   * @param input the raw query, the scope to search, and an optional project override
+   * @returns the ranked, scope-safe outcome, or `null` when the search is unavailable
+   */
+  async searchKb(input: KbSearchInput): Promise<KnowledgeSearchOutcome | null> {
+    let params = new HttpParams().set('q', input.query).set('scope', input.scope);
+    const project = input.project ?? this.projectId;
+    if (project !== null && project !== undefined) params = params.set('project', project);
+    try {
+      const res = await firstValueFrom(
+        this.http.get<SearchEnvelope>(this.bridge.apiUrl('/api/kb/search'), { params }),
+      );
+      if (res?.ok !== true) return null;
+      return {
+        method: res.method ?? 'filename-only',
+        query: res.query ?? input.query,
+        scope: res.scope ?? input.scope,
+        results: res.results ?? [],
+      };
+    } catch {
+      return null;
     }
   }
 
