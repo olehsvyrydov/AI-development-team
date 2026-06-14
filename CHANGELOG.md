@@ -4,6 +4,10 @@ This file records all notable changes to the project. Versioning roughly follows
 
 ## [Unreleased]
 
+## [5.1.0] — 2026-06-14
+
+A consolidation and hygiene release that finishes the framework repositioning: the on-demand specialist roster is now backed by vendor-neutral reference libraries, two dormant agents are wired to commands, the team roster and knowledge-backend naming are reconciled across the docs, and the dashboard product, the RAG subsystem, and the personal migration scripts are removed.
+
 ### Added
 - **ai-engineer reference libraries** — vendor-neutral, research-grounded, fact-checked references under `claude/skills/development/ai/ai-engineer/references/`: `rag-patterns.md` (chunking · embeddings · retrieval · reranking · context · eval) and `agentic-workflows.md` (loops · tools · memory · multi-agent · control). The first of the LLM/RAG/multi-agent reference libraries the role agent self-routes to.
 - **ai-engineer reference libraries (cont.)** — same directory: `llm-frameworks.md` (framework selection by control model · MCP roles/transports/spec revisions) and `prompt-engineering.md` (structured output · repair loops · context engineering). Extends the LLM/RAG/multi-agent reference set.
@@ -12,13 +16,25 @@ This file records all notable changes to the project. Versioning roughly follows
 - **data/mlops/dba vector reference libraries** — vendor-neutral, research-grounded, fact-checked references, lane-separated by concern: `claude/skills/development/data/data-engineer/references/rag-corpus-pipelines.md` (RAG corpus ingestion · chunking · embedding pipelines · freshness), `claude/skills/operations/mlops/mlops-engineer/references/vector-db-operations.md` (vector-DB ops · serving · scaling · monitoring), and `claude/skills/development/data/dba/dba/references/vector-db-tuning.md` (index tuning · ANN parameters · query/storage optimization). Extends the LLM/RAG/multi-agent reference set across data-pipeline, ops, and index-tuning altitudes.
 - **technical-writer is now a standing agent** — `/tw` runs at every commit point, owning two first-class deliverables: (1) the commit message for every commit in Conventional Commits form (reconciled against requirements, no `Co-Authored-By` trailer), and (2) living docs (README/CHANGELOG) kept current with drift flagged as a defect. New `claude/skills/specialized/technical-writer/references/commit-and-docs.md` carries the Conventional Commits spec, release-notes-from-commit-range workflow, a PR-description template (Summary/Changes/Risk/Test evidence), a commitlint config, and a docs-freshness CI gate.
 - **Stakeholder-facing Gherkin as proof artifact** — `claude/skills/quality/testing/e2e-tester/references/cucumber-bdd.md` adds a "Benchmark & Stakeholder-Facing Scenarios" pattern: plain Given/When/Then a non-engineer can trust, tagged (`@benchmark`/`@acceptance`/`@slo`) with `Scenario Outline` + `Examples` so the bar (latency budget, accuracy floor, cost ceiling) is visible in a data table and the passing run IS the proof. backend-tester cross-references the pattern for API-level assertions.
+- **`/tw` and `/mlops` slash commands** — the technical-writer and mlops-engineer skills existed but had no command, so they were dormant; both are now wired up. Command count 48 → 50.
+- **README "On-Demand Specialists" table** — documents the previously-undocumented cross-cutting specialists (`/ai`, `/data`, `/dba`, `/sre`, `/perf`, `/android`, `/ios`, `/ux`), separated from the core 15.
 
 ### Changed
+- **Knowledge-backend naming generalized** — dropped a named product from the framework docs (the agent-memory runtime keeps its name) and standardized the optional knowledge-base overlay to a single term, "knowledge-graph backend" (the unrelated "design canon" term is unchanged). Touches `CLAUDE.md`, `AGENTS.md`, `README.md`, `ARCHIVE.md`, and the deployable `claude/` instructions.
+- **Team roster reconciled** across `README.md`, `claude/CLAUDE.md`, and `claude/AGENTS.md` to the canonical core 15 (DevOps in the 15; `/verify` and `/kai` shown as special-purpose), matching the "Team at a Glance" diagram.
+- **`/arch`** — restored cross-component contract + stack guardrails.
+- **Framework repositioning** — docs and memory surfaces re-pointed off the removed subsystems, positioning the project as the reusable agent-team framework.
+- **Workflow docs reconciled** — the duplicate `docs/team-workflow.md` was merged into `docs/TEAM_WORKFLOW.md`, resolving a case-only filename collision.
 - **Inline review comments are the authoritative checklist** — reviewer and scrum-master now require every inline PR comment to be resolved one-by-one (a change addressing it, or a per-thread reply with reasoning) before or alongside any holistic refactor; a maintainer's chat-level themes are never treated as the complete spec.
 - **Engineering-standards enforcement (facts-only code)** — reviewer and backend-developer codify that code and Javadoc state facts only (contract, params, returns, throws, side effects). Process artifacts in source/Javadoc — ticket/issue IDs, ADR/condition codes (e.g. `C1`, `D4`), persona/sprint names — are BLOCKING and belong in the commit message or PR, not the artifact. backend-review adds the matching reviewer checks.
 
 ### Fixed
 - **Reference-doc copy-edit (Copilot review)** — removed stray `</content>`/`</invoke>` paste artifacts at the end of `prompt-engineering.md`; pluralized the citation-count noun in the cucumber-bdd benchmark scenario (`source` → `source(s)`); clarified an ambiguous commit-message example in `commit-and-docs.md` (`do not 400` → `rather than rejecting with HTTP 400`).
+
+### Removed
+- **DART dashboard product** — the `hub/` Local Hub, `studio/cockpit/`, `dart-mcp/`, and the Kiro/plugin packaging, archived off the framework line (see `ARCHIVE.md`). This removes the Local Hub that 5.0.0 shipped.
+- **Python RAG / Qdrant knowledge-base subsystem** (`claude/rag/`) — superseded; stale references trimmed from `install.sh`, `.gitignore`, scripts, and memory-surface docs.
+- **Personal laptop-to-laptop migration scripts** (`migrate-pack.sh`, `migrate-unpack.sh`) — untracked from the public repo.
 
 ## [5.0.0] — 2026-06-06
 

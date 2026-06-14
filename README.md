@@ -422,6 +422,7 @@ See [`CHANGELOG.md`](CHANGELOG.md) for full details.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 5.1.0 | 2026-06-14 | Reference libraries (ai-engineer, architect, data/mlops/dba); /tw + /mlops wired up; roster reconciled to core 15; knowledge-backend naming generalized; DART dashboard + RAG subsystem + migration scripts removed |
 | 5.0.0 | 2026-06-06 | **OSS-first release** — proportional workflow engine, 48→29 roster, universal multi-editor installer, pluggable adapters |
 | 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, migration scripts |
 | 4.0.0 | 2025-01-02 | Restructured for easy `~/.claude` deployment, installer |
