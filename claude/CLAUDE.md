@@ -16,7 +16,7 @@ A team of ~29 specialist AI agents (a 15-agent core team + optional specialists)
 - Full detail: `TEAM_WORKFLOW.md` (on-demand). Definition: `workflow/workflow.yaml`.
 
 ## Tickets & docs — no Jira required
-Default is **file-based**: markdown tickets (**Backlog.md**) + a markdown knowledge base (Obsidian-compatible). Jira/Confluence and other backends (KGB/Canon) are **optional MCP overlays**, enabled only in `workflow.yaml`.
+Default is **file-based**: markdown tickets (**Backlog.md**) + a markdown knowledge base (Obsidian-compatible). Jira/Confluence and other backends (a knowledge-graph backend) are **optional MCP overlays**, enabled only in `workflow.yaml`.
 
 ## Memory (optional)
 Native files by default. Optional OSS memory MCP (OpenMemory / mem0). No memory backend is required.
@@ -29,11 +29,13 @@ Native files by default. Optional OSS memory MCP (OpenMemory / mem0). No memory 
 | `/ba` | anna | Business Analyst | · | `/qa` | rob | Test Designer |
 | `/arch` | jorge | Architect | · | `/e2e` | adam | E2E Automation |
 | `/fe` | finn | Frontend | · | `/ui` | aura | UI/UX Designer |
-| `/be` | james | Backend | · | `/verify` | — | QA Auditor (gate) |
+| `/be` | james | Backend | · | `/devops` | — | DevOps |
 | `/fin` | inga | Accountant | · | `/legal` | alex | Legal |
-| `/mkt` | apex | Marketing | · | `/kai` | — | Self-improvement |
+| `/mkt` | apex | Marketing | · |  |  |  |
 
-Optional specialists (AI/LLM, Data, DBA, SRE, MLOps, UX research, Performance, Native mobile, Technical writer, …) load on demand. **Technology stacks are not separate agents** — a role agent detects the project's stack and loads the matching `references/<stack>.md` (Angular/Vue/Flutter/JavaFX → `/fe`; Kotlin/FastAPI/Laravel/Quarkus/Kafka/HMRC → `/be`; GraphQL → `/arch`; Terraform → `/devops`; Cucumber → `/e2e`; UK law/tax → `/legal`,`/fin`). Full roster: `/agents`. Role commands are standard; persona aliases invoke the same agent.
+Two special-purpose agents sit outside the core 15: `/verify` (completion auditor / workflow gate) and `/kai` (self-improving meta-agent).
+
+Optional specialists (AI/LLM, Data, DBA, SRE, MLOps, UX research, Performance, Native mobile, Technical writer (`/tw`), …) load on demand. **Technology stacks are not separate agents** — a role agent detects the project's stack and loads the matching `references/<stack>.md` (Angular/Vue/Flutter/JavaFX → `/fe`; Kotlin/FastAPI/Laravel/Quarkus/Kafka/HMRC → `/be`; GraphQL → `/arch`; Terraform → `/devops`; Cucumber → `/e2e`; UK law/tax → `/legal`,`/fin`). Full roster: `/agents`. Role commands are standard; persona aliases invoke the same agent.
 
 ## Git
 Branch `feature/<KEY>-desc` · commit `<KEY>: message` · PR `<KEY>: title`. Run tests before committing.

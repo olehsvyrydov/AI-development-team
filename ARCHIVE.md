@@ -19,7 +19,7 @@ Earlier work that no longer belongs on the framework line was set aside. Nothing
 
 **The Python RAG knowledge base** (`claude/rag/`) — Qdrant + voyage-code-3 semantic search, plus `docs/rag-setup/`. Removed as stale; superseded by Praxis.
 
-**The persistent-memory design** (`docs/persistent-memory/`) — the "never-forgets coding assistant" concept, market research, and Quarkus + Qdrant build architecture for that removed RAG subsystem. Archived as superseded by Praxis (runtime) + Canon (backend).
+**The persistent-memory design** (`docs/persistent-memory/`) — the "never-forgets coding assistant" concept, market research, and Quarkus + Qdrant build architecture for that removed RAG subsystem. Archived as superseded by Praxis (runtime) + a separate governed knowledge backend.
 
 ## Why
 
@@ -28,9 +28,9 @@ The framework's identity narrowed to a reusable AI agent-team layer — the skil
 The dashboard-first model was superseded by a pivot to two sibling products that live in their own separate repositories:
 
 - **Praxis** — an open agent-memory runtime.
-- **Canon** — a governed knowledge backend.
+- A separate governed knowledge backend.
 
-The Python RAG was superseded by Praxis. The agent skills are the durable, shared layer used across all of these, so they stay here rather than moving into Praxis or Canon.
+The Python RAG was superseded by Praxis. The agent skills are the durable, shared layer used across all of these, so they stay here rather than moving into Praxis or the knowledge backend.
 
 ### The Cockpit
 

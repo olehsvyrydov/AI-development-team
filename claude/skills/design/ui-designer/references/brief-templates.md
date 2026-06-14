@@ -9,7 +9,7 @@ yourself; that is your craft to explore.
 
 1. **Ground yourself before asking anything.** Pull what is already known:
    - Project **design canon** (brand, tokens, type, prior screens, components) from
-     KB/Canon if available (MCP), and the user's taste from **memory**.
+     the knowledge base if available (MCP), and the user's taste from **memory**.
    - State in ≤3 bullets what you found and will honour. If nothing exists, say so.
 2. Then branch:
    - **User gave a filled brief / clear goal** → use **Template A**, confirm, build the gallery.
@@ -17,7 +17,7 @@ yourself; that is your craft to explore.
      time, summarise after each, then output a completed Template A and the gallery.
    - **A gallery already exists** → use **Template C** (layered refinement).
    - **New project, no design language yet** → offer **Template D** (define the canon once,
-     store in KB/Canon) before per-screen work.
+     store in the knowledge base) before per-screen work.
 
 ## Play mode (interactive fill) — the rules
 - Ask **one group at a time**. Never dump all questions at once.
@@ -74,7 +74,7 @@ google-chrome-stable --headless=new --disable-gpu --no-sandbox --hide-scrollbars
 PROJECT: <name>   SCREEN: <landing / dashboard / onboarding / …>
 TARGET FRAMEWORK: <React/Next | Vue/Nuxt | Angular | React Native | plain HTML>
 
-0. GROUND: pull canon (KB/Canon) + my taste (memory); report what you'll honour.
+0. GROUND: pull the design canon (from the knowledge base) + my taste (memory); report what you'll honour.
 1. THE JOB (intent, not layout)
    - This screen exists so the visitor will: <the ONE thing they do/feel>
    - Audience: <who; context; sophistication>
@@ -97,7 +97,7 @@ TARGET FRAMEWORK: <React/Next | Vue/Nuxt | Angular | React Native | plain HTML>
 ```
 /aura — Guided Discovery
 I want to design a <screen> for <project>. Rough vision: <2–5 sentences>. No full specs.
-START: ground in KB/Canon + memory; tell me what you found (don't ask what you can answer).
+START: ground in the knowledge base + memory; tell me what you found (don't ask what you can answer).
 THEN interview me ONE group at a time, summarising after each:
   1) job, audience & feeling   2) aesthetic direction & references (love/avoid)
   3) constraints & content (framework, reuse, a11y, copy)   4) technical / out-of-scope
@@ -112,17 +112,17 @@ I choose DIRECTION <N>.  KEEP <…>  CHANGE <…>  BORROW from <M>: <…>  TONE:
 Refine in LAYERS, screenshot after each, pause before next:
   1) tokens (colour, type scale & pairing, spacing)  2) layout & hierarchy
   3) components & states (hover/focus/empty/error/loading)  4) ONE signature motion moment
-On approval, build in <framework> and update the canon in KB/Canon with new tokens.
+On approval, build in <framework> and update the canon in the knowledge base with new tokens.
 ```
 
-## Template D — Project Design Canon (set once, store in KB/Canon)
+## Template D — Project Design Canon (set once, store in the knowledge base)
 ```
 /aura — Define the Project Design Canon
 Establish <project>'s reusable design language so every screen inherits it.
-FIRST check KB/Canon and EXTEND existing canon, don't duplicate.
+FIRST check the knowledge base and EXTEND existing canon, don't duplicate.
 Define + STORE: brand essence (3 adjectives+feeling); colour system + roles (60/30/10),
 light/dark, contrast-safe; typography (display+body pairing, scale, rules); spacing/grid;
 component conventions (+states); motion principles; imagery style + never-use; references.
 Output canon doc → propose a 1-screen style-tile prototype → on approval persist to
-KB/Canon and give the citation handle future briefs should use.
+the knowledge base and give the citation handle future briefs should use.
 ```
