@@ -347,7 +347,7 @@ Always include latest best practices:
 
 1. Add to README.md agent table
 2. Update CLAUDE.md if needed
-3. Add to team-workflow.md diagram
+3. Add to TEAM_WORKFLOW.md team roles table
 
 ---
 

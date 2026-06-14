@@ -6,7 +6,7 @@ This file mirrors CLAUDE.md and provides context to AI coding assistants (Claude
 
 This is a **reusable AI agent-team framework** — ~29 specialist agent skills (a 15-agent core team + optional specialists, including the `workflow-engine`), a proportional dev `workflow.yaml`, document templates, and the `install.sh` installer. Each skill file represents a team member with deep domain expertise. The skills are installed globally and used by every project. It is vendor-neutral and OSS-first, working in Claude Code / Cursor / Kiro / VS Code.
 
-Its two sibling products — **Praxis** (an open agent-memory runtime) and **Canon** (a governed knowledge backend) — live in their own separate repositories and consume this shared agent layer. See `ARCHIVE.md` for the dashboard product that was previously carried here and set aside.
+Its sibling agent-memory runtime — **Praxis** — lives in its own separate repository and consumes this shared agent layer, as does a separate governed knowledge backend. See `ARCHIVE.md` for the dashboard product that was previously carried here and set aside.
 
 ## Repository Structure
 
@@ -33,7 +33,7 @@ ai-dev-team/
 │   │   ├── specialized/   # Technical Writer, Kai (self-improving meta-agent)
 │   │   └── workflow-engine/ # Workflow contract + gate-check + ledger
 │   │
-│   ├── commands/          # 48 slash commands (/max, /jorge, /finn, /memory, etc.)
+│   ├── commands/          # 50 slash commands (/max, /jorge, /finn, /memory, etc.)
 │   │
 │   ├── templates/         # 6 document templates (ADR, Sprint, User Story, etc.)
 │   │
@@ -104,7 +104,7 @@ Gates fire **proportionally** (by change-class / trigger / preset) via the `work
 - **Release Date**: 2026-06-06
 - **Editors**: Claude Code, Cursor, Kiro, VS Code (universal `install.sh`)
 - **Skills**: 29 (15-agent core team + optional specialists; tech stacks as references)
-- **Commands**: 48 slash commands
+- **Commands**: 50 slash commands
 - **Templates**: 6 document templates
 - **Backends**: pluggable adapters — file-based by default; Jira/Confluence/OpenMemory/Penpot/etc. optional
-- **Sibling products**: Praxis (agent-memory runtime) and Canon (governed knowledge backend) live in separate repos and consume these shared skills
+- **Sibling products**: Praxis (agent-memory runtime) and a separate governed knowledge backend live in separate repos and consume these shared skills

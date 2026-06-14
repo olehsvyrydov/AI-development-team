@@ -252,6 +252,17 @@ Developers are responsible for ALL tests related to their code:
 - All tests must pass before code review
 - Tests are documentation - write clear test names
 
+**Test at Multiple Levels** (favour the base of the pyramid):
+```
+         /\
+        /E2E\        <- Critical paths only (10%)
+       /------\
+      / Integ. \     <- Integration points (20%)
+     /----------\
+    /   Unit     \   <- Comprehensive coverage (70%)
+   /--------------\
+```
+
 ## Phase 3: Code Review
 
 ### 3.1 Code Reviewer (/rev)

@@ -30,14 +30,11 @@ The framework is a portable agent layer you install once and use across every pr
 
 ---
 
-## Relationship to Praxis & Canon
+## Relationship to Praxis
 
-The agent skills in this repo are the **shared agent layer** — installed globally and used by every project, including its two sibling products, which live in their own separate repositories:
+The agent skills in this repo are the **shared agent layer** — installed globally and used by every project, including its sibling **Praxis** (an open agent-memory runtime) and a separate governed knowledge backend, which live in their own separate repositories.
 
-- **Praxis** — an open agent-memory runtime.
-- **Canon** — a governed knowledge backend.
-
-This framework stays focused on the durable, reusable layer: the agent skills, the workflow engine, the workflow definition, the templates, and the installer. Product-specific surfaces (dashboards, knowledge backends, memory runtimes) live in Praxis and Canon, not here. The earlier dashboard product that this repo once carried has been set aside — see [`ARCHIVE.md`](ARCHIVE.md).
+This framework stays focused on the durable, reusable layer: the agent skills, the workflow engine, the workflow definition, the templates, and the installer. Product-specific surfaces (dashboards, knowledge backends, memory runtimes) live in Praxis and a separate knowledge backend, not here. The earlier dashboard product that this repo once carried has been set aside — see [`ARCHIVE.md`](ARCHIVE.md).
 
 ---
 
@@ -154,7 +151,7 @@ Optional advanced Claude backends (Atlassian, memory MCP, hooks): `scripts/setup
 │   ├── specialized/             # Technical Writer, Kai (self-improving meta-agent)
 │   └── workflow-engine/         # Workflow contract + gate-check + ledger
 │
-├── commands/                    # 48 slash commands
+├── commands/                    # 50 slash commands
 │   ├── [role-based]             # /po, /sm, /ba, /arch, /fe, /be, /rev, /qa, /e2e ...
 │   ├── [persona aliases]        # /max, /luda, /jorge, /finn, /james, /adam ...
 │   └── [utility]                # /agents, /bug, /issue, /memory, /all, /kai ...
@@ -192,11 +189,28 @@ Optional advanced Claude backends (Atlassian, memory MCP, hooks): `scripts/setup
 | `/fin` | `/inga` | UK Accountant | Tax planning, VAT, R&D credits, MTD compliance |
 | `/legal` | `/alex` | UK Legal Counsel | GDPR, contracts, employment law, compliance |
 | `/mkt` | `/apex` | Marketing Strategist | GTM strategy, positioning, content, SEO |
-| — | — | DevOps Engineer | Terraform, Kubernetes, GitHub Actions, Docker |
-| — | — | MLOps Engineer | LLM integration, AI pipelines, model serving |
-| — | — | Technical Writer | API docs, architecture diagrams, onboarding guides |
+| `/devops` | — | DevOps Engineer | Terraform, Kubernetes, GitHub Actions, Docker |
 
 > Both naming conventions work: `/arch` (role-based, primary) and `/jorge` (persona alias) invoke the same agent.
+
+### On-Demand Specialists
+
+These aren't part of the core 15 — they load on demand when their discipline is in play (invoke directly, or a core agent routes to them).
+
+| Command | Role | Key Expertise |
+|---------|------|---------------|
+| `/ai` | AI/LLM Application Engineer | RAG, agents, prompt engineering, evals, tool use, guardrails |
+| `/mlops` | MLOps Engineer | Model serving, ML/AI pipelines, deployment & monitoring |
+| `/data` | Data Engineer | ETL/ELT, dbt, warehouses, streaming, orchestration |
+| `/dba` | Database Administrator | Schema design, indexing, query tuning, safe migrations |
+| `/sre` | SRE / Observability | SLOs, monitoring, alerting, incident response, runbooks |
+| `/perf` | Performance Engineer | Web Vitals, profiling, caching, load testing, budgets |
+| `/android` | Native Mobile — Android | Kotlin, Jetpack Compose, Play delivery |
+| `/ios` | Native Mobile — iOS | Swift, SwiftUI, App Store delivery |
+| `/ux` | UX Researcher | Interviews, usability testing, personas, journey maps |
+| `/tw` | Technical Writer | API docs, Javadoc/JSDoc, READMEs, diagrams, onboarding |
+
+Two special-purpose agents are documented in their own sections: `/kai` (self-improving meta-agent) and `/verify` (completion auditor / workflow gate).
 
 ### Technology Extensions
 

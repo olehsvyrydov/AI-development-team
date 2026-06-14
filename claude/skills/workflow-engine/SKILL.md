@@ -25,7 +25,7 @@ You enforce the team's workflow. The authoritative definition lives in **`workfl
 The default `preset: solo` forces nothing — gates fire only on trigger or change-class, so a solo dev gets a light path and won't route a typo through architecture + security. `small-team` adds always-on code review; `regulated` runs the full gauntlet and uses Jira/Confluence. Switch by editing `preset:` in `workflow.yaml`.
 
 ## Tickets & docs — no Jira required
-Default = **markdown tickets (Backlog.md)** + a **markdown knowledge base** (Obsidian-compatible). Jira / Confluence / KGB-Canon are **optional MCP overlays** — use them only when configured in `workflow.yaml`.
+Default = **markdown tickets (Backlog.md)** + a **markdown knowledge base** (Obsidian-compatible). Jira / Confluence / a knowledge-graph backend are **optional MCP overlays** — use them only when configured in `workflow.yaml`.
 
 ## Handoffs
 Every agent runs a **Gate Check**: before starting it confirms its precondition gates; before finishing it sets its postcondition gate in the ledger. This is what makes the workflow hold without an orchestrator and in any editor — see `references/gate-check.md`.

@@ -262,7 +262,7 @@ main() {
   ok "${BOLD}Done.${NC}"
   if has_editor claude; then
     log "  • Claude Code: restart it, then try ${BOLD}/agents${NC}."
-    log "  • Optional advanced backends (RAG memory, Atlassian, hooks): ${BOLD}scripts/setup-claude-backends.sh${NC}"
+    log "  • Optional advanced backends (Atlassian, memory MCP, hooks): ${BOLD}scripts/setup-claude-backends.sh${NC}"
   fi
   has_editor cursor && log "  • Cursor: rules in .cursor/rules/ + AGENTS.md are active on next session."
   has_editor kiro   && log "  • Kiro: steering in .kiro/steering/ + AGENTS.md are active."

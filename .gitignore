@@ -23,11 +23,6 @@ __pycache__/
 .venv/
 *.egg-info/
 
-# RAG / Qdrant
-*.snapshot
-claude/rag/mcp-server/.venv/
-claude/rag/management/backups/
-
 # Multi-LLM Consultation MCP
 multi-llm/mcp/.venv/
 
@@ -52,3 +47,6 @@ design-gallery/
 .mcp.json
 .cursor/
 .kiro/
+# Personal laptop-to-laptop migration scripts (not part of the public framework)
+migrate-pack.sh
+migrate-unpack.sh

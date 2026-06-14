@@ -20,7 +20,7 @@ An agent's rule of thumb: *detect the highest-tier available adapter for the tas
 | Category | Default (free, local) | OSS overlay (self-host) | Cloud (optional) |
 |---|---|---|---|
 | **Tickets / workflow** | `.workflow-state.json` + Backlog.md markdown tickets (`local-repo`) | **workflow MCP** — stateful, refuses out-of-order advances (`local-service`) | **Jira** (`cloud`) |
-| **Knowledge base** | markdown vault (`docs/` or Obsidian-compatible) (`local-repo`) | **Obsidian MCP** (`local-service`) | **Confluence**, KGB-Canon (`cloud`) |
+| **Knowledge base** | markdown vault (`docs/` or Obsidian-compatible) (`local-repo`) | **Obsidian MCP** (`local-service`) | **Confluence**, knowledge-graph backend (`cloud`) |
 | **Memory** | native files under `memory/` (`local-repo`) | **OpenMemory** MCP — self-hosted mem0 (`local-service`) | **mem0** hosted (`cloud`) |
 | **Design** | local Claude-generated HTML + headless Chrome screenshots (`local-repo`) | **Penpot** MCP (`local-service`) | **Figma**, Canva (`cloud`) |
 
