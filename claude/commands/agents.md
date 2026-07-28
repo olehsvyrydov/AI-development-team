@@ -40,6 +40,7 @@ description: List all available AI Development Team agents and their specializat
 | `/ux` | ux-researcher | User research: interviews, usability, IA, personas |
 | `/perf` | performance-engineer | Web Vitals, profiling, budgets, load testing (owns `PERF_OK`) |
 | `/ios` `/android` | native-mobile-developer | Native iOS (Swift/SwiftUI) & Android (Kotlin/Compose) |
+| `/ext` | browser-extension-developer | Browser extensions: MV3 manifest & permissions, service worker, injection, tabs/groups |
 | `/verify` | verify | QA Auditor — completeness + workflow gates (`APPROVAL_GATE`, `VERIFIED`) |
 | `/kai` | kai | Self-improving meta-agent (`/retro` learnings → skill updates) |
 | — | technical-writer | C4 diagrams, ADRs, API docs, READMEs |
