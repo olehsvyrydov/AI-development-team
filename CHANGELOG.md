@@ -4,6 +4,21 @@ This file records all notable changes to the project. Versioning roughly follows
 
 ## [Unreleased]
 
+### Added
+- **Five cross-cutting process skills** — roles cover *who* does the work; these cover *how* it is decided, checked and paid for. `fid-lifecycle` (backlog → design doc/epic → tickets → Done, without orphans or two disagreeing records), `verify-landed` (prove a change exists and does something — a green build is not evidence, because removing nothing breaks nothing), `review-tier` (how much multi-agent review to buy and how to scope it), `model-selection` (which model tier to spend — the test is whether a cheap verifier exists downstream), `research-method` (investigate so the result is trustworthy; publish so it survives a hostile reader). Listed in `claude/commands/agents.md` and `claude/CLAUDE.md`.
+- **`answer-audit`** — adversarially audit a retrieval-grounded answer, assuming it is wrong until each claim is proven verbatim against a source passage. Targets the failure class a grounding judge structurally cannot see: an answer minus its qualifier is still *entailed* by its sources, so "is this grounded?" passes it.
+- **`/ext` — Browser Extension Developer**, with references for MV3 architecture, injection and extraction, permissions and security, tabs and groups, long-running work, surfaces, and build/test.
+- **Theia references** for `/arch`, `/ui` and `/fe`, and a **Rust reference** for `/be`.
+- **`references/board-integrity.md`** for `/sm` — six integrity checks with checkable answers, plus retrospection by continuous capture.
+
+### Changed
+- **`/sm` re-scoped from ceremony to board integrity.** The role read "you are the conductor of the orchestra — every agent reports to you", which is unfalsifiable, so nothing ever contradicted it and in practice it was never invoked. It is now accountable for orphan work items, plan-vs-tracker divergence, backlog items whose work has moved on, Done-without-negative-criteria, parked-without-a-trigger, and epics claiming completion over open children. Output is counts and named items, never a verdict.
+- **Retrospectives are continuous, not scheduled.** Capture one question at merge; distil the running page per epic. A fortnightly retro reconstructs the past from memory and yields platitudes — the durable lessons are found mid-work, while the mechanism is still in your hands.
+- **`workflow-engine`** gains the tracking-location rule: a local folder or an external tracker is a convenience call by project size, and never both for the same thing.
+
+### Fixed
+- `.gitignore` now covers machine-local agent state (`.praxis/`, `.aidevteam/`) and archived internal discussions (`docs/archive/`). This repository is public, and those transcripts carry product strategy and private-project detail.
+
 ## [5.1.0] — 2026-06-14
 
 A consolidation and hygiene release that finishes the framework repositioning: the on-demand specialist roster is now backed by vendor-neutral reference libraries, two dormant agents are wired to commands, the team roster and knowledge-backend naming are reconciled across the docs, and the dashboard product, the RAG subsystem, and the personal migration scripts are removed.
