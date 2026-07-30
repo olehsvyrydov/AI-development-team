@@ -330,18 +330,25 @@ See: [Multi-LLM Guide](docs/multi-llm-guide.md)
 
 ### Self-Improving Meta-Agent (`/kai`)
 
-Kai detects recurring patterns in accumulated learnings and proposes permanent SKILL.md updates — with human approval before any changes are applied. It runs **entirely file-based** by default (no external services): `/retro` writes learnings to `.aidevteam/learnings/`, and Kai clusters them into proposals.
+Kai promotes working-rules you have already approved into permanent SKILL.md updates. It **emits a
+diff and stops** — it never applies, stages, or commits a change.
+
+It requires an agent-memory runtime (such as [Praxis](https://github.com/olehsvyrydov/praxis)),
+which mines scoped rules from real sessions automatically at session end. Mined rules start as
+`proposed` and reach no agent until you approve one; Kai reads only the approved ones, drops any
+that are project-specific, duplicated or too vague, and proposes the rest.
 
 ```bash
-/kai analyze                    # Scan learnings for patterns
-/kai propose                    # Generate SKILL.md update proposals
-/kai list --status pending      # Review pending proposals
-/kai approve <ID>               # Approve a proposal
-/kai apply <ID>                 # Apply to SKILL.md files
-/kai status                     # Summary of all proposals
+/kai                       # review all approved rules, propose what qualifies
+/kai --skill <path>        # restrict to rules routing to one skill
+/kai --audience reviewer   # restrict by audience (reviewer|developer|tester|all)
 ```
 
-**Pipeline:** `learnings` → pattern detection → proposal generation → quality validation → human approval → SKILL.md update.
+**Pipeline:** session → rules mined automatically → **you approve** → Kai filters for universality
+→ diff for review → you apply it, or you do not.
+
+Without a memory runtime connected, `/kai` reports that there are no approved rules and stops. It
+does not invent them.
 
 ---
 

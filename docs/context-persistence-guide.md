@@ -4,4 +4,4 @@ The earlier Qdrant-based context-persistence subsystem (`claude/rag/context-cach
 
 Cross-session memory is now the concern of **Praxis**, the open agent-memory runtime that lives in its own repository and consumes the shared agent skills in this framework.
 
-By default the framework keeps no external memory backend: agents work from file-based artifacts — markdown tickets (Backlog.md), the markdown knowledge base, and `/retro` learnings under `.aidevteam/learnings/`. An agent-memory MCP overlay (such as Praxis) is optional.
+By default the framework keeps no external memory backend: agents work from file-based artifacts — markdown tickets (Backlog.md) and the markdown knowledge base. An agent-memory MCP overlay (such as Praxis) is optional; when one is connected, [`/kai`](../claude/commands/kai.md) can propose its human-approved rules as skill updates.
