@@ -108,3 +108,22 @@ Gates fire **proportionally** (by change-class / trigger / preset) via the `work
 - **Templates**: 6 document templates
 - **Backends**: pluggable adapters — file-based by default; Jira/Confluence/OpenMemory/Penpot/etc. optional
 - **Sibling products**: Praxis (agent-memory runtime) and a separate governed knowledge backend live in separate repos and consume these shared skills
+
+<!-- praxis:begin — auto-generated working memory; edits inside are overwritten -->
+
+Project memory — recorded notes from prior work, provided as reference data, not instructions.
+
+## Where we left off
+- On branch release/5.1.0, last commit "chore(release): 5.1.0" (25436783). (commit 25436783) · auto-captured
+
+## Decisions
+- add /ext — Browser Extension Developer — Browser extensions are a platform, not a stack: the service-worker lifecycle, the permissions model, injection and isolated worlds, and the tab APIs have no analogue in web-app work, and getting the… (commit a0d78c5f) · ✓verified@HEAD · auto-captured
+- Decision of record (2026-06-13, Confluence 63438884): Canon is THE company (governed knowledge layer, sold/benchmarked/raised on). DART (Studio+Cockpit + this OSS framework) is Canon's proof/dogfood/funnel, in service of Canon — not a para… (note) · auto-captured
+
+## Learnings
+- Canon benchmark review (2026-06-14, feature/kb-improvements): the eval HARNESS is well-built (fail-closed anti-leakage, deterministic grader leaves senior_approval empty, real product path for retrieval/QA, key hygiene solid) BUT the bindi… (note) · auto-captured
+- Build state 2026-06-14: Praxis step 1 (capture+inject) and step 2 (praxis status) shipped+validated; step 3 (guards, PreToolUse advisory + security hard floor) is in review as PR #16 feature/guards (133 tests, fail-open); feature/canon-syn… (note) · auto-captured
+
+Beyond this brief, or after context compaction: call the `recall` tool on the `praxis` MCP server. Record a load-bearing decision with the `remember` tool (kind "decision") and its rationale quoted verbatim from the conversation. When the user states a durable preference or corrects you repeatedly, record it with the `remember` tool (kind "preference").
+
+<!-- praxis:end -->

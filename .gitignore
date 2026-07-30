@@ -50,3 +50,13 @@ design-gallery/
 # Personal laptop-to-laptop migration scripts (not part of the public framework)
 migrate-pack.sh
 migrate-unpack.sh
+
+# Machine-local agent state — never committed.
+# Praxis is per-machine evidence memory (SQLite, decays, zero-egress by design);
+# .aidevteam/ holds local config and the workflow override.
+.praxis/
+.aidevteam/
+
+# Archived internal discussions. This repository is PUBLIC: transcripts carry
+# product strategy, funding and private-project detail that must not be published.
+docs/archive/
