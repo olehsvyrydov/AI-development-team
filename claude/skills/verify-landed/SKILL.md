@@ -1,6 +1,6 @@
 ---
 name: verify-landed
-description: Prove that a change you just made actually exists and actually does something, before reporting it as done. Load this after any edit intended to change behaviour — a bug fix, a guard, a new refusal — and before claiming a finding is fixed, a ticket is complete, or a criterion is met. It catches the two cheapest ways to ship nothing: an edit that silently matched nothing, and a claim resting on a comment rather than on code.
+description: "Prove that a change you just made actually exists and actually does something, before reporting it as done. Load this after any edit intended to change behaviour — a bug fix, a guard, a new refusal — and before claiming a finding is fixed, a ticket is complete, or a criterion is met. It catches the two cheapest ways to ship nothing — an edit that silently matched nothing, and a claim resting on a comment rather than on code."
 ---
 
 # Verify it landed

@@ -1,0 +1,13 @@
+{
+  "name": "aidevteam",
+  "owner": {
+    "name": "Oleh Svyrydov"
+  },
+  "plugins": [
+    {
+      "name": "ai-dev-team",
+      "source": "./claude",
+      "description": "Specialist agent team + enforced proportional workflow, with cross-cutting process skills for lifecycle, verification, review tiering, model selection and research method."
+    }
+  ]
+}

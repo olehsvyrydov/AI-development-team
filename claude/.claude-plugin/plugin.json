@@ -1,0 +1,10 @@
+{
+  "name": "ai-dev-team",
+  "description": "A specialist agent team plus an enforced, proportional workflow: role agents that self-route to deep references, six cross-cutting process skills (lifecycle, verification, review tiering, model selection, research method), and gate-based delivery. Editor-neutral, OSS-first.",
+  "author": {
+    "name": "Oleh Svyrydov"
+  },
+  "homepage": "https://github.com/olehsvyrydov/AI-development-team",
+  "repository": "https://github.com/olehsvyrydov/AI-development-team",
+  "license": "MIT"
+}
