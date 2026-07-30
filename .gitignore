@@ -60,3 +60,13 @@ migrate-unpack.sh
 # Archived internal discussions. This repository is PUBLIC: transcripts carry
 # product strategy, funding and private-project detail that must not be published.
 docs/archive/
+
+# Root AGENTS.md is a machine-local context file: Praxis owns a managed block in
+# it and refreshes that block with captured working memory, which carries the same
+# private-project detail the rules above exclude. Ignoring the file is what keeps
+# that content out of a public repo — a one-off scrub does not hold, because the
+# block is re-inserted on the next write.
+#
+# Nothing public is lost: the hand-written half mirrored CLAUDE.md (tracked), and
+# claude/AGENTS.md ships the cross-tool instructions with the plugin.
+/AGENTS.md
