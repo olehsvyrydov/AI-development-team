@@ -2,7 +2,7 @@
 
 This repository narrowed to its durable core: the reusable agent-team framework — the agent skills in `claude/skills/`, the `workflow-engine`, the `workflow.yaml` definition, the document templates, and the `install.sh` installer. The skills are installed globally and used by every project.
 
-Earlier work that no longer belongs on the framework line was set aside. Nothing was lost — it is preserved in annotated git tags, in this branch's history before the removal commit, and on the remote feature branches. This document records what was removed, why, and how to retrieve it.
+Earlier work that no longer belongs on the framework line was set aside. Nothing was lost — it is preserved in annotated git tags, which are pushed to the remote, and in this branch's history before the removal commit. This document records what was removed, why, and how to retrieve it.
 
 ## What was set aside
 
@@ -46,7 +46,7 @@ The Cockpit (`studio/cockpit/`) is the **reference seed for Praxis's human contr
 
 **Branch history** — everything is present in `main`'s history before commit `76a7473` (the removal commit: `chore: archive the DART dashboard product off the framework line`).
 
-**Remote feature branches** — the `origin/feat/dart-*` branches also retain the work.
+**The `origin/feat/dart-*` branches have been deleted.** They were redundant: each archive tag above points at the exact commit its branch tip pointed at, and the tags are pushed, so the work remains on the remote and reachable by tag. Prefer the tags — a branch drifts or gets pruned, an annotated tag does not.
 
 ## How to inspect an archive
 
