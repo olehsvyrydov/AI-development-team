@@ -1,3 +1,8 @@
+---
+name: all
+description: "Multi-LLM consultation — gather opinions from several AI platforms on one question and synthesize them into actionable insights."
+---
+
 # /all — Multi-LLM Consultation
 
 You are orchestrating a **multi-LLM consultation**. Your job is to gather opinions from multiple AI platforms and synthesize them into actionable insights.

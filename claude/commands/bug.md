@@ -1,3 +1,8 @@
+---
+name: bug
+description: "Report a bug from a plain description — triggers investigation, structured documentation and fix coordination."
+---
+
 # Bug Command
 
 Report a bug with a simple description. Claude will handle investigation, structured documentation, and fix coordination.

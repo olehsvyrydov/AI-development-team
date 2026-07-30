@@ -89,6 +89,34 @@ This framework stays focused on the durable, reusable layer: the agent skills, t
 
 ### 1. Install
 
+**Claude Code — as a plugin (recommended).** Nothing to clone, and no `~/.claude` setup: declare
+it per project and it reaches every session, including cloud sessions and anyone else who clones
+the repository.
+
+```jsonc
+// <your-project>/.claude/settings.json
+{
+  "extraKnownMarketplaces": {
+    "aidevteam": {
+      "source": { "source": "github", "repo": "olehsvyrydov/AI-development-team" }
+    }
+  },
+  "enabledPlugins": { "ai-dev-team@aidevteam": true }
+}
+```
+
+Trust the directory when prompted; the plugin installs on the next session. Verify with
+`claude plugin details ai-dev-team`, which lists the component inventory and its token cost.
+
+Skills arrive namespaced — `ai-dev-team:arch`, `ai-dev-team:rev` — and the short aliases (`/arch`,
+`/rev`) keep working. The always-on contract ships as the `ai-dev-team` skill; a plugin cannot
+install a global `CLAUDE.md`, so that skill carries what a session needs to know about how work
+runs here.
+
+To try it before declaring it: `claude --plugin-dir ./claude` from a clone of this repository.
+
+**Any editor — the installer.** Still supported, and the only path for Cursor, Kiro and VS Code.
+
 ```bash
 git clone https://github.com/olehsvyrydov/AI-development-team.git
 cd AI-development-team

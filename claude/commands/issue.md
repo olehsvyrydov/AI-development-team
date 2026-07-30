@@ -1,3 +1,8 @@
+---
+name: issue
+description: "Report an issue from a plain description — alias for /bug; triggers the investigation, documentation and fix-coordination workflow."
+---
+
 # Issue Command
 
 Alias for `/bug`. Report an issue with a simple description.
