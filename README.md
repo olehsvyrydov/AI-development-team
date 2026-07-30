@@ -156,12 +156,36 @@ Optional advanced Claude backends (Atlassian, memory MCP, hooks): `scripts/setup
 
 ## What Gets Installed
 
+**As a plugin**, nothing is copied into your project. The repository *is* the plugin:
+
+```
+AI-development-team/
+├── .claude-plugin/
+│   └── marketplace.json         # the catalogue — points at ./claude
+└── claude/                      # ← the plugin root
+    ├── .claude-plugin/
+    │   └── plugin.json          # the manifest. `version` is deliberately omitted,
+    │                            #   so the commit SHA is the version and every push
+    │                            #   is an update
+    ├── skills/                  # loaded as ai-dev-team:<name>, short aliases intact
+    ├── commands/
+    ├── templates/
+    └── workflow/
+```
+
+`CLAUDE.md` and `AGENTS.md` at the plugin root are readable mirrors — a plugin cannot load either,
+so the always-on contract ships as the `ai-dev-team` skill instead.
+
+**Via `install.sh`**, content is copied (or symlinked with `--link`) into the target scope. Only
+`skills/`, `commands/`, `templates/` and `workflow/` are deployed; the instructions file is
+generated at the destination:
+
 ```
 ~/.claude/
-├── CLAUDE.md                    # Global instructions (TDD workflow, approval gates)
+├── CLAUDE.md                    # generated pointer (TDD workflow, approval gates)
 ├── TEAM_WORKFLOW.md             # Complete team process documentation
 │
-├── skills/                      # 29 agent skill files (15 core + specialists; stacks as references)
+├── skills/                      # 38 agent skill files (15 core + specialists + process skills)
 │   ├── management/              # Product Owner, Scrum Master, Business Analyst
 │   ├── architecture/            # Solution Architect, GraphQL Developer
 │   ├── development/
@@ -177,7 +201,16 @@ Optional advanced Claude backends (Atlassian, memory MCP, hooks): `scripts/setup
 │   ├── compliance/              # Accountant, Legal (generic + UK regional variants)
 │   ├── marketing/               # Product Marketing Strategist
 │   ├── specialized/             # Technical Writer, Kai (self-improving meta-agent)
-│   └── workflow-engine/         # Workflow contract + gate-check + ledger
+│   │
+│   ├── ai-dev-team/             # ─┐ cross-cutting process skills — judgement, not a role.
+│   ├── workflow-engine/         #  │ They sit at the top level because they apply across
+│   ├── fid-lifecycle/           #  │ every role: the gate contract, the always-on framework
+│   ├── verify-landed/           #  │ contract, work-item lifecycle, proving a change landed,
+│   ├── review-tier/             #  │ how much review to buy, which model tier to spend,
+│   ├── model-selection/         #  │ how to investigate, how to audit a grounded answer,
+│   ├── research-method/         #  │ and how to run a PR to a mergeable state.
+│   ├── answer-audit/            #  │
+│   └── pull-request/            # ─┘
 │
 ├── commands/                    # 50 slash commands
 │   ├── [role-based]             # /po, /sm, /ba, /arch, /fe, /be, /rev, /qa, /e2e ...
@@ -480,6 +513,7 @@ See [`CHANGELOG.md`](CHANGELOG.md) for full details.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 5.2.0 | 2026-07-30 | **Plugin distribution** (`claude/` is the plugin root; SHA is the version); `ai-dev-team` contract skill + `pull-request` skill; `/kai` re-based on human-approved rules from any backend; `/retro` removed; `/sm` re-scope wired to its triggers; root `AGENTS.md` untracked |
 | 5.1.0 | 2026-06-14 | Reference libraries (ai-engineer, architect, data/mlops/dba); /tw + /mlops wired up; roster reconciled to core 15; knowledge-backend naming generalized; DART dashboard + RAG subsystem + migration scripts removed |
 | 5.0.0 | 2026-06-06 | **OSS-first release** — proportional workflow engine, 48→29 roster, universal multi-editor installer, pluggable adapters |
 | 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, migration scripts |

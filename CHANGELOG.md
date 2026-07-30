@@ -4,9 +4,16 @@ This file records all notable changes to the project. Versioning roughly follows
 
 ## [Unreleased]
 
+## [5.2.0] — 2026-07-30
+
 Distribution moves from copying files to a versioned plugin, and three skills that documented
 mechanisms which did not exist are corrected. The theme is the framework's own rule applied to
 itself: a documented mechanism is worth nothing until something enforces it.
+
+Note on versioning: `claude/.claude-plugin/plugin.json` deliberately omits `version`, so for a
+plugin consumer the commit SHA is the version and every push is an update. The number here is for
+readers of this file. Removals are treated as a minor bump, following 5.1.0, which removed the
+dashboard product and the RAG subsystem.
 
 ### Added
 - **Claude Code plugin distribution.** `claude/` is the plugin root (`claude/.claude-plugin/plugin.json`), with the catalogue at `.claude-plugin/marketplace.json`. A consuming project declares it once in `.claude/settings.json` and every session gets it — including cloud sessions and anyone who clones the repo, neither of which reads `~/.claude/skills/`. `version` is deliberately omitted so the commit SHA is the version. `install.sh` keeps working and stays the path for Cursor, Kiro and VS Code.
@@ -28,6 +35,11 @@ itself: a documented mechanism is worth nothing until something enforces it.
 - **Frontmatter added to `all.md`, `issue.md` and `bug.md`**, which were loading with empty metadata and could never auto-trigger.
 - **Documented skill counts reconciled with the tree** — they had drifted nine behind.
 - `claude/CLAUDE.md` and `claude/AGENTS.md` now state that nothing loads them automatically: `install.sh` deploys only `skills/`, `commands/`, `templates/` and `workflow/` and generates its own pointer file, and a plugin cannot load either. The `ai-dev-team` skill is the live copy.
+- **`ARCHIVE.md` no longer promises preservation "on the remote feature branches".** Those branches are deleted; each archive tag points at the exact commit its branch tip did, and the tags are pushed, so the work stays on the remote and reachable. The document would otherwise have described a mechanism that no longer exists — the failure this release removes elsewhere.
+
+### Repository hygiene
+- **One remote, one branch.** A second remote (a self-hosted mirror) had diverged by 26 commits while the working tree was live configuration through a symlinked `~/.claude/skills` — a pull against the wrong remote silently rewound the tree and removed every skill from a running session. Every ref on it was verified reachable from `origin` before it was removed.
+- **Merged and superseded branches deleted**, local and remote. Unmerged ones were archived as annotated tags first. Two were declined on inspection rather than merged: one re-added the retired `/retro` command and its learnings reference, and one carried only product docs belonging to a different repository, its skills content having already landed by another route.
 
 ## [5.1.0] — 2026-06-14
 
