@@ -1,6 +1,11 @@
 # AI Development Team
 
-A team of ~29 specialist AI agents (a 15-agent core team + optional specialists) + an enforced, proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
+A team of 37 skills (a 15-agent core team + optional specialists, plus cross-cutting process skills) + an enforced, proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
+
+> **This file is the `install.sh` path only.** A plugin install cannot load a `CLAUDE.md`, so the
+> same contract ships as the `ai-dev-team` skill, which is the source of truth. Both are kept
+> during the transition — **edit the skill first and mirror it here**, or the two will drift into
+> two answers to the same question. This file goes away when `install.sh` is retired.
 
 ## Principles
 - **Proportional process.** Right-size the workflow to the change — a typo is not a feature. Don't over-process; don't skip what matters.

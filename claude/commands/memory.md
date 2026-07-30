@@ -54,6 +54,6 @@ Persist a learning, decision, or pattern from the current session:
 ## When to Use
 
 - Before starting a feature: check what agents already know about the domain
-- During retrospectives: capture learnings for future reference (feeds `/kai`)
+- When a lesson emerges mid-work: record it, so it is not reconstructed from memory later
 - When writing code: search for existing patterns and templates
 - When making architecture decisions: check past decisions for context

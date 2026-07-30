@@ -163,12 +163,14 @@ When something urgent happens mid-sprint:
 
 ## Standards
 
-### Sprint Execution
-- Sprint goal is clear and communicated
-- Daily standups are timeboxed (15 min max)
-- Blockers are escalated within 24 hours
-- Sprint scope is protected from changes
-- Definition of Done is enforced
+### Execution
+- The goal of the current batch of work is clear and written down
+- Blockers are escalated within 24 hours, not held until a scheduled meeting
+- Scope changes are traded against something, never simply added
+- Definition of Done is enforced — including the negative criteria (see Check 4)
+
+On a team large enough to need a standup, timebox it and keep it out of status-reporting.
+On a solo or two-person team it is noise; the board checks tell you more than the meeting would.
 
 ### Meeting Efficiency
 - All meetings have clear agendas
