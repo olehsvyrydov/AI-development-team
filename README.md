@@ -89,6 +89,34 @@ This framework stays focused on the durable, reusable layer: the agent skills, t
 
 ### 1. Install
 
+**Claude Code — as a plugin (recommended).** Nothing to clone, and no `~/.claude` setup: declare
+it per project and it reaches every session, including cloud sessions and anyone else who clones
+the repository.
+
+```jsonc
+// <your-project>/.claude/settings.json
+{
+  "extraKnownMarketplaces": {
+    "aidevteam": {
+      "source": { "source": "github", "repo": "olehsvyrydov/AI-development-team" }
+    }
+  },
+  "enabledPlugins": { "ai-dev-team@aidevteam": true }
+}
+```
+
+Trust the directory when prompted; the plugin installs on the next session. Verify with
+`claude plugin details ai-dev-team`, which lists the component inventory and its token cost.
+
+Skills arrive namespaced — `ai-dev-team:arch`, `ai-dev-team:rev` — and the short aliases (`/arch`,
+`/rev`) keep working. The always-on contract ships as the `ai-dev-team` skill; a plugin cannot
+install a global `CLAUDE.md`, so that skill carries what a session needs to know about how work
+runs here.
+
+To try it before declaring it: `claude --plugin-dir ./claude` from a clone of this repository.
+
+**Any editor — the installer.** Still supported, and the only path for Cursor, Kiro and VS Code.
+
 ```bash
 git clone https://github.com/olehsvyrydov/AI-development-team.git
 cd AI-development-team
@@ -176,7 +204,7 @@ Optional advanced Claude backends (Atlassian, memory MCP, hooks): `scripts/setup
 | Command | Alias | Role | Key Expertise |
 |---------|-------|------|---------------|
 | `/po` | `/max` | Product Owner | Vision, backlog, user stories, prioritization |
-| `/sm` | `/luda` | Scrum Master | Sprint ceremonies, AC refinement, team orchestration |
+| `/sm` | `/luda` | Scrum Master | Board integrity checks, AC refinement, team orchestration |
 | `/ba` | `/anna` | Business Analyst | Market research, requirements, gap analysis |
 | `/arch` | `/jorge` | Solution Architect | System design, patterns (CQRS, Saga), ADRs |
 | `/fe` | `/finn` | Frontend Developer | React 19, Next.js, TypeScript, TailwindCSS |
@@ -211,6 +239,28 @@ These aren't part of the core 15 — they load on demand when their discipline i
 | `/tw` | Technical Writer | API docs, Javadoc/JSDoc, READMEs, diagrams, onboarding |
 
 Two special-purpose agents are documented in their own sections: `/kai` (self-improving meta-agent) and `/verify` (completion auditor / workflow gate).
+
+### Process Skills
+
+Role agents cover **who** does the work. These cover **how** it is decided, checked and paid for.
+They live at the top level of `claude/skills/` and self-trigger from their descriptions — you
+rarely invoke them by name, but knowing they exist lets you reach for one deliberately.
+
+| Skill | Load it when |
+|-------|--------------|
+| `workflow-engine` | Before any task and before every handoff — the gate contract. It may refuse to proceed past an unmet gate |
+| `ai-dev-team` | The always-on contract: principles, process, git conventions. What a global `CLAUDE.md` used to carry |
+| `fid-lifecycle` | Moving work Backlog → design doc / epic → tickets → Done without orphans or two disagreeing records |
+| `verify-landed` | After any behaviour-changing edit, before calling a fix done. *Removing nothing breaks nothing* — a green build is not evidence your change exists |
+| `review-tier` | Before spending a review. Classifies the diff, picks the shape, and refuses to review a branch whose free gates are not green |
+| `model-selection` | Before delegating work. Go cheaper when a mechanical verifier exists downstream; spend when this output is the last line of defence |
+| `research-method` | A question that needs measuring rather than deciding, and writing the result so it survives a hostile reader |
+| `answer-audit` | Checking a retrieval-grounded answer, assuming it is wrong until each claim is proven verbatim against a source |
+| `pull-request` | Running a PR to a mergeable state — resolving every review thread, checking runs by SHA rather than the summary |
+
+**The rule they exist to enforce:** a ticket is Done only when its **negative** criteria are met —
+the guard, the refusal, the "cannot bypass" — and each names the **symbol** that enforces it. Happy
+paths ship; the things that stop bad outcomes do not, unless someone checks.
 
 ### Technology Extensions
 
@@ -330,18 +380,26 @@ See: [Multi-LLM Guide](docs/multi-llm-guide.md)
 
 ### Self-Improving Meta-Agent (`/kai`)
 
-Kai detects recurring patterns in accumulated learnings and proposes permanent SKILL.md updates — with human approval before any changes are applied. It runs **entirely file-based** by default (no external services): `/retro` writes learnings to `.aidevteam/learnings/`, and Kai clusters them into proposals.
+Kai promotes working-rules you have already approved into permanent SKILL.md updates. It **emits a
+diff and stops** — it never applies, stages, or commits a change.
+
+Its input is working-rules **you have already approved** — from whatever the project uses: an
+agent-memory MCP server, a file the team maintains, or nothing at all. Kai names no product and
+depends on none; concrete backends are optional adapters documented in
+`claude/skills/specialized/kai/references/rule-sources.md`. Kai reads only the approved rules,
+drops any that are project-specific, duplicated or too vague, and proposes the rest.
 
 ```bash
-/kai analyze                    # Scan learnings for patterns
-/kai propose                    # Generate SKILL.md update proposals
-/kai list --status pending      # Review pending proposals
-/kai approve <ID>               # Approve a proposal
-/kai apply <ID>                 # Apply to SKILL.md files
-/kai status                     # Summary of all proposals
+/kai                       # review all approved rules, propose what qualifies
+/kai --skill <path>        # restrict to rules routing to one skill
+/kai --audience reviewer   # restrict by audience (reviewer|developer|tester|all)
 ```
 
-**Pipeline:** `learnings` → pattern detection → proposal generation → quality validation → human approval → SKILL.md update.
+**Pipeline:** session → rules mined automatically → **you approve** → Kai filters for universality
+→ diff for review → you apply it, or you do not.
+
+With no backend connected, `/kai` reports that there are no approved rules and stops. It does not
+invent them.
 
 ---
 

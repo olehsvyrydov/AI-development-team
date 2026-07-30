@@ -2,7 +2,13 @@
 
 > _Mirrors `CLAUDE.md` so editors that read `AGENTS.md` (Cursor, Kiro, VS Code) get identical guidance. References to "Claude Code" apply to your assistant._
 
-A team of ~29 specialist AI agents (a 15-agent core team + optional specialists) + an enforced, proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
+A team of 38 skills (a 15-agent core team + optional specialists, plus cross-cutting process skills) + an enforced, proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
+
+> **Nothing loads this file automatically.** `install.sh` deploys only `skills/`, `commands/`,
+> `templates/` and `workflow/`, and generates its own pointer file at the destination; a plugin
+> install cannot load an `AGENTS.md` from the plugin root. The live copy of this contract is the
+> **`ai-dev-team`** skill — edit that first and mirror here. This file is retained as a readable
+> mirror and goes away when `install.sh` is retired.
 
 ## Principles
 - **Proportional process.** Right-size the workflow to the change — a typo is not a feature. Don't over-process; don't skip what matters.

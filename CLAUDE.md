@@ -4,7 +4,7 @@ This file provides context to Claude Code when working in this repository.
 
 ## Project Purpose
 
-This is a **reusable AI agent-team framework** — ~29 specialist agent skills (a 15-agent core team + optional specialists, including the `workflow-engine`), a proportional dev `workflow.yaml`, document templates, and the `install.sh` installer. Each skill file represents a team member with deep domain expertise. The skills are installed globally and used by every project. It is vendor-neutral and OSS-first, working in Claude Code / Cursor / Kiro / VS Code.
+This is a **reusable AI agent-team framework** — 38 agent skills (a 15-agent core team, optional specialists, and the cross-cutting process skills that sit at the top level of `claude/skills/`, including the `workflow-engine`), a proportional dev `workflow.yaml`, document templates, and the `install.sh` installer. Each skill file represents a team member with deep domain expertise. The skills are installed globally and used by every project. It is vendor-neutral and OSS-first, working in Claude Code / Cursor / Kiro / VS Code.
 
 Its sibling agent-memory runtime — **Praxis** — lives in its own separate repository and consumes this shared agent layer, as does a separate governed knowledge backend. See `ARCHIVE.md` for the dashboard product that was previously carried here and set aside.
 
@@ -21,7 +21,7 @@ ai-dev-team/
 │   ├── CLAUDE.md          # Global instructions for Claude Code
 │   ├── TEAM_WORKFLOW.md   # Complete team workflow documentation
 │   │
-│   ├── skills/            # 29 agent skills: 15-agent core team + specialists (tech stacks as references)
+│   ├── skills/            # 38 agent skills: 15-agent core team + specialists + process skills
 │   │   ├── management/    # Product Owner, Scrum Master, Business Analyst
 │   │   ├── architecture/  # Solution Architect, GraphQL
 │   │   ├── development/   # Backend (Java/Kotlin/Python), Frontend (React/Angular/Vue/Flutter), Native mobile
@@ -103,7 +103,7 @@ Gates fire **proportionally** (by change-class / trigger / preset) via the `work
 - **Version**: 5.1.0 (see `CHANGELOG.md`)
 - **Release Date**: 2026-06-14
 - **Editors**: Claude Code, Cursor, Kiro, VS Code (universal `install.sh`)
-- **Skills**: 29 (15-agent core team + optional specialists; tech stacks as references)
+- **Skills**: 38 (15-agent core team + optional specialists + cross-cutting process skills; tech stacks as references)
 - **Commands**: 50 slash commands
 - **Templates**: 6 document templates
 - **Backends**: pluggable adapters — file-based by default; Jira/Confluence/OpenMemory/Penpot/etc. optional

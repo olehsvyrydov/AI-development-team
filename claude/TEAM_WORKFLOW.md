@@ -95,7 +95,7 @@ To Do | Investigation | Approved | In Progress | Review | Testing | Done
 
 No sprint boundaries. Features flow through gates at AI speed. The board gives real-time visibility without artificial timebox constraints.
 
-**Ceremonies** (planning, retro, refinement) happen at **natural breakpoints** — feature complete, investigation done, major milestone reached — not on a fixed schedule.
+**Planning and refinement** happen at **natural breakpoints** — feature complete, investigation done, major milestone reached — not on a fixed schedule. Retrospection is continuous rather than a ceremony: ask what you learned at each merge and distil the running page per epic (see `/sm`'s `references/board-integrity.md`).
 
 ---
 
@@ -742,7 +742,7 @@ STORY: "As a user, I can reset my password via email"
 - Facilitates **Ticket Approval Gate** — tags team members, tracks approvals
 - Creates **Approval Checklist** in Confluence
 - Removes **blockers**, coaches team on process
-- Facilitates **ceremonies** at natural breakpoints (planning, retro, refinement)
+- Runs the **board integrity checks** — orphans, plan-vs-tracker divergence, Done without its negative criteria, parked without a trigger, epics closed over open work
 - Creates **fix tickets** when tests fail, **tech debt tickets** from review suggestions
 
 ### 1.4 Solution Architect (/arch) — ALWAYS REQUIRED

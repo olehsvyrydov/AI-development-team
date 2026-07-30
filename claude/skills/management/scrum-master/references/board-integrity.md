@@ -18,6 +18,14 @@ An orphan gets forgotten or, worse, duplicated by someone who could not find it.
 
 *Report:* every orphan by key, and for each, the epic it most likely belongs to.
 
+**Separate "orphaned" from "standalone by design" before reporting, or this check cries wolf.** On a board where most work hangs off epics, a parentless ticket is a signal — but three kinds of item are legitimately parentless, and counting them as orphans discredits the whole report:
+
+- a **roadmap placeholder** parked for later (it has no epic because it has no scope yet)
+- a **spike or PoC** that exists to answer a question, not to deliver an epic's slice
+- a **standalone fix** whose whole scope is the ticket
+
+The distinguishing question is not "does it have a parent?" but **"is there an epic this belongs to, whose scope is now wrong because this is outside it?"** If no epic is made a lie by its absence, it is standalone, not orphaned. Report the two groups separately and give the count for each.
+
 ## Check 2 — the plan disagrees with the tracker
 
 Where a planning document (a design doc, an epic page, a roadmap) carries a list of work items with statuses, compare it against the tracker.
@@ -44,6 +52,10 @@ A criterion is met by a **mechanism**, not by an intention. If nobody can name t
 
 *Report:* ticket, criterion, and whether an enforcing symbol exists. Reopen or split; do not silently accept.
 
+**Record the passes, not just the failures.** When a criterion *is* enforced, name the symbol that enforces it in the report. This costs one line and buys two things: the next audit does not re-derive it, and a later change that removes the guard becomes visible as a contradiction against a written claim rather than a silent regression. A check that only ever emits bad news also trains its reader to expect noise, and gets skipped.
+
+The strongest form a passing criterion can take is a **guard that refuses at the boundary** rather than a branch that handles a case — a startup check that throws on an unsafe configuration, or a compose step that returns before an advisory input is even consulted. Where you find that shape, say so: it is the difference between a rule that is enforced and one that is merely implemented.
+
 ## Check 5 — parked without a trigger
 
 An item marked "not scheduled" or "later" with no stated condition for revisiting is **blocked**, not queued, and nobody knows it.
@@ -53,6 +65,10 @@ An item marked "not scheduled" or "later" with no stated condition for revisitin
 ## Check 6 — epics claiming completion over open work
 
 An epic marked Done with open children, or whose children are Done while its own acceptance was never checked.
+
+**Expect this to be the highest-yield check on any board that closes epics by milestone.** The pattern is not carelessness: the epic's *headline* shipped, so it gets closed, while the follow-ups it spawned — the tech-debt tickets, the hardening, the deferred slice — stay open and now hang off a parent that says the work is finished. Nobody is lying and nothing looks wrong from the epic view; the open children are simply invisible from where anyone looks.
+
+*Report:* each such epic with its open children by key, and ask the one question that resolves it — **is the epic's own acceptance met, or was it closed because the demo worked?** If the former, the children belong to a new epic or stand alone; if the latter, the epic is not Done. Do not resolve it by closing the children.
 
 ---
 

@@ -4,6 +4,31 @@ This file records all notable changes to the project. Versioning roughly follows
 
 ## [Unreleased]
 
+Distribution moves from copying files to a versioned plugin, and three skills that documented
+mechanisms which did not exist are corrected. The theme is the framework's own rule applied to
+itself: a documented mechanism is worth nothing until something enforces it.
+
+### Added
+- **Claude Code plugin distribution.** `claude/` is the plugin root (`claude/.claude-plugin/plugin.json`), with the catalogue at `.claude-plugin/marketplace.json`. A consuming project declares it once in `.claude/settings.json` and every session gets it — including cloud sessions and anyone who clones the repo, neither of which reads `~/.claude/skills/`. `version` is deliberately omitted so the commit SHA is the version. `install.sh` keeps working and stays the path for Cursor, Kiro and VS Code.
+- **`ai-dev-team` skill** — the always-on contract: principles, the rule to consult the workflow first, the process-skill roster, and the git conventions. A plugin cannot install a global `CLAUDE.md`, so a plugin-only install had been silently losing the instruction layer while appearing to work, because the skills themselves still loaded.
+- **`pull-request` skill** — running a PR to a mergeable state: resolving every review conversation (including obsolete ones and ones you disagree with), enumerating workflow runs by commit SHA rather than trusting the checks summary, and confirming the merge result is the tree CI actually tested.
+- **README sections** for plugin installation and for the cross-cutting process skills, which were roughly a fifth of the skill set and undocumented.
+- **A vendor-neutrality rule** in `CONTRIBUTING.md` and the `ai-dev-team` skill: skills describe judgement and capability, never a product; a concrete backend is an optional adapter named only in a `references/` file or `docs/`. The framework must work correctly with no adapter configured.
+
+### Changed
+- **`/kai` now depends on a capability, not a store that never existed.** It documented reading `.aidevteam/learnings/`, "written by `/retro`" — a directory that has never existed, so `/kai` had no producer and had never run. Its input is now working-rules **a human has explicitly approved**, from whatever the project uses; concrete backends are adapters in `references/rule-sources.md`. Output is a unified diff with the rule's identifier and provenance. There is no apply step: it never edits, stages or commits a `SKILL.md`, and never writes back to the source. A source that cannot distinguish approved from proposed does not satisfy the contract — everything in it is treated as proposed and nothing is promoted. With no source configured it reports that and stops rather than inventing rules.
+- **`/sm`'s re-scope now actually routes.** The role had been moved from ceremony to board integrity, but every surface that decides when the skill loads still pointed at the old one: the frontmatter description, the trigger list, the deep-dive reference list (which omitted `board-integrity.md` while listing the superseded ceremony protocol), an anti-pattern warning against skipping retrospectives, and a standards section prescribing a 15-minute daily standup while the context said standups are noise. The `/sm` and `/luda` command descriptions carried the same stale framing.
+- **Board-integrity checks sharpened against a first real run.** Check 1 separates *orphaned* from *standalone by design* — roadmap placeholders, spikes and standalone fixes are legitimately parentless, and counting them as orphans discredits the report. Check 6 is flagged as the highest-yield check on boards that close epics by milestone: the headline ships, the epic closes, and the follow-ups it spawned stay open under a parent that says the work is finished. Check 4 now records passes by naming the enforcing symbol, so a later change that removes a guard reads as a contradiction rather than a silent regression.
+
+### Removed
+- **`/retro`.** Its capture job is automatic where a memory backend is connected, and a scheduled retrospective is the practice `board-integrity.md` argues against by name. Every reference to the store it wrote was swept from commands, skills, templates, docs and the README.
+
+### Fixed
+- **The root `AGENTS.md` is no longer tracked.** A connected agent-memory runtime owns a managed block inside it and refreshes it with captured working memory, which carried build states, review findings and branch names from other repositories into this public repository on every write. `.praxis/` and `.aidevteam/` were already ignored to keep exactly that content out; the generated block routed around them into a committed file. Ignoring the file is the fix, because a scrub does not hold — the block is re-inserted on the next write. Text published before this remains in the history.
+- **Frontmatter added to `all.md`, `issue.md` and `bug.md`**, which were loading with empty metadata and could never auto-trigger.
+- **Documented skill counts reconciled with the tree** — they had drifted nine behind.
+- `claude/CLAUDE.md` and `claude/AGENTS.md` now state that nothing loads them automatically: `install.sh` deploys only `skills/`, `commands/`, `templates/` and `workflow/` and generates its own pointer file, and a plugin cannot load either. The `ai-dev-team` skill is the live copy.
+
 ## [5.1.0] — 2026-06-14
 
 A consolidation and hygiene release that finishes the framework repositioning: the on-demand specialist roster is now backed by vendor-neutral reference libraries, two dormant agents are wired to commands, the team roster and knowledge-backend naming are reconciled across the docs, and the dashboard product, the RAG subsystem, and the personal migration scripts are removed.

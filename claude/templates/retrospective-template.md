@@ -1,6 +1,15 @@
 # Sprint Retrospective Template
 
-Use this template for a **full, multi-expert** sprint retrospective. For the lightweight, proportional default that also **captures reusable learnings** to `.aidevteam/learnings/` (which [`/kai`](../commands/kai.md) later **proposes** as agent-skill updates for your approval), run [`/retro`](../commands/retro.md).
+Use this template for a **full, multi-expert** retrospective — the occasional deep pass, not a fixed ceremony.
+
+For the continuous default, see *Retrospection that produces something* in
+`claude/skills/management/scrum-master/references/board-integrity.md`: ask one question at every
+merge and append the answer to a running page, then distil that page per epic. A scheduled retro
+reconstructs the past from memory and yields platitudes; the durable lessons are found mid-work.
+
+Where an agent-memory backend is connected, scoped working-rules are accumulated from sessions and
+held until you approve them — [`/kai`](../commands/kai.md) then proposes the universal ones as
+agent-skill updates, as a diff for your review.
 
 ---
 
