@@ -4,7 +4,7 @@ This file provides context to Claude Code when working in this repository.
 
 ## Project Purpose
 
-This is a **reusable AI agent-team framework** — 38 agent skills (a 15-agent core team + optional specialists, plus eight cross-cutting process skills including the `workflow-engine`), a proportional dev `workflow.yaml`, document templates, and the `install.sh` installer. Each skill file represents a team member with deep domain expertise. The skills are installed globally and used by every project. It is vendor-neutral and OSS-first, working in Claude Code / Cursor / Kiro / VS Code.
+This is a **reusable AI agent-team framework** — 38 agent skills (a 15-agent core team, optional specialists, and the cross-cutting process skills that sit at the top level of `claude/skills/`, including the `workflow-engine`), a proportional dev `workflow.yaml`, document templates, and the `install.sh` installer. Each skill file represents a team member with deep domain expertise. The skills are installed globally and used by every project. It is vendor-neutral and OSS-first, working in Claude Code / Cursor / Kiro / VS Code.
 
 Its sibling agent-memory runtime — **Praxis** — lives in its own separate repository and consumes this shared agent layer, as does a separate governed knowledge backend. See `ARCHIVE.md` for the dashboard product that was previously carried here and set aside.
 

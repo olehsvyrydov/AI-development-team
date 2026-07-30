@@ -167,7 +167,7 @@ When something urgent happens mid-sprint:
 - The goal of the current batch of work is clear and written down
 - Blockers are escalated within 24 hours, not held until a scheduled meeting
 - Scope changes are traded against something, never simply added
-- Definition of Done is enforced — including the negative criteria (see Check 4)
+- Definition of Done is enforced — including the negative criteria (Check 4 in `references/board-integrity.md`)
 
 On a team large enough to need a standup, timebox it and keep it out of status-reporting.
 On a solo or two-person team it is noise; the board checks tell you more than the meeting would.
