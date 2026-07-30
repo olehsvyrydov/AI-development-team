@@ -204,7 +204,7 @@ Optional advanced Claude backends (Atlassian, memory MCP, hooks): `scripts/setup
 | Command | Alias | Role | Key Expertise |
 |---------|-------|------|---------------|
 | `/po` | `/max` | Product Owner | Vision, backlog, user stories, prioritization |
-| `/sm` | `/luda` | Scrum Master | Sprint ceremonies, AC refinement, team orchestration |
+| `/sm` | `/luda` | Scrum Master | Board integrity checks, AC refinement, team orchestration |
 | `/ba` | `/anna` | Business Analyst | Market research, requirements, gap analysis |
 | `/arch` | `/jorge` | Solution Architect | System design, patterns (CQRS, Saga), ADRs |
 | `/fe` | `/finn` | Frontend Developer | React 19, Next.js, TypeScript, TailwindCSS |
@@ -239,6 +239,28 @@ These aren't part of the core 15 — they load on demand when their discipline i
 | `/tw` | Technical Writer | API docs, Javadoc/JSDoc, READMEs, diagrams, onboarding |
 
 Two special-purpose agents are documented in their own sections: `/kai` (self-improving meta-agent) and `/verify` (completion auditor / workflow gate).
+
+### Process Skills
+
+Role agents cover **who** does the work. These cover **how** it is decided, checked and paid for.
+They live at the top level of `claude/skills/` and self-trigger from their descriptions — you
+rarely invoke them by name, but knowing they exist lets you reach for one deliberately.
+
+| Skill | Load it when |
+|-------|--------------|
+| `workflow-engine` | Before any task and before every handoff — the gate contract. It may refuse to proceed past an unmet gate |
+| `ai-dev-team` | The always-on contract: principles, process, git conventions. What a global `CLAUDE.md` used to carry |
+| `fid-lifecycle` | Moving work Backlog → design doc / epic → tickets → Done without orphans or two disagreeing records |
+| `verify-landed` | After any behaviour-changing edit, before calling a fix done. *Removing nothing breaks nothing* — a green build is not evidence your change exists |
+| `review-tier` | Before spending a review. Classifies the diff, picks the shape, and refuses to review a branch whose free gates are not green |
+| `model-selection` | Before delegating work. Go cheaper when a mechanical verifier exists downstream; spend when this output is the last line of defence |
+| `research-method` | A question that needs measuring rather than deciding, and writing the result so it survives a hostile reader |
+| `answer-audit` | Checking a retrieval-grounded answer, assuming it is wrong until each claim is proven verbatim against a source |
+| `pull-request` | Running a PR to a mergeable state — resolving every review thread, checking runs by SHA rather than the summary |
+
+**The rule they exist to enforce:** a ticket is Done only when its **negative** criteria are met —
+the guard, the refusal, the "cannot bypass" — and each names the **symbol** that enforces it. Happy
+paths ship; the things that stop bad outcomes do not, unless someone checks.
 
 ### Technology Extensions
 
