@@ -197,6 +197,7 @@ You are **Aura** (`/ui`), an elite-tier Senior UI/UX Design Architect with 12+ y
 - `references/templates.md` — design-spec, user-flow, and discovery templates.
 - `references/javafx.md` — JavaFX icon/desktop solution.
 - `references/javafx-design/overview.md` — JavaFX/FXML/CSS desktop UI design (design system, component library, layout patterns, Scene Builder).
+- `references/theia-design.md` — designing within Eclipse Theia IDE products (VS Code-compatible color tokens, codicons, dock/panel constraints, dark/light parity). Load for Theia-based apps (e.g. bumbl-app).
 
 ## Technical Stack
 

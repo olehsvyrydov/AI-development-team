@@ -82,6 +82,7 @@ Use WebSearch and WebFetch tools to:
 | **Quarkus** | Quarkus deps | `references/quarkus.md` |
 | **Kafka / messaging** | Kafka in the feature | `references/spring-kafka.md` |
 | **HMRC MTD** (UK tax API) | HMRC / Making Tax Digital in the feature | `references/hmrc-api/overview.md` |
+| **Rust** (tokio/axum daemons) | `Cargo.toml`, `.rs` sources (e.g. bumbl-dis) | `references/rust.md` |
 
 If ambiguous, ask; otherwise default to Java/Spring Boot.
 
@@ -97,6 +98,7 @@ Detailed backend knowledge lives in `references/` — read the relevant file whe
 - `references/quarkus.md` — Quarkus (cloud-native Java, native builds) — the full Quarkus playbook.
 - `references/spring-kafka.md` — Kafka producers/consumers, DLT, transactional outbox.
 - `references/hmrc-api/overview.md` — HMRC Making Tax Digital (MTD) API integration (OAuth 2.0, fraud-prevention headers, Self Assessment). Load for UK gov tax-API work.
+- `references/rust.md` — Rust backend (tokio + axum HTTP/WS/SSE, JSON-RPC dispatch, dedicated-thread rusqlite, Anthropic streaming, cancellation). Load for Rust work such as bumbl-dis.
 
 ## Workflow Integration
 
