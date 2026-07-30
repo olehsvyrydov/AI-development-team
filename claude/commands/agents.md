@@ -14,7 +14,7 @@ description: List all available AI Development Team agents and their specializat
 |---|---|---|---|---|
 | `/po` | `/max` | Max | Product Owner — vision, backlog, Epics | — |
 | `/ba` | `/anna` | Anna | Business Analyst — research, requirements | — |
-| `/sm` | `/luda` | Luda | Scrum Master — orchestration, ceremonies | — |
+| `/sm` | `/luda` | Luda | Scrum Master — board integrity, retrospection | — |
 | `/arch` | `/jorge` | Jorge | Solution Architect (**MANDATORY** gate) | GraphQL |
 | `/secops` | `/soren` | Soren | Security Engineer (**MANDATORY** gate) | — |
 | `/fe` | `/finn` | Finn | Frontend Developer | React/Next (default), Angular, Vue, Flutter, JavaFX desktop |
@@ -27,6 +27,20 @@ description: List all available AI Development Team agents and their specializat
 | `/legal` | `/alex` | Alex | Legal Counsel — contracts, GDPR, risk | UK / English & Welsh law (persona Alex) |
 | `/fin` | `/inga` | Inga | Accountant & CFO — tax, VAT, forecasting | UK tax (persona Inga), UK self-employment |
 | `/mkt` | `/apex` | Apex | Marketing — GTM, positioning | — |
+
+
+## Cross-cutting skills (no persona — load by name when the situation matches)
+
+These are process skills rather than roles. They are picked up automatically from their descriptions, but can be invoked directly.
+
+| Skill | Load it when |
+|---|---|
+| `workflow-engine` | Any development task, and before every handoff — decides which gates apply |
+| `fid-lifecycle` | Moving work between Backlog → investigation → design doc/epic → tickets → Done; creating an epic; adding a ticket to an existing epic |
+| `verify-landed` | After any behaviour-changing edit, and before claiming a finding fixed or a criterion met |
+| `review-tier` | Before spending a multi-agent code review — decides how much review to buy and scopes it |
+| `model-selection` | Before launching subagents or a workflow; whenever about to spend a strong model on volume |
+| `research-method` | A question needs measuring rather than deciding; designing an experiment; writing up a result |
 
 ## Optional specialists (load on demand)
 

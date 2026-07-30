@@ -27,6 +27,16 @@ The default `preset: solo` forces nothing — gates fire only on trigger or chan
 ## Tickets & docs — no Jira required
 Default = **markdown tickets (Backlog.md)** + a **markdown knowledge base** (Obsidian-compatible). Jira / Confluence / a knowledge-graph backend are **optional MCP overlays** — use them only when configured in `workflow.yaml`.
 
+### Where progress is tracked — a convenience call, not a rule
+**Either a local folder or Jira/Confluence is correct.** Pick by the size of the project and what is actually convenient, and say which is in force:
+
+- **Local markdown** suits a solo or small effort: the tracker sits next to the code, is edited in the same commit as the change it describes, and needs no network. It is also the honest choice while the work is still churning — a doc rewritten five times a day is cheaper as a file.
+- **Jira / Confluence** suits a project big enough that several people, or several sessions, need one shared view: work items that outlive a branch, cross-references between tickets and pages, and a record that does not vanish when a worktree is cleaned.
+
+**Do not maintain both for the same thing.** Two trackers become two different answers to "what is the state?", and the stale one is always the one someone reads. When migrating from local to Jira/Confluence, move the content and **delete the local copy in the same change** — or, if it is being kept as a record rather than as live status, stamp it with the date it stopped being current. A tracker whose last update predates the work it describes is worse than no tracker, because it is believed.
+
+One consequence worth stating: a local tracker is a **document**, and documents may be subject to a project rule about what the repository holds. Check the project's `CLAUDE.md` before adding one — some repositories deliberately keep no docs at all, and the tracker belongs in the external system from the start.
+
 ## Handoffs
 Every agent runs a **Gate Check**: before starting it confirms its precondition gates; before finishing it sets its postcondition gate in the ledger. This is what makes the workflow hold without an orchestrator and in any editor — see `references/gate-check.md`.
 
