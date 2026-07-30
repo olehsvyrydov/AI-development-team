@@ -56,7 +56,7 @@ These are process skills rather than roles. They are picked up automatically fro
 | `/ios` `/android` | native-mobile-developer | Native iOS (Swift/SwiftUI) & Android (Kotlin/Compose) |
 | `/ext` | browser-extension-developer | Browser extensions: MV3 manifest & permissions, service worker, injection, tabs/groups |
 | `/verify` | verify | QA Auditor — completeness + workflow gates (`APPROVAL_GATE`, `VERIFIED`) |
-| `/kai` | kai | Self-improving meta-agent (approved Praxis rules → proposed skill updates) |
+| `/kai` | kai | Self-improving meta-agent (human-approved rules → proposed skill updates) |
 | — | technical-writer | C4 diagrams, ADRs, API docs, READMEs |
 | — | backend-tester | Backend unit/integration TDD (JUnit, Testcontainers) |
 | — | frontend-tester | Frontend unit/integration (Vitest, RTL) |
@@ -82,7 +82,7 @@ Folded into their parent role's `references/` — the role agent self-routes to 
 | Command | Description |
 |---|---|
 | `/bug` or `/issue` | Report a bug — triggers investigation workflow |
-| `/kai` | Propose `SKILL.md` updates from human-approved Praxis rules — emits a diff, never applies |
+| `/kai` | Propose `SKILL.md` updates from human-approved working-rules — emits a diff, never applies |
 | `/design-sprint` | Orchestrate UI design → frontend implementation |
 | `/reviewer` | Alias for `/rev` · `/tester` alias for `/qa` |
 | `/agents` | This directory |

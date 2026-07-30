@@ -7,9 +7,9 @@ For the continuous default, see *Retrospection that produces something* in
 merge and append the answer to a running page, then distil that page per epic. A scheduled retro
 reconstructs the past from memory and yields platitudes; the durable lessons are found mid-work.
 
-Where an agent-memory runtime (such as Praxis) is connected, scoped working-rules are mined from
-sessions automatically and held until you approve them — [`/kai`](../commands/kai.md) then proposes
-the universal ones as agent-skill updates, as a diff for your review.
+Where an agent-memory backend is connected, scoped working-rules are accumulated from sessions and
+held until you approve them — [`/kai`](../commands/kai.md) then proposes the universal ones as
+agent-skill updates, as a diff for your review.
 
 ---
 

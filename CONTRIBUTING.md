@@ -49,6 +49,12 @@ Key ideas:
 
 - `SKILL.md` < ~500 lines; deep content in `references/`.
 - **Universal, reusable knowledge only** — no project/ticket/sprint specifics in skills.
+- **No product names in a skill's frontmatter, trigger, or core contract.** Skills describe
+  judgement and capability; a concrete backend (tracker, memory store, design tool, knowledge
+  base) is an **optional adapter**, named only in a `references/` adapter file or in `docs/`.
+  The framework must work correctly with no adapter configured — a skill whose input is absent
+  says so and stops rather than guessing. If wiring up a backend needs the skill itself changed,
+  generalise the contract instead of teaching the skill about one vendor.
 - Balanced, non-nested code fences (wrap a `markdown` template that contains inner code in **4** backticks).
 - A sharp, disambiguating `description` so the right agent triggers.
 

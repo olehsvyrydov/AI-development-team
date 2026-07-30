@@ -23,6 +23,25 @@ This is the always-on layer. When the framework is installed as a plugin there i
 - **Reusable skills.** Agent skills hold universal knowledge. Project-specific facts belong in
   that project's own `.claude/skills/`, never in a framework skill.
 
+### Skills describe judgement and capability, never a product
+
+Process and role skills must stay tool-free. A skill states *what qualifies, what to decide, and
+what to emit* — never which vendor supplies it. `verify-landed` is the model: it is valuable
+precisely because it needs nothing but a grep and a test run.
+
+A concrete backend — tracker, memory store, design tool, knowledge base — is an **optional
+adapter**. Name it only in a `references/` adapter file or in `docs/`, never in a skill's
+frontmatter, trigger, or core contract. Those decide when a skill loads and what it promises, and
+neither may depend on a vendor.
+
+**The framework must work correctly with no adapter configured at all.** A skill whose input is
+absent reports that plainly and stops; it does not degrade into guessing. If wiring up an adapter
+would require editing the skill itself, the contract is too narrow — generalise the contract rather
+than teaching the skill about one backend.
+
+This is a boundary that erodes by drift: one concrete example becomes a schema, then a required
+field, then a dependency. Check it when reviewing any skill that reads from outside the repository.
+
 ## Before any task
 
 **Consult the `workflow-engine` skill before starting development work and before every handoff.**

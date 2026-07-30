@@ -361,10 +361,11 @@ See: [Multi-LLM Guide](docs/multi-llm-guide.md)
 Kai promotes working-rules you have already approved into permanent SKILL.md updates. It **emits a
 diff and stops** — it never applies, stages, or commits a change.
 
-It requires an agent-memory runtime (such as [Praxis](https://github.com/olehsvyrydov/praxis)),
-which mines scoped rules from real sessions automatically at session end. Mined rules start as
-`proposed` and reach no agent until you approve one; Kai reads only the approved ones, drops any
-that are project-specific, duplicated or too vague, and proposes the rest.
+Its input is working-rules **you have already approved** — from whatever the project uses: an
+agent-memory MCP server, a file the team maintains, or nothing at all. Kai names no product and
+depends on none; concrete backends are optional adapters documented in
+`claude/skills/specialized/kai/references/rule-sources.md`. Kai reads only the approved rules,
+drops any that are project-specific, duplicated or too vague, and proposes the rest.
 
 ```bash
 /kai                       # review all approved rules, propose what qualifies
@@ -375,8 +376,8 @@ that are project-specific, duplicated or too vague, and proposes the rest.
 **Pipeline:** session → rules mined automatically → **you approve** → Kai filters for universality
 → diff for review → you apply it, or you do not.
 
-Without a memory runtime connected, `/kai` reports that there are no approved rules and stops. It
-does not invent them.
+With no backend connected, `/kai` reports that there are no approved rules and stops. It does not
+invent them.
 
 ---
 

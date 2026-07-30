@@ -48,7 +48,7 @@ Persist a learning, decision, or pattern from the current session:
 |----------|----------|-----------------|
 | Agent knowledge | `SKILL.md` sections — expertise, templates, checklists | `claude/skills/**/SKILL.md` |
 | Decisions | Architecture Decision Records (ADRs) | project knowledge base |
-| Working-rules | Scoped rules mined from real sessions, human-approved, promoted by `/kai` | Praxis store (`.praxis/memory.db`) |
+| Working-rules | Scoped rules accumulated from real sessions, human-approved, promoted by `/kai` | the project's memory backend, if configured |
 | Code patterns | Reusable code templates and snippets | project knowledge base |
 
 ## When to Use
