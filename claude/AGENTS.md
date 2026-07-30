@@ -2,7 +2,7 @@
 
 > _Mirrors `CLAUDE.md` so editors that read `AGENTS.md` (Cursor, Kiro, VS Code) get identical guidance. References to "Claude Code" apply to your assistant._
 
-A team of 37 skills (a 15-agent core team + optional specialists, plus cross-cutting process skills) + an enforced, proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
+A team of 38 skills (a 15-agent core team + optional specialists, plus cross-cutting process skills) + an enforced, proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
 
 ## Principles
 - **Proportional process.** Right-size the workflow to the change — a typo is not a feature. Don't over-process; don't skip what matters.
