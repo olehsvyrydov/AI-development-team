@@ -84,6 +84,36 @@ result is correct and honest.
 
 Step 5 is not a formality. There is no `apply` step in this skill.
 
+### Output format
+
+Emit one block per proposed rule. The traceability metadata goes **above the diff, not inside
+it** — a comment inside the hunk would be appended into the skill file when the diff is applied.
+
+````markdown
+**Propose:** `claude/skills/<path>/SKILL.md` → Anti-Patterns
+**Rule:** `<identifier from the source>` · **Provenance:** `<what the source recorded>`
+**Why universal:** <one line — why this holds beyond where it was learned>
+
+```diff
+--- a/claude/skills/<path>/SKILL.md
++++ b/claude/skills/<path>/SKILL.md
+@@
+ ## Anti-Patterns
+
++- <the rule statement>
+```
+````
+
+Then list what you rejected, so the pass is auditable:
+
+```markdown
+**Rejected:** `<id>` — project-specific (names one repository's directory layout)
+**Rejected:** `<id>` — already covered by the third bullet under Standards
+```
+
+If the source supplies no identifier, say so explicitly rather than inventing one — an
+untraceable proposal is still reviewable, but the reviewer must know it cannot be traced back.
+
 ## Standards
 
 ### Section safety classification

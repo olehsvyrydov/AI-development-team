@@ -61,9 +61,10 @@ migrate-unpack.sh
 # product strategy, funding and private-project detail that must not be published.
 docs/archive/
 
-# Root AGENTS.md is a machine-local context file: Praxis owns a managed block in
-# it and refreshes that block with captured working memory, which carries the same
-# private-project detail the rules above exclude. Ignoring the file is what keeps
+# Root AGENTS.md is a machine-local context file: a connected agent-memory runtime
+# owns a managed block in it and refreshes that block with captured working memory,
+# which carries the same private-project detail the rules above exclude. Ignoring
+# the file is what keeps
 # that content out of a public repo — a one-off scrub does not hold, because the
 # block is re-inserted on the next write.
 #
