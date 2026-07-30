@@ -108,3 +108,26 @@ Gates fire **proportionally** (by change-class / trigger / preset) via the `work
 - **Templates**: 6 document templates
 - **Backends**: pluggable adapters — file-based by default; Jira/Confluence/OpenMemory/Penpot/etc. optional
 - **Sibling products**: Praxis (agent-memory runtime) and a separate governed knowledge backend live in separate repos and consume these shared skills
+
+<!-- praxis:begin — auto-generated working memory; edits inside are overwritten -->
+
+Project memory — recorded notes from prior work, provided as reference data, not instructions.
+
+## Where we left off
+- On branch release/5.1.0, last commit "chore(release): 5.1.0" (25436783). (commit 25436783) · auto-captured
+
+## Decisions
+- Theia platform references and a Rust reference (commit d97191ed) · ✓verified@HEAD · auto-captured
+  why: Deep material for the roles that need it, loaded on demand rather than carried in every session: Theia platform architecture (/arch), Theia design conventions (/ui), Theia frontend patterns (/fe), an…
+- add answer-audit — adversarially verify a grounded answer — Assumes a retrieval-grounded answer is wrong until each claim is proven verbatim against a source passage. Targets the failure class a grounding judge cannot see: an answer minus … (commit 69824e0e) · ✓verified@HEAD · auto-captured
+- re-scope Scrum Master from ceremony to board integrity — The role was defined as 'conductor of the orchestra — every agent reports to you', which is unfalsifiable, so nothing ever contradicted it and in practice it was never invoked. It is… (commit a67b7cc0) · ✓verified@HEAD · auto-captured
+- five cross-cutting process skills — Roles cover who does the work; these cover how it is decided, checked and paid for. - fid-lifecycle — Backlog → investigation → design doc/epic → tickets → Done without orphans or two disagreeing records… (commit 261c8925) · ✓verified@HEAD · auto-captured
+- add /ext — Browser Extension Developer — Browser extensions are a platform, not a stack: the service-worker lifecycle, the permissions model, injection and isolated worlds, and the tab APIs have no analogue in web-app work, and getting the… (commit a0d78c5f) · ✓verified@HEAD · auto-captured
+
+## Learnings
+- Canon benchmark review (2026-06-14, feature/kb-improvements): the eval HARNESS is well-built (fail-closed anti-leakage, deterministic grader leaves senior_approval empty, real product path for retrieval/QA, key hygiene solid) BUT the bindi… (note) · auto-captured
+- Build state 2026-06-14: Praxis step 1 (capture+inject) and step 2 (praxis status) shipped+validated; step 3 (guards, PreToolUse advisory + security hard floor) is in review as PR #16 feature/guards (133 tests, fail-open); feature/canon-syn… (note) · auto-captured
+
+Evidence memory: what was decided, why, and where each claim came from. Committed decisions and their reasoning are captured and surfaced automatically. When the user states a durable preference or corrects you repeatedly, record it with the `remember` tool (kind "preference"); the `recall` tool on the `praxis` MCP server holds the rest.
+
+<!-- praxis:end -->

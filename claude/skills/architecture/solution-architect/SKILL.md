@@ -125,6 +125,7 @@ Detailed domain knowledge lives in `references/` — read the relevant file when
 - `references/security-architecture.md` — STRIDE/threat modeling, Zero Trust, authn, API & supply-chain security, privacy by design.
 - `references/event-driven.md` — Saga, CQRS, Event Sourcing, transactional outbox, exactly-once, Kafka patterns.
 - `references/graphql.md` — GraphQL API design: schema design, resolvers, Apollo Server/Federation, DataLoader, subscriptions. Load for GraphQL APIs.
+- `references/theia-platform.md` — Eclipse Theia platform architecture: frontend/backend split + RPC, extension/DI model vs VS Code plugins, external-client placement, MCP integration, packaging/updates, quarterly-release strategy, risks. Load for Theia-based IDE products (e.g. bumbl-app).
 
 ## Architecture Design Methodology
 

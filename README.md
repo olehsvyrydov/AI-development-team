@@ -2,7 +2,7 @@
 
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-ready-6E56CF) ![Cursor](https://img.shields.io/badge/Cursor-ready-111111) ![Kiro](https://img.shields.io/badge/Kiro-ready-9B59B6) ![VS Code](https://img.shields.io/badge/VS%20Code-ready-007ACC) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Stars](https://img.shields.io/github/stars/olehsvyrydov/AI-development-team?style=social)
 
-> **A reusable AI agent-team framework for your editor.** ~29 specialist agent skills (a 15-agent core team + optional specialists) plus a `workflow-engine` and an **enforced, proportional workflow** with approval gates — *process, not prompts*. Open-source, no lock-in; works in **Claude Code, Cursor, Kiro & VS Code**, free by default.
+> **A reusable AI agent-team framework for your editor.** ~35 specialist agent skills (a 15-agent core team + optional specialists) plus a `workflow-engine` and an **enforced, proportional workflow** with approval gates — *process, not prompts*. Open-source, no lock-in; works in **Claude Code, Cursor, Kiro & VS Code**, free by default.
 
 ```
 /po → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe | /be → /rev → /qa + /e2e → /verify

@@ -16,6 +16,7 @@ The roster is a **15-agent core team + optional specialists** (see `commands/age
 | App/business logic, REST APIs, server code (any backend stack) | **/be** | /data, /dba, /ai |
 | Web or cross-platform UI — React/Next, Angular, Vue, Flutter, JavaFX | **/fe** | native iOS/Android (Swift/Kotlin) |
 | Native iOS (Swift/SwiftUI) or Android (Kotlin/Compose) | **/ios · /android** | /fe (web / React-Native / Flutter) |
+| A browser extension — manifest, permissions, service worker, content scripts, tabs/groups | **/ext** | /fe (the extension's own page UI), /e2e (driving a browser to test a site) |
 | Reliability: SLOs, monitoring, alerting, incidents, runbooks | **/sre** | /devops (infra/CI-CD), /perf (speed) |
 | Infra provisioning, IaC (Terraform), Kubernetes, CI/CD pipelines | **/devops** | /sre (reliability), /secops (hardening) |
 | Speed/efficiency: Web Vitals, profiling, latency, budgets, load tests | **/perf** | /sre (uptime), /dba (schema) |
@@ -34,3 +35,4 @@ The roster is a **15-agent core team + optional specialists** (see `commands/age
 - **/sre vs /perf:** is the goal *staying up* (→ /sre) or *being fast* (→ /perf)? vs **/devops** = *standing it up*.
 - **/ux vs /ui:** *evidence about users* (→ /ux) vs *the visual design* (→ /ui).
 - **native mobile vs /fe:** *Swift/Kotlin native* (→ /ios·/android) vs *web / React-Native / Flutter cross-platform* (→ /fe, which loads the matching stack reference).
+- **/ext vs /fe:** is the difficulty the *browser-extension platform* — manifest, permissions, worker lifecycle, injection, tabs (→ /ext) — or ordinary component/state work that happens to sit inside an extension page (→ /fe)? A `manifest.json` with `manifest_version` is the tell.

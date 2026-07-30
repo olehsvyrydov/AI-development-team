@@ -32,6 +32,7 @@ Use this skill when:
 - Animation and transitions (Framer Motion, CSS, View Transitions)
 - Authentication flows (OAuth2/PKCE, NextAuth.js)
 - Internationalization (i18n)
+- Building Eclipse Theia extensions / Theia-based IDE products → `references/theia.md`
 
 ## Context
 
@@ -100,6 +101,7 @@ Use WebSearch and WebFetch tools to:
 | **Vue / Nuxt** | `vue`, `nuxt` | `references/vue.md` |
 | **Flutter** (cross-platform mobile) | `pubspec.yaml`, Dart | `references/flutter.md` |
 | **JavaFX desktop** | JavaFX deps, `.fxml` files | `references/javafx-desktop/overview.md` |
+| **Eclipse Theia** (IDE products) | `@theia/*` deps, `theiaExtensions` in package.json | `references/theia.md` |
 
 If the stack is ambiguous, ask; otherwise default to React/Next.js. (Native iOS/Android → `native-mobile-developer`.)
 
@@ -113,6 +115,7 @@ Detailed frontend knowledge lives in `references/` — read the relevant file wh
 - `references/vue.md` — Vue 3 (Composition API, Pinia, Nuxt 3) — the full Vue playbook.
 - `references/flutter.md` — Flutter/Dart cross-platform mobile — the full Flutter playbook.
 - `references/javafx-desktop/overview.md` — JavaFX desktop apps (FXML, MVVM, Scene Builder, jpackage) — load for desktop UIs (not web).
+- `references/theia.md` — Eclipse Theia extension development (InversifyJS DI, React widgets, JSON-RPC services, Theia AI, Open VSX, electron-builder) — load for Theia-based IDE products (e.g. bumbl-app).
 
 ## Visual Inspection (MCP Browser Tools)
 
