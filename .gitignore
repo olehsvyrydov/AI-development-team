@@ -61,6 +61,21 @@ migrate-unpack.sh
 # product strategy, funding and private-project detail that must not be published.
 docs/archive/
 
+# Credential-shaped files. This repository is PUBLIC, and a stray `git add -A`
+# must not be able to publish one. Scoped to the hidden-file shape and to key
+# material, so documentation *about* auth (e.g. a password-reset ADR) is
+# unaffected — the word is fine, the secret is not.
+.*password*
+.*secret*
+.*credential*
+.*token*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
 # Root AGENTS.md is a machine-local context file: a connected agent-memory runtime
 # owns a managed block in it and refreshes that block with captured working memory,
 # which carries the same private-project detail the rules above exclude. Ignoring
