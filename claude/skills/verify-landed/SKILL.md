@@ -35,7 +35,17 @@ Two real instances, one day apart:
 When a comment states a rationale, treat it as a **hypothesis about the code** and check the code. Comments explain *why*; only symbols establish *whether*.
 
 **6. When the claim is about data, query the data.**
-A conclusion *reasoned* from code about what rows will do — which end a `LIMIT` truncates, what a walk returns, whether two columns can desync — is a hypothesis until it runs. A scratch database (`docker run postgres`, four lines of SQL) settles in ninety seconds what argument gets wrong across several rounds.
+A conclusion *reasoned* from code about what rows will do — which end a `LIMIT` truncates, what a walk returns, whether two columns can desync — is a hypothesis until it runs. A scratch database and four lines of SQL settle in ninety seconds what argument gets wrong across several rounds:
+
+```bash
+docker run --rm -d --name scratch -e POSTGRES_PASSWORD=scratch postgres
+docker exec -i scratch psql -U postgres <<'SQL'
+  -- build the smallest table that can exhibit the question, then ask it
+SQL
+docker rm -f scratch
+```
+
+The password is not optional — the official image refuses to start without `POSTGRES_PASSWORD` (or `POSTGRES_HOST_AUTH_METHOD=trust`), so a bare `docker run postgres` fails and the check never happens.
 
 Observed both ways in one week, in the same file. The scratch query settled a truncation question immediately and correctly. The *argued* analysis of a two-column desync — reasoned carefully, stated to the user as safe — was refuted by a reviewer who found the case the argument had not considered. The difference was entirely whether it was executed.
 
