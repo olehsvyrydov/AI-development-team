@@ -4,7 +4,7 @@ This file records all notable changes to the project. Versioning roughly follows
 
 ## [Unreleased]
 
-## [5.2.0] — 2026-07-30
+## [5.2.0] — 2026-08-03
 
 Distribution moves from copying files to a versioned plugin, and three skills that documented
 mechanisms which did not exist are corrected. The theme is the framework's own rule applied to

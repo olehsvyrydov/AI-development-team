@@ -2,7 +2,7 @@
 
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-ready-6E56CF) ![Cursor](https://img.shields.io/badge/Cursor-ready-111111) ![Kiro](https://img.shields.io/badge/Kiro-ready-9B59B6) ![VS Code](https://img.shields.io/badge/VS%20Code-ready-007ACC) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Stars](https://img.shields.io/github/stars/olehsvyrydov/AI-development-team?style=social)
 
-> **A reusable AI agent-team framework for your editor.** ~35 specialist agent skills (a 15-agent core team + optional specialists) plus a `workflow-engine` and an **enforced, proportional workflow** with approval gates — *process, not prompts*. Open-source, no lock-in; works in **Claude Code, Cursor, Kiro & VS Code**, free by default.
+> **A reusable AI agent-team framework for your editor.** 38 agent skills (a 15-agent core team + optional specialists + cross-cutting process skills) plus a `workflow-engine` and an **enforced, proportional workflow** with approval gates — *process, not prompts*. Installs as a **Claude Code plugin**, or via the universal installer for Cursor, Kiro & VS Code. Open-source, no lock-in, free by default.
 
 ```
 /po → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe | /be → /rev → /qa + /e2e → /verify
@@ -13,7 +13,7 @@ The framework is a portable agent layer you install once and use across every pr
 - **Agent skills** (`claude/skills/`) — lean `SKILL.md` personas that load deep `references/` on demand; tech stacks (React/Angular/Vue, Java/Kotlin/Python/PHP, …) are references the role *self-routes* to, not separate agents.
 - **The `workflow-engine`** — a skill that classifies each change and **refuses** to skip a required gate.
 - **`workflow.yaml`** — a versioned workflow definition, right-sized to the change via `solo` → `small-team` → `regulated` presets.
-- **The installer** (`install.sh`) — wires the skills, commands, and templates into whichever editor(s) you use.
+- **Distribution** — a Claude Code **plugin** (declare it once per project; the commit SHA is the version, so every push is an update), or **`install.sh`**, which wires the skills, commands and templates into whichever editor(s) you use.
 
 - **Process, not prompts.** Gates are enforced by the engine, not left to a model's memory — and right-sized so a typo isn't treated like a feature.
 - **Roles, not micro-agents.** Each agent is a role persona; technology stacks are references the role loads on demand.
@@ -513,7 +513,7 @@ See [`CHANGELOG.md`](CHANGELOG.md) for full details.
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 5.2.0 | 2026-07-30 | **Plugin distribution** (`claude/` is the plugin root; SHA is the version); `ai-dev-team` contract skill + `pull-request` skill; `/kai` re-based on human-approved rules from any backend; `/retro` removed; `/sm` re-scope wired to its triggers; root `AGENTS.md` untracked |
+| 5.2.0 | 2026-08-03 | **Plugin distribution** (`claude/` is the plugin root; SHA is the version); `ai-dev-team` contract skill + `pull-request` skill; `/kai` re-based on human-approved rules from any backend; `/retro` removed; `/sm` re-scope wired to its triggers; root `AGENTS.md` untracked |
 | 5.1.0 | 2026-06-14 | Reference libraries (ai-engineer, architect, data/mlops/dba); /tw + /mlops wired up; roster reconciled to core 15; knowledge-backend naming generalized; DART dashboard + RAG subsystem + migration scripts removed |
 | 5.0.0 | 2026-06-06 | **OSS-first release** — proportional workflow engine, 48→29 roster, universal multi-editor installer, pluggable adapters |
 | 4.1.0 | 2026-02-24 | Kai meta-agent, multi-LLM consultation, migration scripts |
