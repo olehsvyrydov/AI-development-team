@@ -34,10 +34,24 @@ Two real instances, one day apart:
 
 When a comment states a rationale, treat it as a **hypothesis about the code** and check the code. Comments explain *why*; only symbols establish *whether*.
 
+**6. When the claim is about data, query the data.**
+A conclusion *reasoned* from code about what rows will do — which end a `LIMIT` truncates, what a walk returns, whether two columns can desync — is a hypothesis until it runs. A scratch database (`docker run postgres`, four lines of SQL) settles in ninety seconds what argument gets wrong across several rounds.
+
+Observed both ways in one week, in the same file. The scratch query settled a truncation question immediately and correctly. The *argued* analysis of a two-column desync — reasoned carefully, stated to the user as safe — was refuted by a reviewer who found the case the argument had not considered. The difference was entirely whether it was executed.
+
+The same applies to whether a test discriminates: revert the fix and watch it fail. A test written after a fix, which passes immediately, proves nothing. Measured: three integration tests "covering" a change all passed against the implementation they were written to prove wrong.
+
 ## Reporting
 
 State what you verified and how, in one line each — "grepped `X` at `file:line`", "test fails without the change" — not "verified" as a bare adjective. If you could not verify something, say which part and why, rather than letting a green build stand in for it.
 
+**A verification claim carries its command and the tool's own verdict, or it is not a verification.** "The whole-project test compile passes" is a claim; the command, the tool's own exit code, and its verdict line (`BUILD SUCCESSFUL`, `N tests completed, M failed`) are evidence. If the transcript does not contain the command, the check did not happen — say that instead.
+
+Two ways this has produced a confident false report:
+
+- A "whole-project test compile" reported green having compiled nothing, because the surfaced status belonged to a trailing `grep` — and **grep exits 0 when it matches**, so it succeeded precisely *because* it found `FAILED`. End such a chain with a predicate that is true on success (`cmd > log 2>&1 && echo PASS || echo FAIL`), never one true on failure.
+- A **quality gate reported OK over a broken build**: the test task had failed, so the analysis scored the *previous* run's coverage. A gate verdict and a build verdict are independent claims. Read each step's status separately, never just the last line of a sequence.
+
 ## When a whole-project check is the only real check
 
-Module-scoped test runs can pass while the project is broken: a shared test double that drifts from an interface it implements only fails where it is compiled. Before declaring backend work done, run the **whole-project** test-compile at least once. Two separate breakages on one branch came from exactly this — a repository fake in one module missing a method added in another.
+Module-scoped test runs can pass while the project is broken: a shared test double that drifts from an interface it implements only fails where it is compiled. Before declaring backend work done, run the **whole-project** test-compile at least once. On one branch a single repository fake broke **six times** this way, once per signature change to the interface it implements — documentation did not stop it, and at that frequency the fix is structural (an abstract adapter or generated defaults), not another warning.

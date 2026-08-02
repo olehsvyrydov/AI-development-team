@@ -33,6 +33,10 @@ Look at **changed paths and changed symbols**, not at your opinion of the change
 
 **`TARGETED` — ordinary feature code.** Scope finders to the diff **plus its callers and callees**. This caveat is load-bearing: the review's value is finding the break two files away, so a diff-only scope degrades it into a linter.
 
+**And plus the writers of any persistent field the diff reads but does not write.** Callers-and-callees follows the call graph; a defect in what a *column means* propagates along the schema instead, and reads and writes of a column are not connected by any call. A feature that only reads a column can therefore never reach, by any call-graph scoping, the code that decides what it means. Grep the entity field and the raw column name; if there is **more than one writer**, put those writers in front of the finders and treat the column's semantics as part of the blast radius.
+
+> Measured: a version-history feature read `superseded_by`. Two writers — an ingest re-collect meaning "new revision", an operator PATCH meaning "archived duplicate" — differ in meaning and are distinguishable only in an audit payload. Five review rounds and 49 real findings never reached either writer, because a read feature calls neither. The grep takes seconds.
+
 **`LINT_ONLY` / `SKIP` — no behaviour can change:** documentation, comments, formatting, test-only changes, generated files, dependency lockfiles with no version bumps.
 
 State the classification and the rule that fired, so the decision is auditable.
@@ -49,6 +53,20 @@ In a review loop, round N+1's job is not to re-read the feature. It is to answer
 So scope the finders to `git diff <round-N-sha>..HEAD` plus the prior findings as an explicit checklist, and keep the `FULL`-tier verification depth on anything the fixes touched.
 
 The justification is empirical, not theoretical: on a real loop, **two consecutive rounds each found that the previous round's fixes had introduced fresh defects** — including one where a fix to a data-loss path created an unbounded request loop, and one where a "safe" sweep would have destroyed operator-archived data. The freshly written fix is the riskiest code in the repository, and a full re-read buries it in noise.
+
+## Step 2b — a churning loop is not a review problem, and must convert to an investigation
+
+Step 5's findings-per-token detects a loop that has gone **dry**. It cannot detect one that is **churning** — a review of a design the data cannot satisfy produces real findings at a steady rate *forever*, so the metric says "keep going" indefinitely. Measured: five rounds, ~10 verified findings each, **49 of 49 real**, every round breaking the previous round's fixes. The review was working perfectly; the question was unanswerable.
+
+Halt the loop and open an investigation — a stated question that can have a wrong answer, plus a kill condition (`research-method`) — when **any** of these fire:
+
+1. **A verified round-N+1 finding `git blame`s to a round-N fix commit, two rounds running.** Mechanical: map each finding to the commit that introduced the defective line; if it lands inside the previous round's fixes twice consecutively, stop.
+2. **Findings across two or more rounds restate one definitional question.** "What set?", "what order?", "what number?" are one question — *what is a version* — not three defects.
+3. **A candidate fix must consult a side channel** — an audit payload, a log, a naming convention — to decide what a column *means*. The column's semantics are contested; no amount of reading code settles it.
+
+The next round's budget goes to the investigation, not to finders, and its first question is about the **writers of the data**, not the feature's code. Applied to the case above, rule 1 fires at **round 3's triage** — saving rounds 3, 4 and 5.
+
+Why a review cannot do this itself: a review verifies code against a spec it must assume is coherent. Its output vocabulary is the *finding* — local, with an implied fix — and it contains **no sentence meaning "this question has no answer in the data"**. Only an investigation can return that.
 
 ## Step 3 — spend verifiers in proportion to the claim
 
