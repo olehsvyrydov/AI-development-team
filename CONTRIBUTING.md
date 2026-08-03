@@ -65,6 +65,31 @@ Key ideas:
 ```
 Then invoke the agent/command in your editor and confirm it behaves as intended.
 
+### Run the gates before you push
+
+CI runs these on every pull request; running them locally is faster than a round trip.
+
+```bash
+pip install pyyaml                        # once
+python3 scripts/validate-framework.py     # the framework gates
+claude plugin validate ./claude           # the plugin manifest + component check
+./install.sh --dry-run --editors=all --scope=project --yes
+```
+
+`validate-framework.py` checks seven things, each of which has actually broken here at least once:
+
+| Gate | Catches |
+|------|---------|
+| G1 frontmatter | A `SKILL.md` whose YAML does not parse. It then loads with **empty metadata** — no description, so it can never auto-trigger, while looking correct in the file |
+| G2 manifests | Malformed plugin JSON, and a `version` key reappearing in `plugin.json` (omitted on purpose so the commit SHA is the version) |
+| G3 counts | A documented skill/command/template count that no longer matches the tree |
+| G4 links | A relative `.md` link pointing at nothing. Fenced blocks are skipped, since template examples are illustrative |
+| G5 credentials | A credential-shaped file being tracked in a public repository |
+| G6 retired | A reference to a mechanism that was removed — a promise the repo no longer keeps |
+| G7 vendor-neutrality | A backend product named inside a skill instead of in its adapter reference |
+
+If a gate is wrong, change the gate deliberately and say why in the commit — do not work around it.
+
 ## Pull requests & commits
 
 - Branch from `main`: `feat/<short-desc>` or `fix/<short-desc>`.

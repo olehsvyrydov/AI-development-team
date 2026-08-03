@@ -1,0 +1,64 @@
+name: Validate
+
+# The skills in this repository are markdown: nothing compiles and no test suite
+# runs, so a defect stays invisible until someone reads the exact line. Until
+# now every gate was run by hand, which means they were run when someone
+# remembered. These are the same checks, on every change.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: Framework gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: pip install --quiet pyyaml
+
+      # Frontmatter, manifests, counts, links, credential shapes, retired
+      # mechanisms, and the vendor-neutrality boundary. Each gate exists
+      # because the thing it checks actually broke once.
+      - name: Framework gates
+        run: python3 scripts/validate-framework.py
+
+  plugin-validate:
+    name: claude plugin validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Claude Code
+        run: npm install --global --no-fund --no-audit @anthropic-ai/claude-code
+
+      # Runs without credentials — it reads the plugin off disk. This is the
+      # check that first caught a skill whose frontmatter did not parse, which
+      # had been loading with empty metadata and could never auto-trigger.
+      - name: Validate the plugin
+        run: claude plugin validate ./claude
+
+  installer:
+    name: install.sh still works
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # install.sh is the path for Cursor, Kiro and VS Code and stays supported
+      # through the plugin transition, so it must keep running.
+      - name: Dry-run every editor
+        run: ./install.sh --dry-run --editors=all --scope=project --yes
