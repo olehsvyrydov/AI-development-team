@@ -43,8 +43,13 @@ jobs:
         with:
           node-version: "22"
 
+      # Pinned on purpose. An unpinned validator means a green pull request can
+      # turn red tomorrow with no change in this repository, and a behaviour
+      # change in the checker arrives silently. Bump it deliberately.
       - name: Install Claude Code
-        run: npm install --global --no-fund --no-audit @anthropic-ai/claude-code
+        env:
+          CLAUDE_CODE_VERSION: 2.1.221
+        run: npm install --global --no-fund --no-audit "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
 
       # Runs without credentials — it reads the plugin off disk. This is the
       # check that first caught a skill whose frontmatter did not parse, which

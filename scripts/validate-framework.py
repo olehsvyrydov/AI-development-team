@@ -118,6 +118,12 @@ def gate_manifests() -> None:
         except json.JSONDecodeError as exc:
             fail("G2 manifests", f"{rel}: invalid JSON -- {exc}")
             continue
+        # Valid JSON is not necessarily an object. Without this the next
+        # `.get()` raises and aborts the whole run, so a malformed manifest
+        # would take out every remaining gate instead of reporting itself.
+        if not isinstance(data, dict):
+            fail("G2 manifests", f"{rel}: top level is {type(data).__name__}, expected an object")
+            continue
         if rel.endswith("plugin.json"):
             if "version" in data:
                 fail(
@@ -197,7 +203,18 @@ def gate_links() -> None:
             if target.startswith(("http://", "https://", "mailto:")) or "{" in target:
                 continue
             checked += 1
-            if not (ROOT / os.path.normpath(os.path.join(base, target))).exists():
+            # Resolve, then confirm the result is still inside the repository.
+            # Without that, enough `../` segments (or a leading `/`) escape ROOT
+            # and the check silently passes against some unrelated file that
+            # happens to exist on the runner -- a false negative in a gate,
+            # which is worse than no gate.
+            resolved = (ROOT / os.path.normpath(os.path.join(base, target))).resolve()
+            try:
+                resolved.relative_to(ROOT.resolve())
+            except ValueError:
+                fail("G4 links", f"{rel} -> {target} escapes the repository")
+                continue
+            if not resolved.exists():
                 fail("G4 links", f"{rel} -> {target} does not exist")
     notes.append(f"G4 links: {checked} relative links resolved (fenced blocks skipped)")
 
