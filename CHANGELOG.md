@@ -4,6 +4,10 @@ This file records all notable changes to the project. Versioning roughly follows
 
 ## [Unreleased]
 
+### Added
+- **CI.** The skills here are markdown: nothing compiles and no test suite runs, so a defect stays invisible until someone reads the exact line. Every gate was previously run by hand, which means it was run when someone remembered — and the record of what shipped was reconciled against the tree only after it had drifted nine behind. Three jobs now run on every pull request: `scripts/validate-framework.py`, `claude plugin validate` (which needs no credentials), and `install.sh --dry-run --editors=all`.
+- **`scripts/validate-framework.py`** — seven gates, each covering something that has actually broken in this repository: a `SKILL.md` whose frontmatter does not parse and therefore loads with empty metadata and can never auto-trigger; malformed plugin JSON, or a `version` key reappearing where it is omitted on purpose; a documented count that no longer matches the tree; a relative link pointing at nothing; a credential-shaped file being tracked in a public repository; a reference to a mechanism that was removed; and a backend product named inside a skill rather than in its adapter reference. Every gate was verified to fail on its own defect and pass when clean, because a gate that cannot fail is decoration.
+
 ## [5.2.0] — 2026-08-03
 
 Distribution moves from copying files to a versioned plugin, and three skills that documented
