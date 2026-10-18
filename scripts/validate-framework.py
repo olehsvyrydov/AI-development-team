@@ -17,8 +17,9 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,23 +43,31 @@ CREDENTIAL_SHAPE = re.compile(
     re.IGNORECASE,
 )
 
-# A tax-year label (2026/27 or 2026-27) followed by "(current)", in any case and
-# with any mix of bold, italics and spaces between the two.
+# A tax-year label (2026/27, 2026-27, 2026–27, 2026/2027, FY2026/27) followed by
+# "(current)", "(current year)" or "(current tax year)", in any case and with any
+# mix of bold, italics, spaces, colons and dashes between the two.
 CURRENT_TAX_YEAR_LABEL = re.compile(
-    r"\b(\d{4}[/-]\d{2})\b[*_\s]*\(current\)", re.IGNORECASE
+    r"(?<!\d)(\d{4})\s?([/\-–—])\s?(\d{4}|\d{2})(?!\d)[*_\s:–—-]*"
+    r"\(\s*current(?:\s+(?:tax\s+)?year)?\s*\)",
+    re.IGNORECASE,
 )
-VERIFIED_DATE_LINE = re.compile(r"Verified against GOV\.UK on(?P<rest>.*)")
-ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+VERIFIED_PHRASE = re.compile(r"Verified against GOV\.UK on(?P<rest>.*)")
+ISO_DATE = re.compile(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)")
 COMPLIANCE_SKILLS = "claude/skills/compliance/"
+GRACE_DAYS = 30
 
 
 @dataclass
 class Report:
     failures: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
     def fail(self, gate: str, detail: str) -> None:
         self.failures.append(f"{gate}: {detail}")
+
+    def warn(self, gate: str, detail: str) -> None:
+        self.warnings.append(f"{gate}: {detail}")
 
 
 def tracked_files(root: Path = ROOT) -> list[str]:
@@ -86,14 +95,25 @@ def uk_tax_year(day: date) -> str:
     return f"{start_year}/{(start_year + 1) % 100:02d}"
 
 
-def is_iso_date(text: str) -> bool:
-    if not ISO_DATE.fullmatch(text):
-        return False
+def first_iso_date(text: str) -> date | None:
+    match = ISO_DATE.search(text)
+    if match is None:
+        return None
     try:
-        date.fromisoformat(text)
+        return date.fromisoformat(match.group())
     except ValueError:
-        return False
-    return True
+        return None
+
+
+def normalise_tax_year_label(start: str, end: str) -> str | None:
+    start_year = int(start)
+    next_year = start_year + 1
+    consecutive = int(end) == next_year if len(end) == 4 else int(end) == next_year % 100
+    return f"{start_year}/{next_year % 100:02d}" if consecutive else None
+
+
+def looks_like_year_month(separator: str, end: str) -> bool:
+    return separator == "-" and len(end) == 2 and 1 <= int(end) <= 12
 
 
 # --- G1 -- every skill's frontmatter parses, and carries name + description ----
@@ -299,8 +319,10 @@ def gate_vendor_neutrality(report: Report, root: Path = ROOT, files: list[str] |
 # The accountant skill's rate tables mark one column "(current)". On 6 April the
 # tax year rolls over and the marked column silently becomes last year's, while
 # the file still reads as authoritative. Moving the marker means re-checking the
-# figures, so every "Verified against GOV.UK on" date must be a real date that
-# falls within the current tax year and is not in the future.
+# figures, so every table carrying the marker needs a "Verified against GOV.UK
+# on" line directly above it, and every such date must be real, within the
+# current tax year and not in the future. For the first GRACE_DAYS days of a new
+# tax year a stale marker or date is a warning rather than a failure.
 def gate_uk_tax_year(
     report: Report,
     root: Path = ROOT,
@@ -310,60 +332,117 @@ def gate_uk_tax_year(
     today = today or date.today()
     expected = uk_tax_year(today)
     year_start = uk_tax_year_start(today)
+    grace_end = year_start + timedelta(days=GRACE_DAYS)
+    in_grace = today < grace_end
+
+    def report_stale(location: str, detail: str) -> None:
+        if in_grace:
+            report.warn(
+                "G8 uk-tax-year",
+                f"{location} {detail}; refresh before {grace_end.day} "
+                f"{grace_end:%B} (grace period)",
+            )
+        else:
+            report.fail("G8 uk-tax-year", f"{location} {detail}")
+
     scanned = 0
     for rel in files_or_tracked(root, files):
         if not rel.startswith(COMPLIANCE_SKILLS) or not rel.endswith(".md"):
             continue
         scanned += 1
-        for lineno, line in enumerate(read(root / rel).split("\n"), 1):
+        lines = read(root / rel).split("\n")
+        tables_without_verified_line: set[int] = set()
+        for index, line in enumerate(lines):
+            location = f"{rel}:{index + 1}"
             for match in CURRENT_TAX_YEAR_LABEL.finditer(line):
-                found = match.group(1).replace("-", "/")
-                if found != expected:
-                    report.fail(
-                        "G8 uk-tax-year",
-                        f"{rel}:{lineno} marks {found!r} as (current), "
-                        f"but the current UK tax year is {expected!r}",
+                start, separator, end = match.groups()
+                label = normalise_tax_year_label(start, end)
+                if label is None:
+                    if not looks_like_year_month(separator, end):
+                        report.fail(
+                            "G8 uk-tax-year",
+                            f"{location} marks {match.group(0)!r} as (current), which is "
+                            f"not a tax-year label: the end year must follow the start year",
+                        )
+                    continue
+                if label != expected:
+                    report_stale(
+                        location,
+                        f"marks {label!r} as (current), but the current UK tax year "
+                        f"is {expected!r}",
                     )
-            verified = VERIFIED_DATE_LINE.search(line)
+                if is_table_row(line):
+                    table_start = table_start_index(lines, index)
+                    if not has_verified_line_above(lines, table_start):
+                        tables_without_verified_line.add(table_start)
+            verified = VERIFIED_PHRASE.search(line)
             if verified:
                 check_verified_date(
-                    report, f"{rel}:{lineno}", verified.group("rest"), year_start, today
+                    report, report_stale, location, verified.group("rest"), year_start, today
                 )
+        for table_start in sorted(tables_without_verified_line):
+            report.fail(
+                "G8 uk-tax-year",
+                f"{rel}:{table_start + 1} table marks a tax year (current) but has no "
+                f"'Verified against GOV.UK on' line directly above it",
+            )
     report.notes.append(
         f"G8 uk-tax-year: {scanned} compliance files checked against tax year {expected}"
     )
 
 
+def is_table_row(line: str) -> bool:
+    return line.lstrip().startswith("|")
+
+
+def table_start_index(lines: list[str], row_index: int) -> int:
+    start = row_index
+    while start > 0 and is_table_row(lines[start - 1]):
+        start -= 1
+    return start
+
+
+def has_verified_line_above(lines: list[str], table_start: int) -> bool:
+    index = table_start - 1
+    while index >= 0 and not lines[index].strip():
+        index -= 1
+    return index >= 0 and VERIFIED_PHRASE.search(lines[index]) is not None
+
+
 def check_verified_date(
-    report: Report, location: str, rest: str, year_start: date, today: date
+    report: Report,
+    report_stale: Callable[[str, str], None],
+    location: str,
+    rest: str,
+    year_start: date,
+    today: date,
 ) -> None:
-    text = rest.strip().rstrip(".")
-    if not is_iso_date(text):
+    verified = first_iso_date(rest)
+    if verified is None:
         report.fail(
             "G8 uk-tax-year",
             f"{location} 'Verified against GOV.UK on' needs an ISO date "
             f"(YYYY-MM-DD), found {rest.strip()!r}",
         )
-        return
-    verified = date.fromisoformat(text)
-    if verified < year_start:
-        report.fail(
-            "G8 uk-tax-year",
-            f"{location} verified on {text}, before the current tax year began on "
-            f"{year_start.isoformat()}; re-check the figures and move the date",
-        )
     elif verified > today:
         report.fail(
             "G8 uk-tax-year",
-            f"{location} verified on {text}, which is in the future",
+            f"{location} verified on {verified.isoformat()}, which is in the future",
+        )
+    elif verified < year_start:
+        report_stale(
+            location,
+            f"verified on {verified.isoformat()}, before the current tax year began on "
+            f"{year_start.isoformat()}; re-check the figures and move the date",
         )
 
 
 def main() -> int:
     report = Report()
+    files = tracked_files()
+    for gate in (gate_frontmatter, gate_manifests):
+        gate(report)
     for gate in (
-        gate_frontmatter,
-        gate_manifests,
         gate_counts,
         gate_links,
         gate_credentials,
@@ -371,10 +450,12 @@ def main() -> int:
         gate_vendor_neutrality,
         gate_uk_tax_year,
     ):
-        gate(report)
+        gate(report, files=files)
 
     for note in report.notes:
         print(f"  ok   {note}")
+    for warning in report.warnings:
+        print(f"  warn {warning}")
 
     if report.failures:
         print(f"\n{len(report.failures)} failure(s):\n", file=sys.stderr)
@@ -382,7 +463,10 @@ def main() -> int:
             print(f"  FAIL {failure}", file=sys.stderr)
         return 1
 
-    print(f"\nAll {len(report.notes)} gates passed.")
+    summary = f"All {len(report.notes)} gates passed"
+    if report.warnings:
+        summary += f" with {len(report.warnings)} warning(s)"
+    print(f"\n{summary}.")
     return 0
 
 

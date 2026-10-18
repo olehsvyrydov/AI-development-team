@@ -47,13 +47,21 @@ Class 2 NI adds nothing: profits at or above the Small Profits Threshold (£7,10
 
 ### Scenario 2: Contractor Optimal Extraction (£120,000 company profit)
 
-| Component | Amount | Tax Saved |
+Salary of £12,570 is used because at this profit level it beats a £5,000 salary (see the decision rule in the key tax reference).
+
+> Verified against GOV.UK on 2026-10-18.
+
+| Component | Amount | Notes |
 |-----------|--------|-----------|
-| Salary | £5,000 | No employer NI |
+| Salary | £12,570 | Uses the Personal Allowance: no income tax, no employee NI |
+| Employer NI (£7,570 × 15%) | £1,135.50 | CT deductible |
 | Employer pension contribution | £40,000 | CT deductible, no NI |
-| Corporation tax | £16,125 | 25% of the £75,000 profit less marginal relief of 3/200 × £175,000 |
-| Dividends | £55,000 | Lower rates than salary |
-| Retained in company | £3,875 (£58,875 distributable less dividends) | Defers tax |
+| Taxable profit (£120,000 − £12,570 − £1,135.50 − £40,000) | £66,294.50 | |
+| Corporation tax (25% less marginal relief of 3/200 × £183,705.50) | £13,818.04 | |
+| Distributable profit | £52,476.46 | |
+| Dividends paid | £50,000 | Lower rates than salary |
+| Dividend tax (£500 @ 0%, £37,200 @ 10.75%, £12,300 @ 35.75%) | £8,396.25 | £3,999.00 + £4,397.25 |
+| Retained in company | £2,476.46 | Defers tax |
 
 ### Scenario 3: High Earner Personal Allowance Taper (£110,000 income)
 
