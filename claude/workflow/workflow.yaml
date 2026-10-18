@@ -63,7 +63,7 @@ tickets:
   optional_mcp: [jira]
 knowledge_base:
   default: markdown                # docs/ or an Obsidian-compatible vault
-  optional_mcp: [obsidian, kgb_canon]
+  optional_mcp: [obsidian, knowledge_graph]
 memory:
   default: files                   # native files under memory/ (no backend required)
   optional_mcp: [openmemory, mem0]

@@ -1,6 +1,6 @@
 ---
 name: answer-audit
-description: Adversarially audit a RAG answer against the corpus it claims to cite. Use when asked to review, critique, sanity-check, or "give skeptical feedback on" an answer produced by Canon (or any retrieval-grounded system) — especially when the answer looks good. Assumes the answer is wrong until each claim is proven verbatim against a source passage.
+description: Adversarially audit a RAG answer against the corpus it claims to cite. Use when asked to review, critique, sanity-check, or "give skeptical feedback on" an answer produced by a retrieval-grounded (RAG) system — especially when the answer looks good. Assumes the answer is wrong until each claim is proven verbatim against a source passage.
 ---
 
 # Answer Audit — skeptical review of a grounded answer
@@ -24,7 +24,7 @@ retrieved. They do not prove the passage says what the answer says it says. Audi
 
 Never audit from memory or from the model's own citation list. Go to the corpus.
 
-1. **Pull the corpus** the answer was drawn from (see *Canon commands* below). Get the raw chunk
+1. **Pull the corpus** the answer was drawn from (see *Collecting the evidence* below). Get the raw chunk
    text, not a summary of it.
 2. **Atomise the answer.** Extract every checkable atom: figures, currencies, units, percentages,
    thresholds, dates, proper nouns, and any quoted phrase.
@@ -58,28 +58,17 @@ number to an investor.
 | 7 | **Citation drift** | `[N]` marker does not point at a passage supporting the claim. Verify the system actually parses `[N]` — many do not, and synthesize the citation list from *every passage shown to the model*, which makes "grounded by N sources" mean "retrieved N", not "used N". |
 | 8 | **Descriptive answer to a normative question** | Asked "what *should* we do", the system restates "what the docs *say*" without judgement, and the caveat gets buried under the restatement. |
 
-## Canon commands
+## Collecting the evidence
 
-Chunk text lives in the Qdrant payload (`text` key) — Postgres holds metadata only, and there is no
-`chunks` table. Neither container has curl; use bash `/dev/tcp` from the api container.
+Export from the system itself, not from the answer.
 
-```bash
-cd <repo> && DC="docker compose -f deploy/docker-compose.yml"
-
-# corpus: pull every chunk (payload has text/title/heading_path/doc_id/source_url)
-$DC exec -T api bash -c '
-exec 3<>/dev/tcp/qdrant/6333
-B="{\"limit\":1000,\"with_payload\":true,\"with_vector\":false}"
-printf "POST /collections/kb_chunks/points/scroll HTTP/1.1\r\nHost: qdrant\r\nContent-Type: application/json\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s" "${#B}" "$B" >&3
-cat <&3' | tail -1 > chunks.json
-
-# telemetry for the ask: tier, attempts, and how many passages were stuffed in
-$DC exec -T postgres psql -U kb -d kb -tAc \
-  "select payload_json from audit_log where action='QUERY_ANSWERED' order by ts desc limit 1;"
-```
-
-`snippetCount` is the number of passages sent to the model. A high `snippetCount` on a `HAIKU` tier
-is the highest-risk configuration for failures 2–5 — flag it in the report.
+1. **The full retrieved corpus** the answer drew on: every passage's text with its document id,
+   title and source URL, taken from the vector store or search index. The snippets quoted in the
+   answer are not the corpus; a claim can only be proven absent from the full set.
+2. **The per-query telemetry** the system records: the model tier that answered, retries or
+   attempts, and the number of passages sent to the model.
+3. **Flag the risky configuration.** A high passage count sent to a small, cheap model is the
+   highest-risk setup for failures 2–5 — say so in the report.
 
 ## Output
 

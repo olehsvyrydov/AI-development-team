@@ -116,7 +116,7 @@ Detailed frontend knowledge lives in `references/` — read the relevant file wh
 - `references/vue.md` — Vue 3 (Composition API, Pinia, Nuxt 3) — the full Vue playbook.
 - `references/flutter.md` — Flutter/Dart cross-platform mobile — the full Flutter playbook.
 - `references/javafx-desktop/overview.md` — JavaFX desktop apps (FXML, MVVM, Scene Builder, jpackage) — load for desktop UIs (not web).
-- `references/theia.md` — Eclipse Theia extension development (InversifyJS DI, React widgets, JSON-RPC services, Theia AI, Open VSX, electron-builder) — load for Theia-based IDE products (e.g. bumbl-app).
+- `references/theia.md` — Eclipse Theia extension development (InversifyJS DI, React widgets, JSON-RPC services, Theia AI, Open VSX, electron-builder) — load for Theia-based IDE products (e.g. acme-ide).
 - Language-level TypeScript — the **typescript** language skill (`../../../languages/typescript/SKILL.md`): strictest tsconfig profile, type-level design, ESM/Node runtime, typescript-eslint, Vitest doctrine — auto-loads whenever TS is written.
 
 ## Visual Inspection (MCP Browser Tools)

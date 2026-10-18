@@ -7,16 +7,19 @@ which means a defect stays invisible until someone reads the exact line. These
 are the reads, automated.
 
 Run: python3 scripts/validate-framework.py
+     python3 scripts/validate-framework.py --private-names-only
 Exit: 0 if every gate passes, 1 otherwise (each failure is printed with its file).
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
 import subprocess
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -42,6 +45,12 @@ CREDENTIAL_SHAPE = re.compile(
     re.IGNORECASE,
 )
 
+# The private-names check reads a local file of names this public repository must
+# never mention. The file is never tracked and its entries are never printed.
+PRIVATE_NAMES_FILE_ENV = "AIDEVTEAM_PRIVATE_NAMES_FILE"
+DEFAULT_PRIVATE_NAMES_FILE = ".aidevteam/private-names"
+REGEX_ENTRY_PREFIX = "re:"
+
 # A tax-year label (2026/27 or 2026-27) followed by "(current)", in any case and
 # with any mix of bold, italics and spaces between the two.
 CURRENT_TAX_YEAR_LABEL = re.compile(
@@ -56,16 +65,28 @@ COMPLIANCE_SKILLS = "claude/skills/compliance/"
 class Report:
     failures: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
 
     def fail(self, gate: str, detail: str) -> None:
         self.failures.append(f"{gate}: {detail}")
 
+    def skip(self, gate: str, detail: str) -> None:
+        self.skipped.append(gate)
+        self.notes.append(f"{gate}: {detail}")
+
+
+def summary_line(report: Report) -> str:
+    if not report.skipped:
+        return f"All {len(report.notes)} gates passed."
+    passed = len(report.notes) - len(report.skipped)
+    return f"{passed} gates passed, {len(report.skipped)} skipped."
+
 
 def tracked_files(root: Path = ROOT) -> list[str]:
     out = subprocess.run(
-        ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True
+        ["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True, check=True
     ).stdout
-    return [f for f in out.split("\n") if f and not f.startswith("docs/archive/")]
+    return [f for f in out.split("\0") if f and not f.startswith("docs/archive/")]
 
 
 def files_or_tracked(root: Path, files: list[str] | None) -> list[str]:
@@ -295,6 +316,127 @@ def gate_vendor_neutrality(report: Report, root: Path = ROOT, files: list[str] |
     report.notes.append(f"G7 vendor-neutrality: only {ADAPTER_REFERENCE} names a product")
 
 
+# --- G7 (private names) -- no tracked path or line names a private project ------
+# The names live in a local, untracked file because writing them into a check in
+# this public repository would publish them. Every message therefore carries a
+# location and an entry number, never the name, the pattern, or an exception.
+@dataclass(frozen=True)
+class PrivateNameEntry:
+    number: int
+    pattern: re.Pattern[str]
+
+
+@dataclass
+class PrivateNames:
+    entries: list[PrivateNameEntry] = field(default_factory=list)
+    invalid_lines: list[int] = field(default_factory=list)
+
+
+class PrivateNamesFileUnreadable(Exception):
+    pass
+
+
+def literal_whole_word(name: str) -> str:
+    start = r"\b" if re.match(r"\w", name[0]) else ""
+    end = r"\b" if re.match(r"\w", name[-1]) else ""
+    return f"{start}{re.escape(name)}{end}"
+
+
+def compile_private_name(entry: str) -> re.Pattern[str]:
+    if entry.startswith(REGEX_ENTRY_PREFIX):
+        pattern = re.compile(entry[len(REGEX_ENTRY_PREFIX):])
+    else:
+        pattern = re.compile(literal_whole_word(entry))
+    if pattern.search(""):
+        raise ValueError("pattern matches every line")
+    return pattern
+
+
+def load_private_names(path: Path) -> PrivateNames:
+    try:
+        lines = path.read_bytes().decode("utf-8-sig").split("\n")
+    except FileNotFoundError:
+        return PrivateNames()
+    except Exception:
+        raise PrivateNamesFileUnreadable from None
+
+    names = PrivateNames()
+    for number, line in enumerate(lines, 1):
+        entry = line.strip()
+        if not entry or entry.startswith("#"):
+            continue
+        try:
+            names.entries.append(PrivateNameEntry(number, compile_private_name(entry)))
+        except Exception:
+            names.invalid_lines.append(number)
+    return names
+
+
+def read_utf8_or_none(path: Path) -> str | None:
+    try:
+        return path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def scan_private_names(
+    report: Report,
+    root: Path,
+    files: list[str] | None,
+    entries: list[PrivateNameEntry],
+    pattern_file: Path,
+) -> None:
+    gate = "G7 private-names"
+    pattern_file = pattern_file.resolve()
+    for rel in files_or_tracked(root, files):
+        if (root / rel).resolve() == pattern_file:
+            continue
+        path_matches = [entry.number for entry in entries if entry.pattern.search(rel)]
+        for number in path_matches:
+            report.fail(gate, f"a tracked file path matches private-names entry #{number}")
+        if path_matches:
+            continue
+        text = read_utf8_or_none(root / rel)
+        if text is None:
+            continue
+        for lineno, line in enumerate(text.split("\n"), 1):
+            for entry in entries:
+                if entry.pattern.search(line):
+                    report.fail(
+                        gate,
+                        f"{rel}:{lineno} matches private-names entry #{entry.number}",
+                    )
+
+
+def gate_private_names(
+    report: Report,
+    root: Path = ROOT,
+    files: list[str] | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> None:
+    gate = "G7 private-names"
+    environ = os.environ if environ is None else environ
+    pattern_file = Path(environ.get(PRIVATE_NAMES_FILE_ENV) or root / DEFAULT_PRIVATE_NAMES_FILE)
+    try:
+        names = load_private_names(pattern_file)
+    except PrivateNamesFileUnreadable:
+        report.fail(gate, "private-names file unreadable")
+        return
+    for number in names.invalid_lines:
+        report.fail(gate, f"private-names line {number}: invalid pattern")
+    if names.invalid_lines:
+        return
+    if not names.entries:
+        report.skip(gate, "skipped (no entries)")
+        return
+    try:
+        scan_private_names(report, root, files, names.entries, pattern_file)
+    except Exception:
+        report.fail(gate, "scan failed")
+        return
+    report.notes.append(f"{gate}: {len(names.entries)} entries checked")
+
+
 # --- G8 -- UK tax tables name the tax year that is current today ---------------
 # The accountant skill's rate tables mark one column "(current)". On 6 April the
 # tax year rolls over and the marked column silently becomes last year's, while
@@ -359,22 +501,35 @@ def check_verified_date(
         )
 
 
-def main() -> int:
+ALL_GATES = (
+    gate_frontmatter,
+    gate_manifests,
+    gate_counts,
+    gate_links,
+    gate_credentials,
+    gate_retired,
+    gate_vendor_neutrality,
+    gate_private_names,
+    gate_uk_tax_year,
+)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run the framework's mechanical gates.")
+    parser.add_argument(
+        "--private-names-only",
+        action="store_true",
+        help="run only the private-names check, which needs nothing outside the standard library",
+    )
+    args = parser.parse_args(argv)
+
     report = Report()
-    for gate in (
-        gate_frontmatter,
-        gate_manifests,
-        gate_counts,
-        gate_links,
-        gate_credentials,
-        gate_retired,
-        gate_vendor_neutrality,
-        gate_uk_tax_year,
-    ):
+    for gate in (gate_private_names,) if args.private_names_only else ALL_GATES:
         gate(report)
 
     for note in report.notes:
-        print(f"  ok   {note}")
+        label = "skip" if note.split(":")[0] in report.skipped else "ok  "
+        print(f"  {label} {note}")
 
     if report.failures:
         print(f"\n{len(report.failures)} failure(s):\n", file=sys.stderr)
@@ -382,7 +537,7 @@ def main() -> int:
             print(f"  FAIL {failure}", file=sys.stderr)
         return 1
 
-    print(f"\nAll {len(report.notes)} gates passed.")
+    print(f"\n{summary_line(report)}")
     return 0
 
 

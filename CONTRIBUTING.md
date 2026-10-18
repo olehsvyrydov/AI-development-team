@@ -86,7 +86,7 @@ claude plugin validate ./claude           # the plugin manifest + component chec
 ./install.sh --dry-run --editors=all --scope=project --yes
 ```
 
-`validate-framework.py` checks eight things, each of which has actually broken here at least once:
+`validate-framework.py` checks nine things, each of which has actually broken here at least once:
 
 | Gate | Catches |
 |------|---------|
@@ -97,7 +97,29 @@ claude plugin validate ./claude           # the plugin manifest + component chec
 | G5 credentials | A credential-shaped file being tracked in a public repository |
 | G6 retired | A reference to a mechanism that was removed — a promise the repo no longer keeps |
 | G7 vendor-neutrality | A backend product named inside a skill instead of in its adapter reference |
+| G7 private-names | A tracked file path or line that names something the maintainers keep out of this public repository (see below) |
 | G8 uk-tax-year | A `(current)` tax-year label in the compliance skills that is not the UK tax year in force today (the year rolls over on 6 April), or a `Verified against GOV.UK on` date that is malformed, earlier than the start of the current tax year, or in the future |
+
+#### Private-names check
+
+The names to keep out of this repository are listed in a local file that is never tracked, so the list itself is never published. Maintainers keep it at `.aidevteam/private-names` (a path the repository ignores), or point `AIDEVTEAM_PRIVATE_NAMES_FILE` at another path.
+
+- One entry per line; blank lines and lines starting with `#` are ignored.
+- A plain entry is a literal name, matched case-sensitively as a whole word.
+- An entry starting with `re:` is a Python regular expression, for names that need exceptions, such as `re:(?<!Design )\bName\b`.
+- Both the path and the content of every tracked file are checked. Files that are not valid UTF-8 (binaries) have only their path checked, not their contents. A hit is reported as `path:line matches private-names entry #N`, where `N` is the line in the file; the name, the pattern and the matched text are never printed, and a path that matches is not printed either.
+- An invalid entry fails the check; it is never skipped. A file with no entries is reported as skipped, not passed.
+- `python3 scripts/validate-framework.py --private-names-only` runs only this check and needs nothing outside the standard library.
+
+The check runs locally only. CI has no list, so there it reports as skipped; the list is never uploaded or stored in the repository settings.
+
+To run it before every commit, point the repository at the bundled hooks once (this also works in linked worktrees):
+
+```bash
+git config core.hooksPath scripts/hooks
+```
+
+The hook checks the working tree, not the staged snapshot.
 
 If a gate is wrong, change the gate deliberately and say why in the commit — do not work around it.
 
