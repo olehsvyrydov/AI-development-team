@@ -7,6 +7,15 @@ def test_each_report_collects_only_its_own_failures(validator):
     assert second.failures == []
 
 
+def test_warnings_are_collected_separately_from_failures(validator):
+    report = validator.Report()
+
+    report.warn("G9 example", "ageing")
+
+    assert report.warnings == ["G9 example: ageing"]
+    assert report.failures == []
+
+
 def test_credentials_gate_flags_an_injected_key_file(validator, report, tmp_path):
     validator.gate_credentials(report, root=tmp_path, files=["deploy/server.pem"])
 

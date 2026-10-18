@@ -71,7 +71,7 @@ How the figures are built:
 
 **Result**: B is £797.49 ahead at £60,000 profit.
 
-**Decision rule**: the extra £7,570 of salary costs the company £8,705.50 including employer NI, and that amount is deductible at the company's marginal corporation tax rate. The salary is received tax-free, exactly as the first £7,570 of dividend would have been, so the higher salary pays when 8,705.50 × (1 − marginal CT rate) < £7,570, i.e. when the marginal rate is above about 13%. Corporation tax is never below 19%, so for a single director with no other income the £12,570 salary wins; at company profits of £20,000 to £50,000 the same calculation puts it £462.80 ahead. Model both options whenever the director has other income, pays dividends into the higher-rate band, or can claim the Employment Allowance.
+**Decision rule**: the extra £7,570 of salary costs the company £8,705.50 including employer NI, and that amount is deductible at the company's marginal corporation tax rate. The salary is received tax-free, exactly as the first £7,570 of dividend would have been, so the higher salary pays when 8,705.50 × (1 − marginal CT rate) < £7,570, i.e. when the marginal rate is above about 13%. Corporation tax is never below 19%, so for a single director with no other income the £12,570 salary wins whenever profit before director pay comfortably exceeds the £13,705.50 of salary plus employer NI; from £20,000 to £50,000 of profit the same calculation puts it £462.80 ahead. At very low profits the extra salary creates or deepens a loss with no in-year corporation tax relief, and £5,000 may be as good. Model both options whenever the director has other income, pays dividends into the higher-rate band, or can claim the Employment Allowance.
 
 ### Capital Gains Tax
 
@@ -83,7 +83,10 @@ How the figures are built:
 | Basic Rate | 10% (18% residential property) to 29 Oct 2024; 18% from 30 Oct 2024 | 18% | 18% |
 | Higher Rate | 20% (24% residential property) to 29 Oct 2024; 24% from 30 Oct 2024 | 24% | 24% |
 | BADR Rate | 10% | 14% | 18% |
+| BADR Lifetime Limit | £1m | £1m | £1m |
 | Investors' Relief Rate | 10% | 14% | 18% |
+
+The BADR lifetime limit of £1 million of qualifying gains is set by [Taxation of Chargeable Gains Act 1992 s.169N(4A)](https://www.legislation.gov.uk/ukpga/1992/12/section/169N); the GOV.UK BADR guidance does not state the figure.
 
 **Business Asset Disposal Relief (BADR)** conditions:
 - Must hold at least 5% of shares and voting rights
@@ -419,9 +422,9 @@ From 1 January 2026, crypto platforms must:
 
 ### BIK Rates by CO2 Emissions (selected bands)
 
-> Verified against GOV.UK on 2026-10-18.
-
 Selected CO2 bands only. The full table is in the [GOV.UK appropriate percentage guide](https://www.gov.uk/guidance/company-car-benefit-the-appropriate-percentage-480-appendix-2).
+
+> Verified against GOV.UK on 2026-10-18.
 
 | CO2 (g/km) | Vehicle Type | 2025/26 | 2026/27 *(current)* |
 |------------|-------------|---------|----------------------|
