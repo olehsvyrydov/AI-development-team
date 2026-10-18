@@ -79,13 +79,14 @@ Then invoke the agent/command in your editor and confirm it behaves as intended.
 CI runs these on every pull request; running them locally is faster than a round trip.
 
 ```bash
-pip install pyyaml                        # once
+pip install pyyaml pytest                 # once
 python3 scripts/validate-framework.py     # the framework gates
+python3 -m pytest -q tests                # the tests for the gates
 claude plugin validate ./claude           # the plugin manifest + component check
 ./install.sh --dry-run --editors=all --scope=project --yes
 ```
 
-`validate-framework.py` checks seven things, each of which has actually broken here at least once:
+`validate-framework.py` checks eight things, each of which has actually broken here at least once:
 
 | Gate | Catches |
 |------|---------|
@@ -96,6 +97,7 @@ claude plugin validate ./claude           # the plugin manifest + component chec
 | G5 credentials | A credential-shaped file being tracked in a public repository |
 | G6 retired | A reference to a mechanism that was removed — a promise the repo no longer keeps |
 | G7 vendor-neutrality | A backend product named inside a skill instead of in its adapter reference |
+| G8 uk-tax-year | A `(current)` tax-year label in the compliance skills that is not the UK tax year in force today (the year rolls over on 6 April), or a `Verified against GOV.UK on` date that is malformed, earlier than the start of the current tax year, or in the future |
 
 If a gate is wrong, change the gate deliberately and say why in the commit — do not work around it.
 

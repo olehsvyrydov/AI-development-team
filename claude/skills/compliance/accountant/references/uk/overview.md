@@ -334,7 +334,7 @@ When designing auto-exclusion or auto-categorization rules using keyword matchin
 | VAT Status | **MUST REGISTER** (exceeded £90,000 threshold) |
 | Estimated CT | ~£9,500-£14,250 (depends on expenses) |
 | R&D Potential | Up to 15% of qualifying R&D costs (merged scheme) |
-| MTD ITSA | Check if applicable from April 2026 |
+| MTD ITSA | Check applicability: qualifying income over £50,000 in 2024/25 means it applies from 6 April 2026 |
 
 ### CFO Strategy
 
@@ -351,7 +351,7 @@ When designing auto-exclusion or auto-categorization rules using keyword matchin
 - **Late VAT Registration**: Penalty up to 15% of VAT owed + backdated VAT
 - **Corporation Tax**: Due 9 months + 1 day after year-end
 - **Annual Accounts**: Due 9 months after year-end to Companies House
-- **MTD for ITSA**: If self-employed, prepare for quarterly digital reporting from April 2026
+- **MTD for ITSA**: If self-employed, quarterly digital reporting applies from 6 April 2026 when qualifying income in 2024/25 was over £50,000
 
 ### Next Actions
 1. Register for VAT immediately via HMRC portal

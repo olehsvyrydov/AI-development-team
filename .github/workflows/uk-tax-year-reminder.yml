@@ -1,0 +1,66 @@
+name: UK tax year reminder
+
+# The UK tax year rolls over on 6 April. The accountant skill's rate tables mark
+# one column "(current)", and the framework gate fails from that day. This opens
+# the issue that lists what to refresh, so the failure is expected rather than
+# discovered.
+
+on:
+  schedule:
+    - cron: "0 6 6 4 *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  open-issue:
+    name: Open the tax table refresh issue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open the refresh issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          year=$(date -u +%Y)
+          if [[ "$(date -u +%m%d)" < "0406" ]]; then
+            year=$((year - 1))
+          fi
+          tax_year="${year}/$(printf '%02d' $(((year + 1) % 100)))"
+          title="Refresh UK tax tables for the ${tax_year} tax year"
+
+          open_issues=$(gh issue list --state open --search "\"${title}\" in:title" --json number --jq length)
+          if [ "$open_issues" -gt 0 ]; then
+            echo "An open issue titled '${title}' already exists; nothing to do."
+            exit 0
+          fi
+
+          body=$(cat <<EOF
+          The ${tax_year} UK tax year has started. Update the tables in
+          \`claude/skills/compliance/accountant/\` so the \`(current)\` marker
+          and the \`Verified against GOV.UK on\` dates match it, then re-check
+          every figure on GOV.UK:
+
+          - [ ] \`references/uk/references/tax-domains.md\`
+          - [ ] \`references/uk/references/scenarios.md\`
+          - [ ] \`references/uk-self-employment.md\`
+          - [ ] \`SKILL.md\`, \`references/uk/overview.md\` and \`references/uk/references/templates.md\` for year labels
+
+          GOV.UK rates pages:
+
+          - https://www.gov.uk/government/publications/rates-and-allowances-income-tax/income-tax-rates-and-allowances-current-and-past
+          - https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+          - https://www.gov.uk/corporation-tax-rates
+          - https://www.gov.uk/guidance/capital-gains-tax-rates-and-allowances
+          - https://www.gov.uk/government/publications/rates-and-allowances-pension-schemes/pension-schemes-rates
+          - https://www.gov.uk/guidance/company-car-benefit-the-appropriate-percentage-480-appendix-2
+          - https://www.gov.uk/government/publications/rates-and-allowances-travel-mileage-and-fuel-allowances/travel-mileage-and-fuel-rates-and-allowances
+
+          \`python3 scripts/validate-framework.py\` fails (gate G8) until the markers are moved.
+          EOF
+          )
+
+          gh issue create \
+            --title "$title" \
+            --body "$body"
