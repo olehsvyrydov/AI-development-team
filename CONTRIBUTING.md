@@ -79,13 +79,14 @@ Then invoke the agent/command in your editor and confirm it behaves as intended.
 CI runs these on every pull request; running them locally is faster than a round trip.
 
 ```bash
-pip install pyyaml                        # once
+pip install pyyaml pytest                 # once
 python3 scripts/validate-framework.py     # the framework gates
+python3 -m pytest -q tests                # the tests for the gates
 claude plugin validate ./claude           # the plugin manifest + component check
 ./install.sh --dry-run --editors=all --scope=project --yes
 ```
 
-`validate-framework.py` checks seven things, each of which has actually broken here at least once:
+`validate-framework.py` checks eight things, each of which has actually broken here at least once:
 
 | Gate | Catches |
 |------|---------|
@@ -96,6 +97,9 @@ claude plugin validate ./claude           # the plugin manifest + component chec
 | G5 credentials | A credential-shaped file being tracked in a public repository |
 | G6 retired | A reference to a mechanism that was removed — a promise the repo no longer keeps |
 | G7 vendor-neutrality | A backend product named inside a skill instead of in its adapter reference |
+| G8 uk-tax-year | A tax-year label marked `(current)` in the compliance skills (any of `2026/27`, `2026-27`, `2026–27`, `2026/2027`, followed by `(current)`, `(current year)` or `(current tax year)`) that is not the UK tax year in force today; a table carrying such a label with no `Verified against GOV.UK on` line directly above it; or a `Verified against GOV.UK on` date that has no valid ISO date, is in the future, or is earlier than the start of the current tax year. A stale label or date is only a warning for the first 30 days of a new tax year (6 April to 5 May) and fails from 6 May |
+
+The UK tax-year reminder workflow (`.github/workflows/uk-tax-year-reminder.yml`) opens a refresh issue on 6 April, but GitHub disables scheduled workflows in a repository with no activity for 60 days, so it can be switched off silently. G8 is the enforcement; the reminder is a convenience.
 
 If a gate is wrong, change the gate deliberately and say why in the commit — do not work around it.
 

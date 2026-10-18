@@ -4,9 +4,12 @@
 
 ### Scenario 1: Sole Trader vs Ltd Company
 
-**Situation**: Software developer earning £80,000 profit
+**Situation**: Software developer earning £80,000 profit (2026/27 rates)
 
 #### As Sole Trader
+
+> Verified against GOV.UK on 2026-10-18.
+
 | Item | Amount |
 |------|--------|
 | Profit | £80,000 |
@@ -17,32 +20,48 @@
 | Class 4 NI (£37,700 × 6%) | £2,262 |
 | Class 4 NI (£29,730 × 2%) | £594.60 |
 | **Total Tax** | **£22,288.60** |
+| **Net to owner** | **£57,711.40** |
+
+Class 2 NI adds nothing: profits at or above the Small Profits Threshold (£7,105) are treated as having paid it.
 
 #### As Ltd Company (salary £12,570 + dividends)
+
+> Verified against GOV.UK on 2026-10-18.
+
 | Item | Amount |
 |------|--------|
 | Profit | £80,000 |
 | Less salary | (£12,570) |
 | Less employer NI (£7,570 × 15%) | (£1,135.50) |
 | Taxable profit | £66,294.50 |
-| Corporation Tax (19%, small profits) | £12,595.96 |
-| Available for dividends | £53,698.54 |
+| Corporation Tax (25% less marginal relief of 3/200 × £183,705.50) | (£13,818.04) |
+| Available for dividends | £52,476.46 |
 | Income tax on salary | £0 (covered by PA) |
-| Dividend tax (£500 @ 0%) | £0 |
-| Dividend tax (£37,200 @ 8.75%) | £3,255 |
-| Dividend tax (£15,998.54 @ 33.75%) | £5,399.51 |
-| **Total Tax (all)** | **£22,386 (inc. CT + NI)** |
+| Dividend tax (£500 allowance @ 0%) | £0 |
+| Dividend tax (£37,200 @ 10.75%) | £3,999.00 |
+| Dividend tax (£14,776.46 @ 35.75%) | £5,282.58 |
+| **Total Tax (CT + employer NI + dividend tax)** | **£24,235.12** |
+| **Net to owner** | **£55,764.88** |
 
-**Verdict**: At £80,000, the difference is marginal. Ltd becomes more advantageous at higher profit levels or when pension contributions are used. Ltd also offers more planning flexibility and limited liability.
+**Verdict**: With every pound extracted, the sole trader keeps £1,946.52 more at £80,000 in 2026/27. A Ltd company earns its place through limited liability, retaining profit inside the company, employer pension contributions and planning flexibility, not through a lower tax bill on full extraction.
 
 ### Scenario 2: Contractor Optimal Extraction (£120,000 company profit)
 
-| Component | Amount | Tax Saved |
+Salary of £12,570 is used because at this profit level it beats a £5,000 salary (see the decision rule in the key tax reference).
+
+> Verified against GOV.UK on 2026-10-18.
+
+| Component | Amount | Notes |
 |-----------|--------|-----------|
-| Salary | £5,000 | No employer NI |
+| Salary | £12,570 | Uses the Personal Allowance: no income tax, no employee NI |
+| Employer NI (£7,570 × 15%) | £1,135.50 | CT deductible |
 | Employer pension contribution | £40,000 | CT deductible, no NI |
-| Dividends | ~£55,000 | Lower rates than salary |
-| Retained in company | Remainder | Defers tax |
+| Taxable profit (£120,000 − £12,570 − £1,135.50 − £40,000) | £66,294.50 | |
+| Corporation tax (25% less marginal relief of 3/200 × £183,705.50) | £13,818.04 | |
+| Distributable profit | £52,476.46 | |
+| Dividends paid | £50,000 | Lower rates than salary |
+| Dividend tax (£500 @ 0%, £37,200 @ 10.75%, £12,300 @ 35.75%) | £8,396.25 | £3,999.00 + £4,397.25 |
+| Retained in company | £2,476.46 | Defers tax |
 
 ### Scenario 3: High Earner Personal Allowance Taper (£110,000 income)
 

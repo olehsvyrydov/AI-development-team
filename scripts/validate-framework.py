@@ -17,12 +17,12 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS = ROOT / "claude" / "skills"
-COMMANDS = ROOT / "claude" / "commands"
-TEMPLATES = ROOT / "claude" / "templates"
 
 # The single reference file allowed to name a concrete backend product. Skills
 # describe judgement and capability; a backend is an optional adapter.
@@ -43,23 +43,77 @@ CREDENTIAL_SHAPE = re.compile(
     re.IGNORECASE,
 )
 
-failures: list[str] = []
-notes: list[str] = []
+# A tax-year label (2026/27, 2026-27, 2026–27, 2026/2027, FY2026/27) followed by
+# "(current)", "(current year)" or "(current tax year)", in any case and with any
+# mix of bold, italics, spaces, colons and dashes between the two.
+CURRENT_TAX_YEAR_LABEL = re.compile(
+    r"(?<!\d)(\d{4})\s?([/\-–—])\s?(\d{4}|\d{2})(?!\d)[*_\s:–—-]*"
+    r"\(\s*current(?:\s+(?:tax\s+)?year)?\s*\)",
+    re.IGNORECASE,
+)
+VERIFIED_PHRASE = re.compile(r"Verified against GOV\.UK on(?P<rest>.*)")
+ISO_DATE = re.compile(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)")
+COMPLIANCE_SKILLS = "claude/skills/compliance/"
+GRACE_DAYS = 30
 
 
-def fail(gate: str, detail: str) -> None:
-    failures.append(f"{gate}: {detail}")
+@dataclass
+class Report:
+    failures: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+    def fail(self, gate: str, detail: str) -> None:
+        self.failures.append(f"{gate}: {detail}")
+
+    def warn(self, gate: str, detail: str) -> None:
+        self.warnings.append(f"{gate}: {detail}")
 
 
-def tracked_files() -> list[str]:
+def tracked_files(root: Path = ROOT) -> list[str]:
     out = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+        ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True
     ).stdout
     return [f for f in out.split("\n") if f and not f.startswith("docs/archive/")]
 
 
+def files_or_tracked(root: Path, files: list[str] | None) -> list[str]:
+    return tracked_files(root) if files is None else files
+
+
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def uk_tax_year_start(day: date) -> date:
+    start_year = day.year if (day.month, day.day) >= (4, 6) else day.year - 1
+    return date(start_year, 4, 6)
+
+
+def uk_tax_year(day: date) -> str:
+    start_year = uk_tax_year_start(day).year
+    return f"{start_year}/{(start_year + 1) % 100:02d}"
+
+
+def first_iso_date(text: str) -> date | None:
+    match = ISO_DATE.search(text)
+    if match is None:
+        return None
+    try:
+        return date.fromisoformat(match.group())
+    except ValueError:
+        return None
+
+
+def normalise_tax_year_label(start: str, end: str) -> str | None:
+    start_year = int(start)
+    next_year = start_year + 1
+    consecutive = int(end) == next_year if len(end) == 4 else int(end) == next_year % 100
+    return f"{start_year}/{next_year % 100:02d}" if consecutive else None
+
+
+def looks_like_year_month(separator: str, end: str) -> bool:
+    return separator == "-" and len(end) == 2 and 1 <= int(end) <= 12
 
 
 # --- G1 -- every skill's frontmatter parses, and carries name + description ----
@@ -67,66 +121,67 @@ def read(path: Path) -> str:
 # description, so it can never auto-trigger. It looks correct in the file and
 # passes review. This has happened: an unquoted value containing ": " is not a
 # valid YAML scalar, and the skill about proving a change landed had not landed.
-def gate_frontmatter() -> None:
+def gate_frontmatter(report: Report, root: Path = ROOT) -> None:
     try:
         import yaml  # noqa: PLC0415
     except ImportError:
-        fail("G1 frontmatter", "PyYAML is not installed (pip install pyyaml)")
+        report.fail("G1 frontmatter", "PyYAML is not installed (pip install pyyaml)")
         return
 
-    skills = sorted(SKILLS.rglob("SKILL.md"))
+    skills_dir = root / "claude" / "skills"
+    skills = sorted(skills_dir.rglob("SKILL.md"))
     if not skills:
-        fail("G1 frontmatter", f"no SKILL.md found under {SKILLS}")
+        report.fail("G1 frontmatter", f"no SKILL.md found under {skills_dir}")
         return
 
     for path in skills:
-        rel = path.relative_to(ROOT)
+        rel = path.relative_to(root)
         text = read(path)
         if not text.startswith("---"):
-            fail("G1 frontmatter", f"{rel}: no frontmatter block")
+            report.fail("G1 frontmatter", f"{rel}: no frontmatter block")
             continue
         parts = text.split("---", 2)
         if len(parts) < 3:
-            fail("G1 frontmatter", f"{rel}: unterminated frontmatter")
+            report.fail("G1 frontmatter", f"{rel}: unterminated frontmatter")
             continue
         try:
             data = yaml.safe_load(parts[1])
         except yaml.YAMLError as exc:
             first = str(exc).split("\n")[0]
-            fail("G1 frontmatter", f"{rel}: YAML does not parse -- {first}")
+            report.fail("G1 frontmatter", f"{rel}: YAML does not parse -- {first}")
             continue
         if not isinstance(data, dict):
-            fail("G1 frontmatter", f"{rel}: frontmatter is not a mapping")
+            report.fail("G1 frontmatter", f"{rel}: frontmatter is not a mapping")
             continue
         for key in ("name", "description"):
             if not data.get(key):
-                fail("G1 frontmatter", f"{rel}: empty or missing '{key}'")
-    notes.append(f"G1 frontmatter: {len(skills)} skills parsed")
+                report.fail("G1 frontmatter", f"{rel}: empty or missing '{key}'")
+    report.notes.append(f"G1 frontmatter: {len(skills)} skills parsed")
 
 
 # --- G2 -- the plugin manifests parse, and `version` stays deliberately absent -
 # Omitting `version` is a decision, not an oversight: the commit SHA becomes the
 # version, so every push is an update. Adding one silently changes distribution.
-def gate_manifests() -> None:
+def gate_manifests(report: Report, root: Path = ROOT) -> None:
     for rel in (".claude-plugin/marketplace.json", "claude/.claude-plugin/plugin.json"):
-        path = ROOT / rel
+        path = root / rel
         if not path.exists():
-            fail("G2 manifests", f"{rel} is missing")
+            report.fail("G2 manifests", f"{rel} is missing")
             continue
         try:
             data = json.loads(read(path))
         except json.JSONDecodeError as exc:
-            fail("G2 manifests", f"{rel}: invalid JSON -- {exc}")
+            report.fail("G2 manifests", f"{rel}: invalid JSON -- {exc}")
             continue
         # Valid JSON is not necessarily an object. Without this the next
         # `.get()` raises and aborts the whole run, so a malformed manifest
         # would take out every remaining gate instead of reporting itself.
         if not isinstance(data, dict):
-            fail("G2 manifests", f"{rel}: top level is {type(data).__name__}, expected an object")
+            report.fail("G2 manifests", f"{rel}: top level is {type(data).__name__}, expected an object")
             continue
         if rel.endswith("plugin.json"):
             if "version" in data:
-                fail(
+                report.fail(
                     "G2 manifests",
                     "claude/.claude-plugin/plugin.json defines 'version'. It is omitted on "
                     "purpose so the commit SHA is the version -- remove it, or change this gate "
@@ -134,17 +189,17 @@ def gate_manifests() -> None:
                 )
             for key in ("name", "description"):
                 if not data.get(key):
-                    fail("G2 manifests", f"{rel}: empty or missing '{key}'")
-    notes.append("G2 manifests: both parse, plugin.json has no version key")
+                    report.fail("G2 manifests", f"{rel}: empty or missing '{key}'")
+    report.notes.append("G2 manifests: both parse, plugin.json has no version key")
 
 
 # --- G3 -- documented counts equal the tree ----------------------------------
 # These drifted nine behind before anyone noticed, in four files at once.
-def gate_counts() -> None:
+def gate_counts(report: Report, root: Path = ROOT, files: list[str] | None = None) -> None:
     actual = {
-        "skills": len(list(SKILLS.rglob("SKILL.md"))),
-        "commands": len(list(COMMANDS.glob("*.md"))),
-        "templates": len(list(TEMPLATES.glob("*.md"))),
+        "skills": len(list((root / "claude" / "skills").rglob("SKILL.md"))),
+        "commands": len(list((root / "claude" / "commands").glob("*.md"))),
+        "templates": len(list((root / "claude" / "templates").glob("*.md"))),
     }
     patterns = [
         (re.compile(r"~?(\d+)\s+(?:specialist\s+)?(?:agent\s+)?skills?\b", re.I), "skills"),
@@ -155,18 +210,18 @@ def gate_counts() -> None:
         (re.compile(r"\*\*Templates\*\*:\s*(\d+)"), "templates"),
     ]
     # The changelog records history: past releases legitimately state past counts.
-    for rel in [f for f in tracked_files() if f.endswith(".md") and f != "CHANGELOG.md"]:
-        for lineno, line in enumerate(read(ROOT / rel).split("\n"), 1):
+    for rel in [f for f in files_or_tracked(root, files) if f.endswith(".md") and f != "CHANGELOG.md"]:
+        for lineno, line in enumerate(read(root / rel).split("\n"), 1):
             for pattern, kind in patterns:
                 for match in pattern.finditer(line):
                     claimed = int(match.group(1))
                     if claimed != actual[kind]:
-                        fail(
+                        report.fail(
                             "G3 counts",
                             f"{rel}:{lineno} claims {claimed} {kind}, tree has {actual[kind]} "
                             f"-- {match.group(0)!r}",
                         )
-    notes.append(
+    report.notes.append(
         f"G3 counts: skills={actual['skills']} commands={actual['commands']} "
         f"templates={actual['templates']}"
     )
@@ -193,95 +248,225 @@ def strip_fenced(text: str) -> str:
     return "\n".join(out)
 
 
-def gate_links() -> None:
+def gate_links(report: Report, root: Path = ROOT, files: list[str] | None = None) -> None:
     link = re.compile(r"\[[^\]]*\]\(([^)#\s]+\.md)[^)]*\)")
     checked = 0
-    for rel in [f for f in tracked_files() if f.endswith(".md")]:
+    for rel in [f for f in files_or_tracked(root, files) if f.endswith(".md")]:
         base = os.path.dirname(rel)
-        for match in link.finditer(strip_fenced(read(ROOT / rel))):
+        for match in link.finditer(strip_fenced(read(root / rel))):
             target = match.group(1)
             if target.startswith(("http://", "https://", "mailto:")) or "{" in target:
                 continue
             checked += 1
             # Resolve, then confirm the result is still inside the repository.
-            # Without that, enough `../` segments (or a leading `/`) escape ROOT
+            # Without that, enough `../` segments (or a leading `/`) escape root
             # and the check silently passes against some unrelated file that
             # happens to exist on the runner -- a false negative in a gate,
             # which is worse than no gate.
-            resolved = (ROOT / os.path.normpath(os.path.join(base, target))).resolve()
+            resolved = (root / os.path.normpath(os.path.join(base, target))).resolve()
             try:
-                resolved.relative_to(ROOT.resolve())
+                resolved.relative_to(root.resolve())
             except ValueError:
-                fail("G4 links", f"{rel} -> {target} escapes the repository")
+                report.fail("G4 links", f"{rel} -> {target} escapes the repository")
                 continue
             if not resolved.exists():
-                fail("G4 links", f"{rel} -> {target} does not exist")
-    notes.append(f"G4 links: {checked} relative links resolved (fenced blocks skipped)")
+                report.fail("G4 links", f"{rel} -> {target} does not exist")
+    report.notes.append(f"G4 links: {checked} relative links resolved (fenced blocks skipped)")
 
 
 # --- G5 -- no credential-shaped file is tracked -------------------------------
 # Commits here have been staged with `git add -A`; a hidden secret dropped into
 # the tree would be published by the next one.
-def gate_credentials() -> None:
-    for rel in tracked_files():
+def gate_credentials(report: Report, root: Path = ROOT, files: list[str] | None = None) -> None:
+    for rel in files_or_tracked(root, files):
         if CREDENTIAL_SHAPE.search(rel):
-            fail("G5 credentials", f"{rel} is tracked and looks like key material")
-    notes.append("G5 credentials: no credential-shaped file is tracked")
+            report.fail("G5 credentials", f"{rel} is tracked and looks like key material")
+    report.notes.append("G5 credentials: no credential-shaped file is tracked")
 
 
 # --- G6 -- no reference to a retired mechanism --------------------------------
-def gate_retired() -> None:
-    for rel in [f for f in tracked_files() if f.endswith(".md") and f != "CHANGELOG.md"]:
-        text = read(ROOT / rel)
+def gate_retired(report: Report, root: Path = ROOT, files: list[str] | None = None) -> None:
+    for rel in [f for f in files_or_tracked(root, files) if f.endswith(".md") and f != "CHANGELOG.md"]:
+        text = read(root / rel)
         for pattern, why in RETIRED:
             if re.search(pattern, text):
-                fail("G6 retired", f"{rel} still references {pattern!r} -- {why}")
-    notes.append(f"G6 retired: {len(RETIRED)} retired mechanisms are unreferenced")
+                report.fail("G6 retired", f"{rel} still references {pattern!r} -- {why}")
+    report.notes.append(f"G6 retired: {len(RETIRED)} retired mechanisms are unreferenced")
 
 
 # --- G7 -- skills name no product outside the adapter reference ---------------
 # Skills describe judgement and capability. A concrete backend is an optional
 # adapter, named in a references/ file or docs/ -- never in a skill's contract,
 # and never in frontmatter, which decides when the skill loads.
-def gate_vendor_neutrality() -> None:
+def gate_vendor_neutrality(report: Report, root: Path = ROOT, files: list[str] | None = None) -> None:
     products = re.compile(r"\bpraxis\b|\.praxis/", re.IGNORECASE)
-    for rel in tracked_files():
+    for rel in files_or_tracked(root, files):
         if not rel.startswith("claude/") or not rel.endswith(".md"):
             continue
         if rel == ADAPTER_REFERENCE:
             continue
-        text = read(ROOT / rel)
+        text = read(root / rel)
         if products.search(text):
-            fail(
+            report.fail(
                 "G7 vendor-neutrality",
                 f"{rel} names a backend product. Skills describe capability; concrete "
                 f"backends belong in {ADAPTER_REFERENCE} or docs/.",
             )
-    notes.append(f"G7 vendor-neutrality: only {ADAPTER_REFERENCE} names a product")
+    report.notes.append(f"G7 vendor-neutrality: only {ADAPTER_REFERENCE} names a product")
+
+
+# --- G8 -- UK tax tables name the tax year that is current today ---------------
+# The accountant skill's rate tables mark one column "(current)". On 6 April the
+# tax year rolls over and the marked column silently becomes last year's, while
+# the file still reads as authoritative. Moving the marker means re-checking the
+# figures, so every table carrying the marker needs a "Verified against GOV.UK
+# on" line directly above it, and every such date must be real, within the
+# current tax year and not in the future. For the first GRACE_DAYS days of a new
+# tax year a stale marker or date is a warning rather than a failure.
+def gate_uk_tax_year(
+    report: Report,
+    root: Path = ROOT,
+    files: list[str] | None = None,
+    today: date | None = None,
+) -> None:
+    today = today or date.today()
+    expected = uk_tax_year(today)
+    year_start = uk_tax_year_start(today)
+    grace_end = year_start + timedelta(days=GRACE_DAYS)
+    in_grace = today < grace_end
+
+    def report_stale(location: str, detail: str) -> None:
+        if in_grace:
+            report.warn(
+                "G8 uk-tax-year",
+                f"{location} {detail}; refresh before {grace_end.day} "
+                f"{grace_end:%B} (grace period)",
+            )
+        else:
+            report.fail("G8 uk-tax-year", f"{location} {detail}")
+
+    scanned = 0
+    for rel in files_or_tracked(root, files):
+        if not rel.startswith(COMPLIANCE_SKILLS) or not rel.endswith(".md"):
+            continue
+        scanned += 1
+        lines = read(root / rel).split("\n")
+        tables_without_verified_line: set[int] = set()
+        for index, line in enumerate(lines):
+            location = f"{rel}:{index + 1}"
+            for match in CURRENT_TAX_YEAR_LABEL.finditer(line):
+                start, separator, end = match.groups()
+                label = normalise_tax_year_label(start, end)
+                if label is None:
+                    if not looks_like_year_month(separator, end):
+                        report.fail(
+                            "G8 uk-tax-year",
+                            f"{location} marks {match.group(0)!r} as (current), which is "
+                            f"not a tax-year label: the end year must follow the start year",
+                        )
+                    continue
+                if label != expected:
+                    report_stale(
+                        location,
+                        f"marks {label!r} as (current), but the current UK tax year "
+                        f"is {expected!r}",
+                    )
+                if is_table_row(line):
+                    table_start = table_start_index(lines, index)
+                    if not has_verified_line_above(lines, table_start):
+                        tables_without_verified_line.add(table_start)
+            verified = VERIFIED_PHRASE.search(line)
+            if verified:
+                check_verified_date(
+                    report, report_stale, location, verified.group("rest"), year_start, today
+                )
+        for table_start in sorted(tables_without_verified_line):
+            report.fail(
+                "G8 uk-tax-year",
+                f"{rel}:{table_start + 1} table marks a tax year (current) but has no "
+                f"'Verified against GOV.UK on' line directly above it",
+            )
+    report.notes.append(
+        f"G8 uk-tax-year: {scanned} compliance files checked against tax year {expected}"
+    )
+
+
+def is_table_row(line: str) -> bool:
+    return line.lstrip().startswith("|")
+
+
+def table_start_index(lines: list[str], row_index: int) -> int:
+    start = row_index
+    while start > 0 and is_table_row(lines[start - 1]):
+        start -= 1
+    return start
+
+
+def has_verified_line_above(lines: list[str], table_start: int) -> bool:
+    index = table_start - 1
+    while index >= 0 and not lines[index].strip():
+        index -= 1
+    return index >= 0 and VERIFIED_PHRASE.search(lines[index]) is not None
+
+
+def check_verified_date(
+    report: Report,
+    report_stale: Callable[[str, str], None],
+    location: str,
+    rest: str,
+    year_start: date,
+    today: date,
+) -> None:
+    verified = first_iso_date(rest)
+    if verified is None:
+        report.fail(
+            "G8 uk-tax-year",
+            f"{location} 'Verified against GOV.UK on' needs an ISO date "
+            f"(YYYY-MM-DD), found {rest.strip()!r}",
+        )
+    elif verified > today:
+        report.fail(
+            "G8 uk-tax-year",
+            f"{location} verified on {verified.isoformat()}, which is in the future",
+        )
+    elif verified < year_start:
+        report_stale(
+            location,
+            f"verified on {verified.isoformat()}, before the current tax year began on "
+            f"{year_start.isoformat()}; re-check the figures and move the date",
+        )
 
 
 def main() -> int:
+    report = Report()
+    files = tracked_files()
+    for gate in (gate_frontmatter, gate_manifests):
+        gate(report)
     for gate in (
-        gate_frontmatter,
-        gate_manifests,
         gate_counts,
         gate_links,
         gate_credentials,
         gate_retired,
         gate_vendor_neutrality,
+        gate_uk_tax_year,
     ):
-        gate()
+        gate(report, files=files)
 
-    for note in notes:
+    for note in report.notes:
         print(f"  ok   {note}")
+    for warning in report.warnings:
+        print(f"  warn {warning}")
 
-    if failures:
-        print(f"\n{len(failures)} failure(s):\n", file=sys.stderr)
-        for failure in failures:
+    if report.failures:
+        print(f"\n{len(report.failures)} failure(s):\n", file=sys.stderr)
+        for failure in report.failures:
             print(f"  FAIL {failure}", file=sys.stderr)
         return 1
 
-    print(f"\nAll {len(notes)} gates passed.")
+    summary = f"All {len(report.notes)} gates passed"
+    if report.warnings:
+        summary += f" with {len(report.warnings)} warning(s)"
+    print(f"\n{summary}.")
     return 0
 
 
