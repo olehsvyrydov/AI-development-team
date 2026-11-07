@@ -31,10 +31,13 @@ def compliance_dir():
 
 @pytest.fixture
 def plant(tmp_path):
-    def write(relative_path: str, text: str) -> str:
+    def write(relative_path: str, content: str | bytes) -> str:
         target = tmp_path / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8")
+        if isinstance(content, bytes):
+            target.write_bytes(content)
+        else:
+            target.write_text(content, encoding="utf-8")
         return relative_path
 
     return write

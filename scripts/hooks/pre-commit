@@ -1,2 +1,2 @@
 #!/bin/sh
-exec python3 "$(git rev-parse --show-toplevel)/scripts/validate-framework.py" --private-names-only
+exec python3 "$(git rev-parse --show-toplevel)/scripts/validate-framework.py" --private-names-only --staged

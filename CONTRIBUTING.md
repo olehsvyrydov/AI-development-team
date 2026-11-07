@@ -109,19 +109,26 @@ The names to keep out of this repository are listed in a local file that is neve
 - One entry per line; blank lines and lines starting with `#` are ignored.
 - A plain entry is a literal name, matched case-sensitively as a whole word.
 - An entry starting with `re:` is a Python regular expression, for names that need exceptions, such as `re:(?<!Design )\bName\b`.
-- Both the path and the content of every tracked file are checked. Files that are not valid UTF-8 (binaries) have only their path checked, not their contents. A hit is reported as `path:line matches private-names entry #N`, where `N` is the line in the file; the name, the pattern and the matched text are never printed, and a path that matches is not printed either.
-- An invalid entry fails the check; it is never skipped. A file with no entries is reported as skipped, not passed.
-- `python3 scripts/validate-framework.py --private-names-only` runs only this check and needs nothing outside the standard library.
+- Both the path and the content of every tracked file are checked. Files that are not valid UTF-8 (binaries) have only their path checked, not their contents. Tracked files under `docs/archive/` are included, although the other gates skip them. A hit is reported as `path:line matches private-names entry #N`, where `N` is the line in the file; the name, the pattern and the matched text are never printed, and a path that matches is not printed either.
+- Entries are matched against the whole file text, with `^` and `$` anchoring at each line, and the line of each match is reported. A regex using `\s` or `[^…]` can therefore match across a line break; the match is reported at its first line.
+- An invalid entry fails the check; it is never skipped. A file with no entries, or no file at the default location, is reported as skipped, not passed. A path set through `AIDEVTEAM_PRIVATE_NAMES_FILE` must exist, otherwise the check fails.
+- The default location is resolved through the main checkout, so a linked worktree (which has no copy of the ignored file) finds the same list. When the main checkout cannot be located (for example a repository created with `--separate-git-dir`), a linked worktree reports the check as skipped with "list not found"; set `AIDEVTEAM_PRIVATE_NAMES_FILE` there.
+- `python3 scripts/validate-framework.py --private-names-only` runs only this check and needs nothing outside the standard library. Adding `--staged` checks the staged snapshot instead of the working tree.
+- `python3 scripts/validate-framework.py --private-names-message FILE` checks a commit message file; a hit is reported as `commit message matches private-names entry #N`. Everything from the scissors line down, such as the diff shown by `git commit -v`, is not checked. When a scissors line is present an editor ran, so lines above it that start with the configured comment character (`core.commentString` or `core.commentChar`, default `#`) are not checked either. Without a scissors line, comment lines are skipped only for editor-template messages (a plain `git commit` and `git commit` during a squash); for `-m`, `-F`, `-C`, `--amend -m`, and merge messages git keeps `#` lines in the final message, so every line is checked. With `core.commentChar=auto` the character is read from the scissors line or from the "Please enter the commit message" line git writes for editor commits; when neither is present, no line is treated as a comment and every line is checked.
 
 The check runs locally only. CI has no list, so there it reports as skipped; the list is never uploaded or stored in the repository settings.
 
-To run it before every commit, point the repository at the bundled hooks once (this also works in linked worktrees):
+To run it on every commit, point the repository at the bundled hooks once (this also works in linked worktrees). This installs three hooks: `pre-commit`, which checks what is staged; `prepare-commit-msg`, which only records how the message was supplied (in a file under `git rev-parse --git-path aidevteam-commit-msg-source`, separate for each worktree, removed again by the next check); and `commit-msg`, which checks the message:
 
 ```bash
 git config core.hooksPath scripts/hooks
 ```
 
-The hook checks the working tree, not the staged snapshot.
+`pre-commit` reads the staged content, so a name that is staged is caught even when the working copy has since been cleaned, and unstaged edits do not affect the result.
+
+In hook modes (`--staged` and `--private-names-message`) the check prints nothing when it passes or has no list, and prints the failures when it blocks. The plain `--private-names-only` run prints its result lines as before.
+
+Known gap: an editor commit made with `--cleanup=verbatim` or `--cleanup=whitespace` keeps lines that start with the comment character in the final message, and the hook does not check those lines.
 
 If a gate is wrong, change the gate deliberately and say why in the commit — do not work around it.
 
