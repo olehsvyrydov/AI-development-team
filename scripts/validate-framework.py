@@ -53,9 +53,9 @@ DEFAULT_PRIVATE_NAMES_FILE = ".aidevteam/private-names"
 REGEX_ENTRY_PREFIX = "re:"
 COMMIT_MESSAGE_SOURCE_FILE = "aidevteam-commit-msg-source"
 EDITOR_TEMPLATE_MESSAGE_SOURCES = ("", "template", "squash")
-AUTO_COMMENT_CANDIDATES = "#;@!$%^&|:"
 SCISSORS_TAIL = " ------------------------ >8 ------------------------"
 SCISSORS_LINE = re.compile(r"^(.) -{24} >8 -{24}$", re.MULTILINE)
+EDITOR_TEMPLATE_LINE = re.compile(r"^(.) Please enter the commit message", re.MULTILINE)
 
 # A tax-year label (2026/27, 2026-27, 2026–27, 2026/2027, FY2026/27) followed by
 # "(current)", "(current year)" or "(current tax year)", in any case and with any
@@ -508,7 +508,12 @@ def decode_utf8_or_none(data: bytes | None) -> str | None:
 
 
 def matching_line_numbers(pattern: re.Pattern[str], text: str) -> list[int]:
-    return sorted({text.count("\n", 0, match.start()) + 1 for match in pattern.finditer(text)})
+    line, position, lines = 1, 0, []
+    for match in pattern.finditer(text):
+        line += text.count("\n", position, match.start())
+        position = match.start()
+        lines.append(line)
+    return sorted(set(lines))
 
 
 def scan_private_names(
@@ -588,8 +593,8 @@ def commit_comment_prefixes(root: Path, text: str) -> list[str]:
         return ["#"]
     if configured != "auto":
         return [configured]
-    scissors = SCISSORS_LINE.search(text)
-    return [scissors.group(1)] if scissors else list(AUTO_COMMENT_CANDIDATES)
+    template_line = SCISSORS_LINE.search(text) or EDITOR_TEMPLATE_LINE.search(text)
+    return [template_line.group(1)] if template_line else []
 
 
 def consume_commit_message_source(root: Path) -> str | None:

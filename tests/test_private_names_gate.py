@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -766,11 +767,14 @@ def test_commit_message_line_starting_with_the_default_character_is_body_when_an
     assert result.returncode == 1
 
 
-def test_commit_message_falls_back_to_hash_when_the_comment_character_is_auto(
+def test_commit_message_reads_the_auto_comment_character_from_the_editor_template_line(
     scratch_repo, pattern_file
 ):
     scratch_repo.git("config", "core.commentChar", "auto")
-    message = write_message(scratch_repo, f"Fix\n\n# On branch {NAME}\n")
+    message = write_message(
+        scratch_repo,
+        f"Fix\n\n# Please enter the commit message for your changes.\n# On branch {NAME}\n",
+    )
 
     result = run_message_check(scratch_repo, message, pattern_file(NAME + "\n"))
 
@@ -1033,15 +1037,30 @@ def test_auto_comment_character_is_taken_from_the_scissors_line(scratch_repo, pa
     assert result.returncode == 1
 
 
-def test_auto_comment_character_without_a_scissors_line_strips_any_candidate_character(
+def test_auto_comment_character_is_taken_from_the_template_line_so_other_lines_stay_body(
     scratch_repo, pattern_file
 ):
     scratch_repo.git("config", "core.commentChar", "auto")
-    message = write_message(scratch_repo, f"Fix\n\n; On branch {NAME}\n@ status {NAME}\n")
+    message = write_message(
+        scratch_repo,
+        f"Fix\n@ {NAME} in the body\n\n; Please enter the commit message for your changes.\n; On branch {NAME}\n",
+    )
 
     result = run_message_check(scratch_repo, message, pattern_file(NAME + "\n"))
 
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 1
+
+
+def test_auto_comment_character_without_a_scissors_or_template_line_checks_every_line(
+    scratch_repo, pattern_file
+):
+    scratch_repo.git("config", "core.commentChar", "auto")
+    message = write_message(scratch_repo, f"Fix\n\n; On branch {NAME}\n")
+
+    result = run_message_check(scratch_repo, message, pattern_file(NAME + "\n"))
+
+    assert result.returncode == 1
+    assert NAME not in output_of(result)
 
 
 def test_prepare_commit_msg_hook_records_the_message_source(scratch_repo):
@@ -1319,3 +1338,58 @@ def test_the_hooks_print_nothing_for_a_clean_commit(hooked_repo):
 
     assert result.returncode == 0
     assert output_of(result) == ""
+
+
+def test_a_real_editor_commit_with_an_auto_comment_character_on_a_name_branch_passes(hooked_repo):
+    hooked_repo.repo.git("config", "core.commentChar", "auto")
+    hooked_repo.repo.git("checkout", "-q", "-b", f"feature/{NAME}")
+    hooked_repo.repo.add("a.md", "clean\n")
+
+    result = hooked_repo.commit()
+
+    assert result.returncode == 0, output_of(result)
+
+
+def test_a_real_editor_commit_with_an_auto_comment_character_and_an_at_sign_body_line_is_blocked(
+    hooked_repo,
+):
+    hooked_repo.repo.git("config", "core.commentChar", "auto")
+    hooked_repo.repo.add("a.md", "clean\n")
+
+    result = hooked_repo.commit(subject=f"Fix\n@ notes about {NAME}")
+
+    assert result.returncode == 1
+    assert NAME not in output_of(result)
+
+
+class ScannedCharacterCounter(str):
+    scanned = 0
+
+    def count(self, sub, start=0, end=None):
+        ScannedCharacterCounter.scanned += (len(self) if end is None else end) - start
+        return super().count(sub, start, end)
+
+
+def test_line_numbers_of_many_matches_are_exact(validator):
+    lines = [NAME if number % 3 == 0 else "other" for number in range(1, 3001)]
+    text = "\n".join(lines) + "\n"
+
+    found = validator.matching_line_numbers(re.compile(NAME), text)
+
+    assert found == [number for number in range(1, 3001) if number % 3 == 0]
+
+
+def test_line_numbers_of_many_matches_are_found_in_one_pass_over_the_text(validator):
+    text = ScannedCharacterCounter("\n".join([NAME] * 3000) + "\n")
+    ScannedCharacterCounter.scanned = 0
+
+    found = validator.matching_line_numbers(re.compile(NAME), text)
+
+    assert len(found) == 3000
+    assert ScannedCharacterCounter.scanned <= len(text)
+
+
+def test_two_matches_on_one_line_give_that_line_once(validator):
+    found = validator.matching_line_numbers(re.compile(NAME), f"{NAME} {NAME}\nx\n{NAME}\n")
+
+    assert found == [1, 3]
