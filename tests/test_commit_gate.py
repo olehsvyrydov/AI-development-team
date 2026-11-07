@@ -482,7 +482,6 @@ MALFORMED_FILES = [
     ("empty", b""),
     ("empty", b"  \n"),
     ("invalid JSON", b"{not json"),
-    ("nested too deeply", b"[" * 100000 + b"]" * 100000),
     ("larger than 1 MiB", b"{\"pad\": \"" + b"a" * (1024 * 1024) + b"\"}"),
     ("not an object", b"[1, 2]"),
     ("not an object", b"\"text\""),
@@ -520,6 +519,75 @@ def test_a_malformed_active_ticket_file_blocks_naming_the_file_and_the_problem(
 
     assert str(project.pointer_path) in reason
     assert problem in reason
+
+
+DEEPLY_NESTED = b"[" * 100000 + b"]" * 100000
+
+
+def raise_recursion_error(*_args, **_kwargs):
+    raise RecursionError
+
+
+def test_a_deeply_nested_ledger_blocks_whatever_the_interpreter_makes_of_it(commit_gate, project):
+    project.set_pointer({"ticket": "TCK-001"})
+    project.ledger_path.write_bytes(DEEPLY_NESTED)
+
+    reason = commit_gate.blocking_reason(project.root)
+
+    assert str(project.ledger_path) in reason
+    assert "Blocked" in reason
+
+
+def test_a_deeply_nested_active_ticket_file_blocks_whatever_the_interpreter_makes_of_it(
+    commit_gate, project
+):
+    project.set_ledger({})
+    project.set_pointer(DEEPLY_NESTED)
+
+    reason = commit_gate.blocking_reason(project.root)
+
+    assert str(project.pointer_path) in reason
+    assert "Blocked" in reason
+
+
+def test_a_ledger_the_json_parser_cannot_nest_deeply_enough_for_blocks(
+    commit_gate, project, monkeypatch
+):
+    project.activate("TCK-001", ticket_with({}))
+    parse = commit_gate.json.loads
+
+    def fail_for_the_ledger_only(text, *args, **kwargs):
+        if "required_gates" in text:
+            raise RecursionError
+        return parse(text, *args, **kwargs)
+
+    monkeypatch.setattr(commit_gate.json, "loads", fail_for_the_ledger_only)
+
+    reason = commit_gate.blocking_reason(project.root)
+
+    assert str(project.ledger_path) in reason
+    assert "nested too deeply" in reason
+
+
+def test_an_active_ticket_file_the_json_parser_cannot_nest_deeply_enough_for_blocks(
+    commit_gate, project, monkeypatch
+):
+    project.set_pointer({"ticket": None})
+    monkeypatch.setattr(commit_gate.json, "loads", raise_recursion_error)
+
+    reason = commit_gate.blocking_reason(project.root)
+
+    assert str(project.pointer_path) in reason
+    assert "nested too deeply" in reason
+
+
+def test_a_payload_the_json_parser_cannot_nest_deeply_enough_for_is_unusable(
+    commit_gate, monkeypatch
+):
+    monkeypatch.setattr(commit_gate.json, "loads", raise_recursion_error)
+
+    with pytest.raises(commit_gate.UnusablePayload, match="nested too deeply"):
+        commit_gate.parse_payload(b"{}")
 
 
 @pytest.mark.parametrize("ticket", [1, True, ["TCK-001"], {"id": "TCK-001"}])
