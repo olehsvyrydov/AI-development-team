@@ -5,7 +5,7 @@ description: "The AI Dev Team contract — how work is run in any project using 
 
 # The AI Dev Team contract
 
-A team of specialist agents plus an enforced, proportional workflow. Open-source, vendor-neutral,
+A team of specialist agents plus a proportional workflow. Open-source, vendor-neutral,
 editor-neutral, free by default.
 
 This is the always-on layer. When the framework is installed as a plugin there is no global
@@ -45,7 +45,7 @@ field, then a dependency. Check it when reviewing any skill that reads from outs
 ## Before any task
 
 **Consult the `workflow-engine` skill before starting development work and before every handoff.**
-It classifies the change, decides which approval gates apply, and may refuse to proceed past an
+It classifies the change, decides which approval gates apply, and tells you to stop at an
 unmet gate. Do not paraphrase the process from memory.
 
 Gates are labels in the ledger: `ARCH_APPROVED`, `SECOPS_APPROVED`, `DESIGN_APPROVED`,
@@ -55,6 +55,15 @@ skipped for being "small."**
 
 Default preset is `solo` (light path for one developer); `small-team` adds code review;
 `regulated` runs the full gauntlet.
+
+**What is enforced:** when installed as the Claude Code plugin, the plugin blocks `git commit`,
+`git push` and `gh pr create` while the active ticket has an unmet hard pre-implementation gate
+(ARCH_APPROVED, SECOPS_APPROVED, APPROVAL_GATE). Review and verification gates (CODE_REVIEWED,
+VERIFIED), soft gates, and everything in Cursor, Kiro and VS Code remain instructions. It is a
+guardrail against forgetting, not a security boundary: `bash -c`, `eval`, aliases, other
+commit-creating commands and editing the ledger bypass it, and a missing `python3`, a crash or a
+timeout lets the command through. When a block names a gate, run its owner; clearing the active
+ticket or marking a gate passed is the user's decision, so ask before editing the ledger.
 
 ## Process skills — not optional extras
 

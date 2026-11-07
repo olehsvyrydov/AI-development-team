@@ -94,7 +94,7 @@ Folded into their parent role's `references/` — the role agent self-routes to 
 ```
 /po+/ba -> /arch -> /secops -> [/fin] -> [/legal] -> [/ui] -> /fe|/be -> /rev -> /qa + /e2e -> /verify
 ```
-All gating is proportional and enforced by the `workflow-engine` skill. See `claude/skills/disambiguation.md` to pick the right agent when domains overlap.
+All gating is proportional and applied by the `workflow-engine` skill. See `claude/skills/disambiguation.md` to pick the right agent when domains overlap.
 
 ## Skill Locations
 

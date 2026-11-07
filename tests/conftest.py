@@ -7,12 +7,22 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate-framework.py"
+COMMIT_GATE_PATH = REPO_ROOT / "claude" / "hooks" / "commit_gate.py"
 COMPLIANCE_DIR = "claude/skills/compliance/accountant/references"
 
 
 @pytest.fixture(scope="session")
 def validator():
     spec = importlib.util.spec_from_file_location("validate_framework", VALIDATOR_PATH)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="session")
+def commit_gate():
+    spec = importlib.util.spec_from_file_location("commit_gate", COMMIT_GATE_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)

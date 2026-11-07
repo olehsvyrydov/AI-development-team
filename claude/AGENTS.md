@@ -2,7 +2,7 @@
 
 > _Mirrors `CLAUDE.md` so editors that read `AGENTS.md` (Cursor, Kiro, VS Code) get identical guidance. References to "Claude Code" apply to your assistant._
 
-A team of 43 skills (a 15-agent core team + optional specialists, plus auto-loading language skills and cross-cutting process skills) + an enforced, proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
+A team of 43 skills (a 15-agent core team + optional specialists, plus auto-loading language skills and cross-cutting process skills) + a proportional dev workflow. Open-source, vendor-neutral, works in Claude Code / Cursor / Kiro / VS Code, free by default.
 
 > **Nothing loads this file automatically.** `install.sh` deploys only `skills/`, `commands/`,
 > `templates/` and `workflow/`, and generates its own pointer file at the destination; a plugin
@@ -18,9 +18,10 @@ A team of 43 skills (a 15-agent core team + optional specialists, plus auto-load
 - **Reusable skills.** Agent skills hold universal knowledge — no project/ticket/sprint specifics.
 
 ## Workflow (consult before any task)
-**Before starting any development task and before every handoff, consult the `workflow-engine` skill.** It loads `workflow.yaml`, classifies the change, decides which approval gates apply, and may **refuse** to proceed past an unmet gate. Do not paraphrase the process from memory.
+**Before starting any development task and before every handoff, consult the `workflow-engine` skill.** It loads `workflow.yaml`, classifies the change, decides which approval gates apply, and tells you to stop at an unmet gate. Do not paraphrase the process from memory.
 - Default `preset: solo` — gates fire only on trigger/change-class (light path for one dev). `small-team` adds code review; `regulated` runs the full gauntlet. Edit `workflow.yaml` to change it.
 - **Gates** (set as labels in the ledger): `ARCH_APPROVED`, `SECOPS_APPROVED`, `DESIGN_APPROVED`, `APPROVAL_GATE`, `CODE_REVIEWED`, `PERF_OK`, `VERIFIED`, `RELIABILITY_OK`. Security gates are a safety override — never skipped for being "small."
+- **What is enforced:** when installed as the Claude Code plugin, the plugin blocks `git commit`, `git push` and `gh pr create` while the active ticket has an unmet hard pre-implementation gate (ARCH_APPROVED, SECOPS_APPROVED, APPROVAL_GATE). Review and verification gates (CODE_REVIEWED, VERIFIED), soft gates, and everything in Cursor, Kiro and VS Code remain instructions. It is a guardrail against forgetting, not a security boundary: `bash -c`, `eval`, aliases, other commit-creating commands and editing the ledger bypass it, and a missing `python3`, a crash or a timeout lets the command through.
 - Full detail: `TEAM_WORKFLOW.md` (on-demand). Definition: `workflow/workflow.yaml`.
 
 ## Tickets & docs — no Jira required
