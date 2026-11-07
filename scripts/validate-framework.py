@@ -14,6 +14,7 @@ Exit: 0 if every gate passes, 1 otherwise (each failure is printed with its file
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -50,6 +51,11 @@ CREDENTIAL_SHAPE = re.compile(
 PRIVATE_NAMES_FILE_ENV = "AIDEVTEAM_PRIVATE_NAMES_FILE"
 DEFAULT_PRIVATE_NAMES_FILE = ".aidevteam/private-names"
 REGEX_ENTRY_PREFIX = "re:"
+COMMIT_MESSAGE_SOURCE_FILE = "aidevteam-commit-msg-source"
+EDITOR_TEMPLATE_MESSAGE_SOURCES = ("", "template", "squash")
+AUTO_COMMENT_CANDIDATES = "#;@!$%^&|:"
+SCISSORS_TAIL = " ------------------------ >8 ------------------------"
+SCISSORS_LINE = re.compile(r"^(.) -{24} >8 -{24}$", re.MULTILINE)
 
 # A tax-year label (2026/27, 2026-27, 2026–27, 2026/2027, FY2026/27) followed by
 # "(current)", "(current year)" or "(current tax year)", in any case and with any
@@ -63,6 +69,7 @@ VERIFIED_PHRASE = re.compile(r"Verified against GOV\.UK on(?P<rest>.*)")
 ISO_DATE = re.compile(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)")
 COMPLIANCE_SKILLS = "claude/skills/compliance/"
 GRACE_DAYS = 30
+ARCHIVE_PREFIX = "docs/archive/"
 
 
 @dataclass
@@ -79,26 +86,32 @@ class Report:
         self.warnings.append(f"{gate}: {detail}")
 
     def skip(self, gate: str, detail: str) -> None:
-        self.skipped.append(gate)
-        self.notes.append(f"{gate}: {detail}")
+        note = f"{gate}: {detail}"
+        self.skipped.append(note)
+        self.notes.append(note)
 
 
 def summary_line(report: Report) -> str:
     passed = len(report.notes) - len(report.skipped)
+    gates = "gate" if passed == 1 else "gates"
     if report.skipped:
-        summary = f"{passed} gates passed, {len(report.skipped)} skipped"
+        summary = f"{passed} {gates} passed, {len(report.skipped)} skipped"
     else:
-        summary = f"All {passed} gates passed"
+        summary = f"All {passed} {gates} passed"
     if report.warnings:
         summary += f" with {len(report.warnings)} warning(s)"
     return f"{summary}."
 
 
-def tracked_files(root: Path = ROOT) -> list[str]:
+def is_archived(rel: str) -> bool:
+    return rel.startswith(ARCHIVE_PREFIX)
+
+
+def tracked_files(root: Path = ROOT, include_archived: bool = False) -> list[str]:
     out = subprocess.run(
         ["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True, check=True
     ).stdout
-    return [f for f in out.split("\0") if f and not f.startswith("docs/archive/")]
+    return [f for f in out.split("\0") if f and (include_archived or not is_archived(f))]
 
 
 def files_or_tracked(root: Path, files: list[str] | None) -> list[str]:
@@ -339,10 +352,13 @@ def gate_vendor_neutrality(report: Report, root: Path = ROOT, files: list[str] |
     report.notes.append(f"G7 vendor-neutrality: only {ADAPTER_REFERENCE} names a product")
 
 
-# --- G7 (private names) -- no tracked path or line names a private project ------
+# --- G7 (private names) -- no tracked path, line or commit message names a private project
 # The names live in a local, untracked file because writing them into a check in
 # this public repository would publish them. Every message therefore carries a
 # location and an entry number, never the name, the pattern, or an exception.
+PRIVATE_NAMES_GATE = "G7 private-names"
+
+
 @dataclass(frozen=True)
 class PrivateNameEntry:
     number: int
@@ -367,19 +383,19 @@ def literal_whole_word(name: str) -> str:
 
 def compile_private_name(entry: str) -> re.Pattern[str]:
     if entry.startswith(REGEX_ENTRY_PREFIX):
-        pattern = re.compile(entry[len(REGEX_ENTRY_PREFIX):])
+        pattern = re.compile(entry[len(REGEX_ENTRY_PREFIX):], re.MULTILINE)
     else:
-        pattern = re.compile(literal_whole_word(entry))
+        pattern = re.compile(literal_whole_word(entry), re.MULTILINE)
     if pattern.search(""):
         raise ValueError("pattern matches every line")
     return pattern
 
 
-def load_private_names(path: Path) -> PrivateNames:
+def load_private_names(path: Path) -> PrivateNames | None:
     try:
         lines = path.read_bytes().decode("utf-8-sig").split("\n")
     except FileNotFoundError:
-        return PrivateNames()
+        return None
     except Exception:
         raise PrivateNamesFileUnreadable from None
 
@@ -395,40 +411,137 @@ def load_private_names(path: Path) -> PrivateNames:
     return names
 
 
-def read_utf8_or_none(path: Path) -> str | None:
+def git_output(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=True, check=True
+    ).stdout
+
+
+def main_checkout_root(root: Path) -> Path | None:
     try:
-        return path.read_bytes().decode("utf-8")
-    except (OSError, UnicodeDecodeError):
+        toplevel = git_output(root, "rev-parse", "--show-toplevel").strip()
+        first_worktree = git_output(root, "worktree", "list", "--porcelain").split("\n\n")[0]
+    except (OSError, subprocess.CalledProcessError):
         return None
+    fields = first_worktree.split("\n")
+    if Path(toplevel).resolve() != root.resolve() or "bare" in fields:
+        return None
+    main_checkout = Path(fields[0].removeprefix("worktree "))
+    return main_checkout if (main_checkout / ".git").exists() else None
+
+
+def default_private_names_file(root: Path) -> Path:
+    return (main_checkout_root(root) or root) / DEFAULT_PRIVATE_NAMES_FILE
+
+
+def load_active_private_names(
+    report: Report, root: Path, environ: Mapping[str, str]
+) -> tuple[list[PrivateNameEntry], Path] | None:
+    configured = environ.get(PRIVATE_NAMES_FILE_ENV)
+    pattern_file = Path(configured) if configured else default_private_names_file(root)
+    try:
+        names = load_private_names(pattern_file)
+    except PrivateNamesFileUnreadable:
+        report.fail(PRIVATE_NAMES_GATE, "private-names file unreadable")
+        return None
+    if names is None:
+        if configured:
+            report.fail(
+                PRIVATE_NAMES_GATE, "private-names file not found at the configured path"
+            )
+        else:
+            is_linked_worktree = (root / ".git").is_file()
+            report.skip(
+                PRIVATE_NAMES_GATE,
+                "skipped (list not found)" if is_linked_worktree else "skipped (no entries)",
+            )
+        return None
+    for number in names.invalid_lines:
+        report.fail(PRIVATE_NAMES_GATE, f"private-names line {number}: invalid pattern")
+    if names.invalid_lines:
+        return None
+    if not names.entries:
+        report.skip(PRIVATE_NAMES_GATE, "skipped (no entries)")
+        return None
+    return names.entries, pattern_file
+
+
+def entries_checked(entries: list[PrivateNameEntry]) -> str:
+    return f"{len(entries)} {'entry' if len(entries) == 1 else 'entries'} checked"
+
+
+def staged_files(root: Path) -> list[str]:
+    out = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "-z", "--diff-filter=ACMRT"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout
+    return [path.decode("utf-8", "surrogateescape") for path in out.split(b"\0") if path]
+
+
+def working_tree_reader(root: Path) -> Callable[[str], bytes | None]:
+    def read_bytes(rel: str) -> bytes | None:
+        try:
+            return (root / rel).read_bytes()
+        except OSError:
+            return None
+
+    return read_bytes
+
+
+def staged_reader(root: Path) -> Callable[[str], bytes | None]:
+    def read_bytes(rel: str) -> bytes | None:
+        shown = subprocess.run(["git", "show", f":{rel}"], cwd=root, capture_output=True)
+        return shown.stdout if shown.returncode == 0 else None
+
+    return read_bytes
+
+
+def decode_utf8_or_none(data: bytes | None) -> str | None:
+    if data is None:
+        return None
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def matching_line_numbers(pattern: re.Pattern[str], text: str) -> list[int]:
+    return sorted({text.count("\n", 0, match.start()) + 1 for match in pattern.finditer(text)})
 
 
 def scan_private_names(
     report: Report,
     root: Path,
-    files: list[str] | None,
     entries: list[PrivateNameEntry],
-    pattern_file: Path,
+    paths: list[str],
+    read_bytes: Callable[[str], bytes | None],
+    pattern_file: Path | None,
 ) -> None:
-    gate = "G7 private-names"
-    pattern_file = pattern_file.resolve()
-    for rel in files_or_tracked(root, files):
-        if (root / rel).resolve() == pattern_file:
+    excluded = pattern_file.resolve() if pattern_file else None
+    for rel in paths:
+        if excluded is not None and (root / rel).resolve() == excluded:
             continue
         path_matches = [entry.number for entry in entries if entry.pattern.search(rel)]
         for number in path_matches:
-            report.fail(gate, f"a tracked file path matches private-names entry #{number}")
+            report.fail(
+                PRIVATE_NAMES_GATE, f"a tracked file path matches private-names entry #{number}"
+            )
         if path_matches:
             continue
-        text = read_utf8_or_none(root / rel)
+        text = decode_utf8_or_none(read_bytes(rel))
         if text is None:
             continue
-        for lineno, line in enumerate(text.split("\n"), 1):
-            for entry in entries:
-                if entry.pattern.search(line):
-                    report.fail(
-                        gate,
-                        f"{rel}:{lineno} matches private-names entry #{entry.number}",
-                    )
+        hits = sorted(
+            (lineno, entry.number)
+            for entry in entries
+            for lineno in matching_line_numbers(entry.pattern, text)
+        )
+        for lineno, number in hits:
+            report.fail(
+                PRIVATE_NAMES_GATE, f"{rel}:{lineno} matches private-names entry #{number}"
+            )
 
 
 def gate_private_names(
@@ -436,28 +549,104 @@ def gate_private_names(
     root: Path = ROOT,
     files: list[str] | None = None,
     environ: Mapping[str, str] | None = None,
+    staged: bool = False,
 ) -> None:
-    gate = "G7 private-names"
-    environ = os.environ if environ is None else environ
-    pattern_file = Path(environ.get(PRIVATE_NAMES_FILE_ENV) or root / DEFAULT_PRIVATE_NAMES_FILE)
+    active = load_active_private_names(report, root, os.environ if environ is None else environ)
+    if active is None:
+        return
+    entries, pattern_file = active
+    failures_before = len(report.failures)
     try:
-        names = load_private_names(pattern_file)
-    except PrivateNamesFileUnreadable:
-        report.fail(gate, "private-names file unreadable")
-        return
-    for number in names.invalid_lines:
-        report.fail(gate, f"private-names line {number}: invalid pattern")
-    if names.invalid_lines:
-        return
-    if not names.entries:
-        report.skip(gate, "skipped (no entries)")
-        return
-    try:
-        scan_private_names(report, root, files, names.entries, pattern_file)
+        if staged:
+            paths = staged_files(root) if files is None else files
+            read_bytes = staged_reader(root)
+        else:
+            paths = tracked_files(root, include_archived=True) if files is None else files
+            read_bytes = working_tree_reader(root)
+        scan_private_names(report, root, entries, paths, read_bytes, pattern_file)
     except Exception:
-        report.fail(gate, "scan failed")
+        report.fail(PRIVATE_NAMES_GATE, "scan failed")
         return
-    report.notes.append(f"{gate}: {len(names.entries)} entries checked")
+    if len(report.failures) == failures_before:
+        report.notes.append(f"{PRIVATE_NAMES_GATE}: {entries_checked(entries)}")
+
+
+def configured_comment_prefix(root: Path) -> str | None:
+    for key in ("core.commentString", "core.commentChar"):
+        try:
+            value = git_output(root, "config", "--get", key).strip()
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        if value:
+            return value
+    return None
+
+
+def commit_comment_prefixes(root: Path, text: str) -> list[str]:
+    configured = configured_comment_prefix(root)
+    if configured is None:
+        return ["#"]
+    if configured != "auto":
+        return [configured]
+    scissors = SCISSORS_LINE.search(text)
+    return [scissors.group(1)] if scissors else list(AUTO_COMMENT_CANDIDATES)
+
+
+def consume_commit_message_source(root: Path) -> str | None:
+    try:
+        record = Path(
+            git_output(
+                root, "rev-parse", "--path-format=absolute", "--git-path", COMMIT_MESSAGE_SOURCE_FILE
+            ).strip()
+        )
+        source = record.read_text(encoding="utf-8").strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    with contextlib.suppress(OSError):
+        record.unlink()
+    return source
+
+
+def commit_message_body(text: str, comment_prefixes: list[str], source: str | None) -> str:
+    scissors_lines = tuple(f"{prefix}{SCISSORS_TAIL}" for prefix in comment_prefixes)
+    lines = text.split("\n")
+    scissors_at = next((i for i, line in enumerate(lines) if line.startswith(scissors_lines)), None)
+    editor_ran = (
+        scissors_at is not None
+        or source is None
+        or source in EDITOR_TEMPLATE_MESSAGE_SOURCES
+    )
+    body = lines if scissors_at is None else lines[:scissors_at]
+    if editor_ran:
+        body = [line for line in body if not line.startswith(tuple(comment_prefixes))]
+    return "\n".join(body)
+
+
+def gate_private_names_message(
+    report: Report,
+    message_file: Path,
+    root: Path = ROOT,
+    environ: Mapping[str, str] | None = None,
+) -> None:
+    source = consume_commit_message_source(root)
+    active = load_active_private_names(report, root, os.environ if environ is None else environ)
+    if active is None:
+        return
+    entries, _ = active
+    try:
+        raw = message_file.read_bytes().decode("utf-8", "replace")
+    except Exception:
+        report.fail(PRIVATE_NAMES_GATE, "commit message unreadable")
+        return
+    message = commit_message_body(raw, commit_comment_prefixes(root, raw), source)
+    failures_before = len(report.failures)
+    for entry in entries:
+        if entry.pattern.search(message):
+            report.fail(
+                PRIVATE_NAMES_GATE, f"commit message matches private-names entry #{entry.number}"
+            )
+    if len(report.failures) == failures_before:
+        report.notes.append(f"{PRIVATE_NAMES_GATE}: {entries_checked(entries)}")
 
 
 # --- G8 -- UK tax tables name the tax year that is current today ---------------
@@ -583,6 +772,7 @@ def check_verified_date(
 
 
 STANDALONE_GATES = (gate_frontmatter, gate_manifests)
+ARCHIVE_SCANNING_GATES = (gate_private_names,)
 FILE_GATES = (
     gate_counts,
     gate_links,
@@ -594,35 +784,62 @@ FILE_GATES = (
 )
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run the framework's mechanical gates.")
-    parser.add_argument(
-        "--private-names-only",
-        action="store_true",
-        help="run only the private-names check, which needs nothing outside the standard library",
-    )
-    args = parser.parse_args(argv)
-
-    report = Report()
-    files = tracked_files()
-    for gate in () if args.private_names_only else STANDALONE_GATES:
-        gate(report)
-    for gate in (gate_private_names,) if args.private_names_only else FILE_GATES:
-        gate(report, files=files)
-
+def print_notes(report: Report) -> None:
     for note in report.notes:
-        label = "skip" if note.split(":")[0] in report.skipped else "ok  "
+        label = "skip" if note in report.skipped else "ok  "
         print(f"  {label} {note}")
     for warning in report.warnings:
         print(f"  warn {warning}")
 
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run the framework's mechanical gates.")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument(
+        "--private-names-only",
+        action="store_true",
+        help="run only the private-names check, which needs nothing outside the standard library",
+    )
+    modes.add_argument(
+        "--private-names-message",
+        metavar="FILE",
+        type=Path,
+        help="check a commit message file against the private names",
+    )
+    parser.add_argument(
+        "--staged",
+        action="store_true",
+        help="with --private-names-only, check the staged snapshot instead of the working tree",
+    )
+    args = parser.parse_args(argv)
+    if args.staged and not args.private_names_only:
+        parser.error("--staged requires --private-names-only")
+
+    quiet_when_clean = args.staged or args.private_names_message is not None
+    report = Report()
+    if args.private_names_message:
+        gate_private_names_message(report, args.private_names_message)
+    elif args.private_names_only:
+        gate_private_names(report, staged=args.staged)
+    else:
+        all_files = tracked_files(include_archived=True)
+        files = [f for f in all_files if not is_archived(f)]
+        for gate in STANDALONE_GATES:
+            gate(report)
+        for gate in FILE_GATES:
+            gate(report, files=all_files if gate in ARCHIVE_SCANNING_GATES else files)
+
     if report.failures:
+        if not quiet_when_clean:
+            print_notes(report)
         print(f"\n{len(report.failures)} failure(s):\n", file=sys.stderr)
         for failure in report.failures:
             print(f"  FAIL {failure}", file=sys.stderr)
         return 1
 
-    print(f"\n{summary_line(report)}")
+    if not quiet_when_clean:
+        print_notes(report)
+        print(f"\n{summary_line(report)}")
     return 0
 
 

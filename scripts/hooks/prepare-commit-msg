@@ -1,0 +1,2 @@
+#!/bin/sh
+printf "%s\n" "$2" > "$(git rev-parse --git-path aidevteam-commit-msg-source)" || true

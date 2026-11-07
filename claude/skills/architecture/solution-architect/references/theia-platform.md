@@ -52,7 +52,7 @@ The contribution-point pattern is the extensibility spine: an extension declares
 | Capability | Placement | Why |
 |---|---|---|
 | acme-daemon client, spawn/supervision, Bearer token | **Backend** (`src/node`) | Child processes + secret custody; renderer never holds credentials |
-| Streaming AI deltas to the UI | Backend consumes the daemon's SSE, forwards via RPC client callback (or loopback fetch-stream from renderer as a documented exception) | Keeps auth server-side; one streaming implementation |
+| Streaming AI deltas to the UI | Backend consumes the daemon's SSE, forwards via RPC client callback | Keeps auth server-side; one streaming implementation |
 | Chat/review widgets, commands, theming | Frontend extension modules | DOM/UI concerns |
 | Protocol types + service paths | `common/` in each extension | Shared, JSON-only |
 | Intelligence, persistence, policy | **acme-daemon itself** | The backend daemon is the single source of truth; the TS layer stays thin and replaceable — no app-side state |

@@ -193,10 +193,13 @@ export const daemonServicePath = '/services/acme-daemon';
 export const DaemonService = Symbol('DaemonService');
 export interface DaemonService {
     ping(): Promise<{ pong: boolean }>;
+    stream(messages: ChatMessage[]): Promise<string>;   // starts a stream and returns its handle
     setClient(client: DaemonClient): void;      // for backend→frontend notifications
 }
 export interface DaemonClient {
     onDaemonStatusChanged(status: string): void;
+    onDelta(handle: string, delta: unknown): void;      // one call per streamed event
+    onStreamError(handle: string, message: string): void;
 }
 ```
 
@@ -275,35 +278,52 @@ Selected chat mode arrives on the request (`request.request.modeId` — verify f
 - `@theia/ai-mcp` provides the MCP client integration (servers configured via preferences; tools surfaced to agents). A team's own MCP server (for example a knowledge base served over Streamable HTTP) is registered here as an optional per-team entry, never bundled.
 - Token usage: Theia AI surfaces per-request token counts from providers; the exact service name is not stable in docs — **verify in `@theia/ai-core` sources** (search for "token usage") before building the cost footer. Fallback: the backend daemon already returns `usage` per request; render the cost footer from the daemon's data and treat Theia's surface as additive.
 
-## Consuming SSE/WebSocket streams in the frontend
+## Consuming SSE streams from the daemon
 
-Backend-mediated (preferred — keeps the Bearer token in the Node process): backend consumes the daemon's SSE with `fetch` + `response.body` ReadableStream, forwards deltas over the RPC client callback. Direct from the renderer (acceptable for loopback):
+The Bearer token and the daemon's port stay in the Node process, so the stream is consumed in the backend (`src/node`) with `fetch` + `response.body` ReadableStream, and deltas reach the frontend through the RPC client callback (`DaemonClient.onDelta`). The renderer never calls the daemon and never holds the token:
 
 ```typescript
-const response = await fetch(`http://127.0.0.1:${port}/v1/stream`, {   // port from the daemon's handshake
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ messages }),
-    signal: abortController.signal,          // cancellation
-});
-const reader = response.body!.getReader();
-const decoder = new TextDecoder();
-let buf = '';
-for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let idx;
-    while ((idx = buf.indexOf('\n\n')) >= 0) {          // SSE events end with a blank line
-        const rawEvent = buf.slice(0, idx); buf = buf.slice(idx + 2);
-        for (const line of rawEvent.split('\n')) {
-            if (line.startsWith('data: ')) appendDelta(JSON.parse(line.slice(6)));
+// src/node/daemon-service-impl.ts (excerpt) — port and token come from the supervisor's handshake
+private client?: DaemonClient;                       // stored by setClient(client)
+setClient(client: DaemonClient): void { this.client = client; }
+
+async stream(messages: ChatMessage[]): Promise<string> {
+    const handle = randomUUID();
+    this.pump(handle, messages).catch(error =>       // returns at once; deltas follow through the client
+        this.client?.onStreamError(handle, error instanceof Error ? error.message : String(error)));
+    return handle;
+}
+
+private async pump(handle: string, messages: ChatMessage[]): Promise<void> {
+    const abortController = new AbortController();   // keep it by handle to cancel from a cancel(handle) call
+    const response = await fetch(`http://127.0.0.1:${this.port}/v1/stream`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.token}` },
+        body: JSON.stringify({ messages }),
+        signal: abortController.signal,
+    });
+    if (!response.ok || !response.body) {
+        throw new Error(`daemon stream failed: HTTP ${response.status}`);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {      // SSE events end with a blank line
+            const rawEvent = buf.slice(0, idx); buf = buf.slice(idx + 2);
+            for (const line of rawEvent.split('\n')) {
+                if (line.startsWith('data: ')) this.client?.onDelta(handle, JSON.parse(line.slice(6)));
+            }
         }
     }
 }
 ```
 
-Note `EventSource` only supports GET — daemon streaming is POST, so use fetch-streaming (above) or the WS transport. In the chat widget, append deltas to component state and call `this.update()`; throttle re-renders (~30ms batches) for long streams.
+Note `EventSource` only supports GET — daemon streaming is POST, so use fetch-streaming (above). In the chat widget, append the deltas received from `DaemonClient.onDelta` to component state and call `this.update()`; throttle re-renders (~30ms batches) for long streams.
 
 ## Packaging & Open VSX
 
