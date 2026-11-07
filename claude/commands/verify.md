@@ -1,5 +1,5 @@
 ---
-description: "Verification & Completion Auditor — adversarial completeness audit + workflow gate enforcement. Run with /verify proposal | devdoc | code | all."
+description: "Verification & Completion Auditor — adversarial completeness audit + workflow gate check. Run with /verify proposal | devdoc | code | all."
 ---
 
 # /verify — Verification & Completion Auditor

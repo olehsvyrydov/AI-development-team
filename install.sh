@@ -141,8 +141,8 @@ instructions_body() {
   cat <<EOF
 # AI Dev Team — agent & workflow instructions
 
-This project uses the **AI Dev Team** framework. Specialist agent personas and an
-enforced, proportional workflow live in \`$ref/\`.
+This project uses the **AI Dev Team** framework. Specialist agent personas and a
+proportional workflow live in \`$ref/\`.
 
 **Before any development task and before every handoff**, consult the workflow:
 \`$ref/skills/workflow-engine/SKILL.md\` (it classifies the change, decides which
@@ -262,7 +262,7 @@ main() {
   ok "${BOLD}Done.${NC}"
   if has_editor claude; then
     log "  • Claude Code: restart it, then try ${BOLD}/agents${NC}."
-    log "  • Optional advanced backends (Atlassian, memory MCP, hooks): ${BOLD}scripts/setup-claude-backends.sh${NC}"
+    log "  • Optional advanced backends (Python venvs, Multi-LLM and Atlassian MCP servers): ${BOLD}scripts/setup-claude-backends.sh${NC}"
   fi
   has_editor cursor && log "  • Cursor: rules in .cursor/rules/ + AGENTS.md are active on next session."
   has_editor kiro   && log "  • Kiro: steering in .kiro/steering/ + AGENTS.md are active."
