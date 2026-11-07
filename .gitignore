@@ -30,7 +30,7 @@ multi-llm/mcp/.venv/
 *.tmp
 *.bak
 
-# Private design scratch (e.g. Canon) — never commit; ship examples/ instead
+# Private design scratch — never commit; ship examples/ instead
 design-gallery/
 
 # Local workflow state (per-project; generated)

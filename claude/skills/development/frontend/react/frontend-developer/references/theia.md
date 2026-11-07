@@ -1,6 +1,6 @@
 # Frontend Stack — Eclipse Theia
 
-> Loaded by /fe when the project is a Theia-based IDE product (Theia deps in package.json, `theiaExtensions` field, `applications/electron` + `extensions/*` monorepo — e.g. **bumbl-app**). The Theia extension-development playbook.
+> Loaded by /fe when the project is a Theia-based IDE product (Theia deps in package.json, `theiaExtensions` field, `applications/electron` + `extensions/*` monorepo — e.g. **acme-ide**). The Theia extension-development playbook.
 
 ## Trigger
 
@@ -26,11 +26,11 @@ Upgrade cadence: move community release → community release (quarterly), never
 
 ```bash
 npm install -g yo generator-theia-extension
-mkdir bumbl-app && cd bumbl-app
+mkdir acme-ide && cd acme-ide
 yo theia-extension   # pick "Hello World" or "Widget" template; generates browser + electron apps
 ```
 
-Monorepo layout (bumbl-app convention):
+Monorepo layout (acme-ide convention):
 
 ```
 package.json                # yarn workspaces; ALL @theia/* pinned to the community release
@@ -38,7 +38,7 @@ applications/
   electron/package.json     # desktop product (electron-builder targets)
   browser/package.json      # free second target
 extensions/
-  bumbl-chat/               # one npm package per extension
+  acme-chat/               # one npm package per extension
     package.json
     src/browser/            # frontend (DOM, widgets, contributions)
     src/node/               # backend (Node.js — child processes, HTTP clients)
@@ -51,12 +51,12 @@ An extension is an npm package with the `theia-extension` keyword and a `theiaEx
 
 ```json
 {
-  "name": "bumbl-chat",
+  "name": "acme-chat",
   "keywords": ["theia-extension"],
   "dependencies": { "@theia/core": "1.71.0" },
   "theiaExtensions": [{
-    "frontend": "lib/browser/bumbl-chat-frontend-module",
-    "backend": "lib/node/bumbl-chat-backend-module"
+    "frontend": "lib/browser/acme-chat-frontend-module",
+    "backend": "lib/node/acme-chat-backend-module"
   }]
 }
 ```
@@ -64,13 +64,13 @@ An extension is an npm package with the `theia-extension` keyword and a `theiaEx
 Each module default-exports an InversifyJS `ContainerModule`:
 
 ```typescript
-// src/browser/bumbl-chat-frontend-module.ts
+// src/browser/acme-chat-frontend-module.ts
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
 
 export default new ContainerModule(bind => {
-    bind(CommandContribution).to(BumblChatCommandContribution);
-    bind(MenuContribution).to(BumblChatMenuContribution);
+    bind(CommandContribution).to(AcmeChatCommandContribution);
+    bind(MenuContribution).to(AcmeChatMenuContribution);
 });
 ```
 
@@ -91,14 +91,14 @@ import {
 import { KeybindingContribution, KeybindingRegistry } from '@theia/core/lib/browser';
 import { CommonMenus } from '@theia/core/lib/browser';
 
-export const BumblPingCommand: Command = { id: 'bumbl.ping', label: 'Bumbl: Ping DIS' };
+export const AcmePingCommand: Command = { id: 'acme.ping', label: 'Acme: Ping Daemon' };
 
 @injectable()
-export class BumblChatCommandContribution implements CommandContribution {
+export class AcmeChatCommandContribution implements CommandContribution {
     @inject(MessageService) protected readonly messageService: MessageService;
 
     registerCommands(registry: CommandRegistry): void {
-        registry.registerCommand(BumblPingCommand, {
+        registry.registerCommand(AcmePingCommand, {
             execute: () => this.messageService.info('pong'),
             isEnabled: () => true,
         });
@@ -106,18 +106,18 @@ export class BumblChatCommandContribution implements CommandContribution {
 }
 
 @injectable()
-export class BumblChatMenuContribution implements MenuContribution {
+export class AcmeChatMenuContribution implements MenuContribution {
     registerMenus(menus: MenuModelRegistry): void {
         menus.registerMenuAction(CommonMenus.EDIT_FIND, {
-            commandId: BumblPingCommand.id, label: 'Ping DIS'
+            commandId: AcmePingCommand.id, label: 'Ping Daemon'
         });
     }
 }
 
 @injectable()
-export class BumblChatKeybindingContribution implements KeybindingContribution {
+export class AcmeChatKeybindingContribution implements KeybindingContribution {
     registerKeybindings(keybindings: KeybindingRegistry): void {
-        keybindings.registerKeybinding({ command: BumblPingCommand.id, keybinding: 'ctrlcmd+alt+p' });
+        keybindings.registerKeybinding({ command: AcmePingCommand.id, keybinding: 'ctrlcmd+alt+p' });
     }
 }
 ```
@@ -132,22 +132,22 @@ import { injectable, postConstruct } from '@theia/core/shared/inversify';
 import { ReactWidget } from '@theia/core/lib/browser/widgets/react-widget';
 
 @injectable()
-export class BumblChatWidget extends ReactWidget {
-    static readonly ID = 'bumbl.chat.widget';
-    static readonly LABEL = 'Bumbl Chat';
+export class AcmeChatWidget extends ReactWidget {
+    static readonly ID = 'acme.chat.widget';
+    static readonly LABEL = 'Acme Chat';
 
     @postConstruct()
     protected init(): void {
-        this.id = BumblChatWidget.ID;
-        this.title.label = BumblChatWidget.LABEL;
-        this.title.caption = BumblChatWidget.LABEL;
+        this.id = AcmeChatWidget.ID;
+        this.title.label = AcmeChatWidget.LABEL;
+        this.title.caption = AcmeChatWidget.LABEL;
         this.title.closable = true;
         this.title.iconClass = 'codicon codicon-comment-discussion';
         this.update();  // triggers render()
     }
 
     protected render(): React.ReactNode {
-        return <div className='bumbl-chat'>{/* JSX */}</div>;
+        return <div className='acme-chat'>{/* JSX */}</div>;
     }
 }
 ```
@@ -159,24 +159,24 @@ import { WidgetFactory, bindViewContribution } from '@theia/core/lib/browser';
 import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
 
 @injectable()
-export class BumblChatViewContribution extends AbstractViewContribution<BumblChatWidget> {
+export class AcmeChatViewContribution extends AbstractViewContribution<AcmeChatWidget> {
     constructor() {
         super({
-            widgetId: BumblChatWidget.ID,
-            widgetName: BumblChatWidget.LABEL,
+            widgetId: AcmeChatWidget.ID,
+            widgetName: AcmeChatWidget.LABEL,
             defaultWidgetOptions: { area: 'right', rank: 100 },  // 'left' | 'right' | 'bottom' | 'main'
-            toggleCommandId: 'bumbl.chat.toggle',
+            toggleCommandId: 'acme.chat.toggle',
         });
     }
 }
 
 // frontend module:
 export default new ContainerModule(bind => {
-    bindViewContribution(bind, BumblChatViewContribution);
-    bind(BumblChatWidget).toSelf();
+    bindViewContribution(bind, AcmeChatViewContribution);
+    bind(AcmeChatWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(ctx => ({
-        id: BumblChatWidget.ID,
-        createWidget: () => ctx.container.get<BumblChatWidget>(BumblChatWidget),
+        id: AcmeChatWidget.ID,
+        createWidget: () => ctx.container.get<AcmeChatWidget>(AcmeChatWidget),
     })).inSingletonScope();
 });
 ```
@@ -185,30 +185,30 @@ export default new ContainerModule(bind => {
 
 ## Frontend↔backend JSON-RPC
 
-The frontend runs in the browser/Electron renderer; the backend is a Node process. **Anything touching child processes, the filesystem, or localhost HTTP clients (the bumbl-dis client + supervisor) lives on the backend (`src/node`)**; the frontend talks to it over a JSON-RPC proxy.
+The frontend runs in the browser/Electron renderer; the backend is a Node process. **Anything touching child processes, the filesystem, or localhost HTTP clients (the acme-daemon client + supervisor) lives on the backend (`src/node`)**; the frontend talks to it over a JSON-RPC proxy.
 
 ```typescript
-// src/common/dis-protocol.ts — shared protocol
-export const disServicePath = '/services/bumbl-dis';
-export const DisService = Symbol('DisService');
-export interface DisService {
+// src/common/daemon-protocol.ts — shared protocol
+export const daemonServicePath = '/services/acme-daemon';
+export const DaemonService = Symbol('DaemonService');
+export interface DaemonService {
     ping(): Promise<{ pong: boolean }>;
-    setClient(client: DisClient): void;      // for backend→frontend notifications
+    setClient(client: DaemonClient): void;      // for backend→frontend notifications
 }
-export interface DisClient {
-    onDisStatusChanged(status: string): void;
+export interface DaemonClient {
+    onDaemonStatusChanged(status: string): void;
 }
 ```
 
 ```typescript
-// src/node/bumbl-dis-backend-module.ts
+// src/node/acme-daemon-backend-module.ts
 import { ConnectionHandler, RpcConnectionHandler } from '@theia/core/lib/common/messaging';
 
 export default new ContainerModule(bind => {
-    bind(DisService).to(DisServiceImpl).inSingletonScope();   // spawns/supervises bumbl-dis here
+    bind(DaemonService).to(DaemonServiceImpl).inSingletonScope();   // spawns/supervises acme-daemon here
     bind(ConnectionHandler).toDynamicValue(ctx =>
-        new RpcConnectionHandler<DisClient>(disServicePath, client => {
-            const service = ctx.container.get<DisService>(DisService);
+        new RpcConnectionHandler<DaemonClient>(daemonServicePath, client => {
+            const service = ctx.container.get<DaemonService>(DaemonService);
             service.setClient(client);
             return service;
         })
@@ -220,15 +220,15 @@ export default new ContainerModule(bind => {
 // src/browser/... — frontend proxy
 import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging';
 
-bind(DisService).toDynamicValue(ctx => {
+bind(DaemonService).toDynamicValue(ctx => {
     const connection = ctx.container.get(WebSocketConnectionProvider);
-    return connection.createProxy<DisService>(disServicePath, myDisClientImpl);
+    return connection.createProxy<DaemonService>(daemonServicePath, myDaemonClientImpl);
 }).inSingletonScope();
 ```
 
-Every method call on the proxy becomes a JSON-RPC request over the websocket channel at `disServicePath`. The optional second `createProxy` argument is the local object the backend can call back (push notifications). Protocol types must be JSON-serializable — no class instances, no functions.
+Every method call on the proxy becomes a JSON-RPC request over the websocket channel at `daemonServicePath`. The optional second `createProxy` argument is the local object the backend can call back (push notifications). Protocol types must be JSON-serializable — no class instances, no functions.
 
-Child-process supervision (backend side): spawn `bumbl-dis` with `child_process.spawn` in a `BackendApplicationContribution` (`onStart`/`onStop` hooks from `@theia/core/lib/node`), watch exit events, respawn with backoff, and expose health over the RPC service.
+Child-process supervision (backend side): spawn `acme-daemon` with `child_process.spawn` in a `BackendApplicationContribution` (`onStart`/`onStop` hooks from `@theia/core/lib/node`), watch exit events, respawn with backoff, and expose health over the RPC service.
 
 ## Theia AI
 
@@ -239,10 +239,10 @@ Packages: `@theia/ai-core`, `@theia/ai-chat`, `@theia/ai-chat-ui`, `@theia/ai-mc
 Theia AI deliberately has **no fixed contribution point** for language models. Implement the `LanguageModel` interface from `@theia/ai-core` and register instances with the `LanguageModelRegistry`:
 
 ```typescript
-this.languageModelRegistry.addLanguageModels([new BumblDisLanguageModel(disClient)]);
+this.languageModelRegistry.addLanguageModels([new AcmeDaemonLanguageModel(daemonClient)]);
 ```
 
-Model the implementation on the upstream providers — `@theia/ai-openai` and `@theia/ai-ollama` are the reference implementations for a streaming HTTP provider (copy the request/stream-response shape from the pinned release's source; the exact `LanguageModel.request(...)` signature evolves — verify in `@theia/ai-core` before coding). For bumbl: the model's request method calls the backend RPC service, which streams from DIS `POST /api/v1/ai/stream`; deltas are forwarded to the frontend and yielded as the model's streamed response parts.
+Model the implementation on the upstream providers — `@theia/ai-openai` and `@theia/ai-ollama` are the reference implementations for a streaming HTTP provider (copy the request/stream-response shape from the pinned release's source; the exact `LanguageModel.request(...)` signature evolves — verify in `@theia/ai-core` before coding). For a daemon-backed provider: the model's request method calls the backend RPC service, which streams from the daemon's `POST /v1/stream`; deltas are forwarded to the frontend and yielded as the model's streamed response parts.
 
 ### Chat agents
 
@@ -251,36 +251,36 @@ import { AbstractStreamParsingChatAgent, ChatAgent } from '@theia/ai-chat';
 import { Agent } from '@theia/ai-core';
 
 @injectable()
-export class BumblChatAgent extends AbstractStreamParsingChatAgent {
-    id = 'bumbl';
-    name = 'Bumbl';
-    languageModelRequirements = [{ purpose: 'chat', identifier: 'bumbl-dis' }];
+export class AcmeChatAgent extends AbstractStreamParsingChatAgent {
+    id = 'acme';
+    name = 'Acme';
+    languageModelRequirements = [{ purpose: 'chat', identifier: 'acme-daemon' }];
     // systemPromptId / prompts: reference prompt fragments; modes = [{id:'ask',name:'Ask'},{id:'plan',name:'Plan'}]
 }
 
 // module:
-bind(BumblChatAgent).toSelf().inSingletonScope();
-bind(Agent).toService(BumblChatAgent);
-bind(ChatAgent).toService(BumblChatAgent);
+bind(AcmeChatAgent).toSelf().inSingletonScope();
+bind(Agent).toService(AcmeChatAgent);
+bind(ChatAgent).toService(AcmeChatAgent);
 ```
 
 Selected chat mode arrives on the request (`request.request.modeId` — verify field path in the pinned release). Tool functions: implement `ToolProvider` (`getTool()`) and `bind(ToolProvider).to(MyTool)`; variables: `bind(AIVariableContribution).to(MyVariable).inSingletonScope()`.
 
 ### Change Sets (confirm-first review queue)
 
-`ChangeSetElement` (interface) + `ChangeSetImpl` in `@theia/ai-chat`. Elements are identified by a `uri`, control their own label/icon/additional info, and can implement open/accept/discard actions. A file-change implementation ships by default; bumbl-review implements a **custom** element type for DIS proposals (memory writes, knowledge conflicts, agent outputs) whose accept/discard call `approval.*` on DIS.
+`ChangeSetElement` (interface) + `ChangeSetImpl` in `@theia/ai-chat`. Elements are identified by a `uri`, control their own label/icon/additional info, and can implement open/accept/discard actions. A file-change implementation ships by default; a review extension implements a **custom** element type for daemon proposals (for example memory writes or agent outputs) whose accept/discard call the daemon's approval API.
 
 ### MCP & token usage
 
-- `@theia/ai-mcp` provides the MCP client integration (servers configured via preferences; tools surfaced to agents). For bumbl, Canon's Streamable-HTTP MCP endpoint is registered here as an optional per-team entry.
-- Token usage: Theia AI surfaces per-request token counts from providers; the exact service name is not stable in docs — **verify in `@theia/ai-core` sources** (search for "token usage") before building the cost footer. Fallback: DIS already returns `usage` per request; render the cost footer from DIS data and treat Theia's surface as additive.
+- `@theia/ai-mcp` provides the MCP client integration (servers configured via preferences; tools surfaced to agents). A team's own MCP server (for example a knowledge base served over Streamable HTTP) is registered here as an optional per-team entry, never bundled.
+- Token usage: Theia AI surfaces per-request token counts from providers; the exact service name is not stable in docs — **verify in `@theia/ai-core` sources** (search for "token usage") before building the cost footer. Fallback: the backend daemon already returns `usage` per request; render the cost footer from the daemon's data and treat Theia's surface as additive.
 
 ## Consuming SSE/WebSocket streams in the frontend
 
-Backend-mediated (preferred — keeps the Bearer token in the Node process): backend consumes DIS SSE with `fetch` + `response.body` ReadableStream, forwards deltas over the RPC client callback. Direct from the renderer (acceptable for loopback):
+Backend-mediated (preferred — keeps the Bearer token in the Node process): backend consumes the daemon's SSE with `fetch` + `response.body` ReadableStream, forwards deltas over the RPC client callback. Direct from the renderer (acceptable for loopback):
 
 ```typescript
-const response = await fetch('http://127.0.0.1:7433/api/v1/ai/stream', {
+const response = await fetch(`http://127.0.0.1:${port}/v1/stream`, {   // port from the daemon's handshake
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
     body: JSON.stringify({ messages }),
@@ -303,7 +303,7 @@ for (;;) {
 }
 ```
 
-Note `EventSource` only supports GET — DIS streaming is POST, so use fetch-streaming (above) or the WS transport. In the chat widget, append deltas to component state and call `this.update()`; throttle re-renders (~30ms batches) for long streams.
+Note `EventSource` only supports GET — daemon streaming is POST, so use fetch-streaming (above) or the WS transport. In the chat widget, append deltas to component state and call `this.update()`; throttle re-renders (~30ms batches) for long streams.
 
 ## Packaging & Open VSX
 
@@ -330,14 +330,14 @@ VS Code extensions are consumed as **built-time plugins** from Open VSX:
 ```typescript
 import { TheiaApp, TheiaAppLoader, TheiaWorkspace } from '@theia/playwright';
 
-test('opens the app and pings DIS', async ({ playwright, browser }) => {
+test('opens the app and pings the backend daemon', async ({ playwright, browser }) => {
     const ws = new TheiaWorkspace(['tests/resources/sample-workspace']);
     const app: TheiaApp = await TheiaAppLoader.load({ playwright, browser }, ws);
     // built-in page objects: TheiaTextEditor, explorer, menus, status bar…
 });
 ```
 
-Extend with custom page objects for bumbl widgets. Start from `eclipse-theia/theia-playwright-template`. Unit tests: standard jest/mocha per extension; DI makes services mockable (`Container` with test bindings).
+Extend with custom page objects for acme widgets. Start from `eclipse-theia/theia-playwright-template`. Unit tests: standard jest/mocha per extension; DI makes services mockable (`Container` with test bindings).
 
 ## Pitfalls
 
@@ -348,7 +348,7 @@ Extend with custom page objects for bumbl widgets. Start from `eclipse-theia/the
 | Missing `@injectable()` / binding | `No matching bindings found for serviceIdentifier` at startup | Every injected class needs the decorator AND a `bind()` in a loaded module; check `theiaExtensions` paths point at compiled `lib/**` output |
 | Node APIs in `src/browser` | Works in Electron dev, breaks browser target & security posture | Filesystem/child-process/HTTP-client code goes in `src/node` behind an RPC service |
 | Non-serializable RPC payloads | Silent data loss over JSON-RPC | Protocol types = plain JSON data; convert URIs/classes at the boundary |
-| Electron security defaults loosened | Fails SECOPS gate | Keep `contextIsolation: true`, no `nodeIntegration` in views, strict CSP; secrets (DIS token, API keys) never reach the renderer |
+| Electron security defaults loosened | Fails SECOPS gate | Keep `contextIsolation: true`, no `nodeIntegration` in views, strict CSP; secrets (daemon token, API keys) never reach the renderer |
 | Theia AI APIs assumed stable | Breakage on quarterly upgrade | They're experimental: diff `@theia/ai-*` sources on each community-release bump before upgrading |
 | `EventSource` for POST streams | No request body support | Use fetch-streaming or route via the backend RPC service |
 | Forgetting `this.update()` | Widget renders stale UI | Call after every externally-driven state change in `ReactWidget` |
