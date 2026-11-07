@@ -443,6 +443,45 @@ def test_no_ledger_and_no_active_ticket_allows(commit_gate, project):
     assert commit_gate.blocking_reason(project.root) is None
 
 
+def test_an_aidevteam_that_is_a_file_blocks_naming_the_unreachable_pointer(commit_gate, project):
+    (project.root / ".aidevteam").write_text("not a directory")
+
+    reason = commit_gate.blocking_reason(project.root)
+
+    assert str(project.pointer_path) in reason
+    assert "unreadable" in reason
+
+
+def test_a_state_directory_that_is_a_file_blocks_naming_the_unreachable_pointer(
+    commit_gate, project
+):
+    (project.root / ".aidevteam").mkdir()
+    (project.root / ".aidevteam" / "state").write_text("not a directory")
+
+    reason = commit_gate.blocking_reason(project.root)
+
+    assert str(project.pointer_path) in reason
+    assert "unreadable" in reason
+
+
+def test_a_ledger_path_below_a_file_blocks_naming_the_unreachable_ledger(
+    commit_gate, tmp_path
+):
+    (tmp_path / "blocker").write_text("not a directory")
+    unreachable = tmp_path / "blocker" / ".workflow-state.json"
+
+    with pytest.raises(commit_gate.Blocked) as blocked:
+        commit_gate.read_json_object(unreachable)
+
+    assert str(unreachable) in str(blocked.value)
+    assert "unreadable" in str(blocked.value)
+
+
+def test_a_missing_file_alone_is_treated_as_absent(commit_gate, tmp_path):
+    assert commit_gate.read_json_object(tmp_path / "absent.json") is None
+    assert commit_gate.read_json_object(tmp_path / "no-such-dir" / "absent.json") is None
+
+
 def test_the_active_ticket_selects_which_ticket_is_checked(commit_gate, project):
     project.set_ledger({
         "TCK-001": ticket_with({"SECOPS_APPROVED": required()}, {"SECOPS_APPROVED": "pending"}),

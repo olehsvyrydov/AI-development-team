@@ -823,11 +823,11 @@ def gate_hooks(report: Report, root: Path = ROOT) -> None:
         for match in PLUGIN_ROOT_PATH.finditer(text):
             checked += 1
             target = (plugin_dir / match.group(1)).resolve()
-            if plugin_dir not in target.parents or not target.exists():
+            if plugin_dir not in target.parents or not target.is_file():
                 report.fail(
                     "G9 hooks",
                     f"{HOOKS_MANIFEST}: ${{CLAUDE_PLUGIN_ROOT}}/{match.group(1)} "
-                    f"does not exist inside claude/",
+                    f"is not a regular file inside claude/",
                 )
     if checked == 0:
         report.fail("G9 hooks", f"{HOOKS_MANIFEST}: no ${{CLAUDE_PLUGIN_ROOT}}/... path to check")

@@ -240,7 +240,7 @@ def read_json_object(path: Path) -> dict | None:
     try:
         with open(path, "rb") as handle:
             raw = handle.read(MAX_FILE_BYTES + 1)
-    except (FileNotFoundError, NotADirectoryError):
+    except FileNotFoundError:
         return None
     except OSError:
         raise malformed(path, "unreadable")

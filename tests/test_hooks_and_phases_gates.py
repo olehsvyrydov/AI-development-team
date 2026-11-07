@@ -45,6 +45,17 @@ def test_hooks_gate_fails_when_a_plugin_path_does_not_exist(validator, report, p
     assert "hooks/gone.py" in report.failures[0]
 
 
+def test_hooks_gate_fails_when_a_plugin_path_is_a_directory(validator, report, plant, tmp_path):
+    (tmp_path / "claude" / "hooks" / "commit_gate.py").mkdir(parents=True)
+    plant(HOOKS_FILE, json.dumps(hooks_manifest(["${CLAUDE_PLUGIN_ROOT}/hooks/commit_gate.py"])))
+
+    validator.gate_hooks(report, root=tmp_path)
+
+    assert len(report.failures) == 1
+    assert "regular file" in report.failures[0]
+    assert report.notes == []
+
+
 def test_hooks_gate_fails_when_a_plugin_path_escapes_the_plugin_directory(
     validator, report, plant, tmp_path
 ):
