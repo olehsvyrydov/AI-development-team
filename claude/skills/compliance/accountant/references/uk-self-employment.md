@@ -52,11 +52,13 @@ Use `WebSearch` and `WebFetch` for current regulations, market data, and industr
 
 ### Tax Years
 
+> Verified against GOV.UK on 2026-10-18.
+
 | Tax Year | Start | End | Filing Deadline | Payment Deadline | MTD ITSA |
 |----------|-------|-----|-----------------|------------------|----------|
 | 2024/25 | 6 Apr 2024 | 5 Apr 2025 | 31 Jan 2026 | 31 Jan 2026 | No |
-| 2025/26 *(current)* | 6 Apr 2025 | 5 Apr 2026 | 31 Jan 2027 | 31 Jan 2027 | No |
-| 2026/27 | 6 Apr 2026 | 5 Apr 2027 | 31 Jan 2028 | 31 Jan 2028 | Yes (>£50k) |
+| 2025/26 | 6 Apr 2025 | 5 Apr 2026 | 31 Jan 2027 | 31 Jan 2027 | No |
+| 2026/27 *(current)* | 6 Apr 2026 | 5 Apr 2027 | 31 Jan 2028 | 31 Jan 2028 | Yes (>£50k) |
 | 2027/28 | 6 Apr 2027 | 5 Apr 2028 | 31 Jan 2029 | 31 Jan 2029 | Yes (>£30k) |
 
 ### SA103 Form Mapping
@@ -164,10 +166,12 @@ public enum ExpenseCategory {
 
 ### Tax Calculation Engine
 
-#### Tax Rates (2025/26)
+#### Tax Rates (2026/27)
+
+> Verified against GOV.UK on 2026-10-18.
 
 ```java
-public class TaxRates2025_26 implements TaxRates {
+public class TaxRates2026_27 implements TaxRates {
 
     // Personal Allowance
     public static final Money PERSONAL_ALLOWANCE = Money.of(12_570);
@@ -191,9 +195,9 @@ public class TaxRates2025_26 implements TaxRates {
     public static final BigDecimal NI_MAIN_RATE = new BigDecimal("0.06"); // 6%
     public static final BigDecimal NI_ADDITIONAL_RATE = new BigDecimal("0.02"); // 2%
 
-    // National Insurance Class 2 (voluntary from April 2024)
-    public static final Money NI_CLASS_2_SMALL_PROFITS_THRESHOLD = Money.of(6_845);
-    public static final Money NI_CLASS_2_WEEKLY = Money.of(3.50); // Updated for 2025/26
+    // National Insurance Class 2
+    public static final Money NI_CLASS_2_SMALL_PROFITS_THRESHOLD = Money.of(7_105);
+    public static final Money NI_CLASS_2_WEEKLY = Money.of(3.65);
 }
 ```
 
@@ -209,24 +213,19 @@ public class SelfEmploymentTaxCalculator {
     public TaxCalculation calculate(TaxableIncome income, TaxYear taxYear) {
         TaxRates rates = taxRatesProvider.getRatesForYear(taxYear);
 
-        // Calculate Personal Allowance (with taper if over £100k)
         Money personalAllowance = calculatePersonalAllowance(
             income.totalIncome(), rates
         );
 
-        // Calculate taxable income after Personal Allowance
         Money taxableIncome = income.totalIncome()
             .subtract(personalAllowance)
             .max(Money.ZERO);
 
-        // Calculate Income Tax
         TaxBreakdown incomeTax = calculateIncomeTax(taxableIncome, rates);
 
-        // Calculate National Insurance Class 4
         TaxBreakdown niClass4 = calculateNIClass4(income.selfEmploymentProfit(), rates);
 
-        // Calculate National Insurance Class 2
-        Money niClass2 = calculateNIClass2(income.selfEmploymentProfit(), rates);
+        Class2Status class2Status = classifyNIClass2(income.selfEmploymentProfit(), rates);
 
         return TaxCalculation.builder()
             .taxYear(taxYear)
@@ -235,8 +234,8 @@ public class SelfEmploymentTaxCalculator {
             .taxableIncome(taxableIncome)
             .incomeTax(incomeTax)
             .niClass4(niClass4)
-            .niClass2(niClass2)
-            .totalTaxDue(incomeTax.total().add(niClass4.total()).add(niClass2))
+            .class2Status(class2Status)
+            .totalTaxDue(incomeTax.total().add(niClass4.total()))
             .build();
     }
 
@@ -305,12 +304,26 @@ public class SelfEmploymentTaxCalculator {
         return new TaxBreakdown(bands, total);
     }
 
-    private Money calculateNIClass2(Money profit, TaxRates rates) {
-        // Class 2 NI: £3.45/week if profit > £12,570
-        if (profit.isGreaterThan(rates.niClass2Threshold())) {
-            return rates.niClass2Weekly().multiply(52);
+    private Class2Status classifyNIClass2(Money profit, TaxRates rates) {
+        if (rates.niClass2SmallProfitsThreshold().isLessThanOrEqual(profit)) {
+            return Class2Status.paidByThreshold();
         }
-        return Money.ZERO;
+        return Class2Status.voluntaryAvailable(rates.niClass2Weekly());
+    }
+}
+```
+
+Class 2 reports a status rather than an amount, so it never enters `totalTaxDue`. At or above the Small Profits Threshold it is treated as paid; below it, it can be paid voluntarily:
+
+```java
+public record Class2Status(boolean treatedAsPaid, Money voluntaryWeeklyRate) {
+
+    public static Class2Status paidByThreshold() {
+        return new Class2Status(true, Money.ZERO);
+    }
+
+    public static Class2Status voluntaryAvailable(Money weeklyRate) {
+        return new Class2Status(false, weeklyRate);
     }
 }
 ```
@@ -343,6 +356,8 @@ public class SelfEmploymentTaxCalculator {
 
 #### Simplified Expenses (Flat Rates)
 
+> Verified against GOV.UK on 2026-10-18.
+
 ```java
 public class SimplifiedExpenses {
 
@@ -353,8 +368,8 @@ public class SimplifiedExpenses {
         101, Money.of(26)  // 101+ hours: £26/month
     );
 
-    // HMRC Approved Mileage Rates (2025/26 - unchanged)
-    public static final Money CAR_MILEAGE_FIRST_10000 = Money.of(0.45);
+    // HMRC Approved Mileage Rates (2026/27)
+    public static final Money CAR_MILEAGE_FIRST_10000 = Money.of(0.55);
     public static final Money CAR_MILEAGE_AFTER_10000 = Money.of(0.25);
     public static final Money MOTORCYCLE_MILEAGE = Money.of(0.24);
     public static final Money BICYCLE_MILEAGE = Money.of(0.20);
@@ -392,6 +407,10 @@ public class SimplifiedExpenses {
 
 ### MTD Quarterly Periods
 
+> Verified against GOV.UK on 2026-10-18.
+
+Each update is due on the 7th of the month after its period ends and is cumulative: it covers 6 April to the end of its period, so it shows year-to-date totals. Calendar update periods (1 April to 31 March) share the same due dates.
+
 ```java
 public record QuarterlyPeriod(
     int quarter,
@@ -405,19 +424,19 @@ public record QuarterlyPeriod(
             new QuarterlyPeriod(1,
                 LocalDate.of(startYear, 4, 6),
                 LocalDate.of(startYear, 7, 5),
-                LocalDate.of(startYear, 8, 5)),
+                LocalDate.of(startYear, 8, 7)),
             new QuarterlyPeriod(2,
                 LocalDate.of(startYear, 7, 6),
                 LocalDate.of(startYear, 10, 5),
-                LocalDate.of(startYear, 11, 5)),
+                LocalDate.of(startYear, 11, 7)),
             new QuarterlyPeriod(3,
                 LocalDate.of(startYear, 10, 6),
                 LocalDate.of(startYear + 1, 1, 5),
-                LocalDate.of(startYear + 1, 2, 5)),
+                LocalDate.of(startYear + 1, 2, 7)),
             new QuarterlyPeriod(4,
                 LocalDate.of(startYear + 1, 1, 6),
                 LocalDate.of(startYear + 1, 4, 5),
-                LocalDate.of(startYear + 1, 5, 5))
+                LocalDate.of(startYear + 1, 5, 7))
         );
     }
 }

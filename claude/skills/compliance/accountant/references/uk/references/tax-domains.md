@@ -2,64 +2,91 @@
 
 ## Key Tax Reference
 
-> **Rate Versioning**: All tables below show rates by tax year. The **current year** is marked. When rates for future years are not yet confirmed, the most recent confirmed rates are shown with a note.
+> **Rate Versioning**: All tables below show rates by tax year. The **current year** is marked. A 2027/28 column appears only where GOV.UK has already published the figure; announced changes without a published rate are listed under *Announced for 2027/28*. Each table carries the date its figures were last checked against GOV.UK.
+
+**GOV.UK sources**: [Income Tax rates and allowances](https://www.gov.uk/government/publications/rates-and-allowances-income-tax/income-tax-rates-and-allowances-current-and-past) · [dividend, savings and property rates](https://www.gov.uk/government/publications/changes-to-tax-rates-for-property-savings-and-dividend-income/change-to-tax-rates-for-property-savings-and-dividend-income-technical-note) · [frozen thresholds until 5 April 2031](https://www.gov.uk/government/publications/maintaining-income-tax-and-equivalent-national-insurance-contributions-thresholds-until-5-april-2031) · [National Insurance rates and allowances](https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions) · [Corporation Tax rates](https://www.gov.uk/corporation-tax-rates) · [Capital Gains Tax rates](https://www.gov.uk/guidance/capital-gains-tax-rates-and-allowances) · [Business Asset Disposal Relief](https://www.gov.uk/business-asset-disposal-relief) · [pension scheme rates](https://www.gov.uk/government/publications/rates-and-allowances-pension-schemes/pension-schemes-rates) · [company car appropriate percentage](https://www.gov.uk/guidance/company-car-benefit-the-appropriate-percentage-480-appendix-2)
 
 ### Corporation Tax
 
-| Profit Band | 2024/25 | 2025/26 *(current)* | 2026/27 |
-|-------------|---------|----------------------|---------|
+> Verified against GOV.UK on 2026-10-18.
+
+| Profit Band | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|-------------|---------|---------|----------------------|
 | £0 - £50,000 | 19% | 19% | 19% |
 | £50,001 - £250,000 | Marginal relief | Marginal relief | Marginal relief |
 | Over £250,000 | 25% | 25% | 25% |
 
-Marginal relief fraction: 3/200. Effective marginal rate ~26.5% in the taper band.
+Marginal relief fraction: 3/200. Corporation tax in the taper band = 25% × profit − 3/200 × (£250,000 − profit). Effective marginal rate ~26.5% in the taper band.
 
 ### Income Tax (England, Wales & NI)
 
-| Band | 2024/25 | 2025/26 *(current)* | 2026/27 |
-|------|---------|----------------------|---------|
+> Verified against GOV.UK on 2026-10-18.
+
+| Band | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|------|---------|---------|----------------------|
 | Personal Allowance | £12,570 | £12,570 | £12,570 |
+| Basic rate band (width) | £37,700 | £37,700 | £37,700 |
 | Basic Rate (20%) | £12,571 - £50,270 | £12,571 - £50,270 | £12,571 - £50,270 |
 | Higher Rate (40%) | £50,271 - £125,140 | £50,271 - £125,140 | £50,271 - £125,140 |
 | Additional Rate (45%) | Over £125,140 | Over £125,140 | Over £125,140 |
 
-Personal Allowance tapers by £1 for every £2 over £100,000 (fully lost at £125,140). Thresholds frozen until at least 2028.
+Personal Allowance tapers by £1 for every £2 over £100,000 (fully lost at £125,140). Thresholds frozen until 5 April 2031.
 
 ### Dividend Tax
 
-| Band | 2024/25 | 2025/26 *(current)* | 2026/27 |
-|------|---------|----------------------|---------|
+> Verified against GOV.UK on 2026-10-18.
+
+| Band | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|------|---------|---------|----------------------|
 | Dividend Allowance | £500 | £500 | £500 |
-| Basic Rate | 8.75% | 8.75% | 8.75% |
-| Higher Rate | 33.75% | 33.75% | 33.75% |
+| Basic Rate | 8.75% | 8.75% | 10.75% |
+| Higher Rate | 33.75% | 33.75% | 35.75% |
 | Additional Rate | 39.35% | 39.35% | 39.35% |
 
 Dividends use up the basic/higher rate bands but are taxed at the lower dividend rates. The £500 allowance applies before any dividend tax is due.
 
 #### Optimal Salary + Dividend Extraction (Ltd Company Director)
 
-For a single director/shareholder with no other income (2025/26):
+Single director/shareholder, no other income, 2026/27, company profit before director pay of £60,000. Option A pays a salary of £5,000 (the employer NI secondary threshold); Option B pays £12,570 (the Personal Allowance).
 
-1. **Salary**: Set at the NI Secondary Threshold (£5,000) or Personal Allowance (£12,570)
-   - At £5,000: No employer NI, no employee NI, tax-free (under PA)
-   - At £12,570: No income tax (equals PA), but employer NI on £7,570 at 15% = £1,135.50 cost to company
-2. **Dividends**: Take remaining profits as dividends
-   - First £500: tax-free (dividend allowance)
-   - Next £37,700 (approx): 8.75% basic rate
-   - Above that: 33.75% higher rate
+| Item | A: salary £5,000 | B: salary £12,570 |
+|------|------------------|-------------------|
+| Profit before director pay | £60,000.00 | £60,000.00 |
+| Less salary | (£5,000.00) | (£12,570.00) |
+| Less employer NI (15% above £5,000) | £0.00 | (£1,135.50) |
+| Taxable profit | £55,000.00 | £46,294.50 |
+| Corporation tax | (£10,825.00) | (£8,795.96) |
+| Distributable profit (paid as dividend) | £44,175.00 | £37,498.54 |
+| Income tax on salary | £0.00 | £0.00 |
+| Employee NI | £0.00 | £0.00 |
+| Dividend left after remaining Personal Allowance | £36,605.00 (£7,570 allowance left) | £37,498.54 (no allowance left) |
+| Dividend tax (first £500 at 0%, rest at 10.75%) | (£3,881.29) | (£3,977.34) |
+| **Net cash to the director** | **£45,293.71** | **£46,091.20** |
 
-**Decision**: If employer NI cost (£1,135.50) exceeds the corporation tax saving from the higher salary deduction, use the lower salary. Model both scenarios.
+How the figures are built:
+- Employer NI in B: (£12,570 − £5,000) × 15% = £1,135.50, deductible for corporation tax. The Employment Allowance is not available: a company whose only employee is its director cannot claim it.
+- Corporation tax in A: £55,000 × 25% = £13,750, less marginal relief 3/200 × (£250,000 − £55,000) = £2,925, giving £10,825. In B the profit is below £50,000, so 19% × £46,294.50 = £8,795.96 (rounded to the penny).
+- Neither salary exceeds the £12,570 primary threshold, so there is no employee NI, and neither exceeds the Personal Allowance, so there is no income tax on salary.
+- Income tax on dividends in A: £44,175 − £7,570 unused Personal Allowance = £36,605 taxable; the first £500 is at 0%, the other £36,105 × 10.75% = £3,881.29 (rounded). In B: (£37,498.54 − £500) × 10.75% = £3,977.34. In both options total taxable income stays under £37,700, so the 35.75% rate does not apply.
+
+**Result**: B is £797.49 ahead at £60,000 profit.
+
+**Decision rule**: the extra £7,570 of salary costs the company £8,705.50 including employer NI, and that amount is deductible at the company's marginal corporation tax rate. The salary is received tax-free, exactly as the first £7,570 of dividend would have been, so the higher salary pays when 8,705.50 × (1 − marginal CT rate) < £7,570, i.e. when the marginal rate is above about 13%. Corporation tax is never below 19%, so for a single director with no other income the £12,570 salary wins whenever profit before director pay comfortably exceeds the £13,705.50 of salary plus employer NI; from £20,000 to £50,000 of profit the same calculation puts it £462.80 ahead. At very low profits the extra salary creates or deepens a loss with no in-year corporation tax relief, and £5,000 may be as good. Model both options whenever the director has other income, pays dividends into the higher-rate band, or can claim the Employment Allowance.
 
 ### Capital Gains Tax
 
-| Category | 2024/25 | 2025/26 *(current)* | 2026/27 |
-|----------|---------|----------------------|---------|
+> Verified against GOV.UK on 2026-10-18.
+
+| Category | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|----------|---------|---------|----------------------|
 | Annual Exempt Amount | £3,000 | £3,000 | £3,000 |
-| Basic Rate | 10% (assets) / 18% (property) | 18% | 18% |
-| Higher Rate | 20% (assets) / 24% (property) | 24% | 24% |
+| Basic Rate | 10% (18% residential property) to 29 Oct 2024; 18% from 30 Oct 2024 | 18% | 18% |
+| Higher Rate | 20% (24% residential property) to 29 Oct 2024; 24% from 30 Oct 2024 | 24% | 24% |
 | BADR Rate | 10% | 14% | 18% |
 | BADR Lifetime Limit | £1m | £1m | £1m |
 | Investors' Relief Rate | 10% | 14% | 18% |
+
+The BADR lifetime limit of £1 million of qualifying gains is set by [Taxation of Chargeable Gains Act 1992 s.169N(4A)](https://www.legislation.gov.uk/ukpga/1992/12/section/169N); the GOV.UK BADR guidance does not state the figure.
 
 **Business Asset Disposal Relief (BADR)** conditions:
 - Must hold at least 5% of shares and voting rights
@@ -71,8 +98,10 @@ For a single director/shareholder with no other income (2025/26):
 
 ### VAT Thresholds
 
-| Threshold | 2024/25 | 2025/26 *(current)* | 2026/27 |
-|-----------|---------|----------------------|---------|
+> Verified against GOV.UK on 2026-10-18.
+
+| Threshold | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|-----------|---------|---------|----------------------|
 | Registration | £90,000 | £90,000 | £90,000 |
 | Deregistration | £88,000 | £88,000 | £88,000 |
 
@@ -82,8 +111,10 @@ VAT rates: Standard 20%, Reduced 5%, Zero-rated 0%.
 
 #### Employee (Primary) Class 1
 
-| Threshold/Rate | 2024/25 | 2025/26 *(current)* | 2026/27 |
-|----------------|---------|----------------------|---------|
+> Verified against GOV.UK on 2026-10-18.
+
+| Threshold/Rate | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|----------------|---------|---------|----------------------|
 | Primary Threshold | £12,570/yr | £12,570/yr | £12,570/yr |
 | Upper Earnings Limit | £50,270/yr | £50,270/yr | £50,270/yr |
 | Main Rate | 8% | 8% | 8% |
@@ -91,38 +122,47 @@ VAT rates: Standard 20%, Reduced 5%, Zero-rated 0%.
 
 #### Employer (Secondary) Class 1
 
-| Threshold/Rate | 2024/25 | 2025/26 *(current)* | 2026/27 |
-|----------------|---------|----------------------|---------|
-| Secondary Threshold | £9,100/yr (£175/wk) | **£5,000/yr (£96/wk)** | £5,000/yr |
+> Verified against GOV.UK on 2026-10-18.
+
+| Threshold/Rate | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|----------------|---------|---------|----------------------|
+| Secondary Threshold | £9,100/yr (£175/wk) | **£5,000/yr (£96/wk)** | £5,000/yr (£96/wk) |
 | Rate | 13.8% | **15%** | 15% |
 | Class 1A/1B (BIK) | 13.8% | **15%** | 15% |
 
-**Key change (April 2025)**: Employer NI rate increased from 13.8% to 15%, and the secondary threshold dropped from £9,100 to £5,000. This is the largest NI change in decades. Secondary threshold frozen at £5,000 until April 2028, then rises with CPI.
+**Key change (April 2025)**: Employer NI rate increased from 13.8% to 15%, and the secondary threshold dropped from £9,100 to £5,000. This is the largest NI change in decades. The secondary threshold, like the primary threshold and upper earnings limit, is frozen until 5 April 2031.
 
 #### Self-Employed
 
-| Threshold/Rate | 2024/25 | 2025/26 *(current)* | 2026/27 |
-|----------------|---------|----------------------|---------|
+> Verified against GOV.UK on 2026-10-18.
+
+| Threshold/Rate | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|----------------|---------|---------|----------------------|
 | Class 4 Main Rate | 6% | 6% | 6% |
 | Class 4 Additional Rate | 2% | 2% | 2% |
 | Lower Profits Limit | £12,570 | £12,570 | £12,570 |
 | Upper Profits Limit | £50,270 | £50,270 | £50,270 |
-| Class 2 (voluntary) | £3.45/wk | £3.50/wk | TBC |
+| Class 2 (voluntary) | £3.45/wk | £3.50/wk | £3.65/wk |
+| Small Profits Threshold (Class 2) | £6,725 | £6,845 | £7,105 |
 
-**Note**: Compulsory Class 2 NI was abolished from April 2024. Voluntary contributions are available for those wanting to protect State Pension entitlement.
+**Note**: There has been no compulsory Class 2 liability since April 2024. A self-employed person with profits at or above the Small Profits Threshold is treated as having paid Class 2; below it, Class 2 can be paid voluntarily to protect State Pension entitlement.
 
 #### Employment Allowance
 
-| Detail | 2024/25 | 2025/26 *(current)* |
-|--------|---------|----------------------|
-| Amount | £5,000 | **£10,500** |
-| Eligibility Cap | NI bill < £100,000 | **No cap (removed)** |
+> Verified against GOV.UK on 2026-10-18.
+
+| Detail | 2024/25 | 2025/26 | 2026/27 *(current)* |
+|--------|---------|---------|----------------------|
+| Amount | £5,000 | **£10,500** | £10,500 |
+| Eligibility Cap | NI bill < £100,000 | **No cap (removed)** | No cap |
 
 The Employment Allowance offsets employer NI liability. From 2025/26, the allowance doubled and the £100,000 eligibility threshold was removed, making all employers eligible. Single-director companies with no other employees remain ineligible.
 
 ### Payments on Account
 
 Payments on Account (POA) apply to Self Assessment taxpayers whose last tax bill was £1,000 or more (after deducting tax at source).
+
+> Verified against GOV.UK on 2026-10-18.
 
 | Detail | Rule |
 |--------|------|
@@ -136,10 +176,10 @@ Payments on Account (POA) apply to Self Assessment taxpayers whose last tax bill
 
 #### POA Calculation Example
 
-If 2024/25 tax bill is £10,000:
-- 31 Jan 2026: £5,000 (1st POA for 2025/26) + £10,000 balancing payment = £15,000
-- 31 Jul 2026: £5,000 (2nd POA for 2025/26)
-- 31 Jan 2027: Balancing payment for 2025/26 (difference between actual bill and POAs paid)
+If the 2025/26 tax bill is £10,000 with no tax deducted at source:
+- 31 Jan 2027: £5,000 (1st POA for 2026/27) + £10,000 balancing payment for 2025/26 = £15,000
+- 31 Jul 2027: £5,000 (2nd POA for 2026/27)
+- 31 Jan 2028: Balancing payment for 2026/27 (difference between actual bill and POAs paid)
 
 ### Key Filing Deadlines
 
@@ -155,6 +195,16 @@ If 2024/25 tax bill is £10,000:
 | P60 | 31 May | £300 per form |
 | Confirmation Statement | Every 12 months | £5,000 (strike off risk) |
 
+### Announced for 2027/28
+
+Source: [Budget 2025 overview of tax legislation and rates](https://www.gov.uk/government/publications/budget-2025-overview-of-tax-legislation-and-rates-ootlar/budget-2025-overview-of-tax-legislation-and-rates-ootlar). These apply from 6 April 2027 and are not yet in the tables above.
+
+- Savings income rates rise by 2 percentage points to 22% basic, 42% higher and 47% additional.
+- Property income gets its own rates: 22% basic, 42% higher and 47% additional.
+- Reliefs and allowances deducted at steps 2 and 3 of the Income Tax calculation are set first against non-savings, dividend and property income, subject to provisions that require a specific income type.
+- The cash ISA limit for savers under 65 becomes £12,000 within the overall £20,000 ISA limit; savers aged 65 and over keep the £20,000 cash allowance.
+- Making Tax Digital for Income Tax applies to qualifying income over £30,000 (see the MTD section).
+
 ---
 
 ## Making Tax Digital (MTD)
@@ -167,24 +217,26 @@ Already mandatory for all VAT-registered businesses. Requires:
 
 ### MTD for Income Tax Self Assessment (ITSA)
 
-Phased rollout for sole traders and landlords:
+Phased rollout for sole traders and landlords, decided by qualifying income from self-employment and property in an earlier tax year:
 
-| Phase | Start Date | Income Threshold | Notes |
-|-------|------------|------------------|-------|
-| Phase 1 | **6 April 2026** | Gross income > £50,000 | Combined self-employment + property income |
-| Phase 2 | 6 April 2027 | Gross income > £30,000 | |
-| Phase 3 | 6 April 2028 | Gross income > £20,000 | |
+> Verified against GOV.UK on 2026-10-18.
+
+| Phase | Start Date | Qualifying income threshold | Notes |
+|-------|------------|-----------------------------|-------|
+| Phase 1 | **6 April 2026** | Over £50,000 in 2024/25 | Combined self-employment + property income |
+| Phase 2 | 6 April 2027 | Over £30,000 in 2025/26 | |
+| Phase 3 | 6 April 2028 | Over £20,000 in 2026/27 | |
 | Partnerships | TBC | TBC | Not yet scheduled |
 
 **Key rules**:
-- Income threshold = combined gross income from all self-employment + property sources
+- Income threshold = combined qualifying income from all self-employment + property sources
 - PAYE employment income, dividends, and investment income do NOT count
-- Quarterly updates due within 1 month of quarter end
-- End of Period Statement (EOPS) replaces the SA return
-- Final Declaration due by 31 January after the tax year
-- Late submission uses a **points-based penalty system** (point per missed deadline, £200 penalty at threshold)
+- Quarterly updates are due on the 7th of the month after each update period ends: 7 August, 7 November, 7 February and 7 May
+- Each quarterly update is cumulative: it covers 6 April to the end of its update period, so it shows year-to-date totals
+- The tax return is submitted through MTD-compatible software by 31 January after the tax year; the GOV.UK guidance has no separate End of Period Statement step
+- 2026/27: no penalty points for late quarterly updates, but penalty points still apply to late tax returns
+- From 2027/28: each late quarterly update earns a penalty point, and reaching 4 points triggers a £200 penalty
 - Late payment penalties: percentage of outstanding tax from 15 days overdue
-- No late submission penalties in year 1 (2026/27) — soft landing period
 
 **Software requirements**: Must use HMRC-compatible software. Options range from full accounting packages (Xero, QuickBooks, FreeAgent) to bridging software for spreadsheet users.
 
@@ -194,13 +246,16 @@ Phased rollout for sole traders and landlords:
 
 ### Annual Allowance
 
-| Detail | 2025/26 *(current)* |
-|--------|----------------------|
-| Standard Annual Allowance | £60,000 |
-| Money Purchase Annual Allowance (MPAA) | £10,000 |
-| Tapered AA threshold (adjusted income) | £260,000 |
-| Minimum tapered AA | £10,000 (at £360,000+ adjusted income) |
-| Lifetime Allowance | Abolished (from April 2024) |
+> Verified against GOV.UK on 2026-10-18.
+
+| Detail | 2025/26 | 2026/27 *(current)* |
+|--------|---------|----------------------|
+| Standard Annual Allowance | £60,000 | £60,000 |
+| Money Purchase Annual Allowance (MPAA) | £10,000 | £10,000 |
+| Tapered AA threshold income | £200,000 | £200,000 |
+| Tapered AA threshold (adjusted income) | £260,000 | £260,000 |
+| Minimum tapered AA | £10,000 (at £360,000+ adjusted income) | £10,000 (at £360,000+ adjusted income) |
+| Lifetime Allowance | Abolished (from April 2024) | Abolished (from April 2024) |
 
 ### Tax Relief Methods
 
@@ -218,7 +273,7 @@ Unused annual allowance from the previous 3 tax years can be carried forward, bu
 - Must use the current year's allowance first
 - Tax relief limited to 100% of earnings (or £3,600 if no earnings)
 - Employer contributions not limited by earnings but subject to "wholly and exclusively" rule
-- Maximum theoretical contribution in one year: up to £220,000 (if 3 years fully unused)
+- Maximum theoretical contribution in 2026/27: up to £240,000 (£60,000 for the year plus £60,000 unused from each of 2023/24, 2024/25 and 2025/26)
 
 ### MPAA Triggers
 
@@ -305,7 +360,7 @@ See the CGT table in the Key Tax Reference section above.
 
 | Relief | Benefit | Conditions |
 |--------|---------|------------|
-| BADR | 14% (2025/26), 18% (2026/27+) vs 18%/24% | 5%+ shares, 2yr holding, officer/employee |
+| BADR | 18% from 6 April 2026 (14% in 2025/26) vs 18%/24% | 5%+ shares, 2yr holding, officer/employee |
 | Investors' Relief | Same rates as BADR | Shares in unlisted trading company, 3yr holding |
 | Rollover Relief | Defer CGT on reinvestment | Reinvest in qualifying asset within 1yr before/3yr after |
 | EIS Deferral Relief | Defer CGT by investing in EIS | Must hold EIS shares 3+ years |
@@ -347,7 +402,7 @@ HMRC treats crypto assets (Bitcoin, Ethereum, NFTs, tokens) as property, not cur
 
 ### Key Points
 
-- Annual exempt amount (£3,000 for 2025/26) applies across all assets including crypto
+- Annual exempt amount (£3,000 for 2026/27) applies across all assets including crypto
 - Losses on crypto can offset other capital gains
 - **No wash sale exception**: The 30-day rule prevents selling and rebuying to crystallize losses
 - Must keep records of every transaction (date, quantity, value in GBP, counterparty)
@@ -365,29 +420,43 @@ From 1 January 2026, crypto platforms must:
 
 ## Company Car & Benefit-in-Kind (BIK)
 
-### BIK Rates by CO2 Emissions
+### BIK Rates by CO2 Emissions (selected bands)
 
-| CO2 (g/km) | Vehicle Type | 2025/26 | 2026/27 | 2027/28 |
-|------------|-------------|---------|---------|---------|
-| 0 | Electric (EV) | **3%** | **4%** | 5% |
-| 1-50 | PHEV (depends on range) | 5-14% | 5-14% | TBC |
-| 51-54 | Low emission | 15% | 16% | TBC |
-| 55-59 | | 16% | 17% | TBC |
-| 100-104 | | 25% | 26% | TBC |
-| 170+ | High emission | 37% | 37% | 38% |
+Selected CO2 bands only. The full table is in the [GOV.UK appropriate percentage guide](https://www.gov.uk/guidance/company-car-benefit-the-appropriate-percentage-480-appendix-2).
 
-Diesel vehicles not meeting RDE2 standard: **+4% surcharge** (capped at 37% total for 2025/26).
+> Verified against GOV.UK on 2026-10-18.
+
+| CO2 (g/km) | Vehicle Type | 2025/26 | 2026/27 *(current)* |
+|------------|-------------|---------|----------------------|
+| 0 | Electric (EV) | 3% | **4%** |
+| 1-50 | PHEV, electric range 130 miles or more | 3% | 4% |
+| 1-50 | PHEV, electric range 70-129 miles | 6% | 7% |
+| 1-50 | PHEV, electric range 40-69 miles | 9% | 10% |
+| 1-50 | PHEV, electric range 30-39 miles | 13% | 14% |
+| 1-50 | PHEV, electric range under 30 miles | 15% | 16% |
+| 51-54 | Low emission | 16% | 17% |
+| 55-59 | | 17% | 18% |
+| 70-74 | | 20% | 21% |
+| 75-79 | | 21% | 21% |
+| 100-104 | | 26% | 26% |
+| 155 and above | High emission | 37% | 37% |
+
+CO2 figures are rounded down to the nearest 5 g/km. 37% is the maximum for petrol and hybrid cars.
+
+Diesel vehicles not meeting the RDE2 standard: **+4% supplement**, up to the 37% maximum.
+
+GOV.UK's appropriate percentage guide lists 2025/26 and 2026/27 only. For later years it has published only that zero-emission rates rise by 2 percentage points a year in 2028/29 and 2029/30, reaching 9% in 2029/30 ([policy paper](https://www.gov.uk/government/publications/income-tax-company-car-tax-rates-2028-to-2030)).
 
 ### BIK Tax Calculation
 
 ```
 Annual BIK tax = P11D value × BIK% × Income tax rate
 
-Example (2025/26):
+Example (2026/27):
 EV with P11D value £45,000:
-BIK = £45,000 × 3% = £1,350 taxable benefit
-Tax (basic rate): £1,350 × 20% = £270/year
-Tax (higher rate): £1,350 × 40% = £540/year
+BIK = £45,000 × 4% = £1,800 taxable benefit
+Tax (basic rate): £1,800 × 20% = £360/year
+Tax (higher rate): £1,800 × 40% = £720/year
 ```
 
 ### Employer Cost
@@ -395,7 +464,7 @@ Tax (higher rate): £1,350 × 40% = £540/year
 Employer pays Class 1A NI on the BIK value:
 ```
 Employer NI = P11D value × BIK% × 15%
-Example: £45,000 × 3% × 15% = £202.50/year
+Example (2026/27): £45,000 × 4% × 15% = £270/year
 ```
 
 ### Salary Sacrifice for EVs
@@ -403,7 +472,7 @@ Example: £45,000 × 3% × 15% = £202.50/year
 Salary sacrifice for electric cars is highly tax-efficient:
 - Employee saves income tax + employee NI on sacrificed salary
 - Employer saves employer NI on sacrificed salary
-- BIK charge at 3% (2025/26) is minimal
+- BIK charge at 4% (2026/27) is minimal
 - Net saving can be 30-40% vs personal lease
 
 ### Key Change: Euro 6e-bis Testing (from April 2026)
