@@ -7,7 +7,7 @@
     {
       "name": "ai-dev-team",
       "source": "./claude",
-      "description": "Specialist agent team + enforced proportional workflow, with cross-cutting process skills for lifecycle, verification, review tiering, model selection and research method."
+      "description": "Specialist agent team + proportional workflow (a hook blocks commits, pushes and PR creation while a hard pre-implementation gate is unmet), with cross-cutting process skills for lifecycle, verification, review tiering, model selection and research method."
     }
   ]
 }

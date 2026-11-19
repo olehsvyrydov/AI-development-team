@@ -776,7 +776,121 @@ def check_verified_date(
         )
 
 
-STANDALONE_GATES = (gate_frontmatter, gate_manifests)
+# --- G9 -- the plugin hooks manifest parses and points only at files that exist -
+# A hook whose script path is wrong is skipped without a visible error, so the
+# commit gate would silently stop guarding anything.
+HOOKS_MANIFEST = "claude/hooks/hooks.json"
+PLUGIN_ROOT_PATH = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
+
+
+def strings_in(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [text for item in value for text in strings_in(item)]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in strings_in(item)]
+    return []
+
+
+def runs_on_every_bash_call(hooks: dict) -> bool:
+    entries = hooks.get("PreToolUse")
+    return isinstance(entries, list) and any(
+        isinstance(entry, dict) and entry.get("matcher") == "Bash" and entry.get("hooks")
+        for entry in entries
+    )
+
+
+def gate_hooks(report: Report, root: Path = ROOT) -> None:
+    path = root / HOOKS_MANIFEST
+    if not path.exists():
+        report.fail("G9 hooks", f"{HOOKS_MANIFEST} is missing")
+        return
+    try:
+        data = json.loads(read(path))
+    except json.JSONDecodeError as exc:
+        report.fail("G9 hooks", f"{HOOKS_MANIFEST}: invalid JSON -- {exc}")
+        return
+    if not isinstance(data, dict) or not isinstance(data.get("hooks"), dict):
+        report.fail("G9 hooks", f"{HOOKS_MANIFEST}: top level must be an object with a 'hooks' object")
+        return
+    failures_before = len(report.failures)
+    if not runs_on_every_bash_call(data["hooks"]):
+        report.fail("G9 hooks", f"{HOOKS_MANIFEST}: no PreToolUse entry with matcher 'Bash'")
+    plugin_dir = (root / "claude").resolve()
+    checked = 0
+    for text in strings_in(data["hooks"]):
+        for match in PLUGIN_ROOT_PATH.finditer(text):
+            checked += 1
+            target = (plugin_dir / match.group(1)).resolve()
+            if plugin_dir not in target.parents or not target.is_file():
+                report.fail(
+                    "G9 hooks",
+                    f"{HOOKS_MANIFEST}: ${{CLAUDE_PLUGIN_ROOT}}/{match.group(1)} "
+                    f"is not a regular file inside claude/",
+                )
+    if checked == 0:
+        report.fail("G9 hooks", f"{HOOKS_MANIFEST}: no ${{CLAUDE_PLUGIN_ROOT}}/... path to check")
+    if len(report.failures) == failures_before:
+        report.notes.append(f"G9 hooks: manifest parses, {checked} plugin path(s) exist")
+
+
+# --- G10 -- every gate declares the phase at which it must be passed -----------
+# The commit gate blocks only on hard gates of the pre_implementation phase, and
+# it reads the phase the workflow engine copies from workflow.yaml. A gate with no
+# phase, or a schema that stops requiring one, leaves it guarding nothing.
+WORKFLOW_PHASES = ("pre_implementation", "pre_done")
+WORKFLOW_DEFINITIONS = (
+    "claude/workflow/workflow.yaml",
+    "examples/demo/.aidevteam/workflow.yaml",
+)
+WORKFLOW_SCHEMA = "claude/workflow/workflow.schema.json"
+
+
+def gate_workflow_phases(report: Report, root: Path = ROOT) -> None:
+    try:
+        import yaml  # noqa: PLC0415
+    except ImportError:
+        report.fail("G10 phases", "PyYAML is not installed (pip install pyyaml)")
+        return
+
+    failures_before = len(report.failures)
+    checked = 0
+    for rel in WORKFLOW_DEFINITIONS:
+        try:
+            gates = yaml.safe_load(read(root / rel))["gates"]
+        except (OSError, yaml.YAMLError, KeyError, TypeError) as exc:
+            report.fail("G10 phases", f"{rel}: cannot read the gates -- {type(exc).__name__}")
+            continue
+        if not isinstance(gates, dict) or not gates:
+            report.fail("G10 phases", f"{rel}: 'gates' must be a non-empty mapping")
+            continue
+        for name, gate in gates.items():
+            checked += 1
+            phase = gate.get("phase") if isinstance(gate, dict) else None
+            if phase not in WORKFLOW_PHASES:
+                report.fail(
+                    "G10 phases",
+                    f"{rel}: gate {name} has phase {phase!r}, expected one of {list(WORKFLOW_PHASES)}",
+                )
+
+    try:
+        gate_schema = json.loads(read(root / WORKFLOW_SCHEMA))["properties"]["gates"]["additionalProperties"]
+        requires_phase = "phase" in gate_schema["required"]
+        phases = gate_schema["properties"]["phase"]["enum"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        report.fail("G10 phases", f"{WORKFLOW_SCHEMA}: cannot read the gate definition -- {type(exc).__name__}")
+        return
+    if not requires_phase or list(phases) != list(WORKFLOW_PHASES):
+        report.fail(
+            "G10 phases",
+            f"{WORKFLOW_SCHEMA}: gates must require 'phase' with enum {list(WORKFLOW_PHASES)}",
+        )
+    if len(report.failures) == failures_before:
+        report.notes.append(f"G10 phases: {checked} gate(s) declare a valid phase")
+
+
+STANDALONE_GATES = (gate_frontmatter, gate_manifests, gate_hooks, gate_workflow_phases)
 ARCHIVE_SCANNING_GATES = (gate_private_names,)
 FILE_GATES = (
     gate_counts,

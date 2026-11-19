@@ -19,6 +19,7 @@ A ticket is claimed by **assigning it to yourself and moving it to In Progress i
 Each worker gets a **fresh clone or a `git worktree`, never a shared checkout's default branch.** Two workers editing the same working directory will silently interleave each other's uncommitted changes; a worktree or clone per ticket makes that structurally impossible instead of a discipline someone has to remember.
 
 - Create the branch **named in the ticket** (its `Branch` field), not one you invent. Two workers inventing branch names independently is how two PRs collide on the same name or, worse, quietly target each other's commits.
+- **Each worker's engine sets its own workspace's active ticket.** The active-ticket file lives at `.aidevteam/state/active-ticket.json` inside the worktree or clone, is never committed, and so cannot collide with another worker's. The commit gate hook reads the file of the workspace the session runs in.
 - The workspace is disposable. Once the PR is open, nothing about the ticket's state should live only in that checkout — see the report-back contract below.
 
 ## The ticket is the only context you get
@@ -43,7 +44,7 @@ Under the `parallel-team` preset, `CODE_REVIEWED` is in `always_required` — it
 
 ## Related
 
-- `workflow-engine` — loads the active preset and enforces `CODE_REVIEWED` before a ticket can close.
+- `workflow-engine` — loads the active preset and requires `CODE_REVIEWED` before a ticket can close, and sets each workspace's active ticket for the commit gate.
 - `pull-request` — running the opened PR to a mergeable state.
 - `verify-landed` — what the "local test results" in a report actually have to show.
 - the Ticket Creation Protocol (`scrum-master` references) — what makes a ticket self-contained in the first place; this skill extends it across sessions rather than replacing it.

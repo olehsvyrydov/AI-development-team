@@ -1,6 +1,6 @@
 {
   "name": "ai-dev-team",
-  "description": "A specialist agent team plus an enforced, proportional workflow: role agents that self-route to deep references, cross-cutting process skills for the gate contract, work-item lifecycle, proving a change landed, review tiering, model selection, research method, grounded-answer audit and pull-request completion, and gate-based delivery. Editor-neutral, OSS-first.",
+  "description": "A specialist agent team plus a proportional workflow, with a hook that blocks commits, pushes and PR creation while a hard pre-implementation gate is unmet: role agents that self-route to deep references, cross-cutting process skills for the gate contract, work-item lifecycle, proving a change landed, review tiering, model selection, research method, grounded-answer audit and pull-request completion, and gate-based delivery. Editor-neutral, OSS-first.",
   "author": {
     "name": "Oleh Svyrydov"
   },

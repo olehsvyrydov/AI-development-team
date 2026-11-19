@@ -2,7 +2,7 @@
 
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-ready-6E56CF) ![Cursor](https://img.shields.io/badge/Cursor-ready-111111) ![Kiro](https://img.shields.io/badge/Kiro-ready-9B59B6) ![VS Code](https://img.shields.io/badge/VS%20Code-ready-007ACC) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Stars](https://img.shields.io/github/stars/olehsvyrydov/AI-development-team?style=social)
 
-> **A reusable AI agent-team framework for your editor.** 43 agent skills (a 15-agent core team + optional specialists + auto-loading language skills + cross-cutting process skills) plus a `workflow-engine` and an **enforced, proportional workflow** with approval gates — *process, not prompts*. Installs as a **Claude Code plugin**, or via the universal installer for Cursor, Kiro & VS Code. Open-source, no lock-in, free by default.
+> **A reusable AI agent-team framework for your editor.** 43 agent skills (a 15-agent core team + optional specialists + auto-loading language skills + cross-cutting process skills) plus a `workflow-engine` and a **proportional workflow** with approval gates — *process, not prompts*. As a Claude Code plugin it also blocks `git commit`, `git push` and `gh pr create` while a hard pre-implementation gate is unmet ([what is and is not enforced](#what-is-enforced-and-what-is-not)). Installs as a **Claude Code plugin**, or via the universal installer for Cursor, Kiro & VS Code. Open-source, no lock-in, free by default.
 
 ```
 /po → /arch → /secops → [/fin] → [/legal] → [/ui] → /fe | /be → /rev → /qa + /e2e → /verify
@@ -11,11 +11,11 @@
 The framework is a portable agent layer you install once and use across every project. It ships four things:
 
 - **Agent skills** (`claude/skills/`) — lean `SKILL.md` personas that load deep `references/` on demand; tech stacks (React/Angular/Vue, Java/Kotlin/Python/PHP, …) are references the role *self-routes* to, not separate agents. Core languages (Rust, Java, TypeScript; SQL with Postgres/MySQL/Oracle/SQLite branches) are the deliberate exception: knowledge skills in `claude/skills/development/languages/` that **auto-load from context** whenever that language is written or reviewed — no persona, no command.
-- **The `workflow-engine`** — a skill that classifies each change and **refuses** to skip a required gate.
+- **The `workflow-engine`** — a skill that classifies each change, records the gates it requires per ticket, and tells the agent to stop at an unmet one.
 - **`workflow.yaml`** — a versioned workflow definition, right-sized to the change via `solo` → `small-team` → `regulated` presets.
 - **Distribution** — a Claude Code **plugin** (declare it once per project; the commit SHA is the version, so every push is an update), or **`install.sh`**, which wires the skills, commands and templates into whichever editor(s) you use.
 
-- **Process, not prompts.** Gates are enforced by the engine, not left to a model's memory — and right-sized so a typo isn't treated like a feature.
+- **Process, not prompts.** Required gates are written down per ticket instead of left to a model's memory, and right-sized so a typo isn't treated like a feature. Most of the workflow is instructions; the one mechanical block is described under [What is enforced, and what is not](#what-is-enforced-and-what-is-not).
 - **Roles, not micro-agents.** Each agent is a role persona; technology stacks are references the role loads on demand.
 - **OSS-first, no lock-in.** Zero paid accounts by default: file-based tickets + a markdown knowledge base. Jira/Confluence, MCP memory, and design tools are optional overlays.
 
@@ -23,10 +23,16 @@ The framework is a portable agent layer you install once and use across every pr
 
 | | One mega-prompt | **AI Dev Team** |
 |---|---|---|
-| Process | hope it remembers | **enforced gates** that can refuse to proceed |
+| Process | hope it remembers | **recorded gates** the agent must name and stop at; commits, pushes and PR creation blocked in Claude Code while a hard pre-implementation gate is unmet |
 | Right-sizing | same weight for a typo and a feature | **proportional** (change-class + presets) |
 | Expertise | one generalist | **role specialists** + on-demand stack references |
 | Lock-in | often tool-specific | **vendor-neutral**, 4 editors, free defaults |
+
+### What is enforced, and what is not
+
+When installed as the Claude Code plugin, the plugin blocks `git commit`, `git push` and `gh pr create` while the active ticket has an unmet hard pre-implementation gate (ARCH_APPROVED, SECOPS_APPROVED, APPROVAL_GATE). Review and verification gates (CODE_REVIEWED, VERIFIED), soft gates, and everything in Cursor, Kiro and VS Code remain instructions. It is a guardrail against forgetting, not a security boundary: `bash -c`, `eval`, aliases, other commit-creating commands and editing the ledger bypass it, and a missing `python3`, a crash or a timeout lets the command through.
+
+The workflow-engine writes each ticket's required gates to the ledger and names the active ticket in `.aidevteam/state/active-ticket.json`; the hook reads only those. If the engine never writes them, the hook allows everything. Details, the file formats and how to clear a block are in [`claude/workflow/README.md`](claude/workflow/README.md).
 
 ---
 
@@ -141,7 +147,7 @@ config for each — no lock-in:
 ./install.sh --uninstall                      # remove what it installed
 ```
 
-Optional advanced Claude backends (Atlassian, memory MCP, hooks): `scripts/setup-claude-backends.sh`.
+Optional advanced Claude backends (Python venvs, and the Multi-LLM and Atlassian MCP servers): `scripts/setup-claude-backends.sh`. It sets up no hooks and no memory MCP; the commit gate hook ships inside the plugin.
 
 ### 2. Verify
 
@@ -169,6 +175,7 @@ AI-development-team/
     │                            #   is an update
     ├── skills/                  # loaded as ai-dev-team:<name>, short aliases intact
     ├── commands/
+    ├── hooks/                   # hooks.json + commit_gate.py — plugin install only
     ├── templates/
     └── workflow/
 ```
@@ -177,8 +184,8 @@ AI-development-team/
 so the always-on contract ships as the `ai-dev-team` skill instead.
 
 **Via `install.sh`**, content is copied (or symlinked with `--link`) into the target scope. Only
-`skills/`, `commands/`, `templates/` and `workflow/` are deployed; the instructions file is
-generated at the destination:
+`skills/`, `commands/`, `templates/` and `workflow/` are deployed (not `hooks/`, so the commit
+gate is not installed); the instructions file is generated at the destination:
 
 ```
 ~/.claude/
@@ -283,7 +290,7 @@ rarely invoke them by name, but knowing they exist lets you reach for one delibe
 
 | Skill | Load it when |
 |-------|--------------|
-| `workflow-engine` | Before any task and before every handoff — the gate contract. It may refuse to proceed past an unmet gate |
+| `workflow-engine` | Before any task and before every handoff — the gate contract. It tells the agent to stop at an unmet gate |
 | `ai-dev-team` | The always-on contract: principles, process, git conventions. What a global `CLAUDE.md` used to carry |
 | `fid-lifecycle` | Moving work Backlog → design doc / epic → tickets → Done without orphans or two disagreeing records |
 | `verify-landed` | After any behaviour-changing edit, before calling a fix done. *Removing nothing breaks nothing* — a green build is not evidence your change exists |

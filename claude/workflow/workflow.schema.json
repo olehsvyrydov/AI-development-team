@@ -26,11 +26,12 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["owner", "refusal"],
+        "required": ["owner", "refusal", "phase"],
         "properties": {
           "owner": { "type": "string" },
           "sets": { "type": "string" },
           "refusal": { "type": "string", "enum": ["hard", "soft"] },
+          "phase": { "type": "string", "enum": ["pre_implementation", "pre_done"] },
           "safety_override": { "type": "boolean" },
           "trigger": { "type": "array", "items": { "type": "string" } }
         }

@@ -35,15 +35,18 @@ tracks:
 # `trigger` lists conditions that REQUIRE the gate (regardless of change-class).
 # `refusal: hard` => the agent must not proceed and must name the gate.
 # `safety_override: true` => HARD even on a trivial change (cannot be downsized).
+# `phase` => when the gate must be passed: `pre_implementation` (before code is
+# committed or pushed) or `pre_done` (before the ticket is Done). The commit gate
+# hook blocks only on unmet `hard` gates of the `pre_implementation` phase.
 gates:
-  ARCH_APPROVED:   { owner: "/arch",   sets: "after architecture agreed",   refusal: hard, trigger: [new_service, new_dependency, schema_change, cross_boundary, public_api] }
-  SECOPS_APPROVED: { owner: "/secops", sets: "after security review",       refusal: hard, safety_override: true, trigger: [auth, secrets, pii, file_upload, external_input, network, crypto] }
-  DESIGN_APPROVED: { owner: "/ui",     sets: "after design approved",       refusal: soft, trigger: [visual_change, new_screen] }
-  APPROVAL_GATE:   { owner: "/verify", sets: "ticket ready to implement",   refusal: hard, trigger: [track:full] }
-  CODE_REVIEWED:   { owner: "/rev",    sets: "after code review",           refusal: hard, trigger: [track:standard, track:full] }
-  PERF_OK:         { owner: "/perf",   sets: "after perf budgets met",      refusal: soft, trigger: [perf_budget, hot_path] }
-  VERIFIED:        { owner: "/verify", sets: "final completeness audit",     refusal: hard, trigger: [track:full] }
-  RELIABILITY_OK:  { owner: "/sre",    sets: "reliability/observability ok", refusal: soft, trigger: [prod_deploy, slo, new_service] }
+  ARCH_APPROVED:   { owner: "/arch",   sets: "after architecture agreed",   refusal: hard, phase: pre_implementation, trigger: [new_service, new_dependency, schema_change, cross_boundary, public_api] }
+  SECOPS_APPROVED: { owner: "/secops", sets: "after security review",       refusal: hard, phase: pre_implementation, safety_override: true, trigger: [auth, secrets, pii, file_upload, external_input, network, crypto] }
+  DESIGN_APPROVED: { owner: "/ui",     sets: "after design approved",       refusal: soft, phase: pre_implementation, trigger: [visual_change, new_screen] }
+  APPROVAL_GATE:   { owner: "/verify", sets: "ticket ready to implement",   refusal: hard, phase: pre_implementation, trigger: [track:full] }
+  CODE_REVIEWED:   { owner: "/rev",    sets: "after code review",           refusal: hard, phase: pre_done, trigger: [track:standard, track:full] }
+  PERF_OK:         { owner: "/perf",   sets: "after perf budgets met",      refusal: soft, phase: pre_done, trigger: [perf_budget, hot_path] }
+  VERIFIED:        { owner: "/verify", sets: "final completeness audit",     refusal: hard, phase: pre_done, trigger: [track:full] }
+  RELIABILITY_OK:  { owner: "/sre",    sets: "reliability/observability ok", refusal: soft, phase: pre_done, trigger: [prod_deploy, slo, new_service] }
 
 refusal_policy:
   hard: "Do NOT proceed. State which gate is unmet and invoke its owner agent to resolve it."
@@ -54,7 +57,7 @@ refusal_policy:
 ledger:
   - file: ".workflow-state.json"   # zero-tool default, lives in the repo
   - backlog_md                     # if Backlog.md is present, use its task statuses
-  - mcp: "workflow"                # optional stateful workflow MCP (refuses out-of-order)
+  - mcp: "workflow"                # a stateful workflow MCP, if you provide one (none ships)
   - jira                           # optional; used by the `regulated` preset
 
 # --- 4. Tickets & knowledge base (the Jira/Confluence replacement) ----------
